@@ -1,0 +1,103 @@
+@{
+    ViewData["Title"] = "Appointment History";
+}
+
+@model List<MicroEMR.Application.Scheduling.DTOs.AppointmentHistoryDto>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <h2 class="mb-4">Appointment History</h2>
+
+            @if (Model.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Change Type</th>
+                                <th>Changed By</th>
+                                <th>Previous Time</th>
+                                <th>New Time</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in Model.OrderByDescending(h => h.ChangedAt))
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@entry.ChangedAt.ToString("MMM dd, yyyy HH:mm")</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetBadgeClass(entry.ChangeType)">
+                                            @entry.ChangeType
+                                        </span>
+                                    </td>
+                                    <td>@entry.ChangedByUserName</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.OldStartTime))
+                                        {
+                                            <small>@entry.OldStartTime</small>
+                                        }
+                                        else
+                                        {
+                                            <em>-</em>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.NewStartTime))
+                                        {
+                                            <small>@entry.NewStartTime</small>
+                                        }
+                                        else
+                                        {
+                                            <em>-</em>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(entry.Reason))
+                                        {
+                                            <small>@entry.Reason</small>
+                                        }
+                                        else
+                                        {
+                                            <em>-</em>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No history available for this appointment.
+                </div>
+            }
+
+            <div class="mt-4">
+                <a href="@Url.Action("Index")" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Scheduling
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetBadgeClass(string? changeType)
+    {
+        return changeType switch
+        {
+            "Created" => "bg-success",
+            "Confirmed" => "bg-info",
+            "Rescheduled" => "bg-warning",
+            "Cancelled" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

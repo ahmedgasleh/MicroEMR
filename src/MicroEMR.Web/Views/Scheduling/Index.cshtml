@@ -1,0 +1,250 @@
+@{
+    ViewData["Title"] = "Scheduling";
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Appointment Scheduling</h1>
+    
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">View Calendar</h5>
+                    <p class="card-text">View and manage provider schedules</p>
+                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#selectProviderModal">
+                        <i class="fas fa-calendar"></i> View Calendar
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">New Appointment</h5>
+                    <p class="card-text">Schedule a new patient appointment</p>
+                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
+                        <i class="fas fa-plus"></i> New Appointment
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Manage Blocks</h5>
+                    <p class="card-text">Create resource blocks and maintenance</p>
+                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#resourceBlockModal">
+                        <i class="fas fa-lock"></i> Manage Blocks
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Generate Slots</h5>
+                    <p class="card-text">Create recurring schedule slots</p>
+                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#generateSlotsModal">
+                        <i class="fas fa-cog"></i> Generate Slots
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Select Provider Modal -->
+<div class="modal fade" id="selectProviderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Provider</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="providerSelect" class="form-label">Provider</label>
+                    <select class="form-select" id="providerSelect">
+                        <option value="">-- Select Provider --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="resourceSelect" class="form-label">Resource (Optional)</label>
+                    <select class="form-select" id="resourceSelect">
+                        <option value="">-- All Resources --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="viewCalendar()">View Calendar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Appointment Modal -->
+<div class="modal fade" id="newAppointmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newAppointmentForm" method="post" action="@Url.Action("CreateAppointment")">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="patientSelect" class="form-label">Patient</label>
+                        <input type="text" class="form-control" id="patientSelect" placeholder="Search patient..." />
+                    </div>
+                    <div class="mb-3">
+                        <label for="providerSelect2" class="form-label">Provider</label>
+                        <select class="form-select" id="providerSelect2" name="ProviderId" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="resourceSelect2" class="form-label">Resource (Optional)</label>
+                        <select class="form-select" id="resourceSelect2" name="ClinicResourceId"></select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="appointmentStart" class="form-label">Start Time</label>
+                            <input type="datetime-local" class="form-control" id="appointmentStart" name="StartAt" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="appointmentEnd" class="form-label">End Time</label>
+                            <input type="datetime-local" class="form-control" id="appointmentEnd" name="EndAt" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="appointmentType" class="form-label">Appointment Type</label>
+                        <select class="form-select" id="appointmentType" name="AppointmentType">
+                            <option value="Consultation">Consultation</option>
+                            <option value="Follow-up">Follow-up</option>
+                            <option value="Procedure">Procedure</option>
+                            <option value="Checkup">Checkup</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="appointmentNotes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="appointmentNotes" name="Notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Block Modal -->
+<div class="modal fade" id="resourceBlockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Resource Block</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resourceBlockForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="blockProvider" class="form-label">Provider</label>
+                        <select class="form-select" id="blockProvider" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="blockResource" class="form-label">Resource</label>
+                        <select class="form-select" id="blockResource" required></select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="blockStart" class="form-label">Block Start</label>
+                            <input type="datetime-local" class="form-control" id="blockStart" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="blockEnd" class="form-label">Block End</label>
+                            <input type="datetime-local" class="form-control" id="blockEnd" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="blockType" class="form-label">Block Type</label>
+                        <select class="form-select" id="blockType">
+                            <option value="Break">Break</option>
+                            <option value="Lunch">Lunch</option>
+                            <option value="Training">Training</option>
+                            <option value="Maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="blockReason" class="form-label">Reason</label>
+                        <textarea class="form-control" id="blockReason" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Block</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Slots Modal -->
+<div class="modal fade" id="generateSlotsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Schedule Slots</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="generateSlotsForm" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="slotProvider" class="form-label">Provider</label>
+                        <select class="form-select" id="slotProvider" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slotResource" class="form-label">Resource (Optional)</label>
+                        <select class="form-select" id="slotResource"></select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="slotStartDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="slotStartDate" required />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="slotEndDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="slotEndDate" required />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Available Hours</label>
+                        <div id="timeSlots">
+                            <!-- Time slots will be added here -->
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slotDuration" class="form-label">Slot Duration (minutes)</label>
+                        <select class="form-select" id="slotDuration">
+                            <option value="15" selected>15 minutes</option>
+                            <option value="20">20 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="60">1 hour</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Slots</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/scheduling.js"></script>
+}

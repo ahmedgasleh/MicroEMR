@@ -1,0 +1,6 @@
+@MicroEMR.Api_HostAddress = http://localhost:5298
+
+GET {{MicroEMR.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

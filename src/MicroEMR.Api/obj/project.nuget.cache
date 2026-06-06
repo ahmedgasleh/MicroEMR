@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "k+aIiOJ8lwU=",
+  "success": true,
+  "projectFilePath": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Api\\MicroEMR.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\inadh\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.7\\microsoft.aspnetcore.openapi.10.0.7.nupkg.sha512",
+    "C:\\Users\\inadh\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
