@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MicroEMR.Web.Controllers;
 

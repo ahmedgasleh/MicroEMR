@@ -1,0 +1,31 @@
+@model MicroEMR.Auth.Models.LoginViewModel
+
+<h2>Micro EMR Login</h2>
+
+
+<form method="post">
+
+    <input type="hidden"
+           asp-for="ReturnUrl" />
+
+
+    <div>
+        Email
+        <input asp-for="Email" />
+    </div>
+
+
+    <div>
+        Password
+        <input asp-for="Password" />
+    </div>
+
+
+    <button type="submit">
+        Login
+    </button>
+
+
+    <div asp-validation-summary="All"></div>
+
+</form>

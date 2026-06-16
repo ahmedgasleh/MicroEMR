@@ -3,6 +3,30 @@
   "WorkspaceRootPath": "D:\\Development\\Maui .Net 10\\MicroEMR\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\microemr.auth.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\microemr.auth.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\data\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\data\\applicationuser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\data\\applicationuser.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.auth\\data\\seeddata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6347E94E-5482-6DDC-C865-93A0090E9311}|src\\MicroEMR.Auth\\MicroEMR.Auth.csproj|solutionrelative:src\\microemr.auth\\data\\seeddata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{6558C3A3-2BEC-BC36-A2FD-7884E13EA842}|src\\MicroEMR.Api\\MicroEMR.Api.csproj|d:\\development\\maui .net 10\\microemr\\src\\microemr.api\\controllers\\scheduleslotscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{6558C3A3-2BEC-BC36-A2FD-7884E13EA842}|src\\MicroEMR.Api\\MicroEMR.Api.csproj|solutionrelative:src\\microemr.api\\controllers\\scheduleslotscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -34,8 +58,21 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 7,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MicroEMR.Auth",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\MicroEMR.Auth.csproj",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\MicroEMR.Auth.csproj",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\MicroEMR.Auth.csproj",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\MicroEMR.Auth.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-06-16T14:35:18.355Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:1:0:{fabf9319-47eb-497e-b8f6-d9f73fba5f55}"
@@ -66,20 +103,85 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\appsettings.json",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\appsettings.json",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\appsettings.json",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAABFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-06-16T14:31:00.781Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "SeedData.cs",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\SeedData.cs",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\Data\\SeedData.cs",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\SeedData.cs",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\Data\\SeedData.cs",
+              "ViewState": "AgIAAM4AAAAAAAAAAAAwwPkAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T14:27:56.13Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Program.cs",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\Program.cs",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Program.cs",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\Program.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAAAEQAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T14:23:52.41Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ApplicationDbContext.cs",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\ApplicationDbContext.cs",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\Data\\ApplicationDbContext.cs",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\ApplicationDbContext.cs",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\Data\\ApplicationDbContext.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACEAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T14:23:18.535Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ApplicationUser.cs",
+              "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\ApplicationUser.cs",
+              "RelativeDocumentMoniker": "src\\MicroEMR.Auth\\Data\\ApplicationUser.cs",
+              "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Auth\\Data\\ApplicationUser.cs",
+              "RelativeToolTip": "src\\MicroEMR.Auth\\Data\\ApplicationUser.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T14:22:33.684Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "ScheduleSlotsController.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Api\\Controllers\\ScheduleSlotsController.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Api\\Controllers\\ScheduleSlotsController.cs",
               "ToolTip": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Api\\Controllers\\ScheduleSlotsController.cs",
               "RelativeToolTip": "src\\MicroEMR.Api\\Controllers\\ScheduleSlotsController.cs",
-              "ViewState": "AgIAABgAAAAAAAAAAAAywAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAACQAAAAAAAAAAAAywCYAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-06-04T20:19:51.675Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 7,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Api\\Program.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Api\\Program.cs",
@@ -92,7 +194,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 8,
               "Title": "SchedulingHelper.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Application\\Scheduling\\Utilities\\SchedulingHelper.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Application\\Scheduling\\Utilities\\SchedulingHelper.cs",
@@ -105,7 +207,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 9,
               "Title": "IAppointmentService.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Application\\Scheduling\\Services\\IAppointmentService.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Application\\Scheduling\\Services\\IAppointmentService.cs",
@@ -118,7 +220,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 10,
               "Title": "SchedulingServiceCollectionExtensions.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Application\\Scheduling\\Configuration\\SchedulingServiceCollectionExtensions.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Application\\Scheduling\\Configuration\\SchedulingServiceCollectionExtensions.cs",
@@ -131,7 +233,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 11,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\Development\\Maui .Net 10\\MicroEMR\\src\\MicroEMR.Web\\Program.cs",
               "RelativeDocumentMoniker": "src\\MicroEMR.Web\\Program.cs",

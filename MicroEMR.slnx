@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/MicroEMR.Api/MicroEMR.Api.csproj" />
     <Project Path="src/MicroEMR.Application/MicroEMR.Application.csproj" />
+    <Project Path="src/MicroEMR.Auth/MicroEMR.Auth.csproj" />
     <Project Path="src/MicroEMR.Core/MicroEMR.Core.csproj" />
     <Project Path="src/MicroEMR.Infrastructure/MicroEMR.Infrastructure.csproj" />
     <Project Path="src/MicroEMR.Web/MicroEMR.Web.csproj" />
