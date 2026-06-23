@@ -227,7 +227,14 @@ CREATE TABLE dbo.ScheduleBlock
         FOREIGN KEY (LocationId) REFERENCES dbo.ClinicLocation(LocationId),
 
     CONSTRAINT CK_ScheduleBlock_Time
-        CHECK (EndTime > StartTime)
+        CHECK (EndTime > StartTime),
+    CONSTRAINT CK_ScheduleBlock_Target
+        CHECK
+        (
+            ProviderId IS NOT NULL
+            OR ResourceId IS NOT NULL
+            OR LocationId IS NOT NULL
+        )
 );
 
 <!-- Patient Chart tables --->

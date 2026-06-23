@@ -15,45 +15,57 @@ public class AccountController : Controller
         _signInManager = signInManager;
     }
 
-
     [HttpGet]
     public IActionResult Login(string? returnUrl)
     {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            if (!string.IsNullOrWhiteSpace(returnUrl) &&
+                Url.IsLocalUrl(returnUrl))
+            {
+                return LocalRedirect(returnUrl);
+            }
+
+            return Redirect("/");
+        }
+
         return View(new LoginViewModel
         {
             ReturnUrl = returnUrl
         });
     }
 
-
     [HttpPost]
-    public async Task<IActionResult> Login(LoginViewModel model)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(
+        LoginViewModel model)
     {
         if (!ModelState.IsValid)
+        {
             return View(model);
-
+        }
 
         var result =
             await _signInManager.PasswordSignInAsync(
-                model.Email,
+                model.Username,
                 model.Password,
-                true,
-                false);
-
+                isPersistent: true,
+                lockoutOnFailure: true);
 
         if (!result.Succeeded)
         {
             ModelState.AddModelError(
-                "",
-                "Invalid username or password");
+                string.Empty,
+                "Invalid username or password.");
 
             return View(model);
         }
 
-
-        if (!string.IsNullOrEmpty(model.ReturnUrl))
-            return Redirect(model.ReturnUrl);
-
+        if (!string.IsNullOrWhiteSpace(model.ReturnUrl) &&
+            Url.IsLocalUrl(model.ReturnUrl))
+        {
+            return LocalRedirect(model.ReturnUrl);
+        }
 
         return Redirect("/");
     }

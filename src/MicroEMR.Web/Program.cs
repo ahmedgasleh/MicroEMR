@@ -1,10 +1,35 @@
+using MicroEMR.Web.Services.Patients;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddHttpClient<
+    IPatientApiClient,
+    PatientApiClient>(( serviceProvider, client ) =>
+    {
+        var configuration =
+            serviceProvider.GetRequiredService<IConfiguration>();
+
+        var apiBaseUrl =
+            configuration ["Api:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "The configuration value 'Api:BaseUrl' is missing.");
+
+        client.BaseAddress = new Uri(apiBaseUrl);
+
+        client.Timeout = TimeSpan.FromSeconds(30);
+
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue(
+                "application/json"));
+    });
 
 builder.Services
     .AddAuthentication(options =>
@@ -16,17 +41,23 @@ builder.Services
     {
         options.Cookie.Name = "MicroEMR.Web";
     })
+    
     .AddOpenIdConnect(options =>
     {
-        options.Authority = "https://localhost:7179";
-        options.ClientId = "microemr_web";
-        options.ClientSecret = "change-this-secret";
+        options.Authority =
+           builder.Configuration ["Authentication:Authority"];
+
+        options.ClientId =
+            builder.Configuration ["Authentication:ClientId"];
+
+        options.ClientSecret =
+            builder.Configuration ["Authentication:ClientSecret"];
 
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;
 
         options.SaveTokens = true;
-        options.GetClaimsFromUserInfoEndpoint = true;
+        //options.GetClaimsFromUserInfoEndpoint = true;
 
         options.Scope.Clear();
         options.Scope.Add("openid");
@@ -38,9 +69,16 @@ builder.Services
 
         options.CallbackPath = "/signin-oidc";
         options.SignedOutCallbackPath = "/signout-callback-oidc";
+        options.SignedOutRedirectUri = "/Account/Login";
 
         options.TokenValidationParameters.NameClaimType = "name";
         options.TokenValidationParameters.RoleClaimType = "role";
+        options.Events.OnSignedOutCallbackRedirect = context =>
+        {
+            context.Response.Redirect("/Account/Login");
+            context.HandleResponse();
+            return Task.CompletedTask;
+        };
     });
 
 builder.Services.AddAuthorization();

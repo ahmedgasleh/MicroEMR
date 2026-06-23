@@ -110,3 +110,4 @@ D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Web\bin\Debug\net10.0\Microsof
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Web\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Web\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Web\bin\Debug\net10.0\System.IdentityModel.Tokens.Jwt.dll
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Web\obj\Debug\net10.0\compressed\yk9sb0bykp-{0}-deo1v7156x-deo1v7156x.gz

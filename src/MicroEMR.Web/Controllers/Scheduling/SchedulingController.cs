@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.Scheduling.DTOs;
 using MicroEMR.Application.Scheduling.Services;
+using MicroEMR.Web.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace MicroEMR.Web.Controllers.Scheduling;
-
+[Authorize(Roles = AppRoles.SchedulingStaff)]
 public class SchedulingController : Controller
 {
     private readonly ICalendarService _calendarService;

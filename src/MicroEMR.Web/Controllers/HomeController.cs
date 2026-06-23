@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace MicroEMR.Web.Controllers;
 
+[Authorize]
 public class HomeController : Controller
 {
     public IActionResult Index()

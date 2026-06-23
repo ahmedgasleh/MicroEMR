@@ -1,0 +1,179 @@
+﻿@model MicroEMR.Web.Models.Patients.PatientDetailsResponse
+
+@{
+    ViewData["Title"] = "Patient Chart";
+    ViewData["Subtitle"] = Model.ChartNumber;
+    Layout = "_AppLayout";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success alert-dismissible fade show"
+         role="alert">
+
+        <i class="bi bi-check-circle me-2"></i>
+        @successMessage
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="alert"
+                aria-label="Close">
+        </button>
+    </div>
+}
+
+<div class="content-panel">
+
+    <div class="content-panel-header">
+        <div>
+            <h3>@Model.FullName</h3>
+
+            <p>
+                Chart number:
+                <strong>@Model.ChartNumber</strong>
+            </p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a asp-action="Search"
+               class="btn btn-outline-secondary">
+
+                <i class="bi bi-arrow-left me-1"></i>
+                Back
+            </a>
+
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    disabled>
+
+                <i class="bi bi-pencil me-1"></i>
+                Edit
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Demographics</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Legal name</dt>
+                    <dd class="col-sm-7">@Model.FullName</dd>
+
+                    <dt class="col-sm-5">Preferred name</dt>
+                    <dd class="col-sm-7">
+                        @(Model.PreferredName ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Date of birth</dt>
+                    <dd class="col-sm-7">
+                        @Model.DateOfBirth.ToString("MMMM d, yyyy")
+                    </dd>
+
+                    <dt class="col-sm-5">Sex at birth</dt>
+                    <dd class="col-sm-7">
+                        @(Model.SexAtBirth ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Gender identity</dt>
+                    <dd class="col-sm-7">
+                        @(Model.GenderIdentity ?? "—")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Health card</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Number</dt>
+                    <dd class="col-sm-7">
+                        @(Model.HealthCardNumber ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Version</dt>
+                    <dd class="col-sm-7">
+                        @(Model.HealthCardVersion ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (Model.IsActive)
+                        {
+                            <span class="badge text-bg-success">
+                                Active
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                Inactive
+                            </span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Contact</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Phone</dt>
+                    <dd class="col-sm-7">
+                        @(Model.PhoneNumber ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Alternate phone</dt>
+                    <dd class="col-sm-7">
+                        @(Model.AlternatePhoneNumber ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Email</dt>
+                    <dd class="col-sm-7">
+                        @(Model.Email ?? "—")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Address</h5>
+
+                <address class="mb-0">
+                    @if (!string.IsNullOrWhiteSpace(Model.AddressLine1))
+                    {
+                        <div>@Model.AddressLine1</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Model.AddressLine2))
+                    {
+                        <div>@Model.AddressLine2</div>
+                    }
+
+                    <div>
+                        @string.Join(
+                            ", ",
+                            new[]
+                            {
+                                Model.City,
+                                Model.Province
+                            }
+                            .Where(x =>
+                                !string.IsNullOrWhiteSpace(x)))
+                    </div>
+
+                    <div>@Model.PostalCode</div>
+                    <div>@Model.CountryCode</div>
+                </address>
+            </div>
+        </div>
+
+    </div>
+</div>

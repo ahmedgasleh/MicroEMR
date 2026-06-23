@@ -1,31 +1,142 @@
-@model MicroEMR.Auth.Models.LoginViewModel
+@model LoginViewModel
 
-<h2>Micro EMR Login</h2>
+@{
+    ViewData["Title"] = "Welcome";
+    Layout = "_AuthLayout";
+}
 
+<div class="auth-page">
+    <div class="auth-panel">
 
-<form method="post">
+        <div class="auth-logo" aria-hidden="true">
+            <span class="logo-square logo-square-back"></span>
+            <span class="logo-square logo-square-front"></span>
+        </div>
 
-    <input type="hidden"
-           asp-for="ReturnUrl" />
+        <h1 class="auth-title">Welcome</h1>
 
+        <p class="auth-description">
+           Log in to Micro EMR to continue to your applications.
+        </p>
 
-    <div>
-        Email
-        <input asp-for="Email" />
+        <form asp-controller="Account"
+              asp-action="Login"
+              method="post"
+              class="auth-form">
+
+            @Html.AntiForgeryToken()
+
+            <input asp-for="ReturnUrl" type="hidden" />
+
+            <div asp-validation-summary="ModelOnly"
+                 class="alert alert-danger auth-validation"
+                 role="alert">
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label">
+                    Username or email address
+                </label>
+
+                <input asp-for="Username"
+                       class="form-control auth-input"
+                       autocomplete="username"
+                       autofocus />
+
+                <span asp-validation-for="Username"
+                      class="text-danger validation-message">
+                </span>
+            </div>
+
+            <div class="mb-2">
+                <label asp-for="Password" class="form-label">
+                    Password
+                </label>
+
+                <div class="password-container">
+                    <input asp-for="Password"
+                           class="form-control auth-input"
+                           autocomplete="current-password" />
+
+                    <button type="button"
+                            class="password-toggle"
+                            id="btnTogglePassword"
+                            aria-label="Show password">
+                        <svg id="showPasswordIcon"
+                             xmlns="http://www.w3.org/2000/svg"
+                             width="18"
+                             height="18"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             stroke="currentColor"
+                             stroke-width="2">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    </button>
+                </div>
+
+                <span asp-validation-for="Password"
+                      class="text-danger validation-message">
+                </span>
+            </div>
+
+            <div class="forgot-password-row">
+                <a asp-controller="Account"
+                   asp-action="ForgotPassword"
+                   class="auth-link">
+                    Forgot password?
+                </a>
+            </div>
+
+            <button type="submit"
+                    class="btn btn-primary auth-submit"
+                    id="btnContinue">
+                Continue
+            </button>
+
+            <div class="signup-row">
+                <span>Don't have an account?</span>
+
+                <a asp-controller="Account"
+                   asp-action="Register"
+                   class="auth-link">
+                    Sign up
+                </a>
+            </div>
+        </form>
     </div>
+</div>
 
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 
-    <div>
-        Password
-        <input asp-for="Password" />
-    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const passwordInput = document.getElementById("@Html.IdFor(m => m.Password)");
+            const toggleButton = document.getElementById("btnTogglePassword");
+            const form = document.querySelector(".auth-form");
+            const submitButton = document.getElementById("btnContinue");
 
+            toggleButton?.addEventListener("click", function () {
+                const showPassword = passwordInput.type === "password";
 
-    <button type="submit">
-        Login
-    </button>
+                passwordInput.type = showPassword ? "text" : "password";
 
+                toggleButton.setAttribute(
+                    "aria-label",
+                    showPassword ? "Hide password" : "Show password"
+                );
+            });
 
-    <div asp-validation-summary="All"></div>
+            form?.addEventListener("submit", function () {
+                if (!form.checkValidity()) {
+                    return;
+                }
 
-</form>
+                submitButton.disabled = true;
+                submitButton.innerText = "Continuing...";
+            });
+        });
+    </script>
+}

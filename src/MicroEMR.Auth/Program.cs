@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -49,6 +50,8 @@ builder.Services.AddOpenIddict()
 
         options.RequireProofKeyForCodeExchange();
 
+        options.DisableAccessTokenEncryption();
+
         options.RegisterScopes(
             OpenIddictConstants.Scopes.OpenId,
             OpenIddictConstants.Scopes.Profile,
@@ -56,13 +59,13 @@ builder.Services.AddOpenIddict()
             OpenIddictConstants.Scopes.Roles,
             "microemr_api");
 
-        options.AddDevelopmentEncryptionCertificate()
-               .AddDevelopmentSigningCertificate();
+        // options.AddDevelopmentEncryptionCertificate()
+        //        .AddDevelopmentSigningCertificate();
 
        options.UseAspNetCore()
                 .EnableAuthorizationEndpointPassthrough()
                 .EnableEndSessionEndpointPassthrough();
-               
+        
                
     })
     .AddValidation(options =>
@@ -74,6 +77,8 @@ builder.Services.AddOpenIddict()
 builder.Services.AddHostedService<SeedData>();
 
 var app = builder.Build();
+
+
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

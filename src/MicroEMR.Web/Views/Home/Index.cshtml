@@ -1,8 +1,185 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@using System.Security.Claims
+
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Subtitle"] = "Overview of today's clinic activity";
+    Layout = "_AppLayout";
+
+    var displayName =
+        User.FindFirst("given_name")?.Value
+        ?? User.FindFirst("name")?.Value
+        ?? User.Identity?.Name
+        ?? "User";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container-fluid p-0">
+
+    <section class="dashboard-welcome mb-4">
+        <div>
+            <h2 class="dashboard-welcome-title">
+                Welcome back, @displayName
+            </h2>
+
+            <p class="dashboard-welcome-text">
+                Here is an overview of today's clinic activity.
+            </p>
+        </div>
+
+        <div class="dashboard-date">
+            <i class="bi bi-calendar3 me-2"></i>
+            @DateTime.Now.ToString("dddd, MMMM d, yyyy")
+        </div>
+    </section>
+
+    <div class="row g-4">
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon icon-blue">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+
+                <div>
+                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-label">
+                        Today's Appointments
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon icon-green">
+                    <i class="bi bi-person-check"></i>
+                </div>
+
+                <div>
+                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-label">
+                        Patients Checked In
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon icon-orange">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+
+                <div>
+                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-label">
+                        Waiting
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon icon-purple">
+                    <i class="bi bi-file-earmark-medical"></i>
+                </div>
+
+                <div>
+                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-label">
+                        Documents to Review
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row g-4 mt-1">
+
+        <div class="col-12 col-xl-8">
+            <section class="content-panel">
+                <div class="content-panel-header">
+                    <div>
+                        <h3>Today's Schedule</h3>
+                        <p>Upcoming appointments and clinic resources</p>
+                    </div>
+
+                    <a asp-controller="Scheduling"
+                       asp-action="Index"
+                       class="btn btn-outline-primary btn-sm">
+                        View schedule
+                    </a>
+                </div>
+
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="bi bi-calendar2-week"></i>
+                    </div>
+
+                    <h4>No appointments to display</h4>
+
+                    <p>
+                        Today's appointments will appear here.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <section class="content-panel">
+                <div class="content-panel-header">
+                    <div>
+                        <h3>Quick Actions</h3>
+                        <p>Common application tasks</p>
+                    </div>
+                </div>
+
+                <div class="quick-action-list">
+                    <a asp-controller="Scheduling"
+                       asp-action="Create"
+                       class="quick-action">
+
+                        <span class="quick-action-icon">
+                            <i class="bi bi-calendar-plus"></i>
+                        </span>
+
+                        <span>
+                            <strong>Book appointment</strong>
+                            <small>Create a new appointment</small>
+                        </span>
+                    </a>
+
+                    <a asp-controller="Patients"
+                       asp-action="Search"
+                       class="quick-action">
+
+                        <span class="quick-action-icon">
+                            <i class="bi bi-search"></i>
+                        </span>
+
+                        <span>
+                            <strong>Find patient</strong>
+                            <small>Search patient records</small>
+                        </span>
+                    </a>
+
+                    <a asp-controller="Patients"
+                       asp-action="Create"
+                       class="quick-action">
+
+                        <span class="quick-action-icon">
+                            <i class="bi bi-person-plus"></i>
+                        </span>
+
+                        <span>
+                            <strong>Register patient</strong>
+                            <small>Add a new patient</small>
+                        </span>
+                    </a>
+                </div>
+            </section>
+        </div>
+
+    </div>
 </div>

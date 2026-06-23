@@ -7,13 +7,15 @@ namespace MicroEMR.Auth.Data;
 public class SeedData : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
 
-    public SeedData ( IServiceProvider serviceProvider )
+    public SeedData(IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
     }
 
-    public async Task StartAsync ( CancellationToken cancellationToken )
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         using var scope = _serviceProvider.CreateScope();
 
@@ -29,14 +31,14 @@ public class SeedData : IHostedService
         await SeedAdminUser(userManager);
         await SeedModulesPermissions(db);
         await SeedRolePermissions(db, roleManager);
-        await SeedOpenIddict(appManager, scopeManager, cancellationToken);
+        await SeedOpenIddict(appManager, scopeManager, _configuration,cancellationToken);
     }
 
-    public Task StopAsync ( CancellationToken cancellationToken ) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private static async Task SeedRoles ( RoleManager<IdentityRole> roleManager )
+    private static async Task SeedRoles(RoleManager<IdentityRole> roleManager)
     {
-        string [] roles =
+        string[] roles =
         {
             "SystemAdmin",
             "ClinicAdmin",
@@ -53,7 +55,7 @@ public class SeedData : IHostedService
         }
     }
 
-    private static async Task SeedAdminUser ( UserManager<ApplicationUser> userManager )
+    private static async Task SeedAdminUser(UserManager<ApplicationUser> userManager)
     {
         var email = "admin@microemr.local";
 
@@ -75,7 +77,7 @@ public class SeedData : IHostedService
         }
     }
 
-    private static async Task SeedModulesPermissions ( ApplicationDbContext db )
+    private static async Task SeedModulesPermissions(ApplicationDbContext db)
     {
         if (!await db.AppModules.AnyAsync())
         {
@@ -155,9 +157,9 @@ public class SeedData : IHostedService
         }
     }
 
-    private static async Task SeedRolePermissions (
+    private static async Task SeedRolePermissions(
         ApplicationDbContext db,
-        RoleManager<IdentityRole> roleManager )
+        RoleManager<IdentityRole> roleManager)
     {
         var adminRole = await roleManager.FindByNameAsync("SystemAdmin");
 
@@ -185,65 +187,112 @@ public class SeedData : IHostedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedOpenIddict (
-        IOpenIddictApplicationManager appManager,
-        IOpenIddictScopeManager scopeManager,
-        CancellationToken cancellationToken )
+    private static async Task SeedOpenIddict(
+    IOpenIddictApplicationManager appManager,
+    IOpenIddictScopeManager scopeManager,
+    IConfiguration configuration,
+    CancellationToken cancellationToken)
     {
-        if (await scopeManager.FindByNameAsync("microemr_api", cancellationToken) == null)
+      
+        var clientId =
+        configuration["OpenIddict:WebClientId"]
+        ?? throw new InvalidOperationException(
+            "OpenIddict:WebClientId is missing.");
+            
+        var clientSecret =
+        configuration["OpenIddict:WebClientSecret"]
+        ?? throw new InvalidOperationException(
+            "OpenIddict:WebClientSecret is missing.");
+            
+        const string scopeName = "microemr_api";
+        var existingScope =
+            await scopeManager.FindByNameAsync(
+                scopeName,
+                cancellationToken);
+
+        var scopeDescriptor = new OpenIddictScopeDescriptor
         {
-            await scopeManager.CreateAsync(new OpenIddictScopeDescriptor
-            {
-                Name = "microemr_api",
-                DisplayName = "Micro EMR API",
-                Resources =
-                {
-                    "microemr_api"
-                }
-            }, cancellationToken);
+            Name = scopeName,
+            DisplayName = "Micro EMR API"
+        };
+
+        scopeDescriptor.Resources.Add("microemr_api");
+
+        if (existingScope is null)
+        {
+            await scopeManager.CreateAsync(
+                scopeDescriptor,
+                cancellationToken);
+        }
+        else
+        {
+            await scopeManager.UpdateAsync(
+                existingScope,
+                scopeDescriptor,
+                cancellationToken);
         }
 
-        if (await appManager.FindByClientIdAsync("microemr_web", cancellationToken) == null)
+        var application =
+            await appManager.FindByClientIdAsync(
+                clientId,
+                cancellationToken);
+
+        var applicationDescriptor =
+            new OpenIddictApplicationDescriptor
+            {
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+                DisplayName = "Micro EMR Web Client",
+
+                ClientType =
+                    OpenIddictConstants.ClientTypes.Confidential,
+
+                ConsentType =
+                    OpenIddictConstants.ConsentTypes.Implicit
+            };
+
+        applicationDescriptor.RedirectUris.Add(
+            new Uri("https://localhost:7002/signin-oidc"));
+
+        applicationDescriptor.PostLogoutRedirectUris.Add(
+            new Uri(
+                "https://localhost:7002/signout-callback-oidc"));
+
+        applicationDescriptor.Permissions.UnionWith(
+        [
+            OpenIddictConstants.Permissions.Endpoints.Authorization,
+        OpenIddictConstants.Permissions.Endpoints.Token,
+        OpenIddictConstants.Permissions.Endpoints.EndSession,
+
+        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+        OpenIddictConstants.Permissions.GrantTypes.RefreshToken,
+
+        OpenIddictConstants.Permissions.ResponseTypes.Code,
+
+        OpenIddictConstants.Permissions.Scopes.Profile,
+        OpenIddictConstants.Permissions.Scopes.Email,
+        OpenIddictConstants.Permissions.Scopes.Roles,
+
+        OpenIddictConstants.Permissions.Prefixes.Scope
+            + scopeName
+        ]);
+
+        applicationDescriptor.Requirements.Add(
+            OpenIddictConstants.Requirements.Features
+                .ProofKeyForCodeExchange);
+
+        if (application is null)
         {
-            await appManager.CreateAsync(new OpenIddictApplicationDescriptor
-                {
-                    ClientId = "microemr_web",
-                    DisplayName = "Micro EMR Web Client",
-                    ConsentType = OpenIddictConstants.ConsentTypes.Implicit,
-                    ClientSecret = "change-this-secret",
-
-                    RedirectUris =
-                    {
-                        new Uri("https://localhost:7002/signin-oidc")
-                    },
-
-                    PostLogoutRedirectUris =
-                    {
-                        new Uri("https://localhost:7002/signout-callback-oidc")
-                    },
-
-                    Permissions =
-                    {
-                        OpenIddictConstants.Permissions.Endpoints.Authorization,
-                        OpenIddictConstants.Permissions.Endpoints.Token,
-                        OpenIddictConstants.Permissions.Endpoints.EndSession,
-
-                        OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
-                        OpenIddictConstants.Permissions.GrantTypes.RefreshToken,
-
-                        OpenIddictConstants.Permissions.ResponseTypes.Code,
-
-                        OpenIddictConstants.Permissions.Scopes.Profile,
-                        OpenIddictConstants.Permissions.Scopes.Email,
-                        OpenIddictConstants.Permissions.Scopes.Roles,
-                        OpenIddictConstants.Permissions.Prefixes.Scope + "microemr_api"
-                    },
-
-                    Requirements =
-                    {
-                        OpenIddictConstants.Requirements.Features.ProofKeyForCodeExchange
-                    }
-                }, cancellationToken);
-            }
+            await appManager.CreateAsync(
+                applicationDescriptor,
+                cancellationToken);
+        }
+        else
+        {
+            await appManager.UpdateAsync(
+                application,
+                applicationDescriptor,
+                cancellationToken);
+        }
     }
 }

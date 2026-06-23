@@ -1,0 +1,190 @@
+@using MicroEMR.Web.Authorization
+
+<aside class="app-sidebar" id="appSidebar">
+    <div class="sidebar-brand">
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="sidebar-brand-link">
+
+            <span class="sidebar-logo">
+                <i class="bi bi-heart-pulse-fill"></i>
+            </span>
+
+            <span class="sidebar-brand-text">Micro EMR</span>
+        </a>
+    </div>
+
+    <nav class="sidebar-navigation"
+         aria-label="Application navigation">
+
+        <ul class="sidebar-menu">
+
+            <!-- Dashboard: every authenticated user -->
+            <li class="sidebar-menu-item">
+                <a asp-controller="Home"
+                   asp-action="Index"
+                   class="sidebar-link"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   data-bs-title="Dashboard">
+
+                    <span class="sidebar-icon">
+                        <i class="bi bi-grid-1x2-fill"></i>
+                    </span>
+
+                    <span class="sidebar-text">Dashboard</span>
+                </a>
+            </li>
+
+            @if (User.IsInRole(AppRoles.Administrator) ||
+                 User.IsInRole(AppRoles.Physician) ||
+                 User.IsInRole(AppRoles.Nurse) ||
+                 User.IsInRole(AppRoles.Receptionist) ||
+                 User.IsInRole(AppRoles.MedicalAssistant))
+            {
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Scheduling"
+                       asp-action="Index"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Scheduling">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-calendar3"></i>
+                        </span>
+
+                        <span class="sidebar-text">Scheduling</span>
+                    </a>
+                </li>
+            }
+
+            @if (User.IsInRole(AppRoles.Administrator) ||
+                 User.IsInRole(AppRoles.Physician) ||
+                 User.IsInRole(AppRoles.Nurse) ||
+                 User.IsInRole(AppRoles.MedicalAssistant))
+            {
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Patients"
+                       asp-action="Index"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Patients">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-people-fill"></i>
+                        </span>
+
+                        <span class="sidebar-text">Patients</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item">
+                    <a asp-controller="PatientChart"
+                       asp-action="Index"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Patient Charts">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-clipboard2-pulse-fill"></i>
+                        </span>
+
+                        <span class="sidebar-text">Patient Charts</span>
+                    </a>
+                </li>
+            }
+
+            @if (User.IsInRole(AppRoles.Physician))
+            {
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Documents"
+                       asp-action="Index"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Documents">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-file-earmark-medical-fill"></i>
+                        </span>
+
+                        <span class="sidebar-text">Documents</span>
+                    </a>
+                </li>
+            }
+
+            @if (User.IsInRole(AppRoles.Administrator))
+            {
+                <li class="sidebar-section">
+                    <span class="sidebar-section-text">Administration</span>
+                </li>
+
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Administration"
+                       asp-action="Users"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="User Management">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-person-gear"></i>
+                        </span>
+
+                        <span class="sidebar-text">User Management</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Administration"
+                       asp-action="Resources"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Clinic Resources">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </span>
+
+                        <span class="sidebar-text">Clinic Resources</span>
+                    </a>
+                </li>
+
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Administration"
+                       asp-action="Settings"
+                       class="sidebar-link"
+                       data-bs-toggle="tooltip"
+                       data-bs-placement="right"
+                       data-bs-title="Settings">
+
+                        <span class="sidebar-icon">
+                            <i class="bi bi-gear-fill"></i>
+                        </span>
+
+                        <span class="sidebar-text">Settings</span>
+                    </a>
+                </li>
+            }
+
+        </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+        <button type="button"
+                class="sidebar-collapse-button"
+                id="sidebarCollapseButton"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar">
+
+            <i class="bi bi-chevron-left"
+               id="sidebarCollapseIcon"></i>
+
+            <span class="sidebar-text">Collapse</span>
+        </button>
+    </div>
+</aside>

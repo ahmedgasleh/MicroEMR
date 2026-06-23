@@ -181,7 +181,6 @@ D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\rjsmcsh
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\scopedcss\Views\Shared\_Layout.cshtml.rz.scp.css
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\scopedcss\bundle\MicroEMR.Auth.styles.css
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\scopedcss\projectbundle\MicroEMR.Auth.bundle.scp.css
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\compressed\8d14h2oogt-{0}-b9sayid5wm-b9sayid5wm.gz
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\compressed\6rinzij0b1-{0}-61n19gt1b8-61n19gt1b8.gz
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\compressed\4f9r7d3cpr-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\compressed\5c9bzjhkd9-{0}-bqjiyaj88i-bqjiyaj88i.gz
@@ -256,3 +255,4 @@ D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\refint\
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\MicroEMR.Auth.pdb
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\MicroEMR.Auth.genruntimeconfig.cache
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\ref\MicroEMR.Auth.dll
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Auth\obj\Debug\net10.0\compressed\8d14h2oogt-{0}-0ml5sm3e14-0ml5sm3e14.gz
