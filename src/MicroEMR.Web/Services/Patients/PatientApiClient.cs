@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.WebUtilities;
 using MicroEMR.Web.Models.Patients;
-using MicroEMR.Web.Services.PatientDocuments;
+
 namespace MicroEMR.Web.Services.Patients;
 
 public sealed class PatientApiClient : IPatientApiClient

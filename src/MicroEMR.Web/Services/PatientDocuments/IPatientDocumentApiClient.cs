@@ -5,11 +5,24 @@ namespace MicroEMR.Web.Services.PatientDocuments;
 public interface IPatientDocumentApiClient
 {
     Task<IReadOnlyList<PatientDocumentListItemResponse>>
-        GetByPatientUidAsync (
+        GetByPatientUidAsync(
             Guid patientUid,
-            CancellationToken cancellationToken = default );
+            CancellationToken cancellationToken = default);
 
-    Task<PatientDocumentDetailsResponse?> GetByUidAsync (
+    Task<PatientDocumentDetailsResponse?> GetByUidAsync(
         Guid documentUid,
-        CancellationToken cancellationToken = default );
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DocumentTemplateListItemResponse>>
+        GetActiveTemplatesAsync(
+            CancellationToken cancellationToken = default);
+
+    Task<DocumentTemplateDetailsResponse?> GetTemplateByUidAsync(
+        Guid templateUid,
+        CancellationToken cancellationToken = default);
+
+    Task<PatientDocumentDetailsResponse> CreateAsync(
+        Guid patientUid,
+        CreatePatientDocumentRequest request,
+        CancellationToken cancellationToken = default);
 }

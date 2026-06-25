@@ -118,38 +118,43 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
-public async Task<IActionResult> Details(
-    Guid patientUid,
-    string? tab,
-    CancellationToken cancellationToken)
-{
-    var patient =
-        await _patientApiClient.GetByUidAsync(
-            patientUid,
-            cancellationToken);
-
-    if (patient is null)
+    public async Task<IActionResult> Details(
+        Guid patientUid,
+        string? tab,
+        CancellationToken cancellationToken)
     {
-        return NotFound();
+        if (patientUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        var patient =
+            await _patientApiClient.GetByUidAsync(
+                patientUid,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            return NotFound();
+        }
+
+        var documents =
+            await _patientDocumentApiClient.GetByPatientUidAsync(
+                patientUid,
+                cancellationToken);
+
+        var model = new PatientChartViewModel
+        {
+            Patient = patient,
+            Documents = documents,
+            ActiveTab = string.Equals(
+                tab,
+                "documents",
+                StringComparison.OrdinalIgnoreCase)
+                    ? "documents"
+                    : "demographics"
+        };
+
+        return View(model);
     }
-
-    var documents =
-        await _patientDocumentApiClient.GetByPatientUidAsync(
-            patientUid,
-            cancellationToken);
-
-    var model = new PatientChartViewModel
-    {
-        Patient = patient,
-        Documents = documents,
-        ActiveTab = string.Equals(
-            tab,
-            "documents",
-            StringComparison.OrdinalIgnoreCase)
-                ? "documents"
-                : "demographics"
-    };
-
-    return View(model);
-}
 }

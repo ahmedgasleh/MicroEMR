@@ -11,47 +11,6 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddHttpContextAccessor();
 
-//builder.Services.AddHttpClient<
-//    IPatientApiClient,
-//    PatientApiClient>(( serviceProvider, client ) =>
-//    {
-//        var configuration =
-//            serviceProvider.GetRequiredService<IConfiguration>();
-
-//        var apiBaseUrl =
-//            configuration ["Api:BaseUrl"]
-//            ?? throw new InvalidOperationException(
-//                "The configuration value 'Api:BaseUrl' is missing.");
-
-//        client.BaseAddress = new Uri(apiBaseUrl);
-
-//        client.Timeout = TimeSpan.FromSeconds(30);
-
-//        client.DefaultRequestHeaders.Accept.Add(
-//            new MediaTypeWithQualityHeaderValue(
-//                "application/json"));
-//    });
-
-builder.Services.AddHttpClient<
-    IPatientDocumentApiClient,
-    PatientDocumentApiClient>(( serviceProvider, client ) =>
-    {
-        var configuration =
-            serviceProvider.GetRequiredService<IConfiguration>();
-
-        var apiBaseUrl =
-            configuration ["Api:BaseUrl"]
-            ?? throw new InvalidOperationException(
-                "The configuration value 'Api:BaseUrl' is missing.");
-
-        client.BaseAddress = new Uri(apiBaseUrl);
-        client.Timeout = TimeSpan.FromSeconds(30);
-
-        client.DefaultRequestHeaders.Accept.Add(
-            new MediaTypeWithQualityHeaderValue(
-                "application/json"));
-    });
-
 static void ConfigureApiClient (
     IServiceProvider serviceProvider,
     HttpClient client )
@@ -79,8 +38,6 @@ builder.Services.AddHttpClient<
 builder.Services.AddHttpClient<
     IPatientDocumentApiClient,
     PatientDocumentApiClient>(ConfigureApiClient);
-
-
 
 builder.Services
     .AddAuthentication(options =>

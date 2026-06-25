@@ -288,9 +288,9 @@ public sealed class PatientDocumentRepository
                 reader.GetString(
                     reader.GetOrdinal("Title")),
 
-           /* Status =
+            Status =
                 reader.GetString(
-                    reader.GetOrdinal("DocumentStatus")),*/
+                    reader.GetOrdinal("DocumentStatus")),
 
             CreatedAt =
                 reader.GetDateTime(
@@ -316,12 +316,6 @@ public sealed class PatientDocumentRepository
     private static PatientDocumentDetailsResponse MapDetails(
         SqlDataReader reader)
     {
-        //var rowVersionOrdinal =
-        //    reader.GetOrdinal("RowVersion");
-
-        //var rowVersion =
-        //    (byte[])reader.GetValue(rowVersionOrdinal);
-
         return new PatientDocumentDetailsResponse
         {
             DocumentUid =
@@ -374,8 +368,8 @@ public sealed class PatientDocumentRepository
                     reader,
                     "UpdatedAt"),
 
-            //RowVersion =
-            //    Convert.ToBase64String(rowVersion)
+            RowVersion =
+                GetNullableRowVersion(reader, "RowVersion")
         };
     }
 
@@ -523,5 +517,25 @@ public sealed class PatientDocumentRepository
         return reader.IsDBNull(ordinal)
             ? null
             : reader.GetDateTime(ordinal);
+    }
+
+    private static string GetNullableRowVersion(
+        SqlDataReader reader,
+        string columnName)
+    {
+        try
+        {
+            var ordinal =
+                reader.GetOrdinal(columnName);
+
+            return reader.IsDBNull(ordinal)
+                ? string.Empty
+                : Convert.ToBase64String(
+                    (byte[])reader.GetValue(ordinal));
+        }
+        catch (IndexOutOfRangeException)
+        {
+            return string.Empty;
+        }
     }
 }

@@ -33,6 +33,24 @@ bld/
 [Ll]ogs/
 bin/
 obj/
+**/[Bb]in/
+**/[Bb]in/**
+**/[Oo]bj/
+**/[Oo]bj/**
+**/[Dd]ebug/
+**/[Rr]elease/
+**/publish/
+**/TestResults/
+
+# Local IDE state and generated workspace files
+.vs/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.rsuser
+*.DotSettings.user
+*.slnLaunch.user
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

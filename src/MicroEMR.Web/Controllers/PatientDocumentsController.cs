@@ -20,6 +20,11 @@ public sealed class PatientDocumentsController : Controller
         Guid documentUid,
         CancellationToken cancellationToken )
     {
+        if (documentUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
         var document =
             await _documentApiClient.GetByUidAsync(
                 documentUid,

@@ -1,0 +1,89 @@
+@model MicroEMR.Web.Models.PatientDocuments.PatientDocumentDetailsResponse
+
+@{
+    ViewData["Title"] = Model.Title;
+    ViewData["Subtitle"] = Model.DocumentType;
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>@Model.Title</h3>
+
+            <p>
+                @Model.DocumentType
+            </p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="documents"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-12 col-lg-4">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Document</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Type</dt>
+                    <dd class="col-sm-7">@Model.DocumentType</dd>
+
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (string.Equals(
+                            Model.Status,
+                            "Draft",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-warning">
+                                Draft
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "Signed",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-success">
+                                Signed
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                @Model.Status
+                            </span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Created</dt>
+                    <dd class="col-sm-7">
+                        @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                    </dd>
+
+                    <dt class="col-sm-5">Created by</dt>
+                    <dd class="col-sm-7">
+                        @(Model.CreatedByDisplayName ?? "Unknown")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-8">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Content</h5>
+
+                @* Document content may contain HTML. Render as encoded plain text
+                   until sanitized rich HTML rendering is added with the editor. *@
+                <pre class="mb-0 p-3 bg-light border rounded-3 text-wrap">@Model.Content</pre>
+            </div>
+        </div>
+    </div>
+</div>
