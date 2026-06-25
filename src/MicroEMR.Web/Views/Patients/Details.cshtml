@@ -1,179 +1,327 @@
-﻿@model MicroEMR.Web.Models.Patients.PatientDetailsResponse
+﻿@model MicroEMR.Web.Models.Patients.PatientChartViewModel
 
 @{
-    ViewData["Title"] = "Patient Chart";
-    ViewData["Subtitle"] = Model.ChartNumber;
+    var patient = Model.Patient;
+
+    ViewData ["Title"] = "Patient Chart";
+    ViewData ["Subtitle"] = patient.ChartNumber;
     Layout = "_AppLayout";
+
+    var demographicsActive =
+        Model.ActiveTab == "demographics";
+
+    var documentsActive =
+        Model.ActiveTab == "documents";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
 {
-    <div class="alert alert-success alert-dismissible fade show"
-         role="alert">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
 
         <i class="bi bi-check-circle me-2"></i>
         @successMessage
 
-        <button type="button"
-                class="btn-close"
-                data-bs-dismiss="alert"
-                aria-label="Close">
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
         </button>
     </div>
 }
 
-<div class="content-panel">
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <button class="nav-link @(demographicsActive ? "active" : null)"
+                data-bs-toggle="tab"
+                data-bs-target="#demographics"
+                type="button">
+            Demographics
+        </button>
+    </li>
 
-    <div class="content-panel-header">
-        <div>
-            <h3>@Model.FullName</h3>
+    <li class="nav-item">
+        <button class="nav-link @(documentsActive ? "active" : null)"
+                data-bs-toggle="tab"
+                data-bs-target="#documents"
+                type="button">
+            Documents
+        </button>
+    </li>
 
-            <p>
-                Chart number:
-                <strong>@Model.ChartNumber</strong>
-            </p>
+    <li class="nav-item">
+        <button class="nav-link" disabled>
+            Encounters
+        </button>
+    </li>
+
+    <li class="nav-item">
+        <button class="nav-link" disabled>
+            Allergies
+        </button>
+    </li>
+
+    <li class="nav-item">
+        <button class="nav-link" disabled>
+            Medications
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
+         id="demographics"
+         role="tabpanel">
+
+        <div class="content-panel">
+
+            <div class="content-panel-header">
+                <div>
+                    <h3>@patient.FullName</h3>
+
+                    <p>
+                        Chart number:
+                        <strong>@patient.ChartNumber</strong>
+                    </p>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a asp-action="Search" class="btn btn-outline-secondary">
+
+                        <i class="bi bi-arrow-left me-1"></i>
+                        Back
+                    </a>
+
+                    <button type="button" class="btn btn-outline-primary" disabled>
+
+                        <i class="bi bi-pencil me-1"></i>
+                        Edit
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-1">
+
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <h5 class="mb-3">Demographics</h5>
+
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Legal name</dt>
+                            <dd class="col-sm-7">@patient.FullName</dd>
+
+                            <dt class="col-sm-5">Preferred name</dt>
+                            <dd class="col-sm-7">
+                                @(patient.PreferredName ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Date of birth</dt>
+                            <dd class="col-sm-7">
+                                @patient.DateOfBirth.ToString("MMMM d, yyyy")
+                            </dd>
+
+                            <dt class="col-sm-5">Sex at birth</dt>
+                            <dd class="col-sm-7">
+                                @(patient.SexAtBirth ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Gender identity</dt>
+                            <dd class="col-sm-7">
+                                @(patient.GenderIdentity ?? "—")
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <h5 class="mb-3">Health card</h5>
+
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Number</dt>
+                            <dd class="col-sm-7">
+                                @(patient.HealthCardNumber ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Version</dt>
+                            <dd class="col-sm-7">
+                                @(patient.HealthCardVersion ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Status</dt>
+                            <dd class="col-sm-7">
+                                @if (patient.IsActive)
+                                {
+                                    <span class="badge text-bg-success">
+                                        Active
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">
+                                        Inactive
+                                    </span>
+                                }
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <h5 class="mb-3">Contact</h5>
+
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Phone</dt>
+                            <dd class="col-sm-7">
+                                @(patient.PhoneNumber ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Alternate phone</dt>
+                            <dd class="col-sm-7">
+                                @(patient.AlternatePhoneNumber ?? "—")
+                            </dd>
+
+                            <dt class="col-sm-5">Email</dt>
+                            <dd class="col-sm-7">
+                                @(patient.Email ?? "—")
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <h5 class="mb-3">Address</h5>
+
+                        <address class="mb-0">
+                            @if (!string.IsNullOrWhiteSpace(patient.AddressLine1))
+                            {
+                                <div>@patient.AddressLine1</div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(patient.AddressLine2))
+                            {
+                                <div>@patient.AddressLine2</div>
+                            }
+
+                            <div>
+                                @string.Join(
+                                    ", ",
+                                    new[]
+                                    {
+                                patient.City,
+                                patient.Province
+                                    }
+                                    .Where(x =>
+                                        !string.IsNullOrWhiteSpace(x)))
+                            </div>
+
+                            <div>@patient.PostalCode</div>
+                            <div>@patient.CountryCode</div>
+                        </address>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
-        <div class="d-flex gap-2">
-            <a asp-action="Search"
-               class="btn btn-outline-secondary">
-
-                <i class="bi bi-arrow-left me-1"></i>
-                Back
-            </a>
-
-            <button type="button"
-                    class="btn btn-outline-primary"
-                    disabled>
-
-                <i class="bi bi-pencil me-1"></i>
-                Edit
-            </button>
-        </div>
     </div>
 
-    <div class="row g-4 mt-1">
+    <div class="tab-pane fade @(documentsActive ? "show active" : null)"
+         id="documents"
+         role="tabpanel">
 
-        <div class="col-12 col-lg-6">
-            <div class="border rounded-3 p-3 h-100">
-                <h5 class="mb-3">Demographics</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Patient Documents</h5>
 
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Legal name</dt>
-                    <dd class="col-sm-7">@Model.FullName</dd>
-
-                    <dt class="col-sm-5">Preferred name</dt>
-                    <dd class="col-sm-7">
-                        @(Model.PreferredName ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Date of birth</dt>
-                    <dd class="col-sm-7">
-                        @Model.DateOfBirth.ToString("MMMM d, yyyy")
-                    </dd>
-
-                    <dt class="col-sm-5">Sex at birth</dt>
-                    <dd class="col-sm-7">
-                        @(Model.SexAtBirth ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Gender identity</dt>
-                    <dd class="col-sm-7">
-                        @(Model.GenderIdentity ?? "—")
-                    </dd>
-                </dl>
-            </div>
+            <a asp-controller="PatientDocuments"
+                   asp-action="Create"
+                   asp-route-patientUid="@patient.PatientUid"
+                   class="btn btn-primary">
+                <i class="bi bi-file-earmark-plus me-1"></i>
+                New Document
+            </a>
         </div>
 
-        <div class="col-12 col-lg-6">
-            <div class="border rounded-3 p-3 h-100">
-                <h5 class="mb-3">Health card</h5>
+        @if (Model.Documents.Count == 0)
+        {
+            <div class="alert alert-light border">
+                <i class="bi bi-file-earmark-text me-2"></i>
+                No documents have been created for this patient.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Created by</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
 
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Number</dt>
-                    <dd class="col-sm-7">
-                        @(Model.HealthCardNumber ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Version</dt>
-                    <dd class="col-sm-7">
-                        @(Model.HealthCardVersion ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Status</dt>
-                    <dd class="col-sm-7">
-                        @if (Model.IsActive)
+                    <tbody>
+                        @foreach (var document in Model.Documents)
                         {
-                            <span class="badge text-bg-success">
-                                Active
-                            </span>
+                            <tr>
+                                <td>
+                                    <strong>@document.Title</strong>
+                                </td>
+
+                                <td>@document.DocumentType</td>
+
+                                <td>
+                                    @if (string.Equals(
+                                        document.Status,
+                                        "Draft",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-warning">
+                                            Draft
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        document.Status,
+                                        "Signed",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-success">
+                                            Signed
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            @document.Status
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @document.CreatedAt.ToLocalTime()
+                                    .ToString("MMM d, yyyy h:mm tt")
+                                </td>
+
+                                <td>
+                                    @(document.CreatedByDisplayName
+                                        ?? "Unknown")
+                                </td>
+
+                                <td class="text-end">
+                                    <a asp-controller="PatientDocuments"
+                                           asp-action="Details"
+                                           asp-route-documentUid="@document.DocumentUid"
+                                           class="btn btn-sm btn-outline-primary">
+                                        Open
+                                    </a>
+                                </td>
+                            </tr>
                         }
-                        else
-                        {
-                            <span class="badge text-bg-secondary">
-                                Inactive
-                            </span>
-                        }
-                    </dd>
-                </dl>
+                    </tbody>
+                </table>
             </div>
-        </div>
-
-        <div class="col-12 col-lg-6">
-            <div class="border rounded-3 p-3 h-100">
-                <h5 class="mb-3">Contact</h5>
-
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Phone</dt>
-                    <dd class="col-sm-7">
-                        @(Model.PhoneNumber ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Alternate phone</dt>
-                    <dd class="col-sm-7">
-                        @(Model.AlternatePhoneNumber ?? "—")
-                    </dd>
-
-                    <dt class="col-sm-5">Email</dt>
-                    <dd class="col-sm-7">
-                        @(Model.Email ?? "—")
-                    </dd>
-                </dl>
-            </div>
-        </div>
-
-        <div class="col-12 col-lg-6">
-            <div class="border rounded-3 p-3 h-100">
-                <h5 class="mb-3">Address</h5>
-
-                <address class="mb-0">
-                    @if (!string.IsNullOrWhiteSpace(Model.AddressLine1))
-                    {
-                        <div>@Model.AddressLine1</div>
-                    }
-
-                    @if (!string.IsNullOrWhiteSpace(Model.AddressLine2))
-                    {
-                        <div>@Model.AddressLine2</div>
-                    }
-
-                    <div>
-                        @string.Join(
-                            ", ",
-                            new[]
-                            {
-                                Model.City,
-                                Model.Province
-                            }
-                            .Where(x =>
-                                !string.IsNullOrWhiteSpace(x)))
-                    </div>
-
-                    <div>@Model.PostalCode</div>
-                    <div>@Model.CountryCode</div>
-                </address>
-            </div>
-        </div>
-
+        }
     </div>
 </div>

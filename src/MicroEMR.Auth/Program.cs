@@ -36,44 +36,38 @@ builder.Services.AddOpenIddict()
     .AddCore(options =>
     {
         options.UseEntityFrameworkCore()
-               .UseDbContext<ApplicationDbContext>();
+            .UseDbContext<ApplicationDbContext>();
     })
-    .AddServer(options =>
+   .AddServer(options =>
     {
         options.SetAuthorizationEndpointUris("/connect/authorize");
         options.SetTokenEndpointUris("/connect/token");
-        options.SetUserInfoEndpointUris("/connect/userinfo");
         options.SetEndSessionEndpointUris("/connect/logout");
+        options.SetUserInfoEndpointUris("/connect/userinfo");
 
-        options.AllowAuthorizationCodeFlow()
-               .AllowRefreshTokenFlow();
+        options.AllowAuthorizationCodeFlow();
+        options.AllowRefreshTokenFlow();
 
         options.RequireProofKeyForCodeExchange();
-
-        options.DisableAccessTokenEncryption();
 
         options.RegisterScopes(
             OpenIddictConstants.Scopes.OpenId,
             OpenIddictConstants.Scopes.Profile,
             OpenIddictConstants.Scopes.Email,
             OpenIddictConstants.Scopes.Roles,
+            OpenIddictConstants.Scopes.OfflineAccess,
             "microemr_api");
 
-        // options.AddDevelopmentEncryptionCertificate()
-        //        .AddDevelopmentSigningCertificate();
+        options.AddDevelopmentEncryptionCertificate();
+        options.AddDevelopmentSigningCertificate();
 
-       options.UseAspNetCore()
-                .EnableAuthorizationEndpointPassthrough()
-                .EnableEndSessionEndpointPassthrough();
-        
-               
-    })
-    .AddValidation(options =>
-    {
-        options.UseLocalServer();
-        options.UseAspNetCore();
+        options.UseAspNetCore()
+            .EnableAuthorizationEndpointPassthrough()
+            .EnableEndSessionEndpointPassthrough()
+            .EnableUserInfoEndpointPassthrough();
+
+        // Do not enable token endpoint passthrough.
     });
-
 builder.Services.AddHostedService<SeedData>();
 
 var app = builder.Build();

@@ -1,8 +1,3 @@
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.csproj.AssemblyReference.cache
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.AssemblyInfoInputs.cache
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.AssemblyInfo.cs
-D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.csproj.CoreCompileInputs.cache
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Infrastructure.deps.json
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Infrastructure.dll
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Infrastructure.pdb
@@ -10,6 +5,11 @@ D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Core.dll
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Core.pdb
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\bin\Debug\net10.0\MicroEMR.Application.pdb
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.csproj.AssemblyReference.cache
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.AssemblyInfoInputs.cache
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.AssemblyInfo.cs
+D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.csproj.CoreCompileInputs.cache
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.29F373A0.Up2Date
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\MicroEMR.Infrastructure.dll
 D:\Development\Maui .Net 10\MicroEMR\src\MicroEMR.Infrastructure\obj\Debug\net10.0\refint\MicroEMR.Infrastructure.dll

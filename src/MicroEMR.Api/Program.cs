@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using MicroEMR.Api.Data.Patients;
 using MicroEMR.Api.Services.Patients;
 using Microsoft.OpenApi;
+using MicroEMR.Api.Models.PatientDocuments;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,10 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IPatientService,
     PatientService>();
+
+builder.Services.AddScoped<
+    IPatientDocumentRepository,
+    PatientDocumentRepository>();
 
 var app = builder.Build();
 

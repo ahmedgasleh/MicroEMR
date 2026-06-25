@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MicroEMR.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2eda6e9d450a0651d62fca94e17a4ff9e1af27fb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9141875a08d500b206ec24178ad9a151779adc71")]
 [assembly: System.Reflection.AssemblyProductAttribute("MicroEMR.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MicroEMR.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

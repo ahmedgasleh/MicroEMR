@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Net.Http.Headers;
+using MicroEMR.Web.Services.PatientDocuments;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,9 +11,30 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddHttpContextAccessor();
 
+//builder.Services.AddHttpClient<
+//    IPatientApiClient,
+//    PatientApiClient>(( serviceProvider, client ) =>
+//    {
+//        var configuration =
+//            serviceProvider.GetRequiredService<IConfiguration>();
+
+//        var apiBaseUrl =
+//            configuration ["Api:BaseUrl"]
+//            ?? throw new InvalidOperationException(
+//                "The configuration value 'Api:BaseUrl' is missing.");
+
+//        client.BaseAddress = new Uri(apiBaseUrl);
+
+//        client.Timeout = TimeSpan.FromSeconds(30);
+
+//        client.DefaultRequestHeaders.Accept.Add(
+//            new MediaTypeWithQualityHeaderValue(
+//                "application/json"));
+//    });
+
 builder.Services.AddHttpClient<
-    IPatientApiClient,
-    PatientApiClient>(( serviceProvider, client ) =>
+    IPatientDocumentApiClient,
+    PatientDocumentApiClient>(( serviceProvider, client ) =>
     {
         var configuration =
             serviceProvider.GetRequiredService<IConfiguration>();
@@ -23,13 +45,42 @@ builder.Services.AddHttpClient<
                 "The configuration value 'Api:BaseUrl' is missing.");
 
         client.BaseAddress = new Uri(apiBaseUrl);
-
         client.Timeout = TimeSpan.FromSeconds(30);
 
         client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue(
                 "application/json"));
     });
+
+static void ConfigureApiClient (
+    IServiceProvider serviceProvider,
+    HttpClient client )
+{
+    var configuration =
+        serviceProvider.GetRequiredService<IConfiguration>();
+
+    var apiBaseUrl =
+        configuration ["Api:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "The configuration value 'Api:BaseUrl' is missing.");
+
+    client.BaseAddress = new Uri(apiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
+
+    client.DefaultRequestHeaders.Accept.Add(
+        new MediaTypeWithQualityHeaderValue(
+            "application/json"));
+}
+
+builder.Services.AddHttpClient<
+    IPatientApiClient,
+    PatientApiClient>(ConfigureApiClient);
+
+builder.Services.AddHttpClient<
+    IPatientDocumentApiClient,
+    PatientDocumentApiClient>(ConfigureApiClient);
+
+
 
 builder.Services
     .AddAuthentication(options =>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.Patients;
 using MicroEMR.Web.Services.Patients;
+using MicroEMR.Web.Services.PatientDocuments;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -9,14 +10,17 @@ namespace MicroEMR.Web.Controllers;
 public sealed class PatientsController : Controller
 {
     private readonly IPatientApiClient _patientApiClient;
+    private readonly IPatientDocumentApiClient _patientDocumentApiClient;
     private readonly ILogger<PatientsController> _logger;
 
     public PatientsController(
         IPatientApiClient patientApiClient,
+        IPatientDocumentApiClient patientDocumentApiClient,
         ILogger<PatientsController> logger)
     {
         _patientApiClient = patientApiClient;
         _logger = logger;
+        _patientDocumentApiClient = patientDocumentApiClient;
     }
 
     [HttpGet]
@@ -114,20 +118,38 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Details(
-        Guid patientUid,
-        CancellationToken cancellationToken)
+public async Task<IActionResult> Details(
+    Guid patientUid,
+    string? tab,
+    CancellationToken cancellationToken)
+{
+    var patient =
+        await _patientApiClient.GetByUidAsync(
+            patientUid,
+            cancellationToken);
+
+    if (patient is null)
     {
-        var patient =
-            await _patientApiClient.GetByUidAsync(
-                patientUid,
-                cancellationToken);
-
-        if (patient is null)
-        {
-            return NotFound();
-        }
-
-        return View(patient);
+        return NotFound();
     }
+
+    var documents =
+        await _patientDocumentApiClient.GetByPatientUidAsync(
+            patientUid,
+            cancellationToken);
+
+    var model = new PatientChartViewModel
+    {
+        Patient = patient,
+        Documents = documents,
+        ActiveTab = string.Equals(
+            tab,
+            "documents",
+            StringComparison.OrdinalIgnoreCase)
+                ? "documents"
+                : "demographics"
+    };
+
+    return View(model);
+}
 }
