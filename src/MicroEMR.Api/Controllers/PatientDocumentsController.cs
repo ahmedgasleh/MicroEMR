@@ -2,7 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-using MicroEMR.Api.Models.PatientDocuments;
+using MicroEMR.Application.PatientDocuments.Contracts;
+using MicroEMR.Application.PatientDocuments.Services;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -10,14 +11,14 @@ namespace MicroEMR.Api.Controllers;
 //[Authorize]
 public sealed class PatientDocumentsController : ControllerBase
 {
-    private readonly IPatientDocumentRepository _repository;
+    private readonly IPatientDocumentService _documentService;
     private readonly ILogger<PatientDocumentsController> _logger;
 
     public PatientDocumentsController(
-        IPatientDocumentRepository repository,
+        IPatientDocumentService documentService,
         ILogger<PatientDocumentsController> logger)
     {
-        _repository = repository;
+        _documentService = documentService;
         _logger = logger;
     }
 
@@ -32,7 +33,7 @@ public sealed class PatientDocumentsController : ControllerBase
             CancellationToken cancellationToken)
     {
         var documents =
-            await _repository.GetByPatientUidAsync(
+            await _documentService.GetByPatientUidAsync(
                 patientUid,
                 cancellationToken);
 
@@ -49,7 +50,7 @@ public sealed class PatientDocumentsController : ControllerBase
             CancellationToken cancellationToken)
     {
         var document =
-            await _repository.GetByUidAsync(
+            await _documentService.GetByUidAsync(
                 documentUid,
                 cancellationToken);
 
@@ -78,7 +79,7 @@ public sealed class PatientDocumentsController : ControllerBase
         if (request.TemplateUid.HasValue)
         {
             var template =
-                await _repository.GetTemplateByUidAsync(
+                await _documentService.GetTemplateByUidAsync(
                     request.TemplateUid.Value,
                     cancellationToken);
 
@@ -97,7 +98,7 @@ public sealed class PatientDocumentsController : ControllerBase
         try
         {
             var document =
-                await _repository.CreateAsync(
+                await _documentService.CreateAsync(
                     patientUid,
                     request,
                     createdBy,

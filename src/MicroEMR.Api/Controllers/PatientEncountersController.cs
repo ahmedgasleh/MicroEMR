@@ -1,7 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MicroEMR.Api.Models.PatientEncounters;
+using MicroEMR.Application.PatientEncounters.Contracts;
+using MicroEMR.Application.PatientEncounters.Services;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -10,14 +11,14 @@ namespace MicroEMR.Api.Controllers;
 [AllowAnonymous] // For development only. Remove this attribute when API token validation is enabled consistently.
 public sealed class PatientEncountersController : ControllerBase
 {
-    private readonly IPatientEncounterRepository _repository;
+    private readonly IPatientEncounterService _encounterService;
     private readonly ILogger<PatientEncountersController> _logger;
 
     public PatientEncountersController(
-        IPatientEncounterRepository repository,
+        IPatientEncounterService encounterService,
         ILogger<PatientEncountersController> logger)
     {
-        _repository = repository;
+        _encounterService = encounterService;
         _logger = logger;
     }
 
@@ -36,7 +37,7 @@ public sealed class PatientEncountersController : ControllerBase
         }
 
         var encounters =
-            await _repository.GetByPatientUidAsync(
+            await _encounterService.GetByPatientUidAsync(
                 patientUid,
                 cancellationToken);
 
@@ -59,7 +60,7 @@ public sealed class PatientEncountersController : ControllerBase
         }
 
         var encounter =
-            await _repository.GetByUidAsync(
+            await _encounterService.GetByUidAsync(
                 encounterUid,
                 cancellationToken);
 
@@ -112,7 +113,7 @@ public sealed class PatientEncountersController : ControllerBase
         try
         {
             var encounter =
-                await _repository.CreateAsync(
+                await _encounterService.CreateAsync(
                     patientUid,
                     request,
                     GetAuthenticatedUserId(),

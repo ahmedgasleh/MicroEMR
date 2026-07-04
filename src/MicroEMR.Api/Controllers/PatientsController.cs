@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +8,9 @@ using System.Reflection.Emit;
 using System.Security.Claims;
 using System.Security.Cryptography.Xml;
 
-using MicroEMR.Api.Contracts.Patients;
-using MicroEMR.Api.Data.Patients;
-using MicroEMR.Api.Services.Patients;
+using MicroEMR.Application.Patients.Contracts;
+using MicroEMR.Application.Patients.Exceptions;
+using MicroEMR.Application.Patients.Services;
 
 namespace MicroEMR.Api.Controllers;
 

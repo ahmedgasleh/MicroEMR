@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-using MicroEMR.Api.Models.PatientDocuments;
+using MicroEMR.Application.PatientDocuments.Contracts;
+using MicroEMR.Application.PatientDocuments.Services;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -10,12 +11,12 @@ namespace MicroEMR.Api.Controllers;
 [Route("api/document-templates")]
 public sealed class DocumentTemplatesController : ControllerBase
 {
-    private readonly IPatientDocumentRepository _repository;
+    private readonly IPatientDocumentService _documentService;
 
     public DocumentTemplatesController(
-        IPatientDocumentRepository repository)
+        IPatientDocumentService documentService)
     {
-        _repository = repository;
+        _documentService = documentService;
     }
 
     [HttpGet]
@@ -27,7 +28,7 @@ public sealed class DocumentTemplatesController : ControllerBase
         CancellationToken cancellationToken)
     {
         var templates =
-            await _repository.GetActiveTemplatesAsync(
+            await _documentService.GetActiveTemplatesAsync(
                 cancellationToken);
 
         return Ok(templates);
@@ -43,7 +44,7 @@ public sealed class DocumentTemplatesController : ControllerBase
             CancellationToken cancellationToken)
     {
         var template =
-            await _repository.GetTemplateByUidAsync(
+            await _documentService.GetTemplateByUidAsync(
                 templateUid,
                 cancellationToken);
 
