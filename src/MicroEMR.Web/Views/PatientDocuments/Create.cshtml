@@ -1,0 +1,225 @@
+@model MicroEMR.Web.Models.PatientDocuments.CreatePatientDocumentViewModel
+
+@{
+    ViewData["Title"] = "New Patient Document";
+    ViewData["Subtitle"] = "Save a draft document";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>New Patient Document</h3>
+            <p>Create a draft document for this patient</p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="documents"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <form asp-action="Create"
+          method="post"
+          class="mt-4">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="PatientUid"
+               type="hidden" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="ModelOnly"
+                 class="alert alert-danger">
+            </div>
+        }
+
+        <div id="templateLoadError"
+             class="alert alert-danger d-none"
+             role="alert">
+            Unable to load the selected template. Please try again.
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="TemplateUid"
+                       class="form-label">
+                    Template
+                </label>
+
+                <select asp-for="TemplateUid"
+                        class="form-select"
+                        id="templateUid">
+                    <option value="">-- Select a template --</option>
+
+                    @foreach (var template in Model.Templates)
+                    {
+                        <option value="@template.TemplateUid">
+                            @template.TemplateName
+                        </option>
+                    }
+                </select>
+
+                <span asp-validation-for="TemplateUid"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label asp-for="DocumentType"
+                       class="form-label">
+                    Document Type
+                </label>
+
+                <input asp-for="DocumentType"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="DocumentType"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-8">
+                <label asp-for="Title"
+                       class="form-label">
+                </label>
+
+                <input asp-for="Title"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="Title"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Content"
+                       class="form-label">
+                </label>
+
+                <textarea asp-for="Content"
+                          class="form-control font-monospace"
+                          rows="18"></textarea>
+
+                <div class="form-text">
+                    Rich-text editing will be added in a later step.
+                </div>
+
+                <span asp-validation-for="Content"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <a asp-controller="Patients"
+               asp-action="Details"
+               asp-route-patientUid="@Model.PatientUid"
+               asp-route-tab="documents"
+               class="btn btn-outline-secondary">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    id="btnSaveDraft">
+                <i class="bi bi-save me-1"></i>
+                Save Draft
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const templateSelect =
+                document.getElementById("templateUid");
+
+            const documentTypeInput =
+                document.getElementById("DocumentType");
+
+            const titleInput =
+                document.getElementById("Title");
+
+            const contentInput =
+                document.getElementById("Content");
+
+            const templateLoadError =
+                document.getElementById("templateLoadError");
+
+            const form = document.querySelector("form");
+
+            const submitButton =
+                document.getElementById("btnSaveDraft");
+
+            const templateUrl =
+                '@Url.Action("GetTemplate", "PatientDocuments")';
+
+            templateSelect?.addEventListener("change", async function () {
+                const templateUid = templateSelect.value;
+
+                templateLoadError?.classList.add("d-none");
+
+                if (!templateUid) {
+                    return;
+                }
+
+                try {
+                    templateSelect.disabled = true;
+
+                    const response = await fetch(
+                        `${templateUrl}?templateUid=${encodeURIComponent(templateUid)}`,
+                        {
+                            headers: {
+                                "Accept": "application/json"
+                            }
+                        });
+
+                    if (!response.ok) {
+                        throw new Error("Template request failed.");
+                    }
+
+                    const template = await response.json();
+
+                    documentTypeInput.value =
+                        template.documentType ?? "";
+
+                    contentInput.value =
+                        template.templateContent ?? "";
+
+                    if (!titleInput.value.trim()) {
+                        titleInput.value =
+                            template.templateName ?? "";
+                    }
+                }
+                catch {
+                    templateLoadError?.classList.remove("d-none");
+                }
+                finally {
+                    templateSelect.disabled = false;
+                }
+            });
+
+            form?.addEventListener("submit", function () {
+                if (!form.checkValidity()) {
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                    'Saving...';
+            });
+        });
+    </script>
+}

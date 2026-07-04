@@ -119,6 +119,33 @@ public sealed class PatientApiClient : IPatientApiClient
                    "The API created the patient but returned no patient data.");
     }
 
+    public async Task<PatientDetailsResponse> UpdateDemographicsAsync(
+        Guid patientUid,
+        UpdatePatientDemographicsRequest patientRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/patients/{patientUid}")
+        {
+            Content = JsonContent.Create(patientRequest)
+        };
+
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            cancellationToken);
+
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content
+                   .ReadFromJsonAsync<PatientDetailsResponse>(
+                       cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException(
+                   "The API updated the patient but returned no patient data.");
+    }
+
     private async Task AddBearerTokenAsync (
         HttpRequestMessage request )
     {

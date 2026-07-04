@@ -135,7 +135,7 @@ IF COL_LENGTH('dbo.PatientDocument', 'DocumentStatus') IS NULL
 BEGIN
     ALTER TABLE dbo.PatientDocument
         ADD DocumentStatus NVARCHAR(50) NOT NULL
-            CONSTRAINT DF_PatientDocument_DocumentStatus DEFAULT N'Active'
+            CONSTRAINT DF_PatientDocument_DocumentStatus DEFAULT N'Draft'
             WITH VALUES;
 END;
 GO
@@ -413,7 +413,7 @@ BEGIN
         @TemplateUid,
         @Title,
         @DocumentType,
-        N'Active',
+        N'Draft',
         SYSUTCDATETIME(),
         SYSUTCDATETIME(),
         @CreatedBy,

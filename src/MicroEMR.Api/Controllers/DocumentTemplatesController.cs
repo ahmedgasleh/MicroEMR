@@ -6,7 +6,7 @@ using MicroEMR.Api.Models.PatientDocuments;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[AllowAnonymous] // For development only. Remove this attribute in production.
 [Route("api/document-templates")]
 public sealed class DocumentTemplatesController : ControllerBase
 {

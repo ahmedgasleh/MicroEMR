@@ -57,4 +57,25 @@ public sealed class PatientService : IPatientService
             createdBy,
             cancellationToken);
     }
+
+    public Task<PatientDetailsResponse?> UpdateDemographicsAsync(
+        Guid patientUid,
+        UpdatePatientDemographicsRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.DateOfBirth.HasValue &&
+            request.DateOfBirth.Value >
+            DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            throw new ArgumentException(
+                "Date of birth cannot be in the future.");
+        }
+
+        return _patientRepository.UpdateDemographicsAsync(
+            patientUid,
+            request,
+            updatedBy,
+            cancellationToken);
+    }
 }

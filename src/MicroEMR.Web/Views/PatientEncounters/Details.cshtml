@@ -1,0 +1,121 @@
+@model MicroEMR.Web.Models.PatientEncounters.PatientEncounterDetailsResponse
+
+@{
+    ViewData["Title"] = "Encounter";
+    ViewData["Subtitle"] = Model.EncounterType;
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>Encounter</h3>
+
+            <p>
+                @Model.EncounterType
+            </p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="encounters"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Encounter</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Date/time</dt>
+                    <dd class="col-sm-7">
+                        @Model.EncounterDateUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                    </dd>
+
+                    <dt class="col-sm-5">Type</dt>
+                    <dd class="col-sm-7">@Model.EncounterType</dd>
+
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (string.Equals(
+                            Model.Status,
+                            "Open",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-primary">
+                                Open
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "Closed",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-secondary">
+                                Closed
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "Cancelled",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-danger">
+                                Cancelled
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                @Model.Status
+                            </span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Provider</dt>
+                    <dd class="col-sm-7">
+                        @(Model.ProviderName ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Location</dt>
+                    <dd class="col-sm-7">
+                        @(Model.LocationName ?? "—")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Audit</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Created by</dt>
+                    <dd class="col-sm-7">
+                        @(Model.CreatedByDisplayName ?? "Unknown")
+                    </dd>
+
+                    <dt class="col-sm-5">Created</dt>
+                    <dd class="col-sm-7">
+                        @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="border rounded-3 p-3">
+                <h5 class="mb-3">Reason for Visit</h5>
+
+                <p class="mb-0">
+                    @(Model.ReasonForVisit ?? "—")
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

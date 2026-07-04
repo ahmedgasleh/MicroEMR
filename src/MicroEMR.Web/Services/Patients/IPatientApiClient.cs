@@ -18,4 +18,9 @@ public interface IPatientApiClient
     Task<PatientDetailsResponse> CreateAsync (
         CreatePatientRequest request,
         CancellationToken cancellationToken = default );
+
+    Task<PatientDetailsResponse> UpdateDemographicsAsync(
+        Guid patientUid,
+        UpdatePatientDemographicsRequest request,
+        CancellationToken cancellationToken = default);
 }

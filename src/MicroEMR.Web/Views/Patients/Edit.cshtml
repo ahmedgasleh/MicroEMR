@@ -1,0 +1,402 @@
+@model MicroEMR.Web.Models.Patients.EditPatientDemographicsViewModel
+
+@{
+    ViewData["Title"] = "Edit Patient Demographics";
+    ViewData["Subtitle"] = Model.ChartNumber;
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>Edit Patient Demographics</h3>
+            <p>
+                Chart number:
+                <strong>@Model.ChartNumber</strong>
+            </p>
+        </div>
+
+        <a asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="demographics"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <form asp-action="Edit"
+          method="post"
+          class="mt-4">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="PatientUid"
+               type="hidden" />
+
+        <input asp-for="RowVersion"
+               type="hidden" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="ModelOnly"
+                 class="alert alert-danger">
+            </div>
+        }
+
+        <h5 class="mb-3">Demographics</h5>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label asp-for="FirstName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="FirstName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="FirstName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="MiddleName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="MiddleName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="MiddleName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="LastName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="LastName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="LastName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="PreferredName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="PreferredName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="PreferredName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="DateOfBirth"
+                       class="form-label">
+                </label>
+
+                <input asp-for="DateOfBirth"
+                       type="date"
+                       class="form-control" />
+
+                <span asp-validation-for="DateOfBirth"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="SexAtBirth"
+                       class="form-label">
+                </label>
+
+                <select asp-for="SexAtBirth"
+                        class="form-select">
+                    <option value="">Select</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Intersex">Intersex</option>
+                    <option value="Unknown">Unknown</option>
+                </select>
+
+                <span asp-validation-for="SexAtBirth"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="GenderIdentity"
+                       class="form-label">
+                </label>
+
+                <input asp-for="GenderIdentity"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="GenderIdentity"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <div class="form-check mt-md-4 pt-md-2">
+                    <input asp-for="IsActive"
+                           class="form-check-input" />
+
+                    <label asp-for="IsActive"
+                           class="form-check-label">
+                        Active patient
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <h5 class="mb-3">Health card</h5>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label asp-for="HealthCardNumber"
+                       class="form-label">
+                </label>
+
+                <input asp-for="HealthCardNumber"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="HealthCardNumber"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label asp-for="HealthCardVersion"
+                       class="form-label">
+                </label>
+
+                <input asp-for="HealthCardVersion"
+                       class="form-control text-uppercase"
+                       maxlength="10"
+                       autocomplete="off" />
+
+                <span asp-validation-for="HealthCardVersion"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <h5 class="mb-3">Contact</h5>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label asp-for="PhoneNumber"
+                       class="form-label">
+                </label>
+
+                <input asp-for="PhoneNumber"
+                       class="form-control"
+                       autocomplete="tel" />
+
+                <span asp-validation-for="PhoneNumber"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="AlternatePhoneNumber"
+                       class="form-label">
+                </label>
+
+                <input asp-for="AlternatePhoneNumber"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="AlternatePhoneNumber"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="Email"
+                       class="form-label">
+                </label>
+
+                <input asp-for="Email"
+                       type="email"
+                       class="form-control"
+                       autocomplete="email" />
+
+                <span asp-validation-for="Email"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <h5 class="mb-3">Address</h5>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label asp-for="AddressLine1"
+                       class="form-label">
+                </label>
+
+                <input asp-for="AddressLine1"
+                       class="form-control"
+                       autocomplete="address-line1" />
+
+                <span asp-validation-for="AddressLine1"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label asp-for="AddressLine2"
+                       class="form-label">
+                </label>
+
+                <input asp-for="AddressLine2"
+                       class="form-control"
+                       autocomplete="address-line2" />
+
+                <span asp-validation-for="AddressLine2"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label asp-for="City"
+                       class="form-label">
+                </label>
+
+                <input asp-for="City"
+                       class="form-control"
+                       autocomplete="address-level2" />
+
+                <span asp-validation-for="City"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label asp-for="Province"
+                       class="form-label">
+                </label>
+
+                <select asp-for="Province"
+                        class="form-select">
+                    <option value="">Select</option>
+                    <option value="Ontario">Ontario</option>
+                    <option value="Quebec">Quebec</option>
+                    <option value="British Columbia">British Columbia</option>
+                    <option value="Alberta">Alberta</option>
+                    <option value="Manitoba">Manitoba</option>
+                    <option value="Saskatchewan">Saskatchewan</option>
+                    <option value="Nova Scotia">Nova Scotia</option>
+                    <option value="New Brunswick">New Brunswick</option>
+                    <option value="Newfoundland and Labrador">
+                        Newfoundland and Labrador
+                    </option>
+                    <option value="Prince Edward Island">
+                        Prince Edward Island
+                    </option>
+                    <option value="Northwest Territories">
+                        Northwest Territories
+                    </option>
+                    <option value="Nunavut">Nunavut</option>
+                    <option value="Yukon">Yukon</option>
+                </select>
+
+                <span asp-validation-for="Province"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label asp-for="PostalCode"
+                       class="form-label">
+                </label>
+
+                <input asp-for="PostalCode"
+                       class="form-control text-uppercase"
+                       autocomplete="postal-code" />
+
+                <span asp-validation-for="PostalCode"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label asp-for="CountryCode"
+                       class="form-label">
+                    Country
+                </label>
+
+                <select asp-for="CountryCode"
+                        class="form-select">
+                    <option value="CA">Canada</option>
+                    <option value="US">United States</option>
+                </select>
+
+                <span asp-validation-for="CountryCode"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <a asp-action="Details"
+               asp-route-patientUid="@Model.PatientUid"
+               asp-route-tab="demographics"
+               class="btn btn-outline-secondary">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    id="btnSavePatient">
+                <i class="bi bi-save me-1"></i>
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const submitButton =
+                document.getElementById("btnSavePatient");
+
+            form?.addEventListener("submit", function () {
+                if (!form.checkValidity()) {
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                    'Saving...';
+            });
+        });
+    </script>
+}

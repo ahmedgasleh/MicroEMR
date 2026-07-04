@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Net.Http.Headers;
 using MicroEMR.Web.Services.PatientDocuments;
+using MicroEMR.Web.Services.PatientEncounters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,10 @@ builder.Services.AddHttpClient<
 builder.Services.AddHttpClient<
     IPatientDocumentApiClient,
     PatientDocumentApiClient>(ConfigureApiClient);
+
+builder.Services.AddHttpClient<
+    IPatientEncounterApiClient,
+    PatientEncounterApiClient>(ConfigureApiClient);
 
 builder.Services
     .AddAuthentication(options =>

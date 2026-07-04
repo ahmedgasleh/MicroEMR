@@ -311,6 +311,228 @@ public sealed class PatientRepository : IPatientRepository
         }
     }
 
+    public async Task<PatientDetailsResponse?> UpdateDemographicsAsync(
+        Guid patientUid,
+        UpdatePatientDemographicsRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        byte[] rowVersion;
+
+        try
+        {
+            rowVersion = Convert.FromBase64String(request.RowVersion);
+        }
+        catch (FormatException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Invalid row version supplied for patient {PatientUid}.",
+                patientUid);
+
+            throw new PatientDemographicsConcurrencyException();
+        }
+
+        await using var connection =
+            new SqlConnection(_connectionString);
+
+        await using var command =
+            new SqlCommand("dbo.Patient_UpdateDemographics", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+
+        command.Parameters.Add(
+            new SqlParameter(
+                "@PatientUid",
+                SqlDbType.UniqueIdentifier)
+            {
+                Value = patientUid
+            });
+
+        AddRequiredString(
+            command,
+            "@FirstName",
+            SqlDbType.NVarChar,
+            100,
+            request.FirstName);
+
+        AddNullableString(
+            command,
+            "@MiddleName",
+            SqlDbType.NVarChar,
+            100,
+            request.MiddleName);
+
+        AddRequiredString(
+            command,
+            "@LastName",
+            SqlDbType.NVarChar,
+            100,
+            request.LastName);
+
+        AddNullableString(
+            command,
+            "@PreferredName",
+            SqlDbType.NVarChar,
+            100,
+            request.PreferredName);
+
+        command.Parameters.Add(
+            new SqlParameter("@DateOfBirth", SqlDbType.Date)
+            {
+                Value = request.DateOfBirth!.Value
+                    .ToDateTime(TimeOnly.MinValue)
+            });
+
+        AddNullableString(
+            command,
+            "@SexAtBirth",
+            SqlDbType.NVarChar,
+            20,
+            request.SexAtBirth);
+
+        AddNullableString(
+            command,
+            "@GenderIdentity",
+            SqlDbType.NVarChar,
+            50,
+            request.GenderIdentity);
+
+        AddNullableString(
+            command,
+            "@HealthCardNumber",
+            SqlDbType.NVarChar,
+            50,
+            request.HealthCardNumber);
+
+        AddNullableString(
+            command,
+            "@HealthCardVersion",
+            SqlDbType.NVarChar,
+            10,
+            request.HealthCardVersion);
+
+        AddNullableString(
+            command,
+            "@PhoneNumber",
+            SqlDbType.NVarChar,
+            30,
+            request.PhoneNumber);
+
+        AddNullableString(
+            command,
+            "@AlternatePhoneNumber",
+            SqlDbType.NVarChar,
+            30,
+            request.AlternatePhoneNumber);
+
+        AddNullableString(
+            command,
+            "@Email",
+            SqlDbType.NVarChar,
+            255,
+            request.Email);
+
+        AddNullableString(
+            command,
+            "@AddressLine1",
+            SqlDbType.NVarChar,
+            255,
+            request.AddressLine1);
+
+        AddNullableString(
+            command,
+            "@AddressLine2",
+            SqlDbType.NVarChar,
+            255,
+            request.AddressLine2);
+
+        AddNullableString(
+            command,
+            "@City",
+            SqlDbType.NVarChar,
+            100,
+            request.City);
+
+        AddNullableString(
+            command,
+            "@Province",
+            SqlDbType.NVarChar,
+            50,
+            request.Province);
+
+        AddNullableString(
+            command,
+            "@PostalCode",
+            SqlDbType.NVarChar,
+            20,
+            request.PostalCode);
+
+        AddRequiredString(
+            command,
+            "@CountryCode",
+            SqlDbType.Char,
+            2,
+            string.IsNullOrWhiteSpace(request.CountryCode)
+                ? "CA"
+                : request.CountryCode);
+
+        command.Parameters.Add(
+            new SqlParameter("@IsActive", SqlDbType.Bit)
+            {
+                Value = request.IsActive
+            });
+
+        command.Parameters.Add(
+            new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
+            {
+                Value = updatedBy.HasValue
+                    ? updatedBy.Value
+                    : DBNull.Value
+            });
+
+        command.Parameters.Add(
+            new SqlParameter("@RowVersion", SqlDbType.VarBinary, 8)
+            {
+                Value = rowVersion
+            });
+
+        await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var reader =
+                await command.ExecuteReaderAsync(cancellationToken);
+
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            return MapDetails(reader);
+        }
+        catch (SqlException exception)
+            when (exception.Number == 51020)
+        {
+            return null;
+        }
+        catch (SqlException exception)
+            when (exception.Number == 51021)
+        {
+            throw new PatientDemographicsConcurrencyException();
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to update demographics for patient {PatientUid}.",
+                patientUid);
+
+            throw;
+        }
+    }
+
     private static PatientListItemResponse MapListItem (
         SqlDataReader reader )
     {

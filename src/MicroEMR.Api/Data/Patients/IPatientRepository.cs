@@ -20,4 +20,10 @@ public interface IPatientRepository
         CreatePatientRequest request,
         long? createdBy,
         CancellationToken cancellationToken = default );
+
+    Task<PatientDetailsResponse?> UpdateDemographicsAsync(
+        Guid patientUid,
+        UpdatePatientDemographicsRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
 }

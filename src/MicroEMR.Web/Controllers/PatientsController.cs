@@ -1,8 +1,11 @@
+using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Models.Patients;
 using MicroEMR.Web.Services.Patients;
 using MicroEMR.Web.Services.PatientDocuments;
+using MicroEMR.Web.Services.PatientEncounters;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -11,16 +14,19 @@ public sealed class PatientsController : Controller
 {
     private readonly IPatientApiClient _patientApiClient;
     private readonly IPatientDocumentApiClient _patientDocumentApiClient;
+    private readonly IPatientEncounterApiClient _patientEncounterApiClient;
     private readonly ILogger<PatientsController> _logger;
 
     public PatientsController(
         IPatientApiClient patientApiClient,
         IPatientDocumentApiClient patientDocumentApiClient,
+        IPatientEncounterApiClient patientEncounterApiClient,
         ILogger<PatientsController> logger)
     {
         _patientApiClient = patientApiClient;
         _logger = logger;
         _patientDocumentApiClient = patientDocumentApiClient;
+        _patientEncounterApiClient = patientEncounterApiClient;
     }
 
     [HttpGet]
@@ -118,6 +124,116 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Edit(
+        Guid patientUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        var patient =
+            await _patientApiClient.GetByUidAsync(
+                patientUid,
+                cancellationToken);
+
+        if (patient is null)
+        {
+            return NotFound();
+        }
+
+        return View(MapEditViewModel(patient));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        EditPatientDemographicsViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        try
+        {
+            await _patientApiClient.UpdateDemographicsAsync(
+                model.PatientUid,
+                MapUpdateRequest(model),
+                cancellationToken);
+
+            TempData["SuccessMessage"] =
+                "Patient demographics updated successfully.";
+
+            return RedirectToAction(
+                nameof(Details),
+                new
+                {
+                    patientUid = model.PatientUid,
+                    tab = "demographics"
+                });
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.BadRequest)
+        {
+            _logger.LogWarning(
+                exception,
+                "The patient API rejected a demographics update for patient {PatientUid}.",
+                model.PatientUid);
+
+            ModelState.AddModelError(
+                string.Empty,
+                "The patient could not be updated. Review the fields and try again.");
+
+            return View(model);
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            _logger.LogWarning(
+                exception,
+                "Concurrency conflict while updating patient {PatientUid}.",
+                model.PatientUid);
+
+            ModelState.AddModelError(
+                string.Empty,
+                "This patient was updated by another user. Reload the form and try again.");
+
+            return View(model);
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            _logger.LogWarning(
+                exception,
+                "Patient {PatientUid} was not found during demographics update.",
+                model.PatientUid);
+
+            return NotFound();
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Unable to update patient {PatientUid}.",
+                model.PatientUid);
+
+            ModelState.AddModelError(
+                string.Empty,
+                "The patient could not be updated. Please try again.");
+
+            return View(model);
+        }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Details(
         Guid patientUid,
         string? tab,
@@ -143,18 +259,130 @@ public sealed class PatientsController : Controller
                 patientUid,
                 cancellationToken);
 
+        var encounters =
+            await LoadEncountersForChartAsync(
+                patientUid,
+                cancellationToken);
+
         var model = new PatientChartViewModel
         {
             Patient = patient,
             Documents = documents,
-            ActiveTab = string.Equals(
-                tab,
-                "documents",
-                StringComparison.OrdinalIgnoreCase)
-                    ? "documents"
-                    : "demographics"
+            Encounters = encounters,
+            ActiveTab = NormalizePatientChartTab(tab)
         };
 
         return View(model);
+    }
+
+    private async Task<IReadOnlyList<PatientEncounterListItemResponse>>
+        LoadEncountersForChartAsync(
+            Guid patientUid,
+            CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _patientEncounterApiClient.GetByPatientUidAsync(
+                patientUid,
+                cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load encounters for patient {PatientUid} because the API rejected the access token.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Encounters could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientEncounterListItemResponse>();
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load encounters for patient {PatientUid} because the API returned unauthorized.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Encounters could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientEncounterListItemResponse>();
+        }
+    }
+
+    private static string NormalizePatientChartTab(
+        string? tab)
+    {
+        return tab?.ToLowerInvariant() switch
+        {
+            "documents" => "documents",
+            "encounters" => "encounters",
+            _ => "demographics"
+        };
+    }
+
+    private static EditPatientDemographicsViewModel MapEditViewModel(
+        PatientDetailsResponse patient)
+    {
+        return new EditPatientDemographicsViewModel
+        {
+            PatientUid = patient.PatientUid,
+            ChartNumber = patient.ChartNumber,
+            FirstName = patient.FirstName,
+            MiddleName = patient.MiddleName,
+            LastName = patient.LastName,
+            PreferredName = patient.PreferredName,
+            DateOfBirth = patient.DateOfBirth,
+            SexAtBirth = patient.SexAtBirth,
+            GenderIdentity = patient.GenderIdentity,
+            HealthCardNumber = patient.HealthCardNumber,
+            HealthCardVersion = patient.HealthCardVersion,
+            PhoneNumber = patient.PhoneNumber,
+            AlternatePhoneNumber = patient.AlternatePhoneNumber,
+            Email = patient.Email,
+            AddressLine1 = patient.AddressLine1,
+            AddressLine2 = patient.AddressLine2,
+            City = patient.City,
+            Province = patient.Province,
+            PostalCode = patient.PostalCode,
+            CountryCode = string.IsNullOrWhiteSpace(patient.CountryCode)
+                ? "CA"
+                : patient.CountryCode,
+            IsActive = patient.IsActive,
+            RowVersion = patient.RowVersion
+        };
+    }
+
+    private static UpdatePatientDemographicsRequest MapUpdateRequest(
+        EditPatientDemographicsViewModel model)
+    {
+        return new UpdatePatientDemographicsRequest
+        {
+            FirstName = model.FirstName,
+            MiddleName = model.MiddleName,
+            LastName = model.LastName,
+            PreferredName = model.PreferredName,
+            DateOfBirth = model.DateOfBirth,
+            SexAtBirth = model.SexAtBirth,
+            GenderIdentity = model.GenderIdentity,
+            HealthCardNumber = model.HealthCardNumber,
+            HealthCardVersion = model.HealthCardVersion,
+            PhoneNumber = model.PhoneNumber,
+            AlternatePhoneNumber = model.AlternatePhoneNumber,
+            Email = model.Email,
+            AddressLine1 = model.AddressLine1,
+            AddressLine2 = model.AddressLine2,
+            City = model.City,
+            Province = model.Province,
+            PostalCode = model.PostalCode,
+            CountryCode = string.IsNullOrWhiteSpace(model.CountryCode)
+                ? "CA"
+                : model.CountryCode,
+            IsActive = model.IsActive,
+            RowVersion = model.RowVersion
+        };
     }
 }

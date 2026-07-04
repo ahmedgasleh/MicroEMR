@@ -1,0 +1,162 @@
+@model MicroEMR.Web.Models.PatientEncounters.CreatePatientEncounterViewModel
+
+@{
+    ViewData["Title"] = "New Encounter";
+    ViewData["Subtitle"] = "Patient encounter";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>New Encounter</h3>
+            <p>Create an encounter for this patient</p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="encounters"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <form asp-action="Create"
+          method="post"
+          class="mt-4">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="PatientUid"
+               type="hidden" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="ModelOnly"
+                 class="alert alert-danger">
+            </div>
+        }
+
+        <div class="row g-3">
+            <div class="col-12 col-lg-4">
+                <label asp-for="EncounterDateLocal"
+                       class="form-label">
+                </label>
+
+                <input asp-for="EncounterDateLocal"
+                       type="datetime-local"
+                       class="form-control" />
+
+                <span asp-validation-for="EncounterDateLocal"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label asp-for="EncounterType"
+                       class="form-label">
+                </label>
+
+                <select asp-for="EncounterType"
+                        class="form-select">
+                    <option value="">Select</option>
+                    <option value="Office Visit">Office Visit</option>
+                    <option value="Phone Visit">Phone Visit</option>
+                    <option value="Virtual Visit">Virtual Visit</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="Consultation">Consultation</option>
+                    <option value="Procedure">Procedure</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <span asp-validation-for="EncounterType"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label asp-for="ProviderName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="ProviderName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="ProviderName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <label asp-for="LocationName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="LocationName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="LocationName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="ReasonForVisit"
+                       class="form-label">
+                </label>
+
+                <textarea asp-for="ReasonForVisit"
+                          class="form-control"
+                          rows="4"></textarea>
+
+                <span asp-validation-for="ReasonForVisit"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <a asp-controller="Patients"
+               asp-action="Details"
+               asp-route-patientUid="@Model.PatientUid"
+               asp-route-tab="encounters"
+               class="btn btn-outline-secondary">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    id="btnSaveEncounter">
+                <i class="bi bi-save me-1"></i>
+                Save
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const submitButton =
+                document.getElementById("btnSaveEncounter");
+
+            form?.addEventListener("submit", function () {
+                if (!form.checkValidity()) {
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                    'Saving...';
+            });
+        });
+    </script>
+}

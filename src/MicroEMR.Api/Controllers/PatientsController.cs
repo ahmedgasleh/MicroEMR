@@ -5,9 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics.Metrics;
 using System.Drawing;
 using System.Reflection.Emit;
+using System.Security.Claims;
 using System.Security.Cryptography.Xml;
 
 using MicroEMR.Api.Contracts.Patients;
+using MicroEMR.Api.Data.Patients;
 using MicroEMR.Api.Services.Patients;
 
 namespace MicroEMR.Api.Controllers;
@@ -19,11 +21,14 @@ namespace MicroEMR.Api.Controllers;
 public sealed class PatientsController : ControllerBase
 {
     private readonly IPatientService _patientService;
+    private readonly ILogger<PatientsController> _logger;
 
     public PatientsController (
-        IPatientService patientService )
+        IPatientService patientService,
+        ILogger<PatientsController> logger )
     {
         _patientService = patientService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -106,5 +111,84 @@ public sealed class PatientsController : ControllerBase
                 patientUid = patient.PatientUid
             },
             patient);
+    }
+
+    [HttpPut("{patientUid:guid}")]
+    [ProducesResponseType(
+        typeof(PatientDetailsResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<PatientDetailsResponse>>
+        UpdateDemographics(
+            Guid patientUid,
+            [FromBody] UpdatePatientDemographicsRequest request,
+            CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var patient =
+                await _patientService.UpdateDemographicsAsync(
+                    patientUid,
+                    request,
+                    GetAuthenticatedUserId(),
+                    cancellationToken);
+
+            if (patient is null)
+            {
+                return NotFound(new
+                {
+                    message = "Patient was not found."
+                });
+            }
+
+            return Ok(patient);
+        }
+        catch (PatientDemographicsConcurrencyException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Concurrency conflict while updating patient {PatientUid}.",
+                patientUid);
+
+            return Conflict(new
+            {
+                message = exception.Message
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to update demographics for patient {PatientUid}.",
+                patientUid);
+
+            throw;
+        }
+    }
+
+    private long? GetAuthenticatedUserId()
+    {
+        var userIdValue =
+            User.FindFirstValue("user_id")
+            ?? User.FindFirstValue("userid")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        return long.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
     }
 }
