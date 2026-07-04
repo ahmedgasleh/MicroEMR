@@ -1,0 +1,155 @@
+@model MicroEMR.Web.Models.PatientMedications.PatientMedicationDetailsResponse
+
+@{
+    ViewData["Title"] = Model.MedicationName;
+    ViewData["Subtitle"] = "Medication";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>@Model.MedicationName</h3>
+
+            <p>
+                @(Model.Strength ?? "Medication")
+            </p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="medications"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Medication</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Medication</dt>
+                    <dd class="col-sm-7">@Model.MedicationName</dd>
+
+                    <dt class="col-sm-5">Strength</dt>
+                    <dd class="col-sm-7">@(Model.Strength ?? "-")</dd>
+
+                    <dt class="col-sm-5">Dosage form</dt>
+                    <dd class="col-sm-7">@(Model.DosageForm ?? "-")</dd>
+
+                    <dt class="col-sm-5">Route</dt>
+                    <dd class="col-sm-7">@(Model.Route ?? "-")</dd>
+
+                    <dt class="col-sm-5">Frequency</dt>
+                    <dd class="col-sm-7">@(Model.Frequency ?? "-")</dd>
+
+                    <dt class="col-sm-5">Start date</dt>
+                    <dd class="col-sm-7">
+                        @(Model.StartDate.HasValue
+                            ? Model.StartDate.Value.ToString("MMM d, yyyy")
+                            : "-")
+                    </dd>
+
+                    <dt class="col-sm-5">End date</dt>
+                    <dd class="col-sm-7">
+                        @(Model.EndDate.HasValue
+                            ? Model.EndDate.Value.ToString("MMM d, yyyy")
+                            : "-")
+                    </dd>
+
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (string.Equals(
+                            Model.Status,
+                            "Active",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-success">
+                                Active
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "Discontinued",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-warning">
+                                Discontinued
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "EnteredInError",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-danger">
+                                Entered In Error
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                @Model.Status
+                            </span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Audit</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Prescriber</dt>
+                    <dd class="col-sm-7">@(Model.PrescriberName ?? "-")</dd>
+
+                    <dt class="col-sm-5">Created by</dt>
+                    <dd class="col-sm-7">
+                        @(Model.CreatedByDisplayName ?? "Unknown")
+                    </dd>
+
+                    <dt class="col-sm-5">Created</dt>
+                    <dd class="col-sm-7">
+                        @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="border rounded-3 p-3">
+                <h5 class="mb-3">Directions</h5>
+
+                <p class="mb-0">
+                    @(Model.Directions ?? "-")
+                </p>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Indication</h5>
+
+                <p class="mb-0">
+                    @(Model.Indication ?? "-")
+                </p>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Notes</h5>
+
+                <p class="mb-0">
+                    @(Model.Notes ?? "-")
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

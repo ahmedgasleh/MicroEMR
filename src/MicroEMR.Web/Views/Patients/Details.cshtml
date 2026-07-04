@@ -15,6 +15,12 @@
 
     var encountersActive =
         Model.ActiveTab == "encounters";
+
+    var allergiesActive =
+        Model.ActiveTab == "allergies";
+
+    var medicationsActive =
+        Model.ActiveTab == "medications";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -70,13 +76,19 @@
     </li>
 
     <li class="nav-item">
-        <button class="nav-link" disabled>
+        <button class="nav-link @(allergiesActive ? "active" : null)"
+                data-bs-toggle="tab"
+                data-bs-target="#allergies"
+                type="button">
             Allergies
         </button>
     </li>
 
     <li class="nav-item">
-        <button class="nav-link" disabled>
+        <button class="nav-link @(medicationsActive ? "active" : null)"
+                data-bs-toggle="tab"
+                data-bs-target="#medications"
+                type="button">
             Medications
         </button>
     </li>
@@ -445,6 +457,281 @@
                                     <a asp-controller="PatientEncounters"
                                        asp-action="Details"
                                        asp-route-encounterUid="@encounter.EncounterUid"
+                                       class="btn btn-sm btn-outline-primary">
+                                        Open
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="tab-pane fade @(allergiesActive ? "show active" : null)"
+         id="allergies"
+         role="tabpanel">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Patient Allergies</h5>
+
+            <a asp-controller="PatientAllergies"
+               asp-action="Create"
+               asp-route-patientUid="@patient.PatientUid"
+               class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>
+                Add Allergy
+            </a>
+        </div>
+
+        @if (Model.Allergies.Count == 0)
+        {
+            <div class="alert alert-light border">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No allergies have been recorded for this patient.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Allergen</th>
+                            <th>Type</th>
+                            <th>Reaction</th>
+                            <th>Severity</th>
+                            <th>Onset</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var allergy in Model.Allergies)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@allergy.AllergenName</strong>
+                                </td>
+
+                                <td>
+                                    @(allergy.AllergenType ?? "—")
+                                </td>
+
+                                <td>
+                                    @(allergy.Reaction ?? "—")
+                                </td>
+
+                                <td>
+                                    @if (string.Equals(
+                                        allergy.Severity,
+                                        "Severe",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-danger">
+                                            Severe
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        allergy.Severity,
+                                        "Moderate",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-warning">
+                                            Moderate
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        allergy.Severity,
+                                        "Mild",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-info">
+                                            Mild
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            @(allergy.Severity ?? "Unknown")
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @(allergy.OnsetDate.HasValue
+                                        ? allergy.OnsetDate.Value.ToString("MMM d, yyyy")
+                                        : "—")
+                                </td>
+
+                                <td>
+                                    @if (string.Equals(
+                                        allergy.Status,
+                                        "Active",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-success">
+                                            Active
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        allergy.Status,
+                                        "Inactive",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            Inactive
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        allergy.Status,
+                                        "EnteredInError",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-danger">
+                                            Entered In Error
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            @allergy.Status
+                                        </span>
+                                    }
+                                </td>
+
+                                <td class="text-end">
+                                    <a asp-controller="PatientAllergies"
+                                       asp-action="Details"
+                                       asp-route-allergyUid="@allergy.AllergyUid"
+                                       class="btn btn-sm btn-outline-primary">
+                                        Open
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="tab-pane fade @(medicationsActive ? "show active" : null)"
+         id="medications"
+         role="tabpanel">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Patient Medications</h5>
+
+            <a asp-controller="PatientMedications"
+               asp-action="Create"
+               asp-route-patientUid="@patient.PatientUid"
+               class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>
+                Add Medication
+            </a>
+        </div>
+
+        @if (Model.Medications.Count == 0)
+        {
+            <div class="alert alert-light border">
+                <i class="bi bi-capsule me-2"></i>
+                No medications have been recorded for this patient.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Medication</th>
+                            <th>Strength</th>
+                            <th>Directions</th>
+                            <th>Frequency</th>
+                            <th>Start</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var medication in Model.Medications)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@medication.MedicationName</strong>
+                                </td>
+
+                                <td>
+                                    @(medication.Strength ?? "—")
+                                </td>
+
+                                <td>
+                                    @(medication.Directions ?? "—")
+                                </td>
+
+                                <td>
+                                    @(medication.Frequency ?? "—")
+                                </td>
+
+                                <td>
+                                    @(medication.StartDate.HasValue
+                                        ? medication.StartDate.Value.ToString("MMM d, yyyy")
+                                        : "—")
+                                </td>
+
+                                <td>
+                                    @if (string.Equals(
+                                        medication.Status,
+                                        "Active",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-success">
+                                            Active
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        medication.Status,
+                                        "Inactive",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            Inactive
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        medication.Status,
+                                        "Discontinued",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-warning">
+                                            Discontinued
+                                        </span>
+                                    }
+                                    else if (string.Equals(
+                                        medication.Status,
+                                        "EnteredInError",
+                                        StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge text-bg-danger">
+                                            Entered In Error
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-secondary">
+                                            @medication.Status
+                                        </span>
+                                    }
+                                </td>
+
+                                <td class="text-end">
+                                    <a asp-controller="PatientMedications"
+                                       asp-action="Details"
+                                       asp-route-medicationUid="@medication.MedicationUid"
                                        class="btn btn-sm btn-outline-primary">
                                         Open
                                     </a>

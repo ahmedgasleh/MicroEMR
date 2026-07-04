@@ -1,0 +1,261 @@
+@model MicroEMR.Web.Models.PatientMedications.CreatePatientMedicationViewModel
+
+@{
+    ViewData["Title"] = "Add Medication";
+    ViewData["Subtitle"] = "Patient medication";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>Add Medication</h3>
+            <p>Record a medication for this patient</p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="medications"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <form asp-action="Create"
+          method="post"
+          class="mt-4">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="PatientUid"
+               type="hidden" />
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="ModelOnly"
+                 class="alert alert-danger">
+            </div>
+        }
+
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <label asp-for="MedicationName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="MedicationName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="MedicationName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="Strength"
+                       class="form-label">
+                </label>
+
+                <input asp-for="Strength"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="Strength"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="Frequency"
+                       class="form-label">
+                </label>
+
+                <input asp-for="Frequency"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="Frequency"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="DosageForm"
+                       class="form-label">
+                </label>
+
+                <select asp-for="DosageForm"
+                        class="form-select">
+                    <option value="">Select</option>
+                    <option value="Tablet">Tablet</option>
+                    <option value="Capsule">Capsule</option>
+                    <option value="Liquid">Liquid</option>
+                    <option value="Injection">Injection</option>
+                    <option value="Inhaler">Inhaler</option>
+                    <option value="Cream">Cream</option>
+                    <option value="Ointment">Ointment</option>
+                    <option value="Patch">Patch</option>
+                    <option value="Drops">Drops</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <span asp-validation-for="DosageForm"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="Route"
+                       class="form-label">
+                </label>
+
+                <select asp-for="Route"
+                        class="form-select">
+                    <option value="">Select</option>
+                    <option value="Oral">Oral</option>
+                    <option value="Sublingual">Sublingual</option>
+                    <option value="Topical">Topical</option>
+                    <option value="Inhaled">Inhaled</option>
+                    <option value="Subcutaneous">Subcutaneous</option>
+                    <option value="Intramuscular">Intramuscular</option>
+                    <option value="Intravenous">Intravenous</option>
+                    <option value="Ophthalmic">Ophthalmic</option>
+                    <option value="Otic">Otic</option>
+                    <option value="Nasal">Nasal</option>
+                    <option value="Other">Other</option>
+                </select>
+
+                <span asp-validation-for="Route"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="StartDate"
+                       class="form-label">
+                </label>
+
+                <input asp-for="StartDate"
+                       type="date"
+                       class="form-control" />
+
+                <span asp-validation-for="StartDate"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label asp-for="EndDate"
+                       class="form-label">
+                </label>
+
+                <input asp-for="EndDate"
+                       type="date"
+                       class="form-control" />
+
+                <span asp-validation-for="EndDate"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Directions"
+                       class="form-label">
+                </label>
+
+                <textarea asp-for="Directions"
+                          class="form-control"
+                          rows="3"></textarea>
+
+                <span asp-validation-for="Directions"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <label asp-for="Indication"
+                       class="form-label">
+                </label>
+
+                <input asp-for="Indication"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="Indication"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <label asp-for="PrescriberName"
+                       class="form-label">
+                </label>
+
+                <input asp-for="PrescriberName"
+                       class="form-control"
+                       autocomplete="off" />
+
+                <span asp-validation-for="PrescriberName"
+                      class="text-danger">
+                </span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Notes"
+                       class="form-label">
+                </label>
+
+                <textarea asp-for="Notes"
+                          class="form-control"
+                          rows="4"></textarea>
+
+                <span asp-validation-for="Notes"
+                      class="text-danger">
+                </span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <a asp-controller="Patients"
+               asp-action="Details"
+               asp-route-patientUid="@Model.PatientUid"
+               asp-route-tab="medications"
+               class="btn btn-outline-secondary">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    id="btnSaveMedication">
+                <i class="bi bi-save me-1"></i>
+                Save
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const submitButton =
+                document.getElementById("btnSaveMedication");
+
+            form?.addEventListener("submit", function () {
+                if (!form.checkValidity()) {
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                    'Saving...';
+            });
+        });
+    </script>
+}

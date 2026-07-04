@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Net.Http.Headers;
+using MicroEMR.Web.Services.PatientAllergies;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
+using MicroEMR.Web.Services.PatientMedications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,12 +39,20 @@ builder.Services.AddHttpClient<
     PatientApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<
+    IPatientAllergyApiClient,
+    PatientAllergyApiClient>(ConfigureApiClient);
+
+builder.Services.AddHttpClient<
     IPatientDocumentApiClient,
     PatientDocumentApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<
     IPatientEncounterApiClient,
     PatientEncounterApiClient>(ConfigureApiClient);
+
+builder.Services.AddHttpClient<
+    IPatientMedicationApiClient,
+    PatientMedicationApiClient>(ConfigureApiClient);
 
 builder.Services
     .AddAuthentication(options =>

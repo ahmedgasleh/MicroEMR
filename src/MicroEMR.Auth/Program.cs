@@ -49,6 +49,7 @@ builder.Services.AddOpenIddict()
         options.AllowRefreshTokenFlow();
 
         options.RequireProofKeyForCodeExchange();
+        options.DisableAccessTokenEncryption();
 
         options.RegisterScopes(
             OpenIddictConstants.Scopes.OpenId,

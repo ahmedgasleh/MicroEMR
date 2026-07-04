@@ -1,11 +1,15 @@
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MicroEMR.Web.Models.PatientAllergies;
 using MicroEMR.Web.Models.PatientEncounters;
+using MicroEMR.Web.Models.PatientMedications;
 using MicroEMR.Web.Models.Patients;
+using MicroEMR.Web.Services.PatientAllergies;
 using MicroEMR.Web.Services.Patients;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
+using MicroEMR.Web.Services.PatientMedications;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -13,20 +17,26 @@ namespace MicroEMR.Web.Controllers;
 public sealed class PatientsController : Controller
 {
     private readonly IPatientApiClient _patientApiClient;
+    private readonly IPatientAllergyApiClient _patientAllergyApiClient;
     private readonly IPatientDocumentApiClient _patientDocumentApiClient;
     private readonly IPatientEncounterApiClient _patientEncounterApiClient;
+    private readonly IPatientMedicationApiClient _patientMedicationApiClient;
     private readonly ILogger<PatientsController> _logger;
 
     public PatientsController(
         IPatientApiClient patientApiClient,
+        IPatientAllergyApiClient patientAllergyApiClient,
         IPatientDocumentApiClient patientDocumentApiClient,
         IPatientEncounterApiClient patientEncounterApiClient,
+        IPatientMedicationApiClient patientMedicationApiClient,
         ILogger<PatientsController> logger)
     {
         _patientApiClient = patientApiClient;
+        _patientAllergyApiClient = patientAllergyApiClient;
         _logger = logger;
         _patientDocumentApiClient = patientDocumentApiClient;
         _patientEncounterApiClient = patientEncounterApiClient;
+        _patientMedicationApiClient = patientMedicationApiClient;
     }
 
     [HttpGet]
@@ -264,15 +274,103 @@ public sealed class PatientsController : Controller
                 patientUid,
                 cancellationToken);
 
+        var allergies =
+            await LoadAllergiesForChartAsync(
+                patientUid,
+                cancellationToken);
+
+        var medications =
+            await LoadMedicationsForChartAsync(
+                patientUid,
+                cancellationToken);
+
         var model = new PatientChartViewModel
         {
             Patient = patient,
             Documents = documents,
             Encounters = encounters,
+            Allergies = allergies,
+            Medications = medications,
             ActiveTab = NormalizePatientChartTab(tab)
         };
 
         return View(model);
+    }
+
+    private async Task<IReadOnlyList<PatientMedicationListItemResponse>>
+        LoadMedicationsForChartAsync(
+            Guid patientUid,
+            CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _patientMedicationApiClient.GetByPatientUidAsync(
+                patientUid,
+                cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load medications for patient {PatientUid} because the API rejected the access token.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Medications could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientMedicationListItemResponse>();
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load medications for patient {PatientUid} because the API returned unauthorized.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Medications could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientMedicationListItemResponse>();
+        }
+    }
+
+    private async Task<IReadOnlyList<PatientAllergyListItemResponse>>
+        LoadAllergiesForChartAsync(
+            Guid patientUid,
+            CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _patientAllergyApiClient.GetByPatientUidAsync(
+                patientUid,
+                cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load allergies for patient {PatientUid} because the API rejected the access token.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Allergies could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientAllergyListItemResponse>();
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            _logger.LogWarning(
+                exception,
+                "Unable to load allergies for patient {PatientUid} because the API returned unauthorized.",
+                patientUid);
+
+            TempData["WarningMessage"] =
+                "Allergies could not be loaded. Sign in again or restart the API service.";
+
+            return Array.Empty<PatientAllergyListItemResponse>();
+        }
     }
 
     private async Task<IReadOnlyList<PatientEncounterListItemResponse>>
@@ -318,8 +416,10 @@ public sealed class PatientsController : Controller
     {
         return tab?.ToLowerInvariant() switch
         {
+            "allergies" => "allergies",
             "documents" => "documents",
             "encounters" => "encounters",
+            "medications" => "medications",
             _ => "demographics"
         };
     }

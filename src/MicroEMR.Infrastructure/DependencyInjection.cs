@@ -1,8 +1,12 @@
+using MicroEMR.Application.PatientAllergies.Repositories;
 using MicroEMR.Application.PatientDocuments.Repositories;
 using MicroEMR.Application.PatientEncounters.Repositories;
+using MicroEMR.Application.PatientMedications.Repositories;
 using MicroEMR.Application.Patients.Repositories;
+using MicroEMR.Infrastructure.PatientAllergies;
 using MicroEMR.Infrastructure.PatientDocuments;
 using MicroEMR.Infrastructure.PatientEncounters;
+using MicroEMR.Infrastructure.PatientMedications;
 using MicroEMR.Infrastructure.Patients;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,8 +18,10 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
         services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
         services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();
+        services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
 
         return services;
     }

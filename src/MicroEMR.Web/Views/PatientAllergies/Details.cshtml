@@ -1,0 +1,151 @@
+@model MicroEMR.Web.Models.PatientAllergies.PatientAllergyDetailsResponse
+
+@{
+    ViewData["Title"] = Model.AllergenName;
+    ViewData["Subtitle"] = "Allergy";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>@Model.AllergenName</h3>
+
+            <p>
+                @(Model.AllergenType ?? "Allergy")
+            </p>
+        </div>
+
+        <a asp-controller="Patients"
+           asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="allergies"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            Back to Patient Chart
+        </a>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Allergy</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Allergen</dt>
+                    <dd class="col-sm-7">@Model.AllergenName</dd>
+
+                    <dt class="col-sm-5">Type</dt>
+                    <dd class="col-sm-7">
+                        @(Model.AllergenType ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Reaction</dt>
+                    <dd class="col-sm-7">
+                        @(Model.Reaction ?? "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Severity</dt>
+                    <dd class="col-sm-7">
+                        @if (string.Equals(
+                            Model.Severity,
+                            "Severe",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-danger">
+                                Severe
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Severity,
+                            "Moderate",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-warning">
+                                Moderate
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Severity,
+                            "Mild",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-info">
+                                Mild
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                @(Model.Severity ?? "Unknown")
+                            </span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Onset date</dt>
+                    <dd class="col-sm-7">
+                        @(Model.OnsetDate.HasValue
+                            ? Model.OnsetDate.Value.ToString("MMM d, yyyy")
+                            : "—")
+                    </dd>
+
+                    <dt class="col-sm-5">Status</dt>
+                    <dd class="col-sm-7">
+                        @if (string.Equals(
+                            Model.Status,
+                            "Active",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-success">
+                                Active
+                            </span>
+                        }
+                        else if (string.Equals(
+                            Model.Status,
+                            "EnteredInError",
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge text-bg-danger">
+                                Entered In Error
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">
+                                @Model.Status
+                            </span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="border rounded-3 p-3 h-100">
+                <h5 class="mb-3">Audit</h5>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Created by</dt>
+                    <dd class="col-sm-7">
+                        @(Model.CreatedByDisplayName ?? "Unknown")
+                    </dd>
+
+                    <dt class="col-sm-5">Created</dt>
+                    <dd class="col-sm-7">
+                        @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="border rounded-3 p-3">
+                <h5 class="mb-3">Notes</h5>
+
+                <p class="mb-0">
+                    @(Model.Notes ?? "—")
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
