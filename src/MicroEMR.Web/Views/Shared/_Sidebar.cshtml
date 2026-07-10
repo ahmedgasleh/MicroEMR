@@ -36,11 +36,7 @@
                 </a>
             </li>
 
-            @if (User.IsInRole(AppRoles.Administrator) ||
-                 User.IsInRole(AppRoles.Physician) ||
-                 User.IsInRole(AppRoles.Nurse) ||
-                 User.IsInRole(AppRoles.Receptionist) ||
-                 User.IsInRole(AppRoles.MedicalAssistant))
+            @if (User.Identity?.IsAuthenticated == true)
             {
                 <li class="sidebar-menu-item">
                     <a asp-controller="Scheduling"

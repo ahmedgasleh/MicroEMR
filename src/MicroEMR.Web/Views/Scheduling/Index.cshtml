@@ -1,250 +1,628 @@
+@model MicroEMR.Web.Models.Scheduling.SchedulingIndexViewModel
+@using System.Text.Json
+@using System.Text.Json.Serialization
+
 @{
+    Layout = "_AppLayout";
     ViewData["Title"] = "Scheduling";
+    ViewData["Subtitle"] = "Resource schedule";
+
+    var jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    jsonOptions.Converters.Add(new JsonStringEnumConverter());
+
+    var resourcesJson =
+        JsonSerializer.Serialize(Model.Resources, jsonOptions);
 }
 
-<div class="container mt-4">
-    <h1 class="mb-4">Appointment Scheduling</h1>
-    
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">View Calendar</h5>
-                    <p class="card-text">View and manage provider schedules</p>
-                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#selectProviderModal">
-                        <i class="fas fa-calendar"></i> View Calendar
-                    </a>
-                </div>
-            </div>
+@section Styles {
+    <style>
+        .scheduling-toolbar {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .scheduling-view-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .scheduling-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+        }
+
+        .scheduling-date-label {
+            min-width: 12rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .scheduling-filter {
+            width: min(22rem, 100%);
+        }
+
+        .scheduling-calendar-shell {
+            min-height: 46rem;
+            border: 1px solid var(--bs-border-color);
+            background: var(--bs-body-bg);
+            overflow: hidden;
+        }
+
+        #schedulingCalendar {
+            height: 46rem;
+        }
+
+        .scheduling-empty-state {
+            padding: 2rem;
+            border: 1px dashed var(--bs-border-color);
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-secondary-color);
+        }
+    </style>
+}
+
+@* /* TDO: Fixing clander hight that forcing page scroll.
+   Next time, send me these three things and I can pinpoint it faster:
+
+1. app-layout.css
+2. full Views/Scheduling/Index.cshtml
+3. the DayPilot initialization JavaScript
+*/ *@
+
+@if (TempData["Error"] is string errorMessage)
+{
+    <div class="alert alert-warning" role="alert">
+        @errorMessage
+    </div>
+}
+
+<div class="scheduling-view-bar">
+    <div>
+        <h2 class="h5 mb-2">Day View</h2>
+        <div class="btn-group" role="group" aria-label="Scheduling calendar view">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    disabled
+                    aria-disabled="true"
+                    title="Month View is coming soon">
+                Month
+            </button>
+            <button type="button"
+                    class="btn btn-primary"
+                    aria-pressed="true">
+                Day
+            </button>
         </div>
-        
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">New Appointment</h5>
-                    <p class="card-text">Schedule a new patient appointment</p>
-                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
-                        <i class="fas fa-plus"></i> New Appointment
-                    </a>
-                </div>
-            </div>
+        <span class="ms-2 text-body-secondary small">Month View coming soon</span>
+    </div>
+
+    <div class="text-body-secondary small">
+        Appointment booking is available in Day View.
+    </div>
+</div>
+
+<div class="scheduling-toolbar">
+    <div class="scheduling-toolbar-actions"
+         aria-label="Scheduling date navigation">
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                id="schedulingPreviousButton">
+            Previous
+        </button>
+
+        <button type="button"
+                class="btn btn-outline-primary"
+                id="schedulingTodayButton">
+            Today
+        </button>
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                id="schedulingNextButton">
+            Next
+        </button>
+
+        <div class="scheduling-date-label"
+             id="schedulingDateLabel">
         </div>
-        
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Manage Blocks</h5>
-                    <p class="card-text">Create resource blocks and maintenance</p>
-                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#resourceBlockModal">
-                        <i class="fas fa-lock"></i> Manage Blocks
-                    </a>
-                </div>
+    </div>
+
+    <div class="scheduling-filter">
+        <label class="form-label"
+               for="schedulingResourceFilter">
+            Resource
+        </label>
+
+        <select class="form-select"
+                id="schedulingResourceFilter">
+            <option value="">All active resources</option>
+
+            @foreach (var resource in Model.Resources)
+            {
+                <option value="@resource.ResourceUid">
+                    @resource.DisplayName
+                </option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="modal fade" id="appointmentDetailsModal" tabindex="-1" aria-labelledby="appointmentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="appointmentDetailsModalLabel">Appointment Details</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Generate Slots</h5>
-                    <p class="card-text">Create recurring schedule slots</p>
-                    <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#generateSlotsModal">
-                        <i class="fas fa-cog"></i> Generate Slots
-                    </a>
+            <div class="modal-body">
+                <div id="appointmentDetailsLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading</span></div>
+                    <div class="mt-2">Loading appointment details...</div>
                 </div>
+                <div id="appointmentDetailsError" class="alert alert-danger d-none" role="alert"></div>
+                <dl id="appointmentDetailsContent" class="row mb-0 d-none">
+                    <dt class="col-sm-4">Patient</dt><dd class="col-sm-8" id="detailsPatient"></dd>
+                    <dt class="col-sm-4">Chart number</dt><dd class="col-sm-8" id="detailsChartNumber"></dd>
+                    <dt class="col-sm-4">Status</dt><dd class="col-sm-8" id="detailsStatus"></dd>
+                    <dt class="col-sm-4">Date</dt><dd class="col-sm-8" id="detailsDate"></dd>
+                    <dt class="col-sm-4">Start time</dt><dd class="col-sm-8" id="detailsStartTime"></dd>
+                    <dt class="col-sm-4">End time</dt><dd class="col-sm-8" id="detailsEndTime"></dd>
+                    <dt class="col-sm-4">Provider/resource</dt><dd class="col-sm-8" id="detailsPrimaryResource"></dd>
+                    <dt class="col-sm-4">Room</dt><dd class="col-sm-8" id="detailsRoom"></dd>
+                    <dt class="col-sm-4">Appointment type</dt><dd class="col-sm-8" id="detailsType"></dd>
+                    <dt class="col-sm-4">Reason</dt><dd class="col-sm-8" id="detailsReason"></dd>
+                    <dt class="col-sm-4">Notes</dt><dd class="col-sm-8 text-break" id="detailsNotes"></dd>
+                    <dt class="col-sm-4">Created by</dt><dd class="col-sm-8" id="detailsCreatedBy"></dd>
+                    <dt class="col-sm-4">Created date</dt><dd class="col-sm-8" id="detailsCreatedAt"></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <a id="openPatientChartButton" class="btn btn-primary d-none" href="#">Open Chart</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Select Provider Modal -->
-<div class="modal fade" id="selectProviderModal" tabindex="-1">
-    <div class="modal-dialog">
+<form id="schedulingAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
+
+<div class="modal fade" id="addAppointmentModal" tabindex="-1" aria-labelledby="addAppointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Select Provider</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title fs-5" id="addAppointmentModalLabel">Add Appointment</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label for="providerSelect" class="form-label">Provider</label>
-                    <select class="form-select" id="providerSelect">
-                        <option value="">-- Select Provider --</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="resourceSelect" class="form-label">Resource (Optional)</label>
-                    <select class="form-select" id="resourceSelect">
-                        <option value="">-- All Resources --</option>
-                    </select>
-                </div>
+                <div id="appointmentMessage" class="alert d-none" role="alert"></div>
+                <form id="addAppointmentForm" novalidate>
+                    <input type="hidden" id="PatientUid" name="PatientUid" />
+                    <div class="mb-3">
+                        <label for="patientSearchTerm" class="form-label">Patient</label>
+                        <div class="input-group">
+                            <input id="patientSearchTerm" class="form-control" autocomplete="off" placeholder="Name or chart number" />
+                            <button id="patientSearchButton" class="btn btn-outline-primary" type="button">Search</button>
+                        </div>
+                        <div id="selectedPatientLabel" class="form-text">No patient selected.</div>
+                        <div id="patientSearchResults" class="list-group mt-2"></div>
+                        <div class="invalid-feedback" data-error-for="PatientUid"></div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="PrimaryResourceUid" class="form-label">Primary resource</label>
+                            <select id="PrimaryResourceUid" name="PrimaryResourceUid" class="form-select">
+                                <option value="">Select resource</option>
+                                @foreach (var resource in Model.Resources.OrderBy(r => r.ResourceType == "Provider" ? 0 : 1).ThenBy(r => r.SortOrder))
+                                {
+                                    <option value="@resource.ResourceUid">@resource.DisplayName (@resource.ResourceType)</option>
+                                }
+                            </select>
+                            <div class="invalid-feedback" data-error-for="PrimaryResourceUid"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="RoomResourceUid" class="form-label">Room (optional)</label>
+                            <select id="RoomResourceUid" name="RoomResourceUid" class="form-select">
+                                <option value="">No room</option>
+                                @foreach (var room in Model.Resources.Where(r => r.ResourceType == "Room").OrderBy(r => r.SortOrder))
+                                { <option value="@room.ResourceUid">@room.DisplayName</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="StartDateTimeLocal" class="form-label">Start</label>
+                            <input id="StartDateTimeLocal" name="StartDateTimeLocal" type="datetime-local" class="form-control" />
+                            <div class="invalid-feedback" data-error-for="StartDateTimeLocal"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EndDateTimeLocal" class="form-label">End</label>
+                            <input id="EndDateTimeLocal" name="EndDateTimeLocal" type="datetime-local" class="form-control" />
+                            <div class="invalid-feedback" data-error-for="EndDateTimeLocal"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="AppointmentType" class="form-label">Appointment type</label>
+                            <select id="AppointmentType" name="AppointmentType" class="form-select">
+                                <option value="">Select type</option>
+                                @foreach (var type in new[] { "Office Visit", "Phone Visit", "Virtual Visit", "Follow-up", "Consultation", "Procedure", "Other" })
+                                { <option value="@type">@type</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="Reason" class="form-label">Reason</label>
+                            <input id="Reason" name="Reason" maxlength="500" class="form-control" />
+                            <div class="invalid-feedback" data-error-for="Reason"></div>
+                        </div>
+                        <div class="col-12">
+                            <label for="Notes" class="form-label">Notes</label>
+                            <textarea id="Notes" name="Notes" maxlength="1000" rows="3" class="form-control"></textarea>
+                            <div class="invalid-feedback" data-error-for="Notes"></div>
+                        </div>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="viewCalendar()">View Calendar</button>
+                <button type="button" class="btn btn-primary" id="saveAppointmentButton">Save Appointment</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- New Appointment Modal -->
-<div class="modal fade" id="newAppointmentModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Appointment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="newAppointmentForm" method="post" action="@Url.Action("CreateAppointment")">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="patientSelect" class="form-label">Patient</label>
-                        <input type="text" class="form-control" id="patientSelect" placeholder="Search patient..." />
-                    </div>
-                    <div class="mb-3">
-                        <label for="providerSelect2" class="form-label">Provider</label>
-                        <select class="form-select" id="providerSelect2" name="ProviderId" required></select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="resourceSelect2" class="form-label">Resource (Optional)</label>
-                        <select class="form-select" id="resourceSelect2" name="ClinicResourceId"></select>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="appointmentStart" class="form-label">Start Time</label>
-                            <input type="datetime-local" class="form-control" id="appointmentStart" name="StartAt" required />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="appointmentEnd" class="form-label">End Time</label>
-                            <input type="datetime-local" class="form-control" id="appointmentEnd" name="EndAt" required />
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="appointmentType" class="form-label">Appointment Type</label>
-                        <select class="form-select" id="appointmentType" name="AppointmentType">
-                            <option value="Consultation">Consultation</option>
-                            <option value="Follow-up">Follow-up</option>
-                            <option value="Procedure">Procedure</option>
-                            <option value="Checkup">Checkup</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="appointmentNotes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="appointmentNotes" name="Notes" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Appointment</button>
-                </div>
-            </form>
-        </div>
+@if (Model.Resources.Count == 0)
+{
+    <div class="scheduling-empty-state">
+        No active scheduling resources were returned by the API.
     </div>
-</div>
-
-<!-- Resource Block Modal -->
-<div class="modal fade" id="resourceBlockModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create Resource Block</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="resourceBlockForm" method="post">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="blockProvider" class="form-label">Provider</label>
-                        <select class="form-select" id="blockProvider" required></select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="blockResource" class="form-label">Resource</label>
-                        <select class="form-select" id="blockResource" required></select>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="blockStart" class="form-label">Block Start</label>
-                            <input type="datetime-local" class="form-control" id="blockStart" required />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="blockEnd" class="form-label">Block End</label>
-                            <input type="datetime-local" class="form-control" id="blockEnd" required />
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="blockType" class="form-label">Block Type</label>
-                        <select class="form-select" id="blockType">
-                            <option value="Break">Break</option>
-                            <option value="Lunch">Lunch</option>
-                            <option value="Training">Training</option>
-                            <option value="Maintenance">Maintenance</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="blockReason" class="form-label">Reason</label>
-                        <textarea class="form-control" id="blockReason" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Block</button>
-                </div>
-            </form>
-        </div>
+}
+else
+{
+    <div class="scheduling-calendar-shell">
+        <div id="schedulingCalendar"></div>
     </div>
-</div>
-
-<!-- Generate Slots Modal -->
-<div class="modal fade" id="generateSlotsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Generate Schedule Slots</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="generateSlotsForm" method="post">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="slotProvider" class="form-label">Provider</label>
-                        <select class="form-select" id="slotProvider" required></select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="slotResource" class="form-label">Resource (Optional)</label>
-                        <select class="form-select" id="slotResource"></select>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="slotStartDate" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="slotStartDate" required />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="slotEndDate" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="slotEndDate" required />
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Available Hours</label>
-                        <div id="timeSlots">
-                            <!-- Time slots will be added here -->
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="slotDuration" class="form-label">Slot Duration (minutes)</label>
-                        <select class="form-select" id="slotDuration">
-                            <option value="15" selected>15 minutes</option>
-                            <option value="20">20 minutes</option>
-                            <option value="30">30 minutes</option>
-                            <option value="60">1 hour</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Generate Slots</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+}
 
 @section Scripts {
-    <script src="~/js/scheduling.js"></script>
+    <script src="~/lib/daypilot/daypilot-javascript.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!window.DayPilot) {
+                console.error("DayPilot Lite could not be loaded.");
+                return;
+            }
+
+            const resources = @Html.Raw(resourcesJson);
+
+            if (!resources.length) {
+                return;
+            }
+
+            let selectedDate = DayPilot.Date.today();
+            const resourceFilter =
+                document.getElementById("schedulingResourceFilter");
+
+            const dateLabel =
+                document.getElementById("schedulingDateLabel");
+
+            const toColumns = () => {
+                const selectedResourceUid = resourceFilter.value;
+
+                return resources
+                    .filter(resource =>
+                        !selectedResourceUid ||
+                        resource.resourceUid === selectedResourceUid)
+                    .map(resource => ({
+                        id: resource.resourceUid,
+                        name: resource.displayName
+                    }));
+            };
+
+            const calendar = new DayPilot.Calendar(
+                "schedulingCalendar",
+                {
+                    viewType: "Resources",
+                    columns: toColumns(),
+                    startDate: selectedDate,
+                    cellDuration: 15,
+                    businessBeginsHour: 8,
+                    businessEndsHour: 18,
+                    eventMoveHandling: "Disabled",
+                    eventResizeHandling: "Disabled",
+                    eventDeleteHandling: "Disabled",
+                    timeRangeSelectedHandling: "Enabled",
+                    onTimeRangeSelected: args => {
+                        openAppointmentModal(args.start, args.resource);
+                        calendar.clearSelection();
+                    },
+                    onEventClick: args => openAppointmentDetails(args.e.id())
+                });
+
+            calendar.init();
+
+            const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
+            const appointmentForm = document.getElementById("addAppointmentForm");
+            const appointmentMessage = document.getElementById("appointmentMessage");
+            const selectedPatientLabel = document.getElementById("selectedPatientLabel");
+            const searchResults = document.getElementById("patientSearchResults");
+            const detailsModal = new bootstrap.Modal(document.getElementById("appointmentDetailsModal"));
+            const detailsLoading = document.getElementById("appointmentDetailsLoading");
+            const detailsError = document.getElementById("appointmentDetailsError");
+            const detailsContent = document.getElementById("appointmentDetailsContent");
+            const openChartButton = document.getElementById("openPatientChartButton");
+            const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
+
+            const setDetailsText = (id, value, fallback = "Not specified") => {
+                document.getElementById(id).textContent = value || fallback;
+            };
+
+            const openAppointmentDetails = async appointmentUid => {
+                detailsLoading.classList.remove("d-none");
+                detailsError.classList.add("d-none");
+                detailsContent.classList.add("d-none");
+                openChartButton.classList.add("d-none");
+                detailsModal.show();
+
+                try {
+                    const url = new URL("/Scheduling/AppointmentDetails", window.location.origin);
+                    url.searchParams.set("appointmentUid", appointmentUid);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`Appointment details request failed: ${response.status}`);
+                    }
+
+                    const details = await response.json();
+                    const start = new Date(details.startDateTimeLocal);
+                    const end = new Date(details.endDateTimeLocal);
+                    const createdAt = new Date(details.createdAtLocal);
+                    setDetailsText("detailsPatient", details.patientDisplayName);
+                    setDetailsText("detailsChartNumber", details.chartNumber);
+                    setDetailsText("detailsStatus", details.status);
+                    setDetailsText("detailsDate", start.toLocaleDateString());
+                    setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+                    setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+                    setDetailsText("detailsPrimaryResource", details.primaryResourceName);
+                    setDetailsText("detailsRoom", details.roomResourceName, "No room assigned");
+                    setDetailsText("detailsType", details.appointmentType);
+                    setDetailsText("detailsReason", details.reason);
+                    setDetailsText("detailsNotes", details.notes);
+                    setDetailsText("detailsCreatedBy", details.createdByDisplayName, "System");
+                    setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
+                    openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
+                    openChartButton.classList.remove("d-none");
+                    detailsContent.classList.remove("d-none");
+                } catch (error) {
+                    console.error(error);
+                    detailsError.textContent = "The appointment details could not be loaded. Please try again.";
+                    detailsError.classList.remove("d-none");
+                } finally {
+                    detailsLoading.classList.add("d-none");
+                }
+            };
+
+            const localInputValue = date => {
+                const pad = value => String(value).padStart(2, "0");
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            };
+
+            const openAppointmentModal = (start, resourceUid) => {
+                appointmentForm.reset();
+                clearAppointmentErrors();
+                document.getElementById("PatientUid").value = "";
+                selectedPatientLabel.textContent = "No patient selected.";
+                searchResults.replaceChildren();
+                const startDate = start.toDateLocal();
+                const endDate = new Date(startDate.getTime() + 15 * 60000);
+                document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
+                document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
+                const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
+                const firstProvider = resources.find(resource => resource.resourceType === "Provider");
+                document.getElementById("PrimaryResourceUid").value =
+                    clickedResource?.resourceType === "Provider"
+                        ? resourceUid
+                        : (resourceFilter.value && resources.find(resource => resource.resourceUid === resourceFilter.value)?.resourceType === "Provider"
+                            ? resourceFilter.value
+                            : firstProvider?.resourceUid || "");
+                if (clickedResource?.resourceType === "Room") {
+                    document.getElementById("RoomResourceUid").value = resourceUid;
+                }
+                appointmentModal.show();
+            };
+
+            const clearAppointmentErrors = () => {
+                appointmentMessage.className = "alert d-none";
+                appointmentMessage.textContent = "";
+                appointmentForm.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
+                appointmentForm.querySelectorAll("[data-error-for]").forEach(element => element.textContent = "");
+            };
+
+            const showMessage = (message, style = "danger") => {
+                appointmentMessage.className = `alert alert-${style}`;
+                appointmentMessage.textContent = message;
+            };
+
+            const searchPatients = async () => {
+                const term = document.getElementById("patientSearchTerm").value.trim();
+                searchResults.replaceChildren();
+                if (term.length < 2) {
+                    showMessage("Enter at least two characters to search for a patient.");
+                    return;
+                }
+                clearAppointmentErrors();
+                const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
+                if (!response.ok) {
+                    showMessage("Patient search is unavailable. Please try again.");
+                    return;
+                }
+                const patients = await response.json();
+                if (!patients.length) {
+                    searchResults.innerHTML = '<div class="list-group-item text-body-secondary">No patients found.</div>';
+                    return;
+                }
+                patients.forEach(patient => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "list-group-item list-group-item-action";
+                    button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
+                    button.addEventListener("click", () => {
+                        document.getElementById("PatientUid").value = patient.patientUid;
+                        selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
+                        searchResults.replaceChildren();
+                    });
+                    searchResults.appendChild(button);
+                });
+            };
+
+            document.getElementById("patientSearchButton").addEventListener("click", searchPatients);
+            document.getElementById("patientSearchTerm").addEventListener("keydown", event => {
+                if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
+            });
+
+            document.getElementById("saveAppointmentButton").addEventListener("click", async event => {
+                clearAppointmentErrors();
+                const button = event.currentTarget;
+                button.disabled = true;
+                try {
+                    const formData = new FormData(appointmentForm);
+                    const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                    const response = await fetch("/Scheduling/CreateAppointment", {
+                        method: "POST",
+                        headers: { "RequestVerificationToken": token },
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        showMessage(result.message || "The appointment could not be saved.");
+                        Object.entries(result.errors || {}).forEach(([name, messages]) => {
+                            const input = document.getElementById(name);
+                            if (input) input.classList.add("is-invalid");
+                            const feedback = appointmentForm.querySelector(`[data-error-for="${name}"]`);
+                            if (feedback) feedback.textContent = messages.join(" ");
+                        });
+                        return;
+                    }
+                    appointmentModal.hide();
+                    appointmentForm.reset();
+                    await refreshCalendar();
+                } catch (error) {
+                    console.error(error);
+                    showMessage("The appointment could not be saved. Please try again.");
+                } finally {
+                    button.disabled = false;
+                }
+            });
+
+            const setDateLabel = () => {
+                dateLabel.textContent =
+                    selectedDate.toDateLocal().toLocaleDateString(
+                        undefined,
+                        {
+                            weekday: "long",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric"
+                        });
+            };
+
+            const dayRange = () => {
+                const start = selectedDate.toDateLocal();
+                start.setHours(0, 0, 0, 0);
+
+                const end = new Date(start);
+                end.setDate(end.getDate() + 1);
+
+                return {
+                    start: start.toISOString(),
+                    end: end.toISOString()
+                };
+            };
+
+            const loadEvents = async () => {
+                const range = dayRange();
+                const url = new URL(
+                    "/Scheduling/Events",
+                    window.location.origin);
+
+                url.searchParams.set("start", range.start);
+                url.searchParams.set("end", range.end);
+
+                if (resourceFilter.value) {
+                    url.searchParams.set(
+                        "resourceUid",
+                        resourceFilter.value);
+                }
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Scheduling events request failed: ${response.status}`);
+                }
+
+                return await response.json();
+            };
+
+            const refreshCalendar = async () => {
+                setDateLabel();
+
+                calendar.update({
+                    startDate: selectedDate,
+                    columns: toColumns(),
+                    events: []
+                });
+
+                try {
+                    const events = await loadEvents();
+
+                    calendar.update({
+                        events
+                    });
+                } catch (error) {
+                    console.error(error);
+                    calendar.update({
+                        events: []
+                    });
+                }
+            };
+
+            document
+                .getElementById("schedulingPreviousButton")
+                .addEventListener("click", async () => {
+                    selectedDate = selectedDate.addDays(-1);
+                    await refreshCalendar();
+                });
+
+            document
+                .getElementById("schedulingTodayButton")
+                .addEventListener("click", async () => {
+                    selectedDate = DayPilot.Date.today();
+                    await refreshCalendar();
+                });
+
+            document
+                .getElementById("schedulingNextButton")
+                .addEventListener("click", async () => {
+                    selectedDate = selectedDate.addDays(1);
+                    await refreshCalendar();
+                });
+
+            resourceFilter.addEventListener(
+                "change",
+                refreshCalendar);
+
+            refreshCalendar();
+        });
+    </script>
 }

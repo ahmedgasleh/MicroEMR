@@ -1,308 +1,289 @@
-using Microsoft.AspNetCore.Mvc;
-using MicroEMR.Application.Scheduling.DTOs;
-using MicroEMR.Application.Scheduling.Services;
-using MicroEMR.Web.Authorization;
+using MicroEMR.Web.Models.Scheduling;
+using MicroEMR.Web.Services.Scheduling;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MicroEMR.Web.Services.Patients;
+using System.Net;
 
 namespace MicroEMR.Web.Controllers.Scheduling;
-[Authorize(Roles = AppRoles.SchedulingStaff)]
-public class SchedulingController : Controller
+
+[Authorize]
+[Route("Scheduling")]
+public sealed class SchedulingController : Controller
 {
-    private readonly ICalendarService _calendarService;
-    private readonly IAppointmentService _appointmentService;
-    private readonly IScheduleSlotService _scheduleSlotService;
-    private readonly IResourceBlockService _resourceBlockService;
+    private readonly ISchedulingApiClient _schedulingApiClient;
     private readonly ILogger<SchedulingController> _logger;
+    private readonly IPatientApiClient _patientApiClient;
 
     public SchedulingController(
-        ICalendarService calendarService,
-        IAppointmentService appointmentService,
-        IScheduleSlotService scheduleSlotService,
-        IResourceBlockService resourceBlockService,
+        ISchedulingApiClient schedulingApiClient,
+        IPatientApiClient patientApiClient,
         ILogger<SchedulingController> logger)
     {
-        _calendarService = calendarService;
-        _appointmentService = appointmentService;
-        _scheduleSlotService = scheduleSlotService;
-        _resourceBlockService = resourceBlockService;
+        _schedulingApiClient = schedulingApiClient;
+        _patientApiClient = patientApiClient;
         _logger = logger;
     }
 
-    public async Task<IActionResult> Index()
+    [HttpGet("SearchPatients")]
+    public async Task<IActionResult> SearchPatients(string? term, CancellationToken cancellationToken)
     {
-        return View();
-    }
+        if (string.IsNullOrWhiteSpace(term) || term.Trim().Length < 2)
+            return Json(Array.Empty<object>());
 
-    public async Task<IActionResult> Calendar(Guid providerId, Guid? clinicResourceId, DateTime? viewDate)
-    {
         try
         {
-            var date = viewDate ?? DateTime.Today;
-            var calendar = await _calendarService.GetCalendarViewAsync(providerId, clinicResourceId, date);
-            return View(calendar);
+            var result = await _patientApiClient.SearchAsync(term.Trim(), null, 1, 10, cancellationToken);
+            return Json(result.Items.Select(patient => new
+            {
+                patientUid = patient.PatientUid,
+                displayName = patient.FullName,
+                chartNumber = patient.ChartNumber,
+                dateOfBirth = patient.DateOfBirth
+            }));
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error loading calendar");
-            TempData["Error"] = "Error loading calendar";
-            return RedirectToAction(nameof(Index));
+            _logger.LogError(exception, "Unable to search patients for appointment scheduling.");
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = "Patient search is unavailable." });
         }
     }
 
-    public async Task<IActionResult> CreateAppointment(Guid providerId, Guid? slotId)
-    {
-        var model = new CreateAppointmentViewModel
-        {
-            ProviderId = providerId,
-            SlotId = slotId
-        };
-        return View(model);
-    }
-
-    [HttpPost]
+    [HttpPost("CreateAppointment")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateAppointment(CreateAppointmentViewModel model)
+    public async Task<IActionResult> CreateAppointment(
+        CreateScheduleAppointmentViewModel model,
+        CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
-            return View(model);
+            return ValidationJson();
 
         try
         {
-            var request = new CreateAppointmentRequest
-            {
-                PatientId = model.PatientId,
-                ProviderId = model.ProviderId,
-                ClinicResourceId = model.ClinicResourceId,
-                StartAt = model.StartAt,
-                EndAt = model.EndAt,
-                AppointmentType = model.AppointmentType,
-                Notes = model.Notes
-            };
+            var appointment = await _schedulingApiClient.CreateAppointmentAsync(
+                new CreateScheduleAppointmentRequest
+                {
+                    PatientUid = model.PatientUid,
+                    PrimaryResourceUid = model.PrimaryResourceUid,
+                    RoomResourceUid = model.RoomResourceUid,
+                    StartDateTimeUtc = ToUtc(model.StartDateTimeLocal),
+                    EndDateTimeUtc = ToUtc(model.EndDateTimeLocal),
+                    AppointmentType = model.AppointmentType,
+                    Reason = model.Reason,
+                    Notes = model.Notes
+                }, cancellationToken);
 
-            var userId = GetCurrentUserId();
-            var appointment = await _appointmentService.CreateAppointmentAsync(request, userId);
-            
-            _logger.LogInformation("Appointment created successfully for patient {PatientId}", model.PatientId);
-            TempData["Success"] = "Appointment created successfully";
-            return RedirectToAction(nameof(Calendar), new { providerId = model.ProviderId });
+            return Json(new { success = true, appointmentUid = appointment.AppointmentUid });
         }
-        catch (Exception ex)
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         {
-            _logger.LogError(ex, "Error creating appointment");
-            ModelState.AddModelError(string.Empty, "Error creating appointment");
-            return View(model);
+            return Conflict(new { success = false, message = "The selected time conflicts with another appointment for this resource." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to create a scheduling appointment.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "The appointment could not be saved. Please try again." });
         }
     }
 
-    public async Task<IActionResult> RescheduleAppointment(Guid appointmentId)
+    private IActionResult ValidationJson() => BadRequest(new
     {
+        success = false,
+        message = "Please correct the highlighted errors.",
+        errors = ModelState.Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(entry => entry.Key, entry => entry.Value!.Errors
+                .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                    ? "The value is invalid."
+                    : error.ErrorMessage).ToArray())
+    });
+
+    private static DateTime ToUtc(DateTime value) =>
+        DateTime.SpecifyKind(value, DateTimeKind.Local).ToUniversalTime();
+
+    [HttpGet("AppointmentDetails")]
+    public async Task<IActionResult> AppointmentDetails(
+        Guid appointmentUid,
+        CancellationToken cancellationToken)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest();
+
         try
         {
-            var appointment = await _appointmentService.GetAppointmentAsync(appointmentId);
-            if (appointment == null)
+            var appointment = await _schedulingApiClient.GetAppointmentByUidAsync(
+                appointmentUid, cancellationToken);
+            if (appointment is null)
                 return NotFound();
 
-            var model = new RescheduleAppointmentViewModel
+            return Json(new
             {
-                AppointmentId = appointmentId,
-                PatientId = appointment.PatientId,
-                PatientName = appointment.PatientName,
-                ProviderId = appointment.ProviderId,
-                ProviderName = appointment.ProviderName,
-                CurrentStartAt = appointment.StartAt,
-                CurrentEndAt = appointment.EndAt
-            };
-
-            return View(model);
+                appointment.AppointmentUid,
+                appointment.PatientUid,
+                appointment.PatientDisplayName,
+                appointment.ChartNumber,
+                appointment.PrimaryResourceName,
+                appointment.RoomResourceName,
+                startDateTimeLocal = NormalizeUtc(appointment.StartDateTimeUtc).ToLocalTime(),
+                endDateTimeLocal = NormalizeUtc(appointment.EndDateTimeUtc).ToLocalTime(),
+                appointment.AppointmentType,
+                appointment.Reason,
+                appointment.Notes,
+                appointment.Status,
+                appointment.CreatedByDisplayName,
+                createdAtLocal = NormalizeUtc(appointment.CreatedAt).ToLocalTime()
+            });
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error loading reschedule form");
-            TempData["Error"] = "Error loading reschedule form";
-            return RedirectToAction(nameof(Index));
+            _logger.LogError(exception, "Unable to load scheduling appointment details.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { message = "Appointment details could not be loaded." });
         }
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RescheduleAppointment(RescheduleAppointmentViewModel model)
-    {
-        if (!ModelState.IsValid)
-            return View(model);
-
-        try
-        {
-            var request = new RescheduleAppointmentRequest
-            {
-                AppointmentId = model.AppointmentId,
-                NewStartAt = model.NewStartAt,
-                NewEndAt = model.NewEndAt,
-                Reason = model.Reason
-            };
-
-            var userId = GetCurrentUserId();
-            var appointment = await _appointmentService.RescheduleAppointmentAsync(request, userId);
-            
-            _logger.LogInformation("Appointment {AppointmentId} rescheduled", model.AppointmentId);
-            TempData["Success"] = "Appointment rescheduled successfully";
-            return RedirectToAction(nameof(Calendar), new { providerId = model.ProviderId });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error rescheduling appointment");
-            ModelState.AddModelError(string.Empty, "Error rescheduling appointment");
-            return View(model);
-        }
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CancelAppointment(Guid appointmentId, string reason)
+    [HttpGet("")]
+    [HttpGet("Index")]
+    public async Task<IActionResult> Index(
+        CancellationToken cancellationToken)
     {
         try
         {
-            var request = new CancelAppointmentRequest
+            var model = new SchedulingIndexViewModel
             {
-                AppointmentId = appointmentId,
-                Reason = reason
+                Resources =
+                    await _schedulingApiClient
+                        .GetActiveResourcesAsync(cancellationToken)
             };
 
-            var userId = GetCurrentUserId();
-            await _appointmentService.CancelAppointmentAsync(request, userId);
-            
-            _logger.LogInformation("Appointment {AppointmentId} cancelled", appointmentId);
-            TempData["Success"] = "Appointment cancelled successfully";
-            return Ok(new { success = true });
+            return View(
+                "~/Views/Scheduling/Index.cshtml",
+                model);
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException exception)
         {
-            _logger.LogError(ex, "Error cancelling appointment");
-            return BadRequest(new { success = false, error = ex.Message });
+            _logger.LogWarning(
+                exception,
+                "Unable to load scheduling resources because the API rejected the access token.");
+
+            TempData["Error"] =
+                "Scheduling resources could not be loaded because the API rejected the access token. Sign in again.";
+
+            return View(
+                "~/Views/Scheduling/Index.cshtml",
+                new SchedulingIndexViewModel());
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Unable to load scheduling resources from MicroEMR.Api.");
+
+            TempData["Error"] =
+                "Scheduling resources could not be loaded.";
+
+            return View(
+                "~/Views/Scheduling/Index.cshtml",
+                new SchedulingIndexViewModel());
         }
     }
 
-    public async Task<IActionResult> AppointmentHistory(Guid appointmentId)
+    [HttpGet("Events")]
+    public async Task<IActionResult> Events(
+        DateTime start,
+        DateTime end,
+        Guid? resourceUid,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var history = await _appointmentService.GetAppointmentHistoryAsync(appointmentId);
-            return View(history);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error loading appointment history");
-            TempData["Error"] = "Error loading appointment history";
-            return RedirectToAction(nameof(Index));
-        }
-    }
+            var appointments =
+                await _schedulingApiClient.GetAppointmentsAsync(
+                    NormalizeUtc(start),
+                    NormalizeUtc(end),
+                    resourceUid,
+                    cancellationToken);
 
-    public async Task<IActionResult> ManageResourceBlocks(Guid providerId, Guid resourceId)
-    {
-        try
+            var events =
+                appointments.Select(appointment => new
+                {
+                    id = appointment.AppointmentUid,
+                    text = BuildEventText(appointment),
+                    start = FormatDayPilotLocal(
+                        appointment.StartDateTimeUtc),
+                    end = FormatDayPilotLocal(
+                        appointment.EndDateTimeUtc),
+                    resource = appointment.PrimaryResourceUid
+                });
+
+            return Json(events);
+        }
+        catch (UnauthorizedAccessException exception)
         {
-            var startDate = DateTime.Today;
-            var endDate = DateTime.Today.AddDays(30);
-            var blocks = await _resourceBlockService.GetResourceBlocksAsync(resourceId, startDate, endDate);
-            
-            var model = new ManageResourceBlocksViewModel
+            _logger.LogWarning(
+                exception,
+                "Unable to load scheduling events because the API rejected the access token.");
+
+            return Unauthorized(new
             {
-                ProviderId = providerId,
-                ResourceId = resourceId,
-                ResourceBlocks = blocks
-            };
-
-            return View(model);
+                message =
+                    "The API rejected the access token. Sign in again."
+            });
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, "Error loading resource blocks");
-            TempData["Error"] = "Error loading resource blocks";
-            return RedirectToAction(nameof(Index));
+            _logger.LogError(
+                exception,
+                "Unable to load scheduling events from MicroEMR.Api.");
+
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    message =
+                        "Scheduling events could not be loaded."
+                });
         }
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateResourceBlock(CreateResourceBlockViewModel model)
+    private static string BuildEventText(
+        ScheduleAppointmentListItemResponse appointment)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        var patientDisplayName =
+            string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
+                ? "Patient"
+                : appointment.PatientDisplayName.Trim();
 
-        try
-        {
-            var request = new CreateResourceBlockRequest
-            {
-                ResourceId = model.ResourceId,
-                ProviderId = model.ProviderId,
-                BlockStartTime = model.BlockStartTime,
-                BlockEndTime = model.BlockEndTime,
-                Reason = model.Reason,
-                BlockType = model.BlockType
-            };
+        var secondaryText =
+            !string.IsNullOrWhiteSpace(appointment.Reason)
+                ? appointment.Reason.Trim()
+                : appointment.AppointmentType?.Trim();
 
-            var userId = GetCurrentUserId();
-            await _resourceBlockService.CreateBlockAsync(request, userId);
-            
-            _logger.LogInformation("Resource block created for resource {ResourceId}", model.ResourceId);
-            return Ok(new { success = true });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating resource block");
-            return BadRequest(new { success = false, error = ex.Message });
-        }
+        return string.IsNullOrWhiteSpace(secondaryText)
+            ? $"{patientDisplayName} - Appointment"
+            : $"{patientDisplayName} - {secondaryText}";
     }
 
-    private Guid GetCurrentUserId()
+    private static DateTime NormalizeUtc(DateTime value)
     {
-        var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier");
-        return Guid.TryParse(userIdClaim?.Value, out var userId) ? userId : Guid.Empty;
+        if (value.Kind == DateTimeKind.Utc)
+        {
+            return value;
+        }
+
+        if (value.Kind == DateTimeKind.Unspecified)
+        {
+            return DateTime.SpecifyKind(value, DateTimeKind.Local)
+                .ToUniversalTime();
+        }
+
+        return value.ToUniversalTime();
+    }
+
+    private static string FormatDayPilotLocal(DateTime value)
+    {
+        return NormalizeUtc(value).ToLocalTime().ToString(
+            "yyyy-MM-dd'T'HH:mm:ss.fff",
+            System.Globalization.CultureInfo.InvariantCulture);
     }
 }
-
-#region ViewModels
-
-public class CreateAppointmentViewModel
-{
-    public Guid ProviderId { get; set; }
-    public Guid? SlotId { get; set; }
-    public Guid PatientId { get; set; }
-    public Guid? ClinicResourceId { get; set; }
-    public DateTime StartAt { get; set; }
-    public DateTime EndAt { get; set; }
-    public string? AppointmentType { get; set; }
-    public string? Notes { get; set; }
-}
-
-public class RescheduleAppointmentViewModel
-{
-    public Guid AppointmentId { get; set; }
-    public Guid PatientId { get; set; }
-    public string PatientName { get; set; } = string.Empty;
-    public Guid ProviderId { get; set; }
-    public string ProviderName { get; set; } = string.Empty;
-    public DateTime CurrentStartAt { get; set; }
-    public DateTime CurrentEndAt { get; set; }
-    public DateTime NewStartAt { get; set; }
-    public DateTime NewEndAt { get; set; }
-    public string? Reason { get; set; }
-}
-
-public class ManageResourceBlocksViewModel
-{
-    public Guid ProviderId { get; set; }
-    public Guid ResourceId { get; set; }
-    public List<ResourceBlockDto> ResourceBlocks { get; set; } = new();
-}
-
-public class CreateResourceBlockViewModel
-{
-    public Guid ProviderId { get; set; }
-    public Guid ResourceId { get; set; }
-    public DateTime BlockStartTime { get; set; }
-    public DateTime BlockEndTime { get; set; }
-    public string Reason { get; set; } = string.Empty;
-    public string? BlockType { get; set; }
-}
-
-#endregion

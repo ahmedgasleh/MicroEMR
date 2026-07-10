@@ -1,0 +1,207 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
+using MicroEMR.Web.Models.Scheduling;
+
+namespace MicroEMR.Web.Services.Scheduling;
+
+public sealed class SchedulingApiClient : ISchedulingApiClient
+{
+    private readonly HttpClient _httpClient;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<SchedulingApiClient> _logger;
+
+    public SchedulingApiClient(
+        HttpClient httpClient,
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<SchedulingApiClient> logger)
+    {
+        _httpClient = httpClient;
+        _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
+    }
+
+    public async Task<IReadOnlyList<ScheduleResourceResponse>>
+        GetActiveResourcesAsync(
+            CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "api/scheduling/resources");
+
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var resources =
+            await response.Content.ReadFromJsonAsync<
+                List<ScheduleResourceResponse>>(
+                cancellationToken: cancellationToken);
+
+        return resources ?? [];
+    }
+
+    public async Task<IReadOnlyList<ScheduleAppointmentListItemResponse>>
+        GetAppointmentsAsync(
+            DateTime startUtc,
+            DateTime endUtc,
+            Guid? resourceUid,
+            CancellationToken cancellationToken = default)
+    {
+        var queryParameters = new Dictionary<string, string?>
+        {
+            ["startUtc"] = NormalizeUtc(startUtc).ToString("O"),
+            ["endUtc"] = NormalizeUtc(endUtc).ToString("O"),
+            ["resourceUid"] = resourceUid?.ToString()
+        };
+
+        var requestUri = QueryHelpers.AddQueryString(
+            "api/scheduling/appointments",
+            queryParameters);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            requestUri);
+
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var appointments =
+            await response.Content.ReadFromJsonAsync<
+                List<ScheduleAppointmentListItemResponse>>(
+                cancellationToken: cancellationToken);
+
+        return appointments ?? [];
+    }
+
+    public async Task<ScheduleAppointmentListItemResponse> CreateAppointmentAsync(
+        CreateScheduleAppointmentRequest appointmentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/scheduling/appointments")
+        {
+            Content = JsonContent.Create(appointmentRequest)
+        };
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<ScheduleAppointmentListItemResponse>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException(
+                   "The API created the appointment but returned no appointment data.");
+    }
+
+    public async Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"api/scheduling/appointments/{appointmentUid}");
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<ScheduleAppointmentDetailsResponse>(
+            cancellationToken: cancellationToken);
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        if (value.Kind == DateTimeKind.Utc)
+        {
+            return value;
+        }
+
+        if (value.Kind == DateTimeKind.Unspecified)
+        {
+            return DateTime.SpecifyKind(value, DateTimeKind.Local)
+                .ToUniversalTime();
+        }
+
+        return value.ToUniversalTime();
+    }
+
+    private async Task AddBearerTokenAsync(
+        HttpRequestMessage request)
+    {
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                await GetAccessTokenAsync());
+    }
+
+    private async Task<string> GetAccessTokenAsync()
+    {
+        var httpContext = _httpContextAccessor.HttpContext
+            ?? throw new InvalidOperationException(
+                "No active HTTP context is available.");
+
+        var accessToken = await httpContext.GetTokenAsync(
+            "access_token");
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            throw new UnauthorizedAccessException(
+                "The access token is missing. Sign in again.");
+        }
+
+        return accessToken;
+    }
+
+    private async Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        _logger.LogWarning(
+            "MicroEMR API scheduling request failed. Status: {StatusCode}. Response: {ResponseBody}",
+            (int)response.StatusCode,
+            responseBody);
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new UnauthorizedAccessException(
+                "The API rejected the access token. Sign in again.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
+
+        throw new HttpRequestException(
+            $"MicroEMR API scheduling request failed with status " +
+            $"{(int)response.StatusCode} ({response.ReasonPhrase}).",
+            inner: null,
+            statusCode: response.StatusCode);
+    }
+}

@@ -1,0 +1,25 @@
+using MicroEMR.Web.Models.Scheduling;
+
+namespace MicroEMR.Web.Services.Scheduling;
+
+public interface ISchedulingApiClient
+{
+    Task<IReadOnlyList<ScheduleResourceResponse>>
+        GetActiveResourcesAsync(
+            CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ScheduleAppointmentListItemResponse>>
+        GetAppointmentsAsync(
+            DateTime startUtc,
+            DateTime endUtc,
+            Guid? resourceUid,
+            CancellationToken cancellationToken = default);
+
+    Task<ScheduleAppointmentListItemResponse> CreateAppointmentAsync(
+        CreateScheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default);
+}
