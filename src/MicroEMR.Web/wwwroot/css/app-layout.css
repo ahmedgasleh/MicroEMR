@@ -16,11 +16,12 @@
 html,
 body {
     min-height: 100%;
+     margin: 0;
 }
 
 body.app-body {
-    margin: 0;
-    overflow-x: hidden;
+    height: 100vh;
+    overflow: hidden;
     background-color: var(--app-background);
     color: var(--text-primary);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -229,8 +230,13 @@ body.app-body {
 .app-wrapper {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+
+    height: 100vh;
+    min-height: 0;
+
     margin-left: var(--sidebar-expanded-width);
+    overflow: hidden;
+
     transition: margin-left 0.2s ease;
 }
 
@@ -392,8 +398,13 @@ body.app-body {
 }
 
 .app-main {
-    flex: 1;
-    padding: 26px;
+    flex: 1 1 auto;
+    min-height: 0;
+
+    padding: 18px 26px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .app-footer {

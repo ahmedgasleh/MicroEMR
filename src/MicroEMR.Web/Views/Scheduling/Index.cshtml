@@ -22,20 +22,30 @@
     <style>
         .scheduling-toolbar {
             display: flex;
-            align-items: end;
+            align-items: center;
             justify-content: space-between;
-            gap: 1rem;
+            gap: .75rem;
             flex-wrap: wrap;
-            margin-bottom: 1rem;
+            margin-bottom: .75rem;
         }
+
+        .scheduling-view-bar h2 {
+            margin: 0;
+        }
+
+        .scheduling-view-bar .small {
+            margin: 0;
+        }
+
+
 
         .scheduling-view-bar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
+            gap: .75rem;
             flex-wrap: wrap;
-            margin-bottom: 1rem;
+            margin-bottom: .5rem;
         }
 
         .scheduling-toolbar-actions {
@@ -52,18 +62,32 @@
         }
 
         .scheduling-filter {
-            width: min(22rem, 100%);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            width: auto;
+        }
+
+        .scheduling-filter .form-label {
+            margin: 0;
+            white-space: nowrap;
         }
 
         .scheduling-calendar-shell {
-            min-height: 46rem;
+            height: 740px;
+            max-height: calc(100vh - var(--topbar-height) - 52px - 52px - 180px);
+
             border: 1px solid var(--bs-border-color);
             background: var(--bs-body-bg);
             overflow: hidden;
         }
 
+        .scheduling-filter .form-select {
+            width: 18rem;
+        }
+
         #schedulingCalendar {
-            height: 46rem;
+            height: 100%;
         }
 
         .scheduling-empty-state {
@@ -94,16 +118,11 @@
     <div>
         <h2 class="h5 mb-2">Day View</h2>
         <div class="btn-group" role="group" aria-label="Scheduling calendar view">
-            <button type="button"
-                    class="btn btn-outline-secondary"
-                    disabled
-                    aria-disabled="true"
+            <button type="button" class="btn btn-outline-secondary" disabled aria-disabled="true"
                     title="Month View is coming soon">
                 Month
             </button>
-            <button type="button"
-                    class="btn btn-primary"
-                    aria-pressed="true">
+            <button type="button" class="btn btn-primary" aria-pressed="true">
                 Day
             </button>
         </div>
@@ -116,40 +135,30 @@
 </div>
 
 <div class="scheduling-toolbar">
-    <div class="scheduling-toolbar-actions"
-         aria-label="Scheduling date navigation">
+    <div class="scheduling-toolbar-actions" aria-label="Scheduling date navigation">
 
-        <button type="button"
-                class="btn btn-outline-secondary"
-                id="schedulingPreviousButton">
+        <button type="button" class="btn btn-outline-secondary" id="schedulingPreviousButton">
             Previous
         </button>
 
-        <button type="button"
-                class="btn btn-outline-primary"
-                id="schedulingTodayButton">
+        <button type="button" class="btn btn-outline-primary" id="schedulingTodayButton">
             Today
         </button>
 
-        <button type="button"
-                class="btn btn-outline-secondary"
-                id="schedulingNextButton">
+        <button type="button" class="btn btn-outline-secondary" id="schedulingNextButton">
             Next
         </button>
 
-        <div class="scheduling-date-label"
-             id="schedulingDateLabel">
+        <div class="scheduling-date-label" id="schedulingDateLabel">
         </div>
     </div>
 
     <div class="scheduling-filter">
-        <label class="form-label"
-               for="schedulingResourceFilter">
+        <label class="form-label" for="schedulingResourceFilter">
             Resource
         </label>
 
-        <select class="form-select"
-                id="schedulingResourceFilter">
+        <select class="form-select" id="schedulingResourceFilter">
             <option value="">All active resources</option>
 
             @foreach (var resource in Model.Resources)
@@ -162,7 +171,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="appointmentDetailsModal" tabindex="-1" aria-labelledby="appointmentDetailsModalLabel" aria-hidden="true">
+<div class="modal fade" id="appointmentDetailsModal" tabindex="-1" aria-labelledby="appointmentDetailsModalLabel"
+     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -171,24 +181,38 @@
             </div>
             <div class="modal-body">
                 <div id="appointmentDetailsLoading" class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading</span></div>
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading</span>
+                    </div>
                     <div class="mt-2">Loading appointment details...</div>
                 </div>
                 <div id="appointmentDetailsError" class="alert alert-danger d-none" role="alert"></div>
                 <dl id="appointmentDetailsContent" class="row mb-0 d-none">
-                    <dt class="col-sm-4">Patient</dt><dd class="col-sm-8" id="detailsPatient"></dd>
-                    <dt class="col-sm-4">Chart number</dt><dd class="col-sm-8" id="detailsChartNumber"></dd>
-                    <dt class="col-sm-4">Status</dt><dd class="col-sm-8" id="detailsStatus"></dd>
-                    <dt class="col-sm-4">Date</dt><dd class="col-sm-8" id="detailsDate"></dd>
-                    <dt class="col-sm-4">Start time</dt><dd class="col-sm-8" id="detailsStartTime"></dd>
-                    <dt class="col-sm-4">End time</dt><dd class="col-sm-8" id="detailsEndTime"></dd>
-                    <dt class="col-sm-4">Provider/resource</dt><dd class="col-sm-8" id="detailsPrimaryResource"></dd>
-                    <dt class="col-sm-4">Room</dt><dd class="col-sm-8" id="detailsRoom"></dd>
-                    <dt class="col-sm-4">Appointment type</dt><dd class="col-sm-8" id="detailsType"></dd>
-                    <dt class="col-sm-4">Reason</dt><dd class="col-sm-8" id="detailsReason"></dd>
-                    <dt class="col-sm-4">Notes</dt><dd class="col-sm-8 text-break" id="detailsNotes"></dd>
-                    <dt class="col-sm-4">Created by</dt><dd class="col-sm-8" id="detailsCreatedBy"></dd>
-                    <dt class="col-sm-4">Created date</dt><dd class="col-sm-8" id="detailsCreatedAt"></dd>
+                    <dt class="col-sm-4">Patient</dt>
+                    <dd class="col-sm-8" id="detailsPatient"></dd>
+                    <dt class="col-sm-4">Chart number</dt>
+                    <dd class="col-sm-8" id="detailsChartNumber"></dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8" id="detailsStatus"></dd>
+                    <dt class="col-sm-4">Date</dt>
+                    <dd class="col-sm-8" id="detailsDate"></dd>
+                    <dt class="col-sm-4">Start time</dt>
+                    <dd class="col-sm-8" id="detailsStartTime"></dd>
+                    <dt class="col-sm-4">End time</dt>
+                    <dd class="col-sm-8" id="detailsEndTime"></dd>
+                    <dt class="col-sm-4">Provider/resource</dt>
+                    <dd class="col-sm-8" id="detailsPrimaryResource"></dd>
+                    <dt class="col-sm-4">Room</dt>
+                    <dd class="col-sm-8" id="detailsRoom"></dd>
+                    <dt class="col-sm-4">Appointment type</dt>
+                    <dd class="col-sm-8" id="detailsType"></dd>
+                    <dt class="col-sm-4">Reason</dt>
+                    <dd class="col-sm-8" id="detailsReason"></dd>
+                    <dt class="col-sm-4">Notes</dt>
+                    <dd class="col-sm-8 text-break" id="detailsNotes"></dd>
+                    <dt class="col-sm-4">Created by</dt>
+                    <dd class="col-sm-8" id="detailsCreatedBy"></dd>
+                    <dt class="col-sm-4">Created date</dt>
+                    <dd class="col-sm-8" id="detailsCreatedAt"></dd>
                 </dl>
             </div>
             <div class="modal-footer">
@@ -201,7 +225,8 @@
 
 <form id="schedulingAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
-<div class="modal fade" id="addAppointmentModal" tabindex="-1" aria-labelledby="addAppointmentModalLabel" aria-hidden="true">
+<div class="modal fade" id="addAppointmentModal" tabindex="-1" aria-labelledby="addAppointmentModalLabel"
+     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -215,8 +240,10 @@
                     <div class="mb-3">
                         <label for="patientSearchTerm" class="form-label">Patient</label>
                         <div class="input-group">
-                            <input id="patientSearchTerm" class="form-control" autocomplete="off" placeholder="Name or chart number" />
-                            <button id="patientSearchButton" class="btn btn-outline-primary" type="button">Search</button>
+                            <input id="patientSearchTerm" class="form-control" autocomplete="off"
+                                   placeholder="Name or chart number" />
+                            <button id="patientSearchButton" class="btn btn-outline-primary"
+                                    type="button">Search</button>
                         </div>
                         <div id="selectedPatientLabel" class="form-text">No patient selected.</div>
                         <div id="patientSearchResults" class="list-group mt-2"></div>
@@ -227,9 +254,11 @@
                             <label for="PrimaryResourceUid" class="form-label">Primary resource</label>
                             <select id="PrimaryResourceUid" name="PrimaryResourceUid" class="form-select">
                                 <option value="">Select resource</option>
-                                @foreach (var resource in Model.Resources.OrderBy(r => r.ResourceType == "Provider" ? 0 : 1).ThenBy(r => r.SortOrder))
+                                @foreach (var resource in Model.Resources.OrderBy(r => r.ResourceType == "Provider" ? 0
+                                : 1).ThenBy(r => r.SortOrder))
                                 {
-                                    <option value="@resource.ResourceUid">@resource.DisplayName (@resource.ResourceType)</option>
+                                    <option value="@resource.ResourceUid">@resource.DisplayName (@resource.ResourceType)
+                                    </option>
                                 }
                             </select>
                             <div class="invalid-feedback" data-error-for="PrimaryResourceUid"></div>
@@ -238,26 +267,34 @@
                             <label for="RoomResourceUid" class="form-label">Room (optional)</label>
                             <select id="RoomResourceUid" name="RoomResourceUid" class="form-select">
                                 <option value="">No room</option>
-                                @foreach (var room in Model.Resources.Where(r => r.ResourceType == "Room").OrderBy(r => r.SortOrder))
-                                { <option value="@room.ResourceUid">@room.DisplayName</option> }
+                                @foreach (var room in Model.Resources.Where(r => r.ResourceType == "Room").OrderBy(r =>
+                                r.SortOrder))
+                                {
+                                    <option value="@room.ResourceUid">@room.DisplayName</option>
+                                }
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label for="StartDateTimeLocal" class="form-label">Start</label>
-                            <input id="StartDateTimeLocal" name="StartDateTimeLocal" type="datetime-local" class="form-control" />
+                            <input id="StartDateTimeLocal" name="StartDateTimeLocal" type="datetime-local"
+                                   class="form-control" />
                             <div class="invalid-feedback" data-error-for="StartDateTimeLocal"></div>
                         </div>
                         <div class="col-md-6">
                             <label for="EndDateTimeLocal" class="form-label">End</label>
-                            <input id="EndDateTimeLocal" name="EndDateTimeLocal" type="datetime-local" class="form-control" />
+                            <input id="EndDateTimeLocal" name="EndDateTimeLocal" type="datetime-local"
+                                   class="form-control" />
                             <div class="invalid-feedback" data-error-for="EndDateTimeLocal"></div>
                         </div>
                         <div class="col-md-6">
                             <label for="AppointmentType" class="form-label">Appointment type</label>
                             <select id="AppointmentType" name="AppointmentType" class="form-select">
                                 <option value="">Select type</option>
-                                @foreach (var type in new[] { "Office Visit", "Phone Visit", "Virtual Visit", "Follow-up", "Consultation", "Procedure", "Other" })
-                                { <option value="@type">@type</option> }
+                                @foreach (var type in new[] { "Office Visit", "Phone Visit", "Virtual Visit",
+             "Follow-up", "Consultation", "Procedure", "Other" })
+                                {
+                                    <option value="@type">@type</option>
+                                }
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -299,330 +336,330 @@ else
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            if (!window.DayPilot) {
-                console.error("DayPilot Lite could not be loaded.");
-                return;
-            }
+        if (!window.DayPilot) {
+        console.error("DayPilot Lite could not be loaded.");
+        return;
+        }
 
-            const resources = @Html.Raw(resourcesJson);
+        const resources = @Html.Raw(resourcesJson);
 
-            if (!resources.length) {
-                return;
-            }
+        if (!resources.length) {
+        return;
+        }
 
-            let selectedDate = DayPilot.Date.today();
-            const resourceFilter =
-                document.getElementById("schedulingResourceFilter");
+        let selectedDate = DayPilot.Date.today();
+        const resourceFilter =
+        document.getElementById("schedulingResourceFilter");
 
-            const dateLabel =
-                document.getElementById("schedulingDateLabel");
+        const dateLabel =
+        document.getElementById("schedulingDateLabel");
 
-            const toColumns = () => {
-                const selectedResourceUid = resourceFilter.value;
+        const toColumns = () => {
+        const selectedResourceUid = resourceFilter.value;
 
-                return resources
-                    .filter(resource =>
-                        !selectedResourceUid ||
-                        resource.resourceUid === selectedResourceUid)
-                    .map(resource => ({
-                        id: resource.resourceUid,
-                        name: resource.displayName
-                    }));
-            };
+        return resources
+        .filter(resource =>
+        !selectedResourceUid ||
+        resource.resourceUid === selectedResourceUid)
+        .map(resource => ({
+        id: resource.resourceUid,
+        name: resource.displayName
+        }));
+        };
 
-            const calendar = new DayPilot.Calendar(
-                "schedulingCalendar",
-                {
-                    viewType: "Resources",
-                    columns: toColumns(),
-                    startDate: selectedDate,
-                    cellDuration: 15,
-                    businessBeginsHour: 8,
-                    businessEndsHour: 18,
-                    eventMoveHandling: "Disabled",
-                    eventResizeHandling: "Disabled",
-                    eventDeleteHandling: "Disabled",
-                    timeRangeSelectedHandling: "Enabled",
-                    onTimeRangeSelected: args => {
-                        openAppointmentModal(args.start, args.resource);
-                        calendar.clearSelection();
-                    },
-                    onEventClick: args => openAppointmentDetails(args.e.id())
-                });
+        const calendar = new DayPilot.Calendar(
+        "schedulingCalendar",
+        {
+        viewType: "Resources",
+        columns: toColumns(),
+        startDate: selectedDate,
+        cellDuration: 15,
+        businessBeginsHour: 8,
+        businessEndsHour: 18,
+        eventMoveHandling: "Disabled",
+        eventResizeHandling: "Disabled",
+        eventDeleteHandling: "Disabled",
+        timeRangeSelectedHandling: "Enabled",
+        onTimeRangeSelected: args => {
+        openAppointmentModal(args.start, args.resource);
+        calendar.clearSelection();
+        },
+        onEventClick: args => openAppointmentDetails(args.e.id())
+        });
 
-            calendar.init();
+        calendar.init();
 
-            const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
-            const appointmentForm = document.getElementById("addAppointmentForm");
-            const appointmentMessage = document.getElementById("appointmentMessage");
-            const selectedPatientLabel = document.getElementById("selectedPatientLabel");
-            const searchResults = document.getElementById("patientSearchResults");
-            const detailsModal = new bootstrap.Modal(document.getElementById("appointmentDetailsModal"));
-            const detailsLoading = document.getElementById("appointmentDetailsLoading");
-            const detailsError = document.getElementById("appointmentDetailsError");
-            const detailsContent = document.getElementById("appointmentDetailsContent");
-            const openChartButton = document.getElementById("openPatientChartButton");
-            const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
+        const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
+        const appointmentForm = document.getElementById("addAppointmentForm");
+        const appointmentMessage = document.getElementById("appointmentMessage");
+        const selectedPatientLabel = document.getElementById("selectedPatientLabel");
+        const searchResults = document.getElementById("patientSearchResults");
+        const detailsModal = new bootstrap.Modal(document.getElementById("appointmentDetailsModal"));
+        const detailsLoading = document.getElementById("appointmentDetailsLoading");
+        const detailsError = document.getElementById("appointmentDetailsError");
+        const detailsContent = document.getElementById("appointmentDetailsContent");
+        const openChartButton = document.getElementById("openPatientChartButton");
+        const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
 
-            const setDetailsText = (id, value, fallback = "Not specified") => {
-                document.getElementById(id).textContent = value || fallback;
-            };
+        const setDetailsText = (id, value, fallback = "Not specified") => {
+        document.getElementById(id).textContent = value || fallback;
+        };
 
-            const openAppointmentDetails = async appointmentUid => {
-                detailsLoading.classList.remove("d-none");
-                detailsError.classList.add("d-none");
-                detailsContent.classList.add("d-none");
-                openChartButton.classList.add("d-none");
-                detailsModal.show();
+        const openAppointmentDetails = async appointmentUid => {
+        detailsLoading.classList.remove("d-none");
+        detailsError.classList.add("d-none");
+        detailsContent.classList.add("d-none");
+        openChartButton.classList.add("d-none");
+        detailsModal.show();
 
-                try {
-                    const url = new URL("/Scheduling/AppointmentDetails", window.location.origin);
-                    url.searchParams.set("appointmentUid", appointmentUid);
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`Appointment details request failed: ${response.status}`);
-                    }
+        try {
+        const url = new URL("/Scheduling/AppointmentDetails", window.location.origin);
+        url.searchParams.set("appointmentUid", appointmentUid);
+        const response = await fetch(url);
+        if (!response.ok) {
+        throw new Error(`Appointment details request failed: ${response.status}`);
+        }
 
-                    const details = await response.json();
-                    const start = new Date(details.startDateTimeLocal);
-                    const end = new Date(details.endDateTimeLocal);
-                    const createdAt = new Date(details.createdAtLocal);
-                    setDetailsText("detailsPatient", details.patientDisplayName);
-                    setDetailsText("detailsChartNumber", details.chartNumber);
-                    setDetailsText("detailsStatus", details.status);
-                    setDetailsText("detailsDate", start.toLocaleDateString());
-                    setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-                    setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-                    setDetailsText("detailsPrimaryResource", details.primaryResourceName);
-                    setDetailsText("detailsRoom", details.roomResourceName, "No room assigned");
-                    setDetailsText("detailsType", details.appointmentType);
-                    setDetailsText("detailsReason", details.reason);
-                    setDetailsText("detailsNotes", details.notes);
-                    setDetailsText("detailsCreatedBy", details.createdByDisplayName, "System");
-                    setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
-                    openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
-                    openChartButton.classList.remove("d-none");
-                    detailsContent.classList.remove("d-none");
-                } catch (error) {
-                    console.error(error);
-                    detailsError.textContent = "The appointment details could not be loaded. Please try again.";
-                    detailsError.classList.remove("d-none");
-                } finally {
-                    detailsLoading.classList.add("d-none");
-                }
-            };
+        const details = await response.json();
+        const start = new Date(details.startDateTimeLocal);
+        const end = new Date(details.endDateTimeLocal);
+        const createdAt = new Date(details.createdAtLocal);
+        setDetailsText("detailsPatient", details.patientDisplayName);
+        setDetailsText("detailsChartNumber", details.chartNumber);
+        setDetailsText("detailsStatus", details.status);
+        setDetailsText("detailsDate", start.toLocaleDateString());
+        setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+        setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+        setDetailsText("detailsPrimaryResource", details.primaryResourceName);
+        setDetailsText("detailsRoom", details.roomResourceName, "No room assigned");
+        setDetailsText("detailsType", details.appointmentType);
+        setDetailsText("detailsReason", details.reason);
+        setDetailsText("detailsNotes", details.notes);
+        setDetailsText("detailsCreatedBy", details.createdByDisplayName, "System");
+        setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
+        openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
+        openChartButton.classList.remove("d-none");
+        detailsContent.classList.remove("d-none");
+        } catch (error) {
+        console.error(error);
+        detailsError.textContent = "The appointment details could not be loaded. Please try again.";
+        detailsError.classList.remove("d-none");
+        } finally {
+        detailsLoading.classList.add("d-none");
+        }
+        };
 
-            const localInputValue = date => {
-                const pad = value => String(value).padStart(2, "0");
-                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-            };
+        const localInputValue = date => {
+        const pad = value => String(value).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        };
 
-            const openAppointmentModal = (start, resourceUid) => {
-                appointmentForm.reset();
-                clearAppointmentErrors();
-                document.getElementById("PatientUid").value = "";
-                selectedPatientLabel.textContent = "No patient selected.";
-                searchResults.replaceChildren();
-                const startDate = start.toDateLocal();
-                const endDate = new Date(startDate.getTime() + 15 * 60000);
-                document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
-                document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
-                const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
-                const firstProvider = resources.find(resource => resource.resourceType === "Provider");
-                document.getElementById("PrimaryResourceUid").value =
-                    clickedResource?.resourceType === "Provider"
-                        ? resourceUid
-                        : (resourceFilter.value && resources.find(resource => resource.resourceUid === resourceFilter.value)?.resourceType === "Provider"
-                            ? resourceFilter.value
-                            : firstProvider?.resourceUid || "");
-                if (clickedResource?.resourceType === "Room") {
-                    document.getElementById("RoomResourceUid").value = resourceUid;
-                }
-                appointmentModal.show();
-            };
+        const openAppointmentModal = (start, resourceUid) => {
+        appointmentForm.reset();
+        clearAppointmentErrors();
+        document.getElementById("PatientUid").value = "";
+        selectedPatientLabel.textContent = "No patient selected.";
+        searchResults.replaceChildren();
+        const startDate = start.toDateLocal();
+        const endDate = new Date(startDate.getTime() + 15 * 60000);
+        document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
+        document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
+        const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
+        const firstProvider = resources.find(resource => resource.resourceType === "Provider");
+        document.getElementById("PrimaryResourceUid").value =
+        clickedResource?.resourceType === "Provider"
+        ? resourceUid
+        : (resourceFilter.value && resources.find(resource => resource.resourceUid === resourceFilter.value)?.resourceType === "Provider"
+        ? resourceFilter.value
+        : firstProvider?.resourceUid || "");
+        if (clickedResource?.resourceType === "Room") {
+        document.getElementById("RoomResourceUid").value = resourceUid;
+        }
+        appointmentModal.show();
+        };
 
-            const clearAppointmentErrors = () => {
-                appointmentMessage.className = "alert d-none";
-                appointmentMessage.textContent = "";
-                appointmentForm.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
-                appointmentForm.querySelectorAll("[data-error-for]").forEach(element => element.textContent = "");
-            };
+        const clearAppointmentErrors = () => {
+        appointmentMessage.className = "alert d-none";
+        appointmentMessage.textContent = "";
+        appointmentForm.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
+        appointmentForm.querySelectorAll("[data-error-for]").forEach(element => element.textContent = "");
+        };
 
-            const showMessage = (message, style = "danger") => {
-                appointmentMessage.className = `alert alert-${style}`;
-                appointmentMessage.textContent = message;
-            };
+        const showMessage = (message, style = "danger") => {
+        appointmentMessage.className = `alert alert-${style}`;
+        appointmentMessage.textContent = message;
+        };
 
-            const searchPatients = async () => {
-                const term = document.getElementById("patientSearchTerm").value.trim();
-                searchResults.replaceChildren();
-                if (term.length < 2) {
-                    showMessage("Enter at least two characters to search for a patient.");
-                    return;
-                }
-                clearAppointmentErrors();
-                const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
-                if (!response.ok) {
-                    showMessage("Patient search is unavailable. Please try again.");
-                    return;
-                }
-                const patients = await response.json();
-                if (!patients.length) {
-                    searchResults.innerHTML = '<div class="list-group-item text-body-secondary">No patients found.</div>';
-                    return;
-                }
-                patients.forEach(patient => {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.className = "list-group-item list-group-item-action";
-                    button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
-                    button.addEventListener("click", () => {
-                        document.getElementById("PatientUid").value = patient.patientUid;
-                        selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
-                        searchResults.replaceChildren();
-                    });
-                    searchResults.appendChild(button);
-                });
-            };
+        const searchPatients = async () => {
+        const term = document.getElementById("patientSearchTerm").value.trim();
+        searchResults.replaceChildren();
+        if (term.length < 2) {
+        showMessage("Enter at least two characters to search for a patient.");
+        return;
+        }
+        clearAppointmentErrors();
+        const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
+        if (!response.ok) {
+        showMessage("Patient search is unavailable. Please try again.");
+        return;
+        }
+        const patients = await response.json();
+        if (!patients.length) {
+        searchResults.innerHTML = '<div class="list-group-item text-body-secondary">No patients found.</div>';
+        return;
+        }
+        patients.forEach(patient => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "list-group-item list-group-item-action";
+        button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
+        button.addEventListener("click", () => {
+        document.getElementById("PatientUid").value = patient.patientUid;
+        selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
+        searchResults.replaceChildren();
+        });
+        searchResults.appendChild(button);
+        });
+        };
 
-            document.getElementById("patientSearchButton").addEventListener("click", searchPatients);
-            document.getElementById("patientSearchTerm").addEventListener("keydown", event => {
-                if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
-            });
+        document.getElementById("patientSearchButton").addEventListener("click", searchPatients);
+        document.getElementById("patientSearchTerm").addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
+        });
 
-            document.getElementById("saveAppointmentButton").addEventListener("click", async event => {
-                clearAppointmentErrors();
-                const button = event.currentTarget;
-                button.disabled = true;
-                try {
-                    const formData = new FormData(appointmentForm);
-                    const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-                    const response = await fetch("/Scheduling/CreateAppointment", {
-                        method: "POST",
-                        headers: { "RequestVerificationToken": token },
-                        body: formData
-                    });
-                    const result = await response.json();
-                    if (!response.ok || !result.success) {
-                        showMessage(result.message || "The appointment could not be saved.");
-                        Object.entries(result.errors || {}).forEach(([name, messages]) => {
-                            const input = document.getElementById(name);
-                            if (input) input.classList.add("is-invalid");
-                            const feedback = appointmentForm.querySelector(`[data-error-for="${name}"]`);
-                            if (feedback) feedback.textContent = messages.join(" ");
-                        });
-                        return;
-                    }
-                    appointmentModal.hide();
-                    appointmentForm.reset();
-                    await refreshCalendar();
-                } catch (error) {
-                    console.error(error);
-                    showMessage("The appointment could not be saved. Please try again.");
-                } finally {
-                    button.disabled = false;
-                }
-            });
+        document.getElementById("saveAppointmentButton").addEventListener("click", async event => {
+        clearAppointmentErrors();
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+        const formData = new FormData(appointmentForm);
+        const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const response = await fetch("/Scheduling/CreateAppointment", {
+        method: "POST",
+        headers: { "RequestVerificationToken": token },
+        body: formData
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+        showMessage(result.message || "The appointment could not be saved.");
+        Object.entries(result.errors || {}).forEach(([name, messages]) => {
+        const input = document.getElementById(name);
+        if (input) input.classList.add("is-invalid");
+        const feedback = appointmentForm.querySelector(`[data-error-for="${name}"]`);
+        if (feedback) feedback.textContent = messages.join(" ");
+        });
+        return;
+        }
+        appointmentModal.hide();
+        appointmentForm.reset();
+        await refreshCalendar();
+        } catch (error) {
+        console.error(error);
+        showMessage("The appointment could not be saved. Please try again.");
+        } finally {
+        button.disabled = false;
+        }
+        });
 
-            const setDateLabel = () => {
-                dateLabel.textContent =
-                    selectedDate.toDateLocal().toLocaleDateString(
-                        undefined,
-                        {
-                            weekday: "long",
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric"
-                        });
-            };
+        const setDateLabel = () => {
+        dateLabel.textContent =
+        selectedDate.toDateLocal().toLocaleDateString(
+        undefined,
+        {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+        });
+        };
 
-            const dayRange = () => {
-                const start = selectedDate.toDateLocal();
-                start.setHours(0, 0, 0, 0);
+        const dayRange = () => {
+        const start = selectedDate.toDateLocal();
+        start.setHours(0, 0, 0, 0);
 
-                const end = new Date(start);
-                end.setDate(end.getDate() + 1);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
 
-                return {
-                    start: start.toISOString(),
-                    end: end.toISOString()
-                };
-            };
+        return {
+        start: start.toISOString(),
+        end: end.toISOString()
+        };
+        };
 
-            const loadEvents = async () => {
-                const range = dayRange();
-                const url = new URL(
-                    "/Scheduling/Events",
-                    window.location.origin);
+        const loadEvents = async () => {
+        const range = dayRange();
+        const url = new URL(
+        "/Scheduling/Events",
+        window.location.origin);
 
-                url.searchParams.set("start", range.start);
-                url.searchParams.set("end", range.end);
+        url.searchParams.set("start", range.start);
+        url.searchParams.set("end", range.end);
 
-                if (resourceFilter.value) {
-                    url.searchParams.set(
-                        "resourceUid",
-                        resourceFilter.value);
-                }
+        if (resourceFilter.value) {
+        url.searchParams.set(
+        "resourceUid",
+        resourceFilter.value);
+        }
 
-                const response = await fetch(url);
+        const response = await fetch(url);
 
-                if (!response.ok) {
-                    throw new Error(
-                        `Scheduling events request failed: ${response.status}`);
-                }
+        if (!response.ok) {
+        throw new Error(
+        `Scheduling events request failed: ${response.status}`);
+        }
 
-                return await response.json();
-            };
+        return await response.json();
+        };
 
-            const refreshCalendar = async () => {
-                setDateLabel();
+        const refreshCalendar = async () => {
+        setDateLabel();
 
-                calendar.update({
-                    startDate: selectedDate,
-                    columns: toColumns(),
-                    events: []
-                });
+        calendar.update({
+        startDate: selectedDate,
+        columns: toColumns(),
+        events: []
+        });
 
-                try {
-                    const events = await loadEvents();
+        try {
+        const events = await loadEvents();
 
-                    calendar.update({
-                        events
-                    });
-                } catch (error) {
-                    console.error(error);
-                    calendar.update({
-                        events: []
-                    });
-                }
-            };
+        calendar.update({
+        events
+        });
+        } catch (error) {
+        console.error(error);
+        calendar.update({
+        events: []
+        });
+        }
+        };
 
-            document
-                .getElementById("schedulingPreviousButton")
-                .addEventListener("click", async () => {
-                    selectedDate = selectedDate.addDays(-1);
-                    await refreshCalendar();
-                });
+        document
+        .getElementById("schedulingPreviousButton")
+        .addEventListener("click", async () => {
+        selectedDate = selectedDate.addDays(-1);
+        await refreshCalendar();
+        });
 
-            document
-                .getElementById("schedulingTodayButton")
-                .addEventListener("click", async () => {
-                    selectedDate = DayPilot.Date.today();
-                    await refreshCalendar();
-                });
+        document
+        .getElementById("schedulingTodayButton")
+        .addEventListener("click", async () => {
+        selectedDate = DayPilot.Date.today();
+        await refreshCalendar();
+        });
 
-            document
-                .getElementById("schedulingNextButton")
-                .addEventListener("click", async () => {
-                    selectedDate = selectedDate.addDays(1);
-                    await refreshCalendar();
-                });
+        document
+        .getElementById("schedulingNextButton")
+        .addEventListener("click", async () => {
+        selectedDate = selectedDate.addDays(1);
+        await refreshCalendar();
+        });
 
-            resourceFilter.addEventListener(
-                "change",
-                refreshCalendar);
+        resourceFilter.addEventListener(
+        "change",
+        refreshCalendar);
 
-            refreshCalendar();
+        refreshCalendar();
         });
     </script>
 }
