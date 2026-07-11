@@ -74,7 +74,7 @@
         }
 
         .scheduling-calendar-shell {
-            height: 740px;
+            height: 640px;
             max-height: calc(100vh - var(--topbar-height) - 52px - 52px - 180px);
 
             border: 1px solid var(--bs-border-color);
@@ -224,6 +224,26 @@
 </div>
 
 <form id="schedulingAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
+
+<div class="modal fade" id="moveAppointmentModal" tabindex="-1" aria-labelledby="moveAppointmentModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="moveAppointmentModalLabel">Confirm Appointment Move</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="moveAppointmentMessage" class="alert alert-danger d-none" role="alert"></div>
+                <p class="mb-0" id="moveAppointmentSummary"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="keepCurrentTimeButton">Keep Current Time</button>
+                <button type="button" class="btn btn-primary" id="confirmMoveButton">Confirm Move</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="addAppointmentModal" tabindex="-1" aria-labelledby="addAppointmentModalLabel"
      aria-hidden="true">
@@ -376,10 +396,43 @@ else
         cellDuration: 15,
         businessBeginsHour: 8,
         businessEndsHour: 18,
-        eventMoveHandling: "Disabled",
+        eventMoveHandling: "Update",
         eventResizeHandling: "Disabled",
         eventDeleteHandling: "Disabled",
         timeRangeSelectedHandling: "Enabled",
+        onEventMove: async args => {
+        args.preventDefault();
+        try {
+        const detailsUrl = new URL("/Scheduling/AppointmentDetails", window.location.origin);
+        detailsUrl.searchParams.set("appointmentUid", args.e.id());
+        const detailsResponse = await fetch(detailsUrl);
+        if (!detailsResponse.ok) throw new Error(`Appointment details request failed: ${detailsResponse.status}`);
+        const details = await detailsResponse.json();
+        pendingMove = {
+        appointmentUid: args.e.id(),
+        primaryResourceUid: args.newResource,
+        roomResourceUid: details.roomResourceUid || null,
+        startDateTimeLocal: args.newStart.toDateLocal(),
+        endDateTimeLocal: args.newEnd.toDateLocal()
+        };
+
+        const destination = resources.find(resource => resource.resourceUid === args.newResource);
+        const start = pendingMove.startDateTimeLocal;
+        const end = pendingMove.endDateTimeLocal;
+        moveAppointmentSummary.textContent =
+        `Move to ${destination?.displayName || "the selected resource"} on ${start.toLocaleDateString()} ` +
+        `from ${start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} ` +
+        `to ${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}?`;
+        moveAppointmentMessage.classList.add("d-none");
+        moveAppointmentMessage.textContent = "";
+        moveAppointmentModal.show();
+        } catch (error) {
+        console.error(error);
+        pendingMove = null;
+        await refreshCalendar();
+        window.alert("The appointment could not be prepared for rescheduling. Please try again.");
+        }
+        },
         onTimeRangeSelected: args => {
         openAppointmentModal(args.start, args.resource);
         calendar.clearSelection();
@@ -390,6 +443,12 @@ else
         calendar.init();
 
         const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
+        const moveAppointmentModalElement = document.getElementById("moveAppointmentModal");
+        const moveAppointmentModal = new bootstrap.Modal(moveAppointmentModalElement);
+        const moveAppointmentSummary = document.getElementById("moveAppointmentSummary");
+        const moveAppointmentMessage = document.getElementById("moveAppointmentMessage");
+        const confirmMoveButton = document.getElementById("confirmMoveButton");
+        let pendingMove = null;
         const appointmentForm = document.getElementById("addAppointmentForm");
         const appointmentMessage = document.getElementById("appointmentMessage");
         const selectedPatientLabel = document.getElementById("selectedPatientLabel");
@@ -453,6 +512,56 @@ else
         const pad = value => String(value).padStart(2, "0");
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         };
+
+        document.getElementById("keepCurrentTimeButton").addEventListener("click", async () => {
+        pendingMove = null;
+        moveAppointmentModal.hide();
+        await refreshCalendar();
+        });
+
+        confirmMoveButton.addEventListener("click", async () => {
+        if (!pendingMove) return;
+        confirmMoveButton.disabled = true;
+        moveAppointmentMessage.classList.add("d-none");
+        try {
+        const formData = new FormData();
+        formData.append("AppointmentUid", pendingMove.appointmentUid);
+        formData.append("PrimaryResourceUid", pendingMove.primaryResourceUid);
+        if (pendingMove.roomResourceUid) formData.append("RoomResourceUid", pendingMove.roomResourceUid);
+        formData.append("StartDateTimeLocal", localInputValue(pendingMove.startDateTimeLocal));
+        formData.append("EndDateTimeLocal", localInputValue(pendingMove.endDateTimeLocal));
+        const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const response = await fetch("/Scheduling/RescheduleAppointment", {
+        method: "POST",
+        headers: { "RequestVerificationToken": token },
+        body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+        moveAppointmentMessage.textContent = result.message || "The appointment could not be moved. Please try again.";
+        moveAppointmentMessage.classList.remove("d-none");
+        await refreshCalendar();
+        return;
+        }
+        pendingMove = null;
+        moveAppointmentModal.hide();
+        await refreshCalendar();
+        } catch (error) {
+        console.error(error);
+        moveAppointmentMessage.textContent = "The appointment could not be moved. Please try again.";
+        moveAppointmentMessage.classList.remove("d-none");
+        await refreshCalendar();
+        } finally {
+        confirmMoveButton.disabled = false;
+        }
+        });
+
+        moveAppointmentModalElement.addEventListener("hidden.bs.modal", () => {
+        if (pendingMove) {
+        pendingMove = null;
+        refreshCalendar();
+        }
+        });
 
         const openAppointmentModal = (start, resourceUid) => {
         appointmentForm.reset();

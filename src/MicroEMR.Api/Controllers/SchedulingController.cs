@@ -8,7 +8,7 @@ using MicroEMR.Application.Scheduling;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-[AllowAnonymous] // Development compatibility until API token validation is enabled consistently.
+[Authorize]
 [Route("api/scheduling")]
 public sealed class SchedulingController : ControllerBase
 {
@@ -35,7 +35,11 @@ public sealed class SchedulingController : ControllerBase
             ModelState.AddModelError(nameof(request.PatientUid), "Patient is required.");
         if (request.PrimaryResourceUid == Guid.Empty)
             ModelState.AddModelError(nameof(request.PrimaryResourceUid), "Primary resource is required.");
-        if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
+        if (request.StartDateTimeUtc == default)
+            ModelState.AddModelError(nameof(request.StartDateTimeUtc), "Start time is required.");
+        if (request.EndDateTimeUtc == default)
+            ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time is required.");
+        else if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
             ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time must be after start time.");
         if (!ModelState.IsValid)
             return ValidationProblem(ModelState);
@@ -123,5 +127,114 @@ public sealed class SchedulingController : ControllerBase
         var appointment = await _schedulingReadService.GetAppointmentByUidAsync(
             appointmentUid, cancellationToken);
         return appointment is null ? NotFound() : Ok(appointment);
+    }
+
+    [HttpPost("appointments/{appointmentUid:guid}/cancel")]
+    [ProducesResponseType(typeof(CancelScheduleAppointmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CancelScheduleAppointmentResponse>> CancelAppointment(
+        Guid appointmentUid,
+        [FromBody] CancelScheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { message = "Appointment identifier is required." });
+        if (request.CancelReason?.Length > 500)
+            return BadRequest(new { message = "Cancel reason cannot exceed 500 characters." });
+
+        try
+        {
+            var result = await _schedulingAppointmentService.CancelAsync(
+                appointmentUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (AppointmentAlreadyCancelledException)
+        {
+            return Conflict(new { message = "The appointment is already cancelled." });
+        }
+    }
+
+    [HttpPut("appointments/{appointmentUid:guid}")]
+    [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ScheduleAppointmentDetailsResponse>> UpdateAppointment(
+        Guid appointmentUid,
+        [FromBody] UpdateScheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(appointmentUid), "Appointment identifier is required.");
+        if (request.PrimaryResourceUid == Guid.Empty)
+            ModelState.AddModelError(nameof(request.PrimaryResourceUid), "Primary resource is required.");
+        if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
+            ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time must be after start time.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var result = await _schedulingAppointmentService.UpdateAsync(
+                appointmentUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (SchedulingConflictException)
+        {
+            return Conflict(new { code = "appointment_conflict", message = "The selected time conflicts with another appointment for this resource." });
+        }
+        catch (AppointmentAlreadyCancelledException)
+        {
+            return Conflict(new { code = "appointment_cancelled", message = "Cancelled appointments cannot be edited." });
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(new { message = "The appointment update request is invalid." });
+        }
+    }
+
+    [HttpPost("appointments/{appointmentUid:guid}/reschedule")]
+    [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ScheduleAppointmentDetailsResponse>> RescheduleAppointment(
+        Guid appointmentUid,
+        [FromBody] RescheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(appointmentUid), "Appointment identifier is required.");
+        if (request.PrimaryResourceUid == Guid.Empty)
+            ModelState.AddModelError(nameof(request.PrimaryResourceUid), "Primary resource is required.");
+        if (request.StartDateTimeUtc == default)
+            ModelState.AddModelError(nameof(request.StartDateTimeUtc), "Start time is required.");
+        if (request.EndDateTimeUtc == default)
+            ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time is required.");
+        else if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
+            ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time must be after start time.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var result = await _schedulingAppointmentService.RescheduleAsync(
+                appointmentUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (SchedulingConflictException)
+        {
+            return Conflict(new { code = "appointment_conflict", message = "The selected time conflicts with another appointment for this resource." });
+        }
+        catch (AppointmentAlreadyCancelledException)
+        {
+            return Conflict(new { code = "appointment_cancelled", message = "Cancelled appointments cannot be rescheduled." });
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(new { message = "The appointment reschedule request is invalid." });
+        }
     }
 }

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.WebUtilities;
 using MicroEMR.Web.Models.Scheduling;
+using System.Text.Json;
 
 namespace MicroEMR.Web.Services.Scheduling;
 
@@ -125,6 +126,116 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<ScheduleAppointmentDetailsResponse>(
             cancellationToken: cancellationToken);
+    }
+
+    public async Task<CancelScheduleAppointmentResponse?> CancelAppointmentAsync(
+        Guid appointmentUid,
+        CancelScheduleAppointmentRequest appointmentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/scheduling/appointments/{appointmentUid}/cancel")
+        {
+            Content = JsonContent.Create(appointmentRequest)
+        };
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<CancelScheduleAppointmentResponse>(
+            cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The API cancelled the appointment but returned no cancellation data.");
+    }
+
+    public async Task<ScheduleAppointmentDetailsResponse?> UpdateAppointmentAsync(
+        Guid appointmentUid,
+        UpdateScheduleAppointmentRequest appointmentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"api/scheduling/appointments/{appointmentUid}")
+        {
+            Content = JsonContent.Create(appointmentRequest)
+        };
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "MicroEMR API scheduling update returned a conflict. Status: {StatusCode}.",
+                (int)response.StatusCode);
+            var isCancelled = false;
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                isCancelled = document.RootElement.TryGetProperty("code", out var code)
+                    && code.GetString() == "appointment_cancelled";
+            }
+            catch (JsonException)
+            {
+                // Treat malformed conflict responses as scheduling overlaps.
+            }
+            throw new AppointmentUpdateConflictException(isCancelled);
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<ScheduleAppointmentDetailsResponse>(
+            cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The API updated the appointment but returned no appointment data.");
+    }
+
+    public async Task<ScheduleAppointmentDetailsResponse?> RescheduleAppointmentAsync(
+        Guid appointmentUid,
+        RescheduleAppointmentRequest appointmentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/scheduling/appointments/{appointmentUid}/reschedule")
+        {
+            Content = JsonContent.Create(appointmentRequest)
+        };
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "MicroEMR API scheduling reschedule returned a conflict. Status: {StatusCode}.",
+                (int)response.StatusCode);
+            var isCancelled = false;
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                isCancelled = document.RootElement.TryGetProperty("code", out var code)
+                    && code.GetString() == "appointment_cancelled";
+            }
+            catch (JsonException)
+            {
+                // Treat malformed conflict responses as scheduling overlaps.
+            }
+            throw new AppointmentUpdateConflictException(isCancelled);
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<ScheduleAppointmentDetailsResponse>(
+            cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The API rescheduled the appointment but returned no appointment data.");
     }
 
     private static DateTime NormalizeUtc(DateTime value)

@@ -22,4 +22,19 @@ public interface ISchedulingApiClient
     Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default);
+
+    Task<CancelScheduleAppointmentResponse?> CancelAppointmentAsync(
+        Guid appointmentUid,
+        CancelScheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ScheduleAppointmentDetailsResponse?> UpdateAppointmentAsync(
+        Guid appointmentUid,
+        UpdateScheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ScheduleAppointmentDetailsResponse?> RescheduleAppointmentAsync(
+        Guid appointmentUid,
+        RescheduleAppointmentRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -87,6 +87,157 @@ public sealed class SchedulingController : Controller
         }
     }
 
+    [HttpPost("CancelAppointment")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelAppointment(
+        CancelAppointmentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.AppointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.AppointmentUid), "Appointment identifier is required.");
+        if (!ModelState.IsValid)
+            return BadRequest(new { success = false, message = "Appointment could not be cancelled." });
+
+        try
+        {
+            var result = await _schedulingApiClient.CancelAppointmentAsync(
+                model.AppointmentUid,
+                new CancelScheduleAppointmentRequest { CancelReason = model.CancelReason },
+                cancellationToken);
+            if (result is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Appointment was not found or may have already been removed from the schedule."
+                });
+            }
+
+            return Json(new { success = true, message = "Appointment cancelled." });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new { success = false, message = "The appointment is already cancelled." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to cancel a scheduling appointment.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Appointment could not be cancelled." });
+        }
+    }
+
+    [HttpPost("UpdateAppointment")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAppointment(
+        UpdateAppointmentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.AppointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.AppointmentUid), "Appointment identifier is required.");
+        if (model.PrimaryResourceUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.PrimaryResourceUid), "Primary resource is required.");
+        if (model.StartDateTimeLocal == default)
+            ModelState.AddModelError(nameof(model.StartDateTimeLocal), "Start time is required.");
+        if (model.EndDateTimeLocal == default)
+            ModelState.AddModelError(nameof(model.EndDateTimeLocal), "End time is required.");
+        else if (model.EndDateTimeLocal <= model.StartDateTimeLocal)
+            ModelState.AddModelError(nameof(model.EndDateTimeLocal), "End time must be after start time.");
+        if (!ModelState.IsValid)
+            return ValidationJson();
+
+        try
+        {
+            var result = await _schedulingApiClient.UpdateAppointmentAsync(
+                model.AppointmentUid,
+                new UpdateScheduleAppointmentRequest
+                {
+                    PrimaryResourceUid = model.PrimaryResourceUid,
+                    RoomResourceUid = model.RoomResourceUid,
+                    StartDateTimeUtc = ToUtc(model.StartDateTimeLocal),
+                    EndDateTimeUtc = ToUtc(model.EndDateTimeLocal),
+                    AppointmentType = model.AppointmentType,
+                    Reason = model.Reason,
+                    Notes = model.Notes
+                },
+                cancellationToken);
+            if (result is null)
+                return NotFound(new { success = false, message = "Appointment was not found." });
+
+            return Json(new { success = true, message = "Appointment updated." });
+        }
+        catch (AppointmentUpdateConflictException exception)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = exception.IsCancelled
+                    ? "Cancelled appointments cannot be edited."
+                    : "The selected time conflicts with another appointment for this resource."
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to update a scheduling appointment.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "The appointment could not be updated. Please try again." });
+        }
+    }
+
+    [HttpPost("RescheduleAppointment")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RescheduleAppointment(
+        RescheduleAppointmentViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.AppointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.AppointmentUid), "Appointment identifier is required.");
+        if (model.PrimaryResourceUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.PrimaryResourceUid), "Primary resource is required.");
+        if (model.StartDateTimeLocal == default)
+            ModelState.AddModelError(nameof(model.StartDateTimeLocal), "Start time is required.");
+        if (model.EndDateTimeLocal == default)
+            ModelState.AddModelError(nameof(model.EndDateTimeLocal), "End time is required.");
+        else if (model.EndDateTimeLocal <= model.StartDateTimeLocal)
+            ModelState.AddModelError(nameof(model.EndDateTimeLocal), "End time must be after start time.");
+        if (!ModelState.IsValid)
+            return ValidationJson();
+
+        try
+        {
+            var result = await _schedulingApiClient.RescheduleAppointmentAsync(
+                model.AppointmentUid,
+                new RescheduleAppointmentRequest
+                {
+                    PrimaryResourceUid = model.PrimaryResourceUid,
+                    RoomResourceUid = model.RoomResourceUid,
+                    StartDateTimeUtc = ToUtc(model.StartDateTimeLocal),
+                    EndDateTimeUtc = ToUtc(model.EndDateTimeLocal)
+                },
+                cancellationToken);
+            if (result is null)
+                return NotFound(new { success = false, message = "Appointment was not found." });
+
+            return Json(new { success = true, message = "Appointment rescheduled." });
+        }
+        catch (AppointmentUpdateConflictException exception)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = exception.IsCancelled
+                    ? "Cancelled appointments cannot be rescheduled."
+                    : "The selected time conflicts with another appointment for this resource."
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to reschedule a scheduling appointment.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "The appointment could not be rescheduled. Please try again." });
+        }
+    }
+
     private IActionResult ValidationJson() => BadRequest(new
     {
         success = false,
@@ -122,6 +273,8 @@ public sealed class SchedulingController : Controller
                 appointment.PatientUid,
                 appointment.PatientDisplayName,
                 appointment.ChartNumber,
+                appointment.PrimaryResourceUid,
+                appointment.RoomResourceUid,
                 appointment.PrimaryResourceName,
                 appointment.RoomResourceName,
                 startDateTimeLocal = NormalizeUtc(appointment.StartDateTimeUtc).ToLocalTime(),
@@ -213,7 +366,8 @@ public sealed class SchedulingController : Controller
                         appointment.StartDateTimeUtc),
                     end = FormatDayPilotLocal(
                         appointment.EndDateTimeUtc),
-                    resource = appointment.PrimaryResourceUid
+                    resource = appointment.PrimaryResourceUid,
+                    primaryResourceUid = appointment.PrimaryResourceUid
                 });
 
             return Json(events);
