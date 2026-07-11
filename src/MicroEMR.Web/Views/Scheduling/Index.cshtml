@@ -110,6 +110,44 @@
             gap: .75rem;
         }
 
+        .patient-search-container { position: relative; }
+
+        .patient-search-dropdown {
+            position: absolute;
+            top: calc(100% - 1.25rem);
+            left: 0;
+            right: 0;
+            z-index: 1090;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: .25rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .375rem;
+            background-color: var(--bs-body-bg);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+        }
+
+        .patient-search-item {
+            display: block;
+            width: 100%;
+            padding: .5rem .75rem;
+            border: 0;
+            border-bottom: 1px solid var(--bs-border-color);
+            background-color: var(--bs-body-bg);
+            color: var(--bs-body-color);
+            text-align: left;
+        }
+
+        .patient-search-item:last-child { border-bottom: 0; }
+        .patient-search-item:hover,
+        .patient-search-item:focus { background-color: var(--bs-tertiary-bg); }
+
+        .patient-search-empty {
+            padding: .5rem .75rem;
+            color: var(--bs-secondary-color);
+            background-color: var(--bs-body-bg);
+        }
+
         #schedulingCalendar {
             height: 100%;
         }
@@ -358,7 +396,7 @@
                 <div id="appointmentMessage" class="alert d-none" role="alert"></div>
                 <form id="addAppointmentForm" novalidate>
                     <input type="hidden" id="PatientUid" name="PatientUid" />
-                    <div class="mb-3">
+                    <div class="mb-3 patient-search-container">
                         <label for="patientSearchTerm" class="form-label">Patient</label>
                         <div class="input-group">
                             <input id="patientSearchTerm" class="form-control" autocomplete="off"
@@ -366,8 +404,8 @@
                             <button id="patientSearchButton" class="btn btn-outline-primary"
                                     type="button">Search</button>
                         </div>
+                        <div id="patientSearchResults" class="patient-search-dropdown d-none"></div>
                         <div id="selectedPatientLabel" class="form-text">No patient selected.</div>
-                        <div id="patientSearchResults" class="list-group mt-2"></div>
                         <div class="invalid-feedback" data-error-for="PatientUid"></div>
                     </div>
                     <div class="row g-3">
@@ -589,6 +627,11 @@ else
         const appointmentMessage = document.getElementById("appointmentMessage");
         const selectedPatientLabel = document.getElementById("selectedPatientLabel");
         const searchResults = document.getElementById("patientSearchResults");
+        const hidePatientSearchResults = () => {
+        searchResults.classList.add("d-none");
+        searchResults.replaceChildren();
+        };
+        const showPatientSearchResults = () => searchResults.classList.remove("d-none");
         const detailsModal = new bootstrap.Modal(document.getElementById("appointmentDetailsModal"));
         const detailsLoading = document.getElementById("appointmentDetailsLoading");
         const detailsError = document.getElementById("appointmentDetailsError");
@@ -762,7 +805,7 @@ else
         clearAppointmentErrors();
         document.getElementById("PatientUid").value = "";
         selectedPatientLabel.textContent = "No patient selected.";
-        searchResults.replaceChildren();
+        hidePatientSearchResults();
         const startDate = start.toDateLocal();
         const endDate = new Date(startDate.getTime() + 15 * 60000);
         document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
@@ -797,36 +840,51 @@ else
         searchResults.replaceChildren();
         if (term.length < 2) {
         showMessage("Enter at least two characters to search for a patient.");
+        hidePatientSearchResults();
         return;
         }
         clearAppointmentErrors();
         const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
         if (!response.ok) {
         showMessage("Patient search is unavailable. Please try again.");
+        hidePatientSearchResults();
         return;
         }
         const patients = await response.json();
         if (!patients.length) {
-        searchResults.innerHTML = '<div class="list-group-item text-body-secondary">No patients found.</div>';
+        const empty = document.createElement("div");
+        empty.className = "patient-search-empty";
+        empty.textContent = "No patients found.";
+        searchResults.appendChild(empty);
+        showPatientSearchResults();
         return;
         }
         patients.forEach(patient => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "list-group-item list-group-item-action";
+        button.className = "patient-search-item";
         button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
         button.addEventListener("click", () => {
         document.getElementById("PatientUid").value = patient.patientUid;
         selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
-        searchResults.replaceChildren();
+        document.getElementById("patientSearchTerm").value = patient.displayName;
+        hidePatientSearchResults();
         });
         searchResults.appendChild(button);
         });
+        showPatientSearchResults();
         };
 
         document.getElementById("patientSearchButton").addEventListener("click", searchPatients);
         document.getElementById("patientSearchTerm").addEventListener("keydown", event => {
         if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
+        });
+        document.addEventListener("click", event => {
+        const container = document.querySelector(".patient-search-container");
+        if (container && !container.contains(event.target)) hidePatientSearchResults();
+        });
+        document.getElementById("addAppointmentModal").addEventListener("hidden.bs.modal", () => {
+        hidePatientSearchResults();
         });
 
         document.getElementById("saveAppointmentButton").addEventListener("click", async event => {
