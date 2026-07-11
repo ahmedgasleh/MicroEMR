@@ -13,6 +13,11 @@ public interface ISchedulingReadRepository
         Guid? resourceUid,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ScheduleMonthSummaryItemResponse>> GetMonthSummaryAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken = default);
+
     Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default);

@@ -47,6 +47,20 @@ public sealed class SchedulingReadService : ISchedulingReadService
         return _repository.GetAppointmentByUidAsync(appointmentUid, cancellationToken);
     }
 
+    public Task<IReadOnlyList<ScheduleMonthSummaryItemResponse>> GetMonthSummaryAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (endUtc <= startUtc)
+            throw new ArgumentException("The month summary end range must be after the start range.");
+        if (endUtc - startUtc > TimeSpan.FromDays(45))
+            throw new ArgumentException("The month summary range cannot exceed 45 days.");
+
+        return _repository.GetMonthSummaryAsync(
+            NormalizeUtc(startUtc), NormalizeUtc(endUtc), cancellationToken);
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value.Kind == DateTimeKind.Utc)

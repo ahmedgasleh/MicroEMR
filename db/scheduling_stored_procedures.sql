@@ -92,6 +92,32 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE dbo.ScheduleAppointment_GetMonthSummary
+    @StartDateTimeUtc DATETIME2(0),
+    @EndDateTimeUtc DATETIME2(0)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- TODO: Group by the configured clinic timezone when clinic timezone settings are available.
+    SELECT
+        CAST(a.StartDateTimeUtc AS DATE) AS AppointmentDate,
+        COUNT(*) AS AppointmentCount,
+        COUNT(DISTINCT a.PrimaryResourceId) AS ProviderCount,
+        CASE
+            WHEN COUNT(*) >= 10 THEN N'Busy'
+            ELSE N'Scheduled'
+        END AS Status
+    FROM dbo.ScheduleAppointment AS a
+    WHERE a.IsDeleted = 0
+        AND ISNULL(a.AppointmentStatus, N'') <> N'Cancelled'
+        AND a.StartDateTimeUtc >= @StartDateTimeUtc
+        AND a.StartDateTimeUtc < @EndDateTimeUtc
+    GROUP BY CAST(a.StartDateTimeUtc AS DATE)
+    ORDER BY AppointmentDate;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.ScheduleAppointment_Create
     @PatientUid UNIQUEIDENTIFIER,
     @PrimaryResourceUid UNIQUEIDENTIFIER,

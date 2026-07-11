@@ -129,6 +129,22 @@ public sealed class SchedulingController : ControllerBase
         return appointment is null ? NotFound() : Ok(appointment);
     }
 
+    [HttpGet("month-summary")]
+    [ProducesResponseType(typeof(IReadOnlyList<ScheduleMonthSummaryItemResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<ScheduleMonthSummaryItemResponse>>> GetMonthSummary(
+        [FromQuery] DateTime startUtc,
+        [FromQuery] DateTime endUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (startUtc == default || endUtc <= startUtc || endUtc - startUtc > TimeSpan.FromDays(45))
+            return BadRequest(new { message = "A valid month summary range of no more than 45 days is required." });
+
+        var summary = await _schedulingReadService.GetMonthSummaryAsync(
+            startUtc, endUtc, cancellationToken);
+        return Ok(summary);
+    }
+
     [HttpPost("appointments/{appointmentUid:guid}/cancel")]
     [ProducesResponseType(typeof(CancelScheduleAppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

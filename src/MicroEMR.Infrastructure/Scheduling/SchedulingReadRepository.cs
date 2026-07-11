@@ -285,6 +285,43 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         };
     }
 
+    public async Task<IReadOnlyList<ScheduleMonthSummaryItemResponse>> GetMonthSummaryAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var summary = new List<ScheduleMonthSummaryItemResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.ScheduleAppointment_GetMonthSummary", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter("@StartDateTimeUtc", SqlDbType.DateTime2)
+        {
+            Value = NormalizeUtc(startUtc)
+        });
+        command.Parameters.Add(new SqlParameter("@EndDateTimeUtc", SqlDbType.DateTime2)
+        {
+            Value = NormalizeUtc(endUtc)
+        });
+
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            summary.Add(new ScheduleMonthSummaryItemResponse
+            {
+                Date = reader.GetDateTime(reader.GetOrdinal("AppointmentDate")),
+                AppointmentCount = reader.GetInt32(reader.GetOrdinal("AppointmentCount")),
+                ProviderCount = reader.GetInt32(reader.GetOrdinal("ProviderCount")),
+                Status = reader.GetString(reader.GetOrdinal("Status"))
+            });
+        }
+
+        return summary;
+    }
+
     private static bool IsMissingSchedulingReadObject(SqlException exception)
     {
         foreach (SqlError error in exception.Errors)

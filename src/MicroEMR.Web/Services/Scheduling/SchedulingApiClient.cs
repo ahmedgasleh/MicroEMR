@@ -107,6 +107,27 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                    "The API created the appointment but returned no appointment data.");
     }
 
+    public async Task<IReadOnlyList<ScheduleMonthSummaryItemResponse>> GetMonthSummaryAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var requestUri = QueryHelpers.AddQueryString(
+            "api/scheduling/month-summary",
+            new Dictionary<string, string?>
+            {
+                ["startUtc"] = NormalizeUtc(startUtc).ToString("O"),
+                ["endUtc"] = NormalizeUtc(endUtc).ToString("O")
+            });
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<ScheduleMonthSummaryItemResponse>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
     public async Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default)

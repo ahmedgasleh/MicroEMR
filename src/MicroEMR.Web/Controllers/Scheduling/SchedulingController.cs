@@ -400,6 +400,39 @@ public sealed class SchedulingController : Controller
         }
     }
 
+    [HttpGet("MonthSummary")]
+    public async Task<IActionResult> MonthSummary(
+        DateTime start,
+        DateTime end,
+        CancellationToken cancellationToken)
+    {
+        if (start == default || end <= start || end - start > TimeSpan.FromDays(45))
+            return BadRequest(new { message = "A valid month range of no more than 45 days is required." });
+
+        try
+        {
+            var summary = await _schedulingApiClient.GetMonthSummaryAsync(
+                NormalizeUtc(start), NormalizeUtc(end), cancellationToken);
+            return Json(summary.Select(item => new
+            {
+                date = item.Date,
+                item.AppointmentCount,
+                item.ProviderCount,
+                item.Status
+            }));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new { message = "The API rejected the access token. Sign in again." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to load the scheduling month summary.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { message = "The month summary could not be loaded." });
+        }
+    }
+
     private static string BuildEventText(
         ScheduleAppointmentListItemResponse appointment)
     {

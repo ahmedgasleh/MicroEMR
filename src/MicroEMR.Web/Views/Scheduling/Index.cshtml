@@ -86,6 +86,30 @@
             width: 18rem;
         }
 
+        .scheduling-filter-panel {
+            display: flex;
+            align-items: end;
+            justify-content: flex-end;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+
+        .scheduling-filter-field { min-width: 10rem; }
+        .scheduling-filter-field .form-select { width: auto; min-width: 10rem; }
+        .scheduling-filter-summary {
+            color: var(--bs-secondary-color);
+            font-size: .875rem;
+            padding-bottom: .4rem;
+        }
+
+        .resource-picker-list { max-height: 24rem; overflow-y: auto; }
+        .resource-picker-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+        }
+
         #schedulingCalendar {
             height: 100%;
         }
@@ -96,6 +120,45 @@
             background: var(--bs-tertiary-bg);
             color: var(--bs-secondary-color);
         }
+
+        .scheduling-month-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            flex-wrap: wrap;
+            margin-bottom: .75rem;
+        }
+
+        .scheduling-month-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: .5rem;
+        }
+
+        .scheduling-month-header {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--bs-secondary-color);
+            text-align: center;
+        }
+
+        .scheduling-month-day {
+            min-height: 6.5rem;
+            padding: .5rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .5rem;
+            background: var(--bs-body-bg);
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .scheduling-month-day:hover { background: var(--bs-tertiary-bg); }
+        .scheduling-month-day.is-today { border-color: var(--bs-primary); }
+        .scheduling-month-day.is-selected { box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .15); }
+        .scheduling-month-day-number { font-weight: 600; }
+        .scheduling-month-day-summary { margin-top: .5rem; font-size: .85rem; }
+        .scheduling-month-blank { min-height: 6.5rem; }
     </style>
 }
 
@@ -116,17 +179,15 @@
 
 <div class="scheduling-view-bar">
     <div>
-        <h2 class="h5 mb-2">Day View</h2>
+        <h2 class="h5 mb-2" id="schedulingViewTitle">Day View</h2>
         <div class="btn-group" role="group" aria-label="Scheduling calendar view">
-            <button type="button" class="btn btn-outline-secondary" disabled aria-disabled="true"
-                    title="Month View is coming soon">
+            <button type="button" class="btn btn-outline-secondary" id="schedulingMonthViewButton" aria-pressed="false">
                 Month
             </button>
-            <button type="button" class="btn btn-primary" aria-pressed="true">
+            <button type="button" class="btn btn-primary" id="schedulingDayViewButton" aria-pressed="true">
                 Day
             </button>
         </div>
-        <span class="ms-2 text-body-secondary small">Month View coming soon</span>
     </div>
 
     <div class="text-body-secondary small">
@@ -134,6 +195,20 @@
     </div>
 </div>
 
+<div id="schedulingMonthView" class="d-none">
+    <div class="scheduling-month-toolbar">
+        <div class="scheduling-toolbar-actions" aria-label="Scheduling month navigation">
+            <button type="button" class="btn btn-outline-secondary" id="schedulingPreviousMonthButton">Previous Month</button>
+            <button type="button" class="btn btn-outline-primary" id="schedulingMonthTodayButton">Today</button>
+            <button type="button" class="btn btn-outline-secondary" id="schedulingNextMonthButton">Next Month</button>
+        </div>
+        <div class="scheduling-date-label" id="schedulingMonthLabel"></div>
+    </div>
+    <div id="schedulingMonthMessage" class="alert alert-warning d-none" role="alert"></div>
+    <div class="scheduling-month-grid" id="schedulingMonthGrid" aria-label="Monthly appointment overview"></div>
+</div>
+
+<div id="schedulingDayView">
 <div class="scheduling-toolbar">
     <div class="scheduling-toolbar-actions" aria-label="Scheduling date navigation">
 
@@ -153,21 +228,47 @@
         </div>
     </div>
 
-    <div class="scheduling-filter">
-        <label class="form-label" for="schedulingResourceFilter">
-            Resource
-        </label>
+    <div class="scheduling-filter-panel">
+        <div class="scheduling-filter-field">
+            <label class="form-label" for="schedulingResourceTypeFilter">Type</label>
+            <select class="form-select" id="schedulingResourceTypeFilter">
+                <option value="">All</option>
+                <option value="Provider">Providers</option>
+                <option value="Room">Rooms</option>
+            </select>
+        </div>
+        <div class="scheduling-filter-field">
+            <label class="form-label d-block">Resources</label>
+            <button type="button" class="btn btn-outline-secondary" id="openResourcePickerButton">
+                Select Resources
+            </button>
+        </div>
+        <div class="scheduling-filter-summary" id="resourceFilterSummary">Showing all active resources</div>
+    </div>
+</div>
 
-        <select class="form-select" id="schedulingResourceFilter">
-            <option value="">All active resources</option>
+<div id="resourceFilterMessage" class="alert alert-info d-none py-2" role="status"></div>
 
-            @foreach (var resource in Model.Resources)
-            {
-                <option value="@resource.ResourceUid">
-                    @resource.DisplayName
-                </option>
-            }
-        </select>
+<div class="modal fade" id="resourcePickerModal" tabindex="-1" aria-labelledby="resourcePickerModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="resourcePickerModalLabel">Select Scheduling Resources</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="resourcePickerSearch">Search resources</label>
+                <input type="search" class="form-control mb-3" id="resourcePickerSearch"
+                       placeholder="Resource name" autocomplete="off" />
+                <div class="resource-picker-list list-group" id="resourcePickerList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="clearResourceSelectionButton">Clear</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyResourceSelectionButton">Apply</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -350,6 +451,7 @@ else
         <div id="schedulingCalendar"></div>
     </div>
 }
+</div>
 
 @section Scripts {
     <script src="~/lib/daypilot/daypilot-javascript.min.js"></script>
@@ -368,23 +470,49 @@ else
         }
 
         let selectedDate = DayPilot.Date.today();
-        const resourceFilter =
-        document.getElementById("schedulingResourceFilter");
+        let currentView = "day";
+        let selectedMonthDate = new Date();
+        selectedMonthDate.setHours(0, 0, 0, 0);
+        let selectedResourceType = "";
+        let selectedResourceUids = new Set();
+        let pendingResourceUids = new Set();
+        const resourceTypeFilter = document.getElementById("schedulingResourceTypeFilter");
+        const resourceFilterSummary = document.getElementById("resourceFilterSummary");
+        const resourceFilterMessage = document.getElementById("resourceFilterMessage");
 
         const dateLabel =
         document.getElementById("schedulingDateLabel");
+        const dayView = document.getElementById("schedulingDayView");
+        const monthView = document.getElementById("schedulingMonthView");
+        const dayViewButton = document.getElementById("schedulingDayViewButton");
+        const monthViewButton = document.getElementById("schedulingMonthViewButton");
+        const viewTitle = document.getElementById("schedulingViewTitle");
+        const monthGrid = document.getElementById("schedulingMonthGrid");
+        const monthLabel = document.getElementById("schedulingMonthLabel");
+        const monthMessage = document.getElementById("schedulingMonthMessage");
 
-        const toColumns = () => {
-        const selectedResourceUid = resourceFilter.value;
+        const getMatchingResources = () => resources.filter(resource =>
+        (!selectedResourceType || resource.resourceType === selectedResourceType) &&
+        (!selectedResourceUids.size || selectedResourceUids.has(resource.resourceUid)));
 
-        return resources
-        .filter(resource =>
-        !selectedResourceUid ||
-        resource.resourceUid === selectedResourceUid)
+        const getFilteredResources = () => getMatchingResources().slice(0, 10);
+
+        const toColumns = () => getFilteredResources()
         .map(resource => ({
         id: resource.resourceUid,
         name: resource.displayName
         }));
+
+        const updateResourceFilterSummary = () => {
+        const matchingCount = getMatchingResources().length;
+        const visibleCount = Math.min(matchingCount, 10);
+        resourceFilterSummary.textContent = matchingCount
+        ? `Showing ${visibleCount} ${visibleCount === 1 ? "resource" : "resources"}`
+        : "No resources match the selected filter";
+        resourceFilterMessage.classList.toggle("d-none", matchingCount <= 10 && matchingCount > 0);
+        resourceFilterMessage.textContent = matchingCount > 10
+        ? "Showing first 10 resources. Use Select Resources to narrow the view."
+        : (matchingCount === 0 ? "No resources match the selected filter." : "");
         };
 
         const calendar = new DayPilot.Calendar(
@@ -402,6 +530,12 @@ else
         timeRangeSelectedHandling: "Enabled",
         onEventMove: async args => {
         args.preventDefault();
+        const destination = resources.find(resource => resource.resourceUid === args.newResource);
+        if (destination?.resourceType !== "Provider") {
+        await refreshCalendar();
+        window.alert("Appointments can only be moved between provider columns.");
+        return;
+        }
         try {
         const detailsUrl = new URL("/Scheduling/AppointmentDetails", window.location.origin);
         detailsUrl.searchParams.set("appointmentUid", args.e.id());
@@ -416,7 +550,6 @@ else
         endDateTimeLocal: args.newEnd.toDateLocal()
         };
 
-        const destination = resources.find(resource => resource.resourceUid === args.newResource);
         const start = pendingMove.startDateTimeLocal;
         const end = pendingMove.endDateTimeLocal;
         moveAppointmentSummary.textContent =
@@ -443,6 +576,9 @@ else
         calendar.init();
 
         const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
+        const resourcePickerModal = new bootstrap.Modal(document.getElementById("resourcePickerModal"));
+        const resourcePickerSearch = document.getElementById("resourcePickerSearch");
+        const resourcePickerList = document.getElementById("resourcePickerList");
         const moveAppointmentModalElement = document.getElementById("moveAppointmentModal");
         const moveAppointmentModal = new bootstrap.Modal(moveAppointmentModalElement);
         const moveAppointmentSummary = document.getElementById("moveAppointmentSummary");
@@ -563,6 +699,64 @@ else
         }
         });
 
+        const refreshResourcePickerList = () => {
+        const searchTerm = resourcePickerSearch.value.trim().toLocaleLowerCase();
+        const matchingResources = resources.filter(resource =>
+        (!selectedResourceType || resource.resourceType === selectedResourceType) &&
+        (!searchTerm || resource.displayName.toLocaleLowerCase().includes(searchTerm)));
+        resourcePickerList.replaceChildren();
+        if (!matchingResources.length) {
+        const empty = document.createElement("div");
+        empty.className = "list-group-item text-body-secondary";
+        empty.textContent = "No resources match the current search.";
+        resourcePickerList.appendChild(empty);
+        return;
+        }
+
+        matchingResources.forEach(resource => {
+        const label = document.createElement("label");
+        label.className = "list-group-item resource-picker-item";
+        const left = document.createElement("span");
+        left.className = "d-flex align-items-center gap-2";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "form-check-input mt-0";
+        checkbox.checked = pendingResourceUids.has(resource.resourceUid);
+        checkbox.addEventListener("change", () => {
+        if (checkbox.checked) pendingResourceUids.add(resource.resourceUid);
+        else pendingResourceUids.delete(resource.resourceUid);
+        });
+        const name = document.createElement("span");
+        name.textContent = resource.displayName;
+        const type = document.createElement("span");
+        type.className = "badge text-bg-light";
+        type.textContent = resource.resourceType;
+        left.append(checkbox, name);
+        label.append(left, type);
+        resourcePickerList.appendChild(label);
+        });
+        };
+
+        document.getElementById("openResourcePickerButton").addEventListener("click", () => {
+        pendingResourceUids = new Set(selectedResourceUids);
+        resourcePickerSearch.value = "";
+        refreshResourcePickerList();
+        resourcePickerModal.show();
+        });
+        resourcePickerSearch.addEventListener("input", refreshResourcePickerList);
+        document.getElementById("applyResourceSelectionButton").addEventListener("click", async () => {
+        selectedResourceUids = new Set(pendingResourceUids);
+        resourcePickerModal.hide();
+        await refreshCalendar();
+        });
+        document.getElementById("clearResourceSelectionButton").addEventListener("click", async () => {
+        selectedResourceUids.clear();
+        pendingResourceUids.clear();
+        resourcePickerSearch.value = "";
+        resourcePickerModal.hide();
+        await refreshCalendar();
+        });
+
         const openAppointmentModal = (start, resourceUid) => {
         appointmentForm.reset();
         clearAppointmentErrors();
@@ -574,13 +768,12 @@ else
         document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
         document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
         const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
+        const firstVisibleProvider = getFilteredResources().find(resource => resource.resourceType === "Provider");
         const firstProvider = resources.find(resource => resource.resourceType === "Provider");
         document.getElementById("PrimaryResourceUid").value =
         clickedResource?.resourceType === "Provider"
         ? resourceUid
-        : (resourceFilter.value && resources.find(resource => resource.resourceUid === resourceFilter.value)?.resourceType === "Provider"
-        ? resourceFilter.value
-        : firstProvider?.resourceUid || "");
+        : firstVisibleProvider?.resourceUid || firstProvider?.resourceUid || "";
         if (clickedResource?.resourceType === "Room") {
         document.getElementById("RoomResourceUid").value = resourceUid;
         }
@@ -704,12 +897,6 @@ else
         url.searchParams.set("start", range.start);
         url.searchParams.set("end", range.end);
 
-        if (resourceFilter.value) {
-        url.searchParams.set(
-        "resourceUid",
-        resourceFilter.value);
-        }
-
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -717,11 +904,14 @@ else
         `Scheduling events request failed: ${response.status}`);
         }
 
-        return await response.json();
+        const events = await response.json();
+        const visibleResourceUids = new Set(getFilteredResources().map(resource => resource.resourceUid));
+        return events.filter(event => visibleResourceUids.has(event.resource));
         };
 
         const refreshCalendar = async () => {
         setDateLabel();
+        updateResourceFilterSummary();
 
         calendar.update({
         startDate: selectedDate,
@@ -741,6 +931,100 @@ else
         events: []
         });
         }
+        };
+
+        const dateKey = date => {
+        const pad = value => String(value).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        };
+
+        const refreshMonthView = async () => {
+        const year = selectedMonthDate.getFullYear();
+        const month = selectedMonthDate.getMonth();
+        const monthStart = new Date(year, month, 1);
+        const monthEnd = new Date(year, month + 1, 1);
+        monthLabel.textContent = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        monthMessage.classList.add("d-none");
+        monthGrid.replaceChildren();
+
+        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(dayName => {
+        const header = document.createElement("div");
+        header.className = "scheduling-month-header";
+        header.textContent = dayName;
+        monthGrid.appendChild(header);
+        });
+
+        for (let index = 0; index < monthStart.getDay(); index++) {
+        const blank = document.createElement("div");
+        blank.className = "scheduling-month-blank";
+        blank.setAttribute("aria-hidden", "true");
+        monthGrid.appendChild(blank);
+        }
+
+        let summaryByDate = new Map();
+        try {
+        const url = new URL("/Scheduling/MonthSummary", window.location.origin);
+        url.searchParams.set("start", monthStart.toISOString());
+        url.searchParams.set("end", monthEnd.toISOString());
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Month summary request failed: ${response.status}`);
+        const summary = await response.json();
+        summaryByDate = new Map(summary.map(item => [String(item.date).slice(0, 10), item]));
+        } catch (error) {
+        console.error(error);
+        monthMessage.textContent = "The month appointment summary could not be loaded. Please try again.";
+        monthMessage.classList.remove("d-none");
+        }
+
+        const todayKey = dateKey(new Date());
+        const selectedKey = selectedDate.toString("yyyy-MM-dd");
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const key = dateKey(date);
+        const item = summaryByDate.get(key);
+        const count = item?.appointmentCount || 0;
+        const status = item?.status || "No appointments";
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "scheduling-month-day";
+        if (key === todayKey) cell.classList.add("is-today");
+        if (key === selectedKey) cell.classList.add("is-selected");
+        cell.innerHTML = `<div class="scheduling-month-day-number">${day}</div>` +
+        `<div class="scheduling-month-day-summary">${count} ${count === 1 ? "appointment" : "appointments"}<br>${status}</div>`;
+        cell.addEventListener("click", async () => {
+        selectedDate = new DayPilot.Date(key);
+        selectedMonthDate = date;
+        await showDayView();
+        });
+        monthGrid.appendChild(cell);
+        }
+        };
+
+        const showDayView = async () => {
+        currentView = "day";
+        monthView.classList.add("d-none");
+        dayView.classList.remove("d-none");
+        dayViewButton.className = "btn btn-primary";
+        dayViewButton.setAttribute("aria-pressed", "true");
+        monthViewButton.className = "btn btn-outline-secondary";
+        monthViewButton.setAttribute("aria-pressed", "false");
+        viewTitle.textContent = "Day View";
+        await refreshCalendar();
+        };
+
+        const showMonthView = async () => {
+        currentView = "month";
+        selectedMonthDate = selectedDate.toDateLocal();
+        selectedMonthDate.setDate(1);
+        dayView.classList.add("d-none");
+        monthView.classList.remove("d-none");
+        monthViewButton.className = "btn btn-primary";
+        monthViewButton.setAttribute("aria-pressed", "true");
+        dayViewButton.className = "btn btn-outline-secondary";
+        dayViewButton.setAttribute("aria-pressed", "false");
+        viewTitle.textContent = "Month View";
+        await refreshMonthView();
         };
 
         document
@@ -764,9 +1048,27 @@ else
         await refreshCalendar();
         });
 
-        resourceFilter.addEventListener(
-        "change",
-        refreshCalendar);
+        resourceTypeFilter.addEventListener("change", async () => {
+        selectedResourceType = resourceTypeFilter.value;
+        refreshResourcePickerList();
+        await refreshCalendar();
+        });
+
+        monthViewButton.addEventListener("click", showMonthView);
+        dayViewButton.addEventListener("click", showDayView);
+        document.getElementById("schedulingPreviousMonthButton").addEventListener("click", async () => {
+        selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() - 1, 1);
+        await refreshMonthView();
+        });
+        document.getElementById("schedulingMonthTodayButton").addEventListener("click", async () => {
+        selectedMonthDate = new Date();
+        selectedMonthDate.setDate(1);
+        await refreshMonthView();
+        });
+        document.getElementById("schedulingNextMonthButton").addEventListener("click", async () => {
+        selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 1);
+        await refreshMonthView();
+        });
 
         refreshCalendar();
         });
