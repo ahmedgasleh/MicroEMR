@@ -16,6 +16,12 @@
 
     var resourcesJson =
         JsonSerializer.Serialize(Model.Resources, jsonOptions);
+
+    var initialDateJson =
+        JsonSerializer.Serialize(Model.InitialDate, jsonOptions);
+
+    var openAddAppointmentJson =
+        JsonSerializer.Serialize(Model.OpenAddAppointment, jsonOptions);
 }
 
 @section Styles {
@@ -495,19 +501,23 @@ else
     <script src="~/lib/daypilot/daypilot-javascript.min.js"></script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
         if (!window.DayPilot) {
         console.error("DayPilot Lite could not be loaded.");
         return;
         }
 
         const resources = @Html.Raw(resourcesJson);
+        const initialDate = @Html.Raw(initialDateJson);
+        const shouldOpenAddAppointment = @Html.Raw(openAddAppointmentJson);
 
         if (!resources.length) {
         return;
         }
 
-        let selectedDate = DayPilot.Date.today();
+        let selectedDate = initialDate
+        ? new DayPilot.Date(initialDate)
+        : DayPilot.Date.today();
         let currentView = "day";
         let selectedMonthDate = new Date();
         selectedMonthDate.setHours(0, 0, 0, 0);
@@ -823,6 +833,32 @@ else
         appointmentModal.show();
         };
 
+        const openAppointmentModalForDefaultSlot = () => {
+        const selectedLocalDate = selectedDate.toDateLocal();
+        const now = new Date();
+        const isToday =
+        selectedLocalDate.getFullYear() === now.getFullYear() &&
+        selectedLocalDate.getMonth() === now.getMonth() &&
+        selectedLocalDate.getDate() === now.getDate();
+        const start = new Date(selectedLocalDate);
+
+        if (isToday) {
+        start.setHours(now.getHours(), now.getMinutes(), 0, 0);
+        const remainder = start.getMinutes() % 15;
+        if (remainder !== 0) start.setMinutes(start.getMinutes() + 15 - remainder);
+        } else {
+        start.setHours(8, 0, 0, 0);
+        }
+
+        const firstVisibleProvider = getFilteredResources()
+        .find(resource => resource.resourceType === "Provider");
+        const firstProvider = resources
+        .find(resource => resource.resourceType === "Provider");
+        openAppointmentModal(
+        new DayPilot.Date(localInputValue(start)),
+        firstVisibleProvider?.resourceUid || firstProvider?.resourceUid);
+        };
+
         const clearAppointmentErrors = () => {
         appointmentMessage.className = "alert d-none";
         appointmentMessage.textContent = "";
@@ -1128,7 +1164,10 @@ else
         await refreshMonthView();
         });
 
-        refreshCalendar();
+        await refreshCalendar();
+        if (shouldOpenAddAppointment) {
+        openAppointmentModalForDefaultSlot();
+        }
         });
     </script>
 }

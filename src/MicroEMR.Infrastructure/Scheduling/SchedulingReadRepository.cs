@@ -113,14 +113,18 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         const string sql = """
             SELECT
                 a.AppointmentUid,
+                p.PatientUid,
                 NULLIF(
                     LTRIM(RTRIM(CONCAT(p.LastName, ', ', p.FirstName))),
                     ',') AS PatientDisplayName,
+                p.ChartNumber,
                 a.Reason,
                 a.AppointmentType,
                 a.StartDateTimeUtc,
                 a.EndDateTimeUtc,
-                sr.ResourceUid AS PrimaryResourceUid
+                sr.ResourceUid AS PrimaryResourceUid,
+                sr.DisplayName AS PrimaryResourceName,
+                a.AppointmentStatus AS Status
             FROM dbo.ScheduleAppointment a
             INNER JOIN dbo.Patient p
                 ON p.PatientUid = a.PatientUid
@@ -201,8 +205,11 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 {
                     AppointmentUid =
                         reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                    PatientUid =
+                        reader.GetGuid(reader.GetOrdinal("PatientUid")),
                     PatientDisplayName =
                         GetNullableString(reader, "PatientDisplayName"),
+                    ChartNumber = GetNullableString(reader, "ChartNumber"),
                     Reason = GetNullableString(reader, "Reason"),
                     AppointmentType =
                         GetNullableString(reader, "AppointmentType"),
@@ -213,7 +220,10 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         reader.GetDateTime(
                             reader.GetOrdinal("EndDateTimeUtc"))),
                     PrimaryResourceUid =
-                        reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid"))
+                        reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid")),
+                    PrimaryResourceName =
+                        GetNullableString(reader, "PrimaryResourceName"),
+                    Status = reader.GetString(reader.GetOrdinal("Status"))
                 });
             }
         }

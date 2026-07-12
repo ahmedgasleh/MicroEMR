@@ -1,5 +1,7 @@
 ﻿@using System.Security.Claims
 
+@model MicroEMR.Web.Models.Dashboard.DashboardViewModel
+
 @{
     ViewData["Title"] = "Dashboard";
     ViewData["Subtitle"] = "Overview of today's clinic activity";
@@ -40,7 +42,7 @@
                 </div>
 
                 <div>
-                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-value">@Model.TodaysAppointmentCount</div>
                     <div class="dashboard-card-label">
                         Today's Appointments
                     </div>
@@ -107,22 +109,88 @@
 
                     <a asp-controller="Scheduling"
                        asp-action="Index"
+                       asp-route-date="@DateTime.Today.ToString("yyyy-MM-dd")"
                        class="btn btn-outline-primary btn-sm">
                         View schedule
                     </a>
                 </div>
 
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="bi bi-calendar2-week"></i>
+                @if (Model.ScheduleLoadFailed)
+                {
+                    <div class="alert alert-warning mt-3 mb-0" role="alert">
+                        Today's schedule could not be loaded.
+                    </div>
+                }
+                else if (Model.TodaysAppointments.Count > 0)
+                {
+                    <div class="table-responsive mt-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">Patient</th>
+                                    <th scope="col">Provider</th>
+                                    <th scope="col">Type / Reason</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var appointment in Model.TodaysAppointments)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap">@appointment.StartDateTimeLocal.ToString("h:mm tt")</td>
+                                        <td>
+                                            <div class="fw-semibold">@appointment.PatientDisplayName</div>
+                                            <div class="small text-body-secondary">
+                                                @(appointment.ChartNumber ?? "No chart number")
+                                            </div>
+                                        </td>
+                                        <td>@(appointment.PrimaryResourceName ?? "Not assigned")</td>
+                                        <td>
+                                            @(appointment.AppointmentType
+                                                ?? appointment.Reason
+                                                ?? "Not specified")
+                                        </td>
+                                        <td><span class="badge text-bg-primary">@appointment.Status</span></td>
+                                        <td class="text-end text-nowrap">
+                                            <a asp-controller="Patients"
+                                               asp-action="Details"
+                                               asp-route-patientUid="@appointment.PatientUid"
+                                               class="btn btn-sm btn-outline-primary">Open Chart</a>
+                                            <a asp-controller="Scheduling"
+                                               asp-action="Index"
+                                               asp-route-date="@appointment.StartDateTimeLocal.ToString("yyyy-MM-dd")"
+                                               class="btn btn-sm btn-outline-secondary">Schedule</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
                     </div>
 
-                    <h4>No appointments to display</h4>
-
-                    <p>
-                        Today's appointments will appear here.
-                    </p>
-                </div>
+                    @if (Model.TodaysAppointmentCount > Model.TodaysAppointments.Count)
+                    {
+                        <div class="mt-3 text-end">
+                            <a asp-controller="Scheduling"
+                               asp-action="Index"
+                               asp-route-date="@DateTime.Today.ToString("yyyy-MM-dd")">
+                                View full schedule
+                            </a>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="bi bi-calendar2-week"></i></div>
+                        <h4>No appointments scheduled for today.</h4>
+                        <a asp-controller="Scheduling"
+                           asp-action="Index"
+                           asp-route-openAddAppointment="true"
+                           class="btn btn-primary btn-sm mt-2">Book Appointment</a>
+                    </div>
+                }
             </section>
         </div>
 
@@ -137,7 +205,8 @@
 
                 <div class="quick-action-list">
                     <a asp-controller="Scheduling"
-                       asp-action="Create"
+                       asp-action="Index"
+                       asp-route-openAddAppointment="true"
                        class="quick-action">
 
                         <span class="quick-action-icon">

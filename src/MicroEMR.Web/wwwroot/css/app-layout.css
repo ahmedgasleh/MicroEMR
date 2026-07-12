@@ -3,14 +3,14 @@
     --sidebar-collapsed-width: 76px;
     --topbar-height: 70px;
 
-    --sidebar-background: #172033;
-    --sidebar-hover-background: #222f49;
-    --sidebar-active-background: #2563eb;
+    --sidebar-background: var(--microemr-sidebar-background);
+    --sidebar-hover-background: var(--microemr-sidebar-hover);
+    --sidebar-active-background: var(--microemr-sidebar-active);
 
-    --app-background: #f4f6f9;
-    --border-color: #e4e7ec;
-    --text-primary: #252b36;
-    --text-secondary: #697386;
+    --app-background: var(--microemr-app-background);
+    --border-color: var(--microemr-border);
+    --text-primary: var(--microemr-text-primary);
+    --text-secondary: var(--microemr-text-muted);
 }
 
 html,

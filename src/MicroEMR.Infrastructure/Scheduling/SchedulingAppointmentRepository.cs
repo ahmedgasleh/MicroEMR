@@ -56,6 +56,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             return new ScheduleAppointmentListItemResponse
             {
                 AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                PatientUid = request.PatientUid,
                 PatientDisplayName = GetNullableString(reader, "PatientDisplayName"),
                 Reason = GetNullableString(reader, "Reason"),
                 AppointmentType = GetNullableString(reader, "AppointmentType"),

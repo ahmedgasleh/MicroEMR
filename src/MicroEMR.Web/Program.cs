@@ -1,4 +1,5 @@
 using MicroEMR.Web.Services.Patients;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -8,6 +9,7 @@ using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Services.PatientMedications;
 using MicroEMR.Web.Services.Scheduling;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +70,22 @@ builder.Services
     .AddCookie(options =>
     {
         options.Cookie.Name = "MicroEMR.Web";
+        options.Events.OnValidatePrincipal = context =>
+        {
+            var expiresAtValue = context.Properties.GetTokenValue("expires_at");
+
+            if (DateTimeOffset.TryParse(
+                    expiresAtValue,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind,
+                    out var expiresAt) &&
+                expiresAt <= DateTimeOffset.UtcNow)
+            {
+                context.RejectPrincipal();
+            }
+
+            return Task.CompletedTask;
+        };
     })
     
     .AddOpenIdConnect(options =>
@@ -85,6 +103,7 @@ builder.Services
         options.UsePkce = true;
 
         options.SaveTokens = true;
+        options.UseTokenLifetime = true;
         //options.GetClaimsFromUserInfoEndpoint = true;
 
         options.Scope.Clear();

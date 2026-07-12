@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Services.Patients;
 using System.Net;
+using System.Globalization;
 
 namespace MicroEMR.Web.Controllers.Scheduling;
 
@@ -298,12 +299,25 @@ public sealed class SchedulingController : Controller
     [HttpGet("")]
     [HttpGet("Index")]
     public async Task<IActionResult> Index(
+        string? date,
+        bool openAddAppointment,
         CancellationToken cancellationToken)
     {
+        var initialDate = DateOnly.TryParseExact(
+            date,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var parsedDate)
+            ? parsedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : null;
+
         try
         {
             var model = new SchedulingIndexViewModel
             {
+                InitialDate = initialDate,
+                OpenAddAppointment = openAddAppointment,
                 Resources =
                     await _schedulingApiClient
                         .GetActiveResourcesAsync(cancellationToken)
@@ -324,7 +338,11 @@ public sealed class SchedulingController : Controller
 
             return View(
                 "~/Views/Scheduling/Index.cshtml",
-                new SchedulingIndexViewModel());
+                new SchedulingIndexViewModel
+                {
+                    InitialDate = initialDate,
+                    OpenAddAppointment = openAddAppointment
+                });
         }
         catch (Exception exception)
         {
@@ -337,7 +355,11 @@ public sealed class SchedulingController : Controller
 
             return View(
                 "~/Views/Scheduling/Index.cshtml",
-                new SchedulingIndexViewModel());
+                new SchedulingIndexViewModel
+                {
+                    InitialDate = initialDate,
+                    OpenAddAppointment = openAddAppointment
+                });
         }
     }
 
