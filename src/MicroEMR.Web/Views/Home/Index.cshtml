@@ -17,6 +17,10 @@
     {
         "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
     };
+
+    var encounterStartStatuses = new HashSet<string>(
+        new[] { "Scheduled", "Arrived", "Roomed", "Seen" },
+        StringComparer.OrdinalIgnoreCase);
 }
 
 <form id="dashboardAntiforgeryForm" class="d-none">
@@ -24,6 +28,14 @@
 </form>
 
 <div class="container-fluid p-0">
+
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
 
     <section class="dashboard-welcome mb-4">
         <div>
@@ -174,6 +186,21 @@
                                             </select>
                                         </td>
                                         <td class="text-end text-nowrap">
+                                            @if (encounterStartStatuses.Contains(appointment.Status))
+                                            {
+                                                <form asp-controller="Home"
+                                                      asp-action="StartEncounter"
+                                                      method="post"
+                                                      class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden"
+                                                           name="appointmentUid"
+                                                           value="@appointment.AppointmentUid" />
+                                                    <button type="submit" class="btn btn-sm btn-primary">
+                                                        Start Encounter
+                                                    </button>
+                                                </form>
+                                            }
                                             <a asp-controller="Patients"
                                                asp-action="Details"
                                                asp-route-patientUid="@appointment.PatientUid"

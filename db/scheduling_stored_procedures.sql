@@ -353,8 +353,13 @@ BEGIN
     END;
     IF @CurrentStatus = N'Cancelled'
     BEGIN
-        ROLLBACK TRANSACTION;
-        THROW 51066, 'The appointment is already cancelled.', 1;
+        COMMIT TRANSACTION;
+
+        SELECT AppointmentUid, AppointmentStatus, CancelledAt, CancelReason
+        FROM dbo.ScheduleAppointment
+        WHERE AppointmentUid = @AppointmentUid;
+
+        RETURN;
     END;
 
     UPDATE dbo.ScheduleAppointment
@@ -367,12 +372,6 @@ BEGIN
     WHERE AppointmentUid = @AppointmentUid
         AND IsDeleted = 0
         AND AppointmentStatus <> N'Cancelled';
-
-    IF @@ROWCOUNT = 0
-    BEGIN
-        ROLLBACK TRANSACTION;
-        THROW 51066, 'The appointment is already cancelled.', 1;
-    END;
 
     IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
     BEGIN

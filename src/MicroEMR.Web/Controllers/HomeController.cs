@@ -125,6 +125,54 @@ public class HomeController : Controller
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StartEncounter(
+        Guid appointmentUid,
+        CancellationToken cancellationToken)
+    {
+        if (appointmentUid == Guid.Empty)
+        {
+            TempData["ErrorMessage"] = "Encounter could not be started.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        try
+        {
+            var result = await _schedulingApiClient.StartEncounterFromAppointmentAsync(
+                appointmentUid, cancellationToken);
+            if (result is null)
+            {
+                TempData["ErrorMessage"] = "Encounter could not be started.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            TempData["SuccessMessage"] = result.WasCreated
+                ? "Encounter started."
+                : "Existing encounter opened.";
+            return RedirectToAction(
+                "Details",
+                "Patients",
+                new
+                {
+                    patientUid = result.PatientUid,
+                    tab = "encounters",
+                    encounterUid = result.EncounterUid
+                });
+        }
+        catch (StartEncounterConflictException)
+        {
+            TempData["ErrorMessage"] = "Cancelled appointments cannot start encounters.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to start an encounter from a dashboard appointment.");
+            TempData["ErrorMessage"] = "Encounter could not be started.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
     private static DateTime NormalizeUtc(DateTime value) =>
         value.Kind == DateTimeKind.Utc
             ? value

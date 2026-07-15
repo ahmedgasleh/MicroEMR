@@ -292,6 +292,33 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                    "The API updated the appointment status but returned no status data.");
     }
 
+    public async Task<StartEncounterFromAppointmentResponse?> StartEncounterFromAppointmentAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/scheduling/appointments/{appointmentUid}/start-encounter");
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            _logger.LogWarning(
+                "MicroEMR API rejected encounter start with status {StatusCode}.",
+                (int)response.StatusCode);
+            throw new StartEncounterConflictException();
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<StartEncounterFromAppointmentResponse>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException(
+                   "The API started the encounter but returned no encounter data.");
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value.Kind == DateTimeKind.Utc)

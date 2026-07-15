@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Repositories;
+using MicroEMR.Application.PatientEncounters;
 
 namespace MicroEMR.Infrastructure.PatientEncounters;
 
@@ -202,6 +203,56 @@ public sealed class PatientEncounterRepository
                 "Failed to create encounter for patient {PatientUid}.",
                 patientUid);
 
+            throw;
+        }
+    }
+
+    public async Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
+        Guid appointmentUid,
+        long? createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounter_StartFromAppointment", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter(
+            "@AppointmentUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = appointmentUid
+        });
+        command.Parameters.Add(new SqlParameter("@CreatedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)createdBy ?? DBNull.Value
+        });
+
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                return null;
+
+            return new StartEncounterFromAppointmentResponse
+            {
+                EncounterUid = reader.GetGuid(reader.GetOrdinal("EncounterUid")),
+                PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+                AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                EncounterDate = reader.GetDateTime(reader.GetOrdinal("EncounterDate")),
+                Status = reader.GetString(reader.GetOrdinal("Status")),
+                WasCreated = reader.GetBoolean(reader.GetOrdinal("WasCreated"))
+            };
+        }
+        catch (SqlException exception) when (exception.Number == 51069)
+        {
+            throw new AppointmentCancelledException(
+                "Cancelled appointments cannot start encounters.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to start an encounter from an appointment.");
             throw;
         }
     }

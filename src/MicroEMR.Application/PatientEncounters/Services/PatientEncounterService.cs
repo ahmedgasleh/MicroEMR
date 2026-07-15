@@ -46,4 +46,16 @@ public sealed class PatientEncounterService : IPatientEncounterService
             createdByDisplayName,
             cancellationToken);
     }
+
+    public Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
+        Guid appointmentUid,
+        long? createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            throw new ArgumentException("Appointment identifier is required.", nameof(appointmentUid));
+
+        return _repository.StartFromAppointmentAsync(
+            appointmentUid, createdBy, cancellationToken);
+    }
 }

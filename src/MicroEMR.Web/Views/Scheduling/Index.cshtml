@@ -221,6 +221,8 @@
     </div>
 }
 
+<div id="schedulingActionMessage" class="alert d-none" role="alert"></div>
+
 <div class="scheduling-view-bar">
     <div>
         <h2 class="h5 mb-2" id="schedulingViewTitle">Day View</h2>
@@ -361,8 +363,35 @@
                 </dl>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger d-none" id="cancelAppointmentButton">
+                    Cancel Appointment
+                </button>
                 <a id="openPatientChartButton" class="btn btn-primary d-none" href="#">Open Chart</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cancelAppointmentModal" tabindex="-1" aria-labelledby="cancelAppointmentModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="cancelAppointmentModalLabel">Cancel Appointment</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cancelAppointmentMessage" class="alert alert-danger d-none" role="alert"></div>
+                <p>Are you sure you want to cancel this appointment?</p>
+                <label for="cancelAppointmentReason" class="form-label">Reason (optional)</label>
+                <textarea id="cancelAppointmentReason" class="form-control" rows="3" maxlength="500"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="keepAppointmentButton">Keep Appointment</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelAppointmentButton">
+                    Confirm Cancel
+                </button>
             </div>
         </div>
     </div>
@@ -647,17 +676,33 @@ else
         const detailsError = document.getElementById("appointmentDetailsError");
         const detailsContent = document.getElementById("appointmentDetailsContent");
         const openChartButton = document.getElementById("openPatientChartButton");
+        const cancelAppointmentButton = document.getElementById("cancelAppointmentButton");
+        const cancelAppointmentModalElement = document.getElementById("cancelAppointmentModal");
+        const cancelAppointmentModal = new bootstrap.Modal(cancelAppointmentModalElement);
+        const cancelAppointmentReason = document.getElementById("cancelAppointmentReason");
+        const cancelAppointmentMessage = document.getElementById("cancelAppointmentMessage");
+        const confirmCancelAppointmentButton = document.getElementById("confirmCancelAppointmentButton");
+        const schedulingActionMessage = document.getElementById("schedulingActionMessage");
+        const cancelAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("CancelAppointment", "Scheduling"), jsonOptions));
         const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
+        let currentAppointmentUid = null;
+
+        const showSchedulingActionMessage = (message, type) => {
+        schedulingActionMessage.className = `alert alert-${type}`;
+        schedulingActionMessage.textContent = message;
+        };
 
         const setDetailsText = (id, value, fallback = "Not specified") => {
         document.getElementById(id).textContent = value || fallback;
         };
 
         const openAppointmentDetails = async appointmentUid => {
+        currentAppointmentUid = null;
         detailsLoading.classList.remove("d-none");
         detailsError.classList.add("d-none");
         detailsContent.classList.add("d-none");
         openChartButton.classList.add("d-none");
+        cancelAppointmentButton.classList.add("d-none");
         detailsModal.show();
 
         try {
@@ -669,6 +714,7 @@ else
         }
 
         const details = await response.json();
+        currentAppointmentUid = details.appointmentUid;
         const start = new Date(details.startDateTimeLocal);
         const end = new Date(details.endDateTimeLocal);
         const createdAt = new Date(details.createdAtLocal);
@@ -687,6 +733,9 @@ else
         setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
         openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
         openChartButton.classList.remove("d-none");
+        cancelAppointmentButton.classList.toggle(
+        "d-none",
+        String(details.status).toLowerCase() === "cancelled");
         detailsContent.classList.remove("d-none");
         } catch (error) {
         console.error(error);
@@ -696,6 +745,65 @@ else
         detailsLoading.classList.add("d-none");
         }
         };
+
+        cancelAppointmentButton.addEventListener("click", () => {
+        if (!currentAppointmentUid) return;
+        cancelAppointmentReason.value = "";
+        cancelAppointmentMessage.classList.add("d-none");
+        document.getElementById("appointmentDetailsModal").addEventListener(
+        "hidden.bs.modal",
+        () => cancelAppointmentModal.show(),
+        { once: true });
+        detailsModal.hide();
+        });
+
+        document.getElementById("keepAppointmentButton").addEventListener("click", () => {
+        cancelAppointmentModalElement.addEventListener(
+        "hidden.bs.modal",
+        () => detailsModal.show(),
+        { once: true });
+        cancelAppointmentModal.hide();
+        });
+
+        confirmCancelAppointmentButton.addEventListener("click", async () => {
+        if (!currentAppointmentUid) return;
+        confirmCancelAppointmentButton.disabled = true;
+        cancelAppointmentMessage.classList.add("d-none");
+
+        try {
+        const formData = new FormData();
+        formData.append("AppointmentUid", currentAppointmentUid);
+        formData.append("CancelReason", cancelAppointmentReason.value);
+        const token = document.querySelector(
+        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const response = await fetch(cancelAppointmentUrl, {
+        method: "POST",
+        headers: { "RequestVerificationToken": token },
+        body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || !result.success) {
+        cancelAppointmentMessage.textContent =
+        result.message || "Appointment could not be cancelled.";
+        cancelAppointmentMessage.classList.remove("d-none");
+        return;
+        }
+
+        cancelAppointmentModal.hide();
+        currentAppointmentUid = null;
+        await refreshCalendar();
+        showSchedulingActionMessage(
+        result.message || "Appointment cancelled.",
+        "success");
+        } catch (error) {
+        console.error(error);
+        cancelAppointmentMessage.textContent = "Appointment could not be cancelled.";
+        cancelAppointmentMessage.classList.remove("d-none");
+        } finally {
+        confirmCancelAppointmentButton.disabled = false;
+        }
+        });
 
         const localInputValue = date => {
         const pad = value => String(value).padStart(2, "0");

@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using MicroEMR.Application.Scheduling;
+using MicroEMR.Application.PatientEncounters;
+using MicroEMR.Application.PatientEncounters.Contracts;
+using MicroEMR.Application.PatientEncounters.Services;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -19,13 +22,16 @@ public sealed class SchedulingController : ControllerBase
         };
     private readonly ISchedulingReadService _schedulingReadService;
     private readonly ISchedulingAppointmentService _schedulingAppointmentService;
+    private readonly IPatientEncounterService _patientEncounterService;
 
     public SchedulingController(
         ISchedulingReadService schedulingReadService,
-        ISchedulingAppointmentService schedulingAppointmentService)
+        ISchedulingAppointmentService schedulingAppointmentService,
+        IPatientEncounterService patientEncounterService)
     {
         _schedulingReadService = schedulingReadService;
         _schedulingAppointmentService = schedulingAppointmentService;
+        _patientEncounterService = patientEncounterService;
     }
 
     [HttpPost("appointments")]
@@ -162,6 +168,7 @@ public sealed class SchedulingController : ControllerBase
     {
         if (appointmentUid == Guid.Empty)
             return BadRequest(new { message = "Appointment identifier is required." });
+        request.CancelReason = request.CancelReason?.Trim();
         if (request.CancelReason?.Length > 500)
             return BadRequest(new { message = "Cancel reason cannot exceed 500 characters." });
 
@@ -174,6 +181,34 @@ public sealed class SchedulingController : ControllerBase
         catch (AppointmentAlreadyCancelledException)
         {
             return Conflict(new { message = "The appointment is already cancelled." });
+        }
+    }
+
+    [HttpPost("appointments/{appointmentUid:guid}/start-encounter")]
+    [ProducesResponseType(typeof(StartEncounterFromAppointmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<StartEncounterFromAppointmentResponse>> StartEncounterFromAppointment(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { message = "Appointment identifier is required." });
+
+        try
+        {
+            var result = await _patientEncounterService.StartFromAppointmentAsync(
+                appointmentUid, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (AppointmentCancelledException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_cancelled",
+                message = "Cancelled appointments cannot start encounters."
+            });
         }
     }
 

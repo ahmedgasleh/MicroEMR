@@ -18,6 +18,7 @@ BEGIN
         PatientEncounterId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
         EncounterUid UNIQUEIDENTIFIER NOT NULL
             CONSTRAINT DF_PatientEncounter_EncounterUid DEFAULT NEWSEQUENTIALID(),
+        AppointmentUid UNIQUEIDENTIFIER NULL,
         PatientId BIGINT NULL,
         PatientUid UNIQUEIDENTIFIER NOT NULL,
         EncounterDateUtc DATETIME2(0) NOT NULL,
@@ -36,6 +37,13 @@ BEGIN
         UpdatedAt DATETIME2(0) NULL,
         RowVersion ROWVERSION NOT NULL
     );
+END;
+GO
+
+IF COL_LENGTH('dbo.PatientEncounter', 'AppointmentUid') IS NULL
+BEGIN
+    ALTER TABLE dbo.PatientEncounter
+        ADD AppointmentUid UNIQUEIDENTIFIER NULL;
 END;
 GO
 
@@ -206,6 +214,20 @@ IF NOT EXISTS
     SELECT 1
     FROM sys.indexes
     WHERE object_id = OBJECT_ID(N'dbo.PatientEncounter')
+        AND name = N'UX_PatientEncounter_AppointmentUid'
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_PatientEncounter_AppointmentUid
+    ON dbo.PatientEncounter (AppointmentUid)
+    WHERE AppointmentUid IS NOT NULL;
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.PatientEncounter')
         AND name = N'IX_PatientEncounter_PatientUid_EncounterDateUtc'
 )
 BEGIN
@@ -362,5 +384,108 @@ BEGIN
 
     EXEC dbo.PatientEncounter_GetByUid
         @EncounterUid = @EncounterUid;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.PatientEncounter_StartFromAppointment', N'P') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.PatientEncounter_StartFromAppointment;
+END;
+GO
+
+CREATE PROCEDURE dbo.PatientEncounter_StartFromAppointment
+    @AppointmentUid UNIQUEIDENTIFIER,
+    @CreatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @PatientUid UNIQUEIDENTIFIER;
+    DECLARE @PatientId BIGINT;
+    DECLARE @AppointmentStatus NVARCHAR(30);
+    DECLARE @AppointmentDateUtc DATETIME2(0);
+    DECLARE @AppointmentType NVARCHAR(100);
+    DECLARE @ReasonForVisit NVARCHAR(500);
+    DECLARE @EncounterUid UNIQUEIDENTIFIER;
+    DECLARE @WasCreated BIT;
+
+    -- Avoid literal assignment here. Clients with Always Encrypted parameterization
+    -- can rewrite scalar literals inside CREATE PROCEDURE into undeclared parameters.
+    SET @WasCreated = CONVERT(BIT, @@ROWCOUNT - @@ROWCOUNT);
+
+    BEGIN TRANSACTION;
+
+    SELECT
+        @PatientUid = appointment.PatientUid,
+        @PatientId = patient.PatientId,
+        @AppointmentStatus = appointment.AppointmentStatus,
+        @AppointmentDateUtc = appointment.StartDateTimeUtc,
+        @AppointmentType = appointment.AppointmentType,
+        @ReasonForVisit = appointment.Reason
+    FROM dbo.ScheduleAppointment AS appointment WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS patient ON patient.PatientUid = appointment.PatientUid
+    WHERE appointment.AppointmentUid = @AppointmentUid
+        AND appointment.IsDeleted = 0
+        AND patient.IsDeleted = 0;
+
+    IF @PatientUid IS NULL
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @AppointmentStatus = N'Cancelled'
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51069, 'Cancelled appointments cannot start encounters.', 1;
+    END;
+
+    SELECT @EncounterUid = EncounterUid
+    FROM dbo.PatientEncounter WITH (UPDLOCK, HOLDLOCK)
+    WHERE AppointmentUid = @AppointmentUid;
+
+    IF @EncounterUid IS NULL
+    BEGIN
+        SET @EncounterUid = NEWID();
+        SET @WasCreated = CONVERT(BIT, SIGN(@@TRANCOUNT));
+
+        INSERT INTO dbo.PatientEncounter
+        (
+            EncounterUid, AppointmentUid, PatientId, PatientUid,
+            EncounterDateUtc, EncounterType, ReasonForVisit,
+            EncounterStatus, Status, CreatedBy, CreatedAt
+        )
+        VALUES
+        (
+            @EncounterUid, @AppointmentUid, @PatientId, @PatientUid,
+            @AppointmentDateUtc,
+            COALESCE(NULLIF(LTRIM(RTRIM(@AppointmentType)), N''), N'Scheduled Visit'),
+            NULLIF(LTRIM(RTRIM(@ReasonForVisit)), N''),
+            N'Open', N'Open', @CreatedBy, SYSUTCDATETIME()
+        );
+
+        IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+        BEGIN
+            INSERT INTO dbo.AuditLog
+                (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+            VALUES
+                (@CreatedBy, @PatientId, N'Create', N'PatientEncounter',
+                 CONVERT(NVARCHAR(100), @EncounterUid), NULL,
+                 N'Encounter started from appointment', SYSUTCDATETIME());
+        END;
+    END;
+
+    COMMIT TRANSACTION;
+
+    SELECT
+        EncounterUid,
+        PatientUid,
+        AppointmentUid,
+        EncounterDateUtc AS EncounterDate,
+        EncounterStatus AS Status,
+        @WasCreated AS WasCreated
+    FROM dbo.PatientEncounter
+    WHERE EncounterUid = @EncounterUid;
 END;
 GO

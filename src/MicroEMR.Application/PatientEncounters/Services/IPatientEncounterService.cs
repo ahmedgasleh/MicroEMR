@@ -19,4 +19,9 @@ public interface IPatientEncounterService
         long? createdBy,
         string? createdByDisplayName,
         CancellationToken cancellationToken = default);
+
+    Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
+        Guid appointmentUid,
+        long? createdBy,
+        CancellationToken cancellationToken = default);
 }
