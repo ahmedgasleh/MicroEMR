@@ -5,6 +5,11 @@ namespace MicroEMR.Application.Scheduling.Services;
 
 public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
 {
+    private static readonly HashSet<string> AllowedStatuses =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
+        };
     private readonly ISchedulingAppointmentRepository _repository;
 
     public SchedulingAppointmentService(ISchedulingAppointmentRepository repository)
@@ -72,5 +77,22 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
             throw new ArgumentException("End time must be after start time.", nameof(request));
 
         return _repository.RescheduleAsync(appointmentUid, request, modifiedBy, cancellationToken);
+    }
+
+    public Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
+        Guid appointmentUid,
+        UpdateAppointmentStatusRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (appointmentUid == Guid.Empty)
+            throw new ArgumentException("Appointment identifier is required.", nameof(appointmentUid));
+        if (!AllowedStatuses.Contains(request.Status))
+            throw new ArgumentException("Invalid appointment status.", nameof(request));
+
+        request.Status = AllowedStatuses.Single(status =>
+            string.Equals(status, request.Status, StringComparison.OrdinalIgnoreCase));
+        return _repository.UpdateStatusAsync(appointmentUid, request, updatedBy, cancellationToken);
     }
 }

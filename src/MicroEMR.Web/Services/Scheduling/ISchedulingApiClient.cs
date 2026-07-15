@@ -42,4 +42,9 @@ public interface ISchedulingApiClient
         Guid appointmentUid,
         RescheduleAppointmentRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<UpdateAppointmentStatusResponse?> UpdateAppointmentStatusAsync(
+        Guid appointmentUid,
+        UpdateAppointmentStatusRequest request,
+        CancellationToken cancellationToken = default);
 }

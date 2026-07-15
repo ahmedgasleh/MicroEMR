@@ -258,6 +258,54 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         }
     }
 
+    public async Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
+        Guid appointmentUid,
+        UpdateAppointmentStatusRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.ScheduleAppointment_UpdateStatus", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter("@AppointmentUid", SqlDbType.UniqueIdentifier) { Value = appointmentUid });
+        command.Parameters.Add(new SqlParameter("@AppointmentStatus", SqlDbType.NVarChar, 30) { Value = request.Status });
+        command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)updatedBy ?? DBNull.Value
+        });
+
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                return null;
+
+            return new UpdateAppointmentStatusResponse
+            {
+                AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                Status = reader.GetString(reader.GetOrdinal("AppointmentStatus")),
+                UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt")
+            };
+        }
+        catch (SqlException exception) when (exception.Number == 51067)
+        {
+            throw new AppointmentAlreadyCancelledException(
+                "Cancelled appointments cannot be updated.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51068)
+        {
+            throw new InvalidOperationException("Invalid appointment status.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to update a scheduling appointment status.");
+            throw;
+        }
+    }
+
     private static void AddNullableString(SqlCommand command, string name, int size, string? value)
     {
         command.Parameters.Add(new SqlParameter(name, SqlDbType.NVarChar, size)

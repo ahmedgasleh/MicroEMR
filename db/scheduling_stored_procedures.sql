@@ -194,7 +194,7 @@ BEGIN
         @StartDateTimeUtc, @EndDateTimeUtc,
         NULLIF(LTRIM(RTRIM(@AppointmentType)), N''),
         NULLIF(LTRIM(RTRIM(@Reason)), N''), NULLIF(LTRIM(RTRIM(@Notes)), N''),
-        N'Booked', 0, SYSUTCDATETIME(), @CreatedBy
+        N'Scheduled', 0, SYSUTCDATETIME(), @CreatedBy
     );
 
     IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
@@ -220,6 +220,65 @@ BEGIN
     FROM dbo.ScheduleAppointment AS a
     INNER JOIN dbo.Patient AS p ON p.PatientUid = a.PatientUid
     WHERE a.AppointmentUid = @AppointmentUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.ScheduleAppointment_UpdateStatus
+    @AppointmentUid UNIQUEIDENTIFIER,
+    @AppointmentStatus NVARCHAR(30),
+    @UpdatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @PatientId BIGINT;
+    DECLARE @CurrentStatus NVARCHAR(30);
+    SET @AppointmentStatus = LTRIM(RTRIM(@AppointmentStatus));
+
+    IF @AppointmentStatus NOT IN (N'Scheduled', N'Arrived', N'Roomed', N'Seen', N'Completed')
+        THROW 51068, 'Invalid appointment status.', 1;
+
+    BEGIN TRANSACTION;
+
+    SELECT @PatientId = p.PatientId, @CurrentStatus = a.AppointmentStatus
+    FROM dbo.ScheduleAppointment AS a WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS p ON p.PatientUid = a.PatientUid
+    WHERE a.AppointmentUid = @AppointmentUid AND a.IsDeleted = 0;
+
+    IF @CurrentStatus IS NULL
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @CurrentStatus = N'Cancelled'
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51067, 'Cancelled appointments cannot be updated.', 1;
+    END;
+
+    UPDATE dbo.ScheduleAppointment
+    SET AppointmentStatus = @AppointmentStatus,
+        UpdatedAt = SYSUTCDATETIME(),
+        UpdatedBy = @UpdatedBy
+    WHERE AppointmentUid = @AppointmentUid AND IsDeleted = 0;
+
+    IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+    BEGIN
+        INSERT INTO dbo.AuditLog
+            (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+        VALUES
+            (@UpdatedBy, @PatientId, N'UpdateStatus', N'ScheduleAppointment',
+             CONVERT(NVARCHAR(100), @AppointmentUid), @CurrentStatus,
+             @AppointmentStatus, SYSUTCDATETIME());
+    END;
+
+    COMMIT TRANSACTION;
+
+    SELECT AppointmentUid, AppointmentStatus, UpdatedAt
+    FROM dbo.ScheduleAppointment
+    WHERE AppointmentUid = @AppointmentUid;
 END;
 GO
 

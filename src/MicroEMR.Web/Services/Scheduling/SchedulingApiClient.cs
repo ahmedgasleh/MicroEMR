@@ -259,6 +259,39 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                 "The API rescheduled the appointment but returned no appointment data.");
     }
 
+    public async Task<UpdateAppointmentStatusResponse?> UpdateAppointmentStatusAsync(
+        Guid appointmentUid,
+        UpdateAppointmentStatusRequest appointmentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/scheduling/appointments/{appointmentUid}/status")
+        {
+            Content = JsonContent.Create(appointmentRequest)
+        };
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogWarning(
+                "MicroEMR API appointment status update conflicted. Status: {StatusCode}. Response: {ResponseBody}",
+                (int)response.StatusCode,
+                responseBody);
+            throw new AppointmentStatusConflictException();
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<UpdateAppointmentStatusResponse>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException(
+                   "The API updated the appointment status but returned no status data.");
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value.Kind == DateTimeKind.Utc)

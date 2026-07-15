@@ -12,6 +12,11 @@ namespace MicroEMR.Api.Controllers;
 [Route("api/scheduling")]
 public sealed class SchedulingController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedAppointmentStatuses =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
+        };
     private readonly ISchedulingReadService _schedulingReadService;
     private readonly ISchedulingAppointmentService _schedulingAppointmentService;
 
@@ -169,6 +174,45 @@ public sealed class SchedulingController : ControllerBase
         catch (AppointmentAlreadyCancelledException)
         {
             return Conflict(new { message = "The appointment is already cancelled." });
+        }
+    }
+
+    [HttpPost("appointments/{appointmentUid:guid}/status")]
+    [ProducesResponseType(typeof(UpdateAppointmentStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UpdateAppointmentStatusResponse>> UpdateAppointmentStatus(
+        Guid appointmentUid,
+        [FromBody] UpdateAppointmentStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { message = "Appointment identifier is required." });
+        if (!AllowedAppointmentStatuses.Contains(request.Status))
+            return BadRequest(new { message = "Invalid appointment status." });
+
+        try
+        {
+            var result = await _schedulingAppointmentService.UpdateStatusAsync(
+                appointmentUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (AppointmentAlreadyCancelledException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_cancelled",
+                message = "Cancelled appointments cannot be updated."
+            });
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest(new { message = "Invalid appointment status." });
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(new { message = "Invalid appointment status." });
         }
     }
 

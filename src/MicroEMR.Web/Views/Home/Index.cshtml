@@ -12,7 +12,16 @@
         ?? User.FindFirst("name")?.Value
         ?? User.Identity?.Name
         ?? "User";
+
+    var appointmentStatuses = new[]
+    {
+        "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
+    };
 }
+
+<form id="dashboardAntiforgeryForm" class="d-none">
+    @Html.AntiForgeryToken()
+</form>
 
 <div class="container-fluid p-0">
 
@@ -115,6 +124,8 @@
                     </a>
                 </div>
 
+                <div id="dashboardScheduleMessage" class="alert d-none mt-3 mb-0" role="alert"></div>
+
                 @if (Model.ScheduleLoadFailed)
                 {
                     <div class="alert alert-warning mt-3 mb-0" role="alert">
@@ -152,7 +163,16 @@
                                                 ?? appointment.Reason
                                                 ?? "Not specified")
                                         </td>
-                                        <td><span class="badge text-bg-primary">@appointment.Status</span></td>
+                                        <td>
+                                            <select class="form-select form-select-sm appointment-status-select"
+                                                    data-appointment-uid="@appointment.AppointmentUid"
+                                                    aria-label="Appointment status for @appointment.PatientDisplayName">
+                                                @foreach (var status in appointmentStatuses)
+                                                {
+                                                    <option value="@status" selected="@(status == appointment.Status)">@status</option>
+                                                }
+                                            </select>
+                                        </td>
                                         <td class="text-end text-nowrap">
                                             <a asp-controller="Patients"
                                                asp-action="Details"
@@ -252,3 +272,62 @@
 
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const updateStatusUrl = '@Url.Action("UpdateAppointmentStatus", "Home")';
+            const tokenInput = document.querySelector(
+                '#dashboardAntiforgeryForm input[name="__RequestVerificationToken"]');
+            const messageElement = document.getElementById('dashboardScheduleMessage');
+
+            const showMessage = (message, type) => {
+                if (!messageElement) return;
+                messageElement.className = `alert alert-${type} mt-3 mb-0`;
+                messageElement.textContent = message;
+            };
+
+            document.querySelectorAll('.appointment-status-select').forEach(dropdown => {
+                dropdown.dataset.previousStatus = dropdown.value;
+
+                dropdown.addEventListener('change', async () => {
+                    const previousStatus = dropdown.dataset.previousStatus;
+                    dropdown.disabled = true;
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('AppointmentUid', dropdown.dataset.appointmentUid);
+                        formData.append('Status', dropdown.value);
+
+                        const response = await fetch(updateStatusUrl, {
+                            method: 'POST',
+                            headers: {
+                                'RequestVerificationToken': tokenInput?.value ?? ''
+                            },
+                            body: formData
+                        });
+                        const result = await response.json();
+
+                        if (!response.ok || !result.success) {
+                            dropdown.value = previousStatus;
+                            showMessage(
+                                result.message || 'Appointment status could not be updated.',
+                                'danger');
+                            return;
+                        }
+
+                        dropdown.value = result.status;
+                        dropdown.dataset.previousStatus = result.status;
+                        showMessage(result.message || 'Appointment status updated.', 'success');
+                    } catch (error) {
+                        console.error('Appointment status update failed.', error);
+                        dropdown.value = previousStatus;
+                        showMessage('Appointment status could not be updated.', 'danger');
+                    } finally {
+                        dropdown.disabled = false;
+                    }
+                });
+            });
+        })();
+    </script>
+}

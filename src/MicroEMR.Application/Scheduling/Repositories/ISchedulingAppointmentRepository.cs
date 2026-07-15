@@ -26,4 +26,10 @@ public interface ISchedulingAppointmentRepository
         RescheduleAppointmentRequest request,
         long? modifiedBy,
         CancellationToken cancellationToken = default);
+
+    Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
+        Guid appointmentUid,
+        UpdateAppointmentStatusRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
 }

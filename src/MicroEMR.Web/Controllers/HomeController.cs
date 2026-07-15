@@ -10,6 +10,11 @@ namespace MicroEMR.Web.Controllers;
 [Authorize]
 public class HomeController : Controller
 {
+    private static readonly HashSet<string> AllowedAppointmentStatuses =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
+        };
     private readonly ISchedulingApiClient _schedulingApiClient;
     private readonly ILogger<HomeController> _logger;
 
@@ -57,7 +62,9 @@ public class HomeController : Controller
                     PrimaryResourceName = appointment.PrimaryResourceName,
                     AppointmentType = appointment.AppointmentType,
                     Reason = appointment.Reason,
-                    Status = appointment.Status
+                    Status = string.Equals(appointment.Status, "Booked", StringComparison.OrdinalIgnoreCase)
+                        ? "Scheduled"
+                        : appointment.Status
                 })
                 .ToArray();
         }
@@ -68,6 +75,54 @@ public class HomeController : Controller
         }
 
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAppointmentStatus(
+        UpdateDashboardAppointmentStatusViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.AppointmentUid == Guid.Empty)
+            ModelState.AddModelError(nameof(model.AppointmentUid), "Appointment identifier is required.");
+        if (!AllowedAppointmentStatuses.Contains(model.Status))
+            ModelState.AddModelError(nameof(model.Status), "Invalid appointment status.");
+        if (!ModelState.IsValid)
+            return BadRequest(new { success = false, message = "Invalid appointment status." });
+
+        try
+        {
+            var result = await _schedulingApiClient.UpdateAppointmentStatusAsync(
+                model.AppointmentUid,
+                new Models.Scheduling.UpdateAppointmentStatusRequest { Status = model.Status },
+                cancellationToken);
+            if (result is null)
+                return NotFound(new { success = false, message = "Appointment was not found." });
+
+            return Json(new
+            {
+                success = true,
+                message = "Appointment status updated.",
+                status = result.Status
+            });
+        }
+        catch (AppointmentStatusConflictException)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = "Cancelled appointments cannot be updated."
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to update a dashboard appointment status.");
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                success = false,
+                message = "Appointment status could not be updated."
+            });
+        }
     }
 
     private static DateTime NormalizeUtc(DateTime value) =>
