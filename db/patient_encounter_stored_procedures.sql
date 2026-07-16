@@ -441,6 +441,12 @@ BEGIN
         THROW 51069, 'Cancelled appointments cannot start encounters.', 1;
     END;
 
+    IF @AppointmentStatus = N'Completed'
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51070, 'Completed appointments cannot start new encounters.', 1;
+    END;
+
     SELECT @EncounterUid = EncounterUid
     FROM dbo.PatientEncounter WITH (UPDLOCK, HOLDLOCK)
     WHERE AppointmentUid = @AppointmentUid;
@@ -483,6 +489,8 @@ BEGIN
         PatientUid,
         AppointmentUid,
         EncounterDateUtc AS EncounterDate,
+        EncounterType,
+        ReasonForVisit,
         EncounterStatus AS Status,
         @WasCreated AS WasCreated
     FROM dbo.PatientEncounter

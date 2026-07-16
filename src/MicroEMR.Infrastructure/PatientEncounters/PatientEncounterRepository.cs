@@ -241,6 +241,8 @@ public sealed class PatientEncounterRepository
                 PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
                 AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
                 EncounterDate = reader.GetDateTime(reader.GetOrdinal("EncounterDate")),
+                EncounterType = GetNullableString(reader, "EncounterType"),
+                ReasonForVisit = GetNullableString(reader, "ReasonForVisit"),
                 Status = reader.GetString(reader.GetOrdinal("Status")),
                 WasCreated = reader.GetBoolean(reader.GetOrdinal("WasCreated"))
             };
@@ -249,6 +251,11 @@ public sealed class PatientEncounterRepository
         {
             throw new AppointmentCancelledException(
                 "Cancelled appointments cannot start encounters.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51070)
+        {
+            throw new AppointmentCompletedException(
+                "Completed appointments cannot start new encounters.", exception);
         }
         catch (SqlException exception)
         {

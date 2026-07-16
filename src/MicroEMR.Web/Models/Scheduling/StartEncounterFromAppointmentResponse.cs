@@ -10,6 +10,10 @@ public sealed class StartEncounterFromAppointmentResponse
 
     public DateTime EncounterDate { get; set; }
 
+    public string? EncounterType { get; set; }
+
+    public string? ReasonForVisit { get; set; }
+
     public string Status { get; set; } = string.Empty;
 
     public bool WasCreated { get; set; }

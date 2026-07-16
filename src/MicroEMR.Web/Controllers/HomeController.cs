@@ -160,9 +160,11 @@ public class HomeController : Controller
                     encounterUid = result.EncounterUid
                 });
         }
-        catch (StartEncounterConflictException)
+        catch (StartEncounterConflictException exception)
         {
-            TempData["ErrorMessage"] = "Cancelled appointments cannot start encounters.";
+            TempData["ErrorMessage"] = exception.IsCompleted
+                ? "Completed appointments cannot start a new encounter."
+                : "Cancelled appointments cannot start encounters.";
             return RedirectToAction(nameof(Index));
         }
         catch (Exception exception)

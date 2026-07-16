@@ -210,6 +210,14 @@ public sealed class SchedulingController : ControllerBase
                 message = "Cancelled appointments cannot start encounters."
             });
         }
+        catch (AppointmentCompletedException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_completed",
+                message = "Completed appointments cannot start a new encounter."
+            });
+        }
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/status")]
