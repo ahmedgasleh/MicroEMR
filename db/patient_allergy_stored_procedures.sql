@@ -409,3 +409,31 @@ BEGIN
     EXEC dbo.PatientAllergy_GetByUid @AllergyUid = @AllergyUid;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientAllergy_Resolve
+    @PatientUid UNIQUEIDENTIFIER, @AllergyUid UNIQUEIDENTIFIER,
+    @ResolveReason NVARCHAR(500) = NULL, @ResolvedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @PatientId BIGINT, @CurrentStatus NVARCHAR(30);
+    BEGIN TRANSACTION;
+    SELECT @PatientId = p.PatientId, @CurrentStatus = pa.AllergyStatus
+    FROM dbo.PatientAllergy AS pa WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS p ON p.PatientUid = pa.PatientUid
+    WHERE pa.PatientUid = @PatientUid AND pa.AllergyUid = @AllergyUid AND p.IsDeleted = 0;
+    IF @PatientId IS NULL BEGIN ROLLBACK TRANSACTION; RETURN; END;
+    IF @CurrentStatus <> N'Resolved'
+    BEGIN
+        UPDATE dbo.PatientAllergy SET AllergyStatus = N'Resolved', UpdatedBy = @ResolvedBy,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE PatientUid = @PatientUid AND AllergyUid = @AllergyUid;
+        IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+            INSERT dbo.AuditLog (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+            VALUES (@ResolvedBy, @PatientId, N'Resolve', N'PatientAllergy', CONVERT(NVARCHAR(100), @AllergyUid),
+                @CurrentStatus, COALESCE(NULLIF(LTRIM(RTRIM(@ResolveReason)), N''), N'Allergy resolved'), SYSUTCDATETIME());
+    END;
+    COMMIT TRANSACTION;
+    EXEC dbo.PatientAllergy_GetByUid @AllergyUid = @AllergyUid;
+END;
+GO

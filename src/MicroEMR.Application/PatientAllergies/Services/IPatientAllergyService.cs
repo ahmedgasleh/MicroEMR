@@ -26,4 +26,7 @@ public interface IPatientAllergyService
         UpdatePatientAllergyRequest request,
         long? updatedBy,
         CancellationToken cancellationToken = default);
+    Task<PatientAllergyDetailsResponse?> ResolveAsync(Guid patientUid, Guid allergyUid,
+        ResolvePatientAllergyRequest request, long? resolvedBy,
+        CancellationToken cancellationToken = default);
 }

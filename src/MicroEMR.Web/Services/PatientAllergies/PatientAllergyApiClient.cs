@@ -127,6 +127,18 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
                 "The API updated the allergy but returned no allergy data.");
     }
 
+    public async Task<PatientAllergyDetailsResponse?> ResolveAsync(Guid patientUid, Guid allergyUid,
+        ResolvePatientAllergyRequest allergyRequest, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/allergies/{allergyUid}/resolve")
+        { Content = JsonContent.Create(allergyRequest) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientAllergyDetailsResponse>(cancellationToken: cancellationToken);
+    }
+
     private async Task AddBearerTokenAsync(
         HttpRequestMessage request)
     {

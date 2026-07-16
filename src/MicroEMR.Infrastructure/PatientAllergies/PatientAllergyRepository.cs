@@ -267,6 +267,25 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         }
     }
 
+    public async Task<PatientAllergyDetailsResponse?> ResolveAsync(Guid patientUid, Guid allergyUid,
+        ResolvePatientAllergyRequest request, long? resolvedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.PatientAllergy_Resolve", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@AllergyUid", SqlDbType.UniqueIdentifier) { Value = allergyUid });
+        AddNullableString(command, "@ResolveReason", SqlDbType.NVarChar, 500, request.ResolveReason);
+        command.Parameters.Add(new SqlParameter("@ResolvedBy", SqlDbType.BigInt) { Value = (object?)resolvedBy ?? DBNull.Value });
+        await connection.OpenAsync(cancellationToken);
+        try {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) { _logger.LogError(exception, "Failed to resolve a patient allergy."); throw; }
+    }
+
     private static PatientAllergyListItemResponse MapListItem(
         SqlDataReader reader)
     {

@@ -271,6 +271,24 @@ public sealed class PatientAllergiesController : Controller
         }
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResolveAllergy(ResolveAllergyViewModel model, CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.AllergyUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Allergy information is invalid." });
+        if (!ModelState.IsValid) return BadRequest(new { success = false, message = "Please correct the allergy information." });
+        try {
+            var result = await _allergyApiClient.ResolveAsync(model.PatientUid, model.AllergyUid,
+                new ResolvePatientAllergyRequest { ResolveReason = model.ResolveReason }, cancellationToken);
+            return result is null ? NotFound(new { success = false, message = "Allergy was not found." })
+                : Json(new { success = true, message = "Allergy resolved." });
+        }
+        catch (Exception exception) {
+            _logger.LogError(exception, "Unable to resolve allergy.");
+            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = "Allergy could not be resolved." });
+        }
+    }
+
     private void AddApiValidationErrors(
         string responseBody,
         string fallbackMessage)

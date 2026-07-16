@@ -191,6 +191,18 @@ public sealed class PatientAllergiesController : ControllerBase
         }
     }
 
+    [HttpPost("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}/resolve")]
+    public async Task<ActionResult<PatientAllergyDetailsResponse>> ResolveAllergy(
+        Guid patientUid, Guid allergyUid, [FromBody] ResolvePatientAllergyRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || allergyUid == Guid.Empty) return BadRequest();
+        request.ResolveReason = request.ResolveReason?.Trim();
+        if (request.ResolveReason?.Length > 500) return BadRequest(new { message = "Resolve reason cannot exceed 500 characters." });
+        var result = await _allergyService.ResolveAsync(patientUid, allergyUid, request, GetAuthenticatedUserId(), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
     private long? GetAuthenticatedUserId()
     {
         var userIdValue =
