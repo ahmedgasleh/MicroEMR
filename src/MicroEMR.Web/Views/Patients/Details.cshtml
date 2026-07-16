@@ -736,6 +736,10 @@
 
                                 <td class="text-end">
                                     <a asp-controller="PatientMedications"
+                                       asp-action="Edit"
+                                       asp-route-medicationUid="@medication.MedicationUid"
+                                       class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <a asp-controller="PatientMedications"
                                        asp-action="Details"
                                        asp-route-medicationUid="@medication.MedicationUid"
                                        class="btn btn-sm btn-outline-primary">

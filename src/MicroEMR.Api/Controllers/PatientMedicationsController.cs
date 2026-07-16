@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientMedications.Contracts;
 using MicroEMR.Application.PatientMedications.Services;
+using MicroEMR.Application.PatientMedications;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -142,6 +143,29 @@ public sealed class PatientMedicationsController : ControllerBase
 
             throw;
         }
+    }
+
+    [HttpPut("api/patients/{patientUid:guid}/medications/{medicationUid:guid}")]
+    public async Task<ActionResult<PatientMedicationDetailsResponse>> UpdateMedication(
+        Guid patientUid, Guid medicationUid,
+        [FromBody] UpdatePatientMedicationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || medicationUid == Guid.Empty) return BadRequest();
+        request.MedicationName = request.MedicationName?.Trim() ?? string.Empty;
+        request.Status = request.Status?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(request.MedicationName))
+            ModelState.AddModelError(nameof(request.MedicationName), "Medication name is required.");
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            var result = await _medicationService.UpdateAsync(
+                patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
+        catch (PatientMedicationConcurrencyException)
+        { return Conflict(new { message = "The medication was changed by another user. Reload and try again." }); }
     }
 
     private long? GetAuthenticatedUserId()

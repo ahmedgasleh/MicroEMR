@@ -101,6 +101,17 @@ public sealed class PatientMedicationApiClient : IPatientMedicationApiClient
                ?? throw new InvalidOperationException(
                    "The API created the medication but returned no medication data.");
     }
+    public async Task<PatientMedicationDetailsResponse?> UpdateAsync(Guid patientUid, Guid medicationUid,
+        UpdatePatientMedicationRequest medicationRequest, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"api/patients/{patientUid}/medications/{medicationUid}")
+        { Content = JsonContent.Create(medicationRequest) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientMedicationDetailsResponse>(cancellationToken: cancellationToken);
+    }
 
     private async Task AddBearerTokenAsync(
         HttpRequestMessage request)

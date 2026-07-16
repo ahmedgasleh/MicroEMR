@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientMedications.Contracts;
 using MicroEMR.Application.PatientMedications.Repositories;
+using MicroEMR.Application.PatientMedications;
 
 namespace MicroEMR.Infrastructure.PatientMedications;
 
@@ -238,6 +239,46 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
                 "Failed to create medication for patient {PatientUid}.",
                 patientUid);
 
+            throw;
+        }
+    }
+
+    public async Task<PatientMedicationDetailsResponse?> UpdateAsync(
+        Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
+        long? updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.PatientMedication_Update", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
+        AddRequiredString(command, "@MedicationName", SqlDbType.NVarChar, 200, request.MedicationName);
+        AddNullableString(command, "@Strength", SqlDbType.NVarChar, 100, request.Strength);
+        AddNullableString(command, "@DosageForm", SqlDbType.NVarChar, 100, request.DosageForm);
+        AddNullableString(command, "@Route", SqlDbType.NVarChar, 100, request.Route);
+        AddNullableString(command, "@Directions", SqlDbType.NVarChar, 500, request.Directions);
+        AddNullableString(command, "@Frequency", SqlDbType.NVarChar, 100, request.Frequency);
+        AddNullableDate(command, "@StartDate", request.StartDate);
+        AddNullableDate(command, "@EndDate", request.EndDate);
+        AddNullableString(command, "@Indication", SqlDbType.NVarChar, 300, request.Indication);
+        AddNullableString(command, "@PrescriberName", SqlDbType.NVarChar, 200, request.PrescriberName);
+        AddRequiredString(command, "@MedicationStatus", SqlDbType.NVarChar, 30, request.Status);
+        AddNullableString(command, "@Notes", SqlDbType.NVarChar, 1000, request.Notes);
+        command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt) { Value = (object?)updatedBy ?? DBNull.Value });
+        command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Timestamp) { Value = Convert.FromBase64String(request.RowVersion) });
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51057)
+        {
+            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to update a patient medication.");
             throw;
         }
     }

@@ -263,3 +263,41 @@ BEGIN
         @MedicationUid = @MedicationUid;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientMedication_Update
+    @PatientUid UNIQUEIDENTIFIER, @MedicationUid UNIQUEIDENTIFIER,
+    @MedicationName NVARCHAR(200), @Strength NVARCHAR(100) = NULL,
+    @DosageForm NVARCHAR(100) = NULL, @Route NVARCHAR(100) = NULL,
+    @Directions NVARCHAR(500) = NULL, @Frequency NVARCHAR(100) = NULL,
+    @StartDate DATE = NULL, @EndDate DATE = NULL,
+    @Indication NVARCHAR(300) = NULL, @PrescriberName NVARCHAR(200) = NULL,
+    @MedicationStatus NVARCHAR(30), @Notes NVARCHAR(1000) = NULL,
+    @UpdatedBy BIGINT = NULL, @RowVersion BINARY(8)
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @PatientId BIGINT;
+    IF @StartDate IS NOT NULL AND @EndDate IS NOT NULL AND @EndDate < @StartDate
+        THROW 51056, 'End date cannot be before start date.', 1;
+    BEGIN TRANSACTION;
+    SELECT @PatientId = p.PatientId
+    FROM dbo.PatientMedication AS pm WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS p ON p.PatientUid = pm.PatientUid
+    WHERE pm.PatientUid = @PatientUid AND pm.MedicationUid = @MedicationUid AND p.IsDeleted = 0;
+    IF @PatientId IS NULL BEGIN ROLLBACK TRANSACTION; RETURN; END;
+    UPDATE dbo.PatientMedication SET
+        MedicationName = LTRIM(RTRIM(@MedicationName)), Strength = NULLIF(LTRIM(RTRIM(@Strength)), N''),
+        DosageForm = NULLIF(LTRIM(RTRIM(@DosageForm)), N''), Route = NULLIF(LTRIM(RTRIM(@Route)), N''),
+        Directions = NULLIF(LTRIM(RTRIM(@Directions)), N''), Frequency = NULLIF(LTRIM(RTRIM(@Frequency)), N''),
+        StartDate = @StartDate, EndDate = @EndDate, Indication = NULLIF(LTRIM(RTRIM(@Indication)), N''),
+        PrescriberName = NULLIF(LTRIM(RTRIM(@PrescriberName)), N''), MedicationStatus = LTRIM(RTRIM(@MedicationStatus)),
+        Notes = NULLIF(LTRIM(RTRIM(@Notes)), N''), UpdatedBy = @UpdatedBy, UpdatedAt = SYSUTCDATETIME()
+    WHERE PatientUid = @PatientUid AND MedicationUid = @MedicationUid AND RowVersion = @RowVersion;
+    IF @@ROWCOUNT = 0 BEGIN ROLLBACK TRANSACTION; THROW 51057, 'The medication was changed by another user.', 1; END;
+    IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+        INSERT dbo.AuditLog (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+        VALUES (@UpdatedBy, @PatientId, N'Update', N'PatientMedication', CONVERT(NVARCHAR(100), @MedicationUid), NULL, N'Medication updated', SYSUTCDATETIME());
+    COMMIT TRANSACTION;
+    EXEC dbo.PatientMedication_GetByUid @MedicationUid = @MedicationUid;
+END;
+GO

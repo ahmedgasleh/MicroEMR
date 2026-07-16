@@ -19,4 +19,8 @@ public interface IPatientMedicationService
         long? createdBy,
         string? createdByDisplayName,
         CancellationToken cancellationToken = default);
+
+    Task<PatientMedicationDetailsResponse?> UpdateAsync(
+        Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
+        long? updatedBy, CancellationToken cancellationToken = default);
 }
