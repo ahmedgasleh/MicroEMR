@@ -64,6 +64,64 @@ public sealed class PatientEncountersController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> EncounterDetails(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Encounter details could not be loaded."
+            });
+        }
+
+        try
+        {
+            var encounter =
+                await _encounterApiClient.GetByUidAsync(
+                    encounterUid,
+                    cancellationToken);
+
+            if (encounter is null || encounter.PatientUid != patientUid)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Encounter was not found."
+                });
+            }
+
+            return Json(new
+            {
+                success = true,
+                encounter
+            });
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Encounter details could not be loaded from the API.");
+
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    success = false,
+                    message = "Encounter details could not be loaded."
+                });
+        }
+    }
+
+    [HttpGet]
     public IActionResult Create(
         Guid patientUid)
     {
