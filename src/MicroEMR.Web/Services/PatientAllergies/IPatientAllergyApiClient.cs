@@ -17,4 +17,10 @@ public interface IPatientAllergyApiClient
         Guid patientUid,
         CreatePatientAllergyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientAllergyDetailsResponse?> UpdateAsync(
+        Guid patientUid,
+        Guid allergyUid,
+        UpdatePatientAllergyRequest request,
+        CancellationToken cancellationToken = default);
 }

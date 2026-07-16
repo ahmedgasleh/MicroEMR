@@ -182,6 +182,95 @@ public sealed class PatientAllergiesController : Controller
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Edit(Guid allergyUid, CancellationToken cancellationToken)
+    {
+        if (allergyUid == Guid.Empty)
+            return BadRequest();
+
+        var allergy = await _allergyApiClient.GetByUidAsync(allergyUid, cancellationToken);
+        if (allergy is null)
+            return NotFound();
+
+        return View(new EditPatientAllergyViewModel
+        {
+            PatientUid = allergy.PatientUid,
+            AllergyUid = allergy.AllergyUid,
+            AllergenName = allergy.AllergenName,
+            AllergenType = allergy.AllergenType,
+            Reaction = allergy.Reaction,
+            Severity = allergy.Severity,
+            OnsetDate = allergy.OnsetDate,
+            Status = allergy.Status,
+            Notes = allergy.Notes,
+            RowVersion = allergy.RowVersion
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        EditPatientAllergyViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.AllergyUid == Guid.Empty)
+            return BadRequest();
+        if (!ModelState.IsValid)
+            return View(model);
+
+        try
+        {
+            var allergy = await _allergyApiClient.UpdateAsync(
+                model.PatientUid,
+                model.AllergyUid,
+                new UpdatePatientAllergyRequest
+                {
+                    AllergenName = model.AllergenName,
+                    AllergenType = model.AllergenType,
+                    Reaction = model.Reaction,
+                    Severity = model.Severity,
+                    OnsetDate = model.OnsetDate,
+                    Status = model.Status,
+                    Notes = model.Notes,
+                    RowVersion = model.RowVersion
+                },
+                cancellationToken);
+
+            if (allergy is null)
+                return NotFound();
+
+            TempData["SuccessMessage"] = "Allergy updated successfully.";
+            return RedirectToAction("Details", "Patients", new
+            {
+                patientUid = model.PatientUid,
+                tab = "allergies"
+            });
+        }
+        catch (HttpRequestException exception) when (
+            exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
+        {
+            _logger.LogWarning(exception, "The allergy API rejected an update request.");
+            AddApiValidationErrors(
+                exception.Message,
+                exception.StatusCode == HttpStatusCode.Conflict
+                    ? "The allergy was changed by another user. Reload and try again."
+                    : "The allergy could not be updated. Review the fields and try again.");
+            return View(model);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(exception, "The allergy API rejected the access token during update.");
+            ModelState.AddModelError(string.Empty, "The allergy could not be updated. Sign in again.");
+            return View(model);
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogError(exception, "Unable to update allergy.");
+            ModelState.AddModelError(string.Empty, "The allergy could not be updated. Please try again.");
+            return View(model);
+        }
+    }
+
     private void AddApiValidationErrors(
         string responseBody,
         string fallbackMessage)

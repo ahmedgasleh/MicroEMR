@@ -604,6 +604,12 @@
 
                                 <td class="text-end">
                                     <a asp-controller="PatientAllergies"
+                                       asp-action="Edit"
+                                       asp-route-allergyUid="@allergy.AllergyUid"
+                                       class="btn btn-sm btn-outline-secondary">
+                                        Edit
+                                    </a>
+                                    <a asp-controller="PatientAllergies"
                                        asp-action="Details"
                                        asp-route-allergyUid="@allergy.AllergyUid"
                                        class="btn btn-sm btn-outline-primary">

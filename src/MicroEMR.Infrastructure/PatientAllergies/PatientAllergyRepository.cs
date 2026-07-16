@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Repositories;
+using MicroEMR.Application.PatientAllergies;
 
 namespace MicroEMR.Infrastructure.PatientAllergies;
 
@@ -210,6 +211,58 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
                 "Failed to create allergy for patient {PatientUid}.",
                 patientUid);
 
+            throw;
+        }
+    }
+
+    public async Task<PatientAllergyDetailsResponse?> UpdateAsync(
+        Guid patientUid,
+        Guid allergyUid,
+        UpdatePatientAllergyRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.PatientAllergy_Update", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@AllergyUid", SqlDbType.UniqueIdentifier) { Value = allergyUid });
+        AddRequiredString(command, "@AllergenName", SqlDbType.NVarChar, 200, request.AllergenName);
+        AddNullableString(command, "@AllergenType", SqlDbType.NVarChar, 100, request.AllergenType);
+        AddNullableString(command, "@Reaction", SqlDbType.NVarChar, 500, request.Reaction);
+        AddNullableString(command, "@Severity", SqlDbType.NVarChar, 30, request.Severity);
+        command.Parameters.Add(new SqlParameter("@OnsetDate", SqlDbType.Date)
+        {
+            Value = request.OnsetDate.HasValue ? request.OnsetDate.Value.Date : DBNull.Value
+        });
+        AddRequiredString(command, "@AllergyStatus", SqlDbType.NVarChar, 30, request.Status);
+        AddNullableString(command, "@Notes", SqlDbType.NVarChar, 1000, request.Notes);
+        command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)updatedBy ?? DBNull.Value
+        });
+        command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Timestamp)
+        {
+            Value = Convert.FromBase64String(request.RowVersion)
+        });
+
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51052)
+        {
+            throw new PatientAllergyConcurrencyException(
+                "The allergy was changed by another user.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to update a patient allergy.");
             throw;
         }
     }

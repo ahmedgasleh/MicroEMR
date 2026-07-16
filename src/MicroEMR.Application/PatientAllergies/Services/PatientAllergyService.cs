@@ -46,4 +46,16 @@ public sealed class PatientAllergyService : IPatientAllergyService
             createdByDisplayName,
             cancellationToken);
     }
+
+    public Task<PatientAllergyDetailsResponse?> UpdateAsync(
+        Guid patientUid,
+        Guid allergyUid,
+        UpdatePatientAllergyRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return _repository.UpdateAsync(
+            patientUid, allergyUid, request, updatedBy, cancellationToken);
+    }
 }

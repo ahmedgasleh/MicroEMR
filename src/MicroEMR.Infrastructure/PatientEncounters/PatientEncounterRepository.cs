@@ -241,8 +241,8 @@ public sealed class PatientEncounterRepository
                 PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
                 AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
                 EncounterDate = reader.GetDateTime(reader.GetOrdinal("EncounterDate")),
-                EncounterType = GetNullableString(reader, "EncounterType"),
-                ReasonForVisit = GetNullableString(reader, "ReasonForVisit"),
+                EncounterType = GetOptionalString(reader, "EncounterType"),
+                ReasonForVisit = GetOptionalString(reader, "ReasonForVisit"),
                 Status = reader.GetString(reader.GetOrdinal("Status")),
                 WasCreated = reader.GetBoolean(reader.GetOrdinal("WasCreated"))
             };
@@ -399,6 +399,28 @@ public sealed class PatientEncounterRepository
         return reader.IsDBNull(ordinal)
             ? null
             : reader.GetString(ordinal);
+    }
+
+    private static string? GetOptionalString(
+        SqlDataReader reader,
+        string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (!string.Equals(
+                    reader.GetName(ordinal),
+                    columnName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return reader.IsDBNull(ordinal)
+                ? null
+                : reader.GetString(ordinal);
+        }
+
+        return null;
     }
 
     private static long? GetNullableInt64(

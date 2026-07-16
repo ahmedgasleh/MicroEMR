@@ -19,4 +19,11 @@ public interface IPatientAllergyRepository
         long? createdBy,
         string? createdByDisplayName,
         CancellationToken cancellationToken = default);
+
+    Task<PatientAllergyDetailsResponse?> UpdateAsync(
+        Guid patientUid,
+        Guid allergyUid,
+        UpdatePatientAllergyRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
 }

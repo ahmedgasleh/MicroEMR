@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Services;
+using MicroEMR.Application.PatientAllergies;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -141,6 +142,52 @@ public sealed class PatientAllergiesController : ControllerBase
                 patientUid);
 
             throw;
+        }
+    }
+
+    [HttpPut("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}")]
+    [ProducesResponseType<PatientAllergyDetailsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientAllergyDetailsResponse>> UpdateAllergy(
+        Guid patientUid,
+        Guid allergyUid,
+        [FromBody] UpdatePatientAllergyRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || allergyUid == Guid.Empty)
+            return BadRequest();
+
+        request.AllergenName = request.AllergenName?.Trim() ?? string.Empty;
+        request.AllergenType = request.AllergenType?.Trim();
+        request.Reaction = request.Reaction?.Trim();
+        request.Severity = request.Severity?.Trim();
+        request.Status = request.Status?.Trim() ?? string.Empty;
+        request.Notes = request.Notes?.Trim();
+
+        if (string.IsNullOrWhiteSpace(request.AllergenName))
+            ModelState.AddModelError(nameof(request.AllergenName), "Allergen name is required.");
+        if (string.IsNullOrWhiteSpace(request.Status))
+            ModelState.AddModelError(nameof(request.Status), "Status is required.");
+        if (string.IsNullOrWhiteSpace(request.RowVersion))
+            ModelState.AddModelError(nameof(request.RowVersion), "Row version is required.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var allergy = await _allergyService.UpdateAsync(
+                patientUid, allergyUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return allergy is null ? NotFound() : Ok(allergy);
+        }
+        catch (FormatException)
+        {
+            return BadRequest(new { message = "The row version is invalid." });
+        }
+        catch (PatientAllergyConcurrencyException)
+        {
+            return Conflict(new { message = "The allergy was changed by another user. Reload and try again." });
         }
     }
 

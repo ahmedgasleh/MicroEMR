@@ -1,0 +1,92 @@
+@model MicroEMR.Web.Models.PatientAllergies.EditPatientAllergyViewModel
+
+@{
+    ViewData["Title"] = "Edit Allergy";
+    ViewData["Subtitle"] = "Patient allergy";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h3>Edit Allergy</h3>
+            <p>Update this patient's allergy record</p>
+        </div>
+        <a asp-controller="Patients" asp-action="Details"
+           asp-route-patientUid="@Model.PatientUid" asp-route-tab="allergies"
+           class="btn btn-outline-secondary">Back to Patient Chart</a>
+    </div>
+
+    <form asp-action="Edit" method="post" class="mt-4">
+        @Html.AntiForgeryToken()
+        <input asp-for="PatientUid" type="hidden" />
+        <input asp-for="AllergyUid" type="hidden" />
+        <input asp-for="RowVersion" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <label asp-for="AllergenName" class="form-label"></label>
+                <input asp-for="AllergenName" class="form-control" autocomplete="off" />
+                <span asp-validation-for="AllergenName" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label asp-for="AllergenType" class="form-label"></label>
+                <select asp-for="AllergenType" class="form-select">
+                    <option value="">Select</option>
+                    @foreach (var value in new[] { "Medication", "Food", "Environmental", "Latex", "Contrast", "Other" })
+                    {
+                        <option value="@value">@value</option>
+                    }
+                </select>
+                <span asp-validation-for="AllergenType" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label asp-for="Severity" class="form-label"></label>
+                <select asp-for="Severity" class="form-select">
+                    <option value="">Select</option>
+                    @foreach (var value in new[] { "Unknown", "Mild", "Moderate", "Severe" })
+                    {
+                        <option value="@value">@value</option>
+                    }
+                </select>
+                <span asp-validation-for="Severity" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-lg-6">
+                <label asp-for="Reaction" class="form-label"></label>
+                <input asp-for="Reaction" class="form-control" autocomplete="off" />
+                <span asp-validation-for="Reaction" class="text-danger"></span>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label asp-for="OnsetDate" class="form-label"></label>
+                <input asp-for="OnsetDate" type="date" class="form-control" />
+            </div>
+            <div class="col-12 col-lg-3">
+                <label asp-for="Status" class="form-label"></label>
+                <select asp-for="Status" class="form-select">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Resolved">Resolved</option>
+                </select>
+                <span asp-validation-for="Status" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label"></label>
+                <textarea asp-for="Notes" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Notes" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <a asp-controller="Patients" asp-action="Details"
+               asp-route-patientUid="@Model.PatientUid" asp-route-tab="allergies"
+               class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary" id="btnSaveAllergyEdit">Save</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

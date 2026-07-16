@@ -339,3 +339,73 @@ BEGIN
         @AllergyUid = @AllergyUid;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientAllergy_Update
+    @PatientUid UNIQUEIDENTIFIER,
+    @AllergyUid UNIQUEIDENTIFIER,
+    @AllergenName NVARCHAR(200),
+    @AllergenType NVARCHAR(100) = NULL,
+    @Reaction NVARCHAR(500) = NULL,
+    @Severity NVARCHAR(30) = NULL,
+    @OnsetDate DATE = NULL,
+    @AllergyStatus NVARCHAR(30),
+    @Notes NVARCHAR(1000) = NULL,
+    @UpdatedBy BIGINT = NULL,
+    @RowVersion BINARY(8)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @PatientId BIGINT;
+
+    BEGIN TRANSACTION;
+
+    SELECT @PatientId = p.PatientId
+    FROM dbo.PatientAllergy AS pa WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS p ON p.PatientUid = pa.PatientUid
+    WHERE pa.PatientUid = @PatientUid
+        AND pa.AllergyUid = @AllergyUid
+        AND p.IsDeleted = CONVERT(BIT, 0);
+
+    IF @PatientId IS NULL
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    UPDATE dbo.PatientAllergy
+    SET AllergenName = LTRIM(RTRIM(@AllergenName)),
+        AllergenType = NULLIF(LTRIM(RTRIM(@AllergenType)), N''),
+        Reaction = NULLIF(LTRIM(RTRIM(@Reaction)), N''),
+        Severity = NULLIF(LTRIM(RTRIM(@Severity)), N''),
+        OnsetDate = @OnsetDate,
+        AllergyStatus = LTRIM(RTRIM(@AllergyStatus)),
+        Notes = NULLIF(LTRIM(RTRIM(@Notes)), N''),
+        UpdatedBy = @UpdatedBy,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE PatientUid = @PatientUid
+        AND AllergyUid = @AllergyUid
+        AND RowVersion = @RowVersion;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51052, 'The allergy was changed by another user.', 1;
+    END;
+
+    IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+    BEGIN
+        INSERT INTO dbo.AuditLog
+            (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+        VALUES
+            (@UpdatedBy, @PatientId, N'Update', N'PatientAllergy',
+             CONVERT(NVARCHAR(100), @AllergyUid), NULL,
+             N'Allergy updated', SYSUTCDATETIME());
+    END;
+
+    COMMIT TRANSACTION;
+
+    EXEC dbo.PatientAllergy_GetByUid @AllergyUid = @AllergyUid;
+END;
+GO
