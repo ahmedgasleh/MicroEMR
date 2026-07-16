@@ -366,8 +366,87 @@
                 <button type="button" class="btn btn-outline-danger d-none" id="cancelAppointmentButton">
                     Cancel Appointment
                 </button>
+                <button type="button" class="btn btn-primary d-none" id="editAppointmentButton">
+                    Edit Appointment
+                </button>
                 <a id="openPatientChartButton" class="btn btn-primary d-none" href="#">Open Chart</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editAppointmentModal" tabindex="-1" aria-labelledby="editAppointmentModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="editAppointmentModalLabel">Edit Appointment</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="editAppointmentMessage" class="alert alert-danger d-none" role="alert"></div>
+                <form id="editAppointmentForm" novalidate>
+                    <input type="hidden" id="EditAppointmentUid" name="AppointmentUid" />
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="EditPrimaryResourceUid" class="form-label">Primary provider/resource</label>
+                            <select id="EditPrimaryResourceUid" name="PrimaryResourceUid" class="form-select">
+                                <option value="">Select provider/resource</option>
+                                @foreach (var resource in Model.Resources.Where(r => r.ResourceType == "Provider")
+                                    .OrderBy(r => r.SortOrder).ThenBy(r => r.DisplayName))
+                                {
+                                    <option value="@resource.ResourceUid">@resource.DisplayName</option>
+                                }
+                            </select>
+                            <div class="invalid-feedback" data-edit-error-for="PrimaryResourceUid"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EditRoomResourceUid" class="form-label">Room (optional)</label>
+                            <select id="EditRoomResourceUid" name="RoomResourceUid" class="form-select">
+                                <option value="">No room</option>
+                                @foreach (var room in Model.Resources.Where(r => r.ResourceType == "Room")
+                                    .OrderBy(r => r.SortOrder).ThenBy(r => r.DisplayName))
+                                {
+                                    <option value="@room.ResourceUid">@room.DisplayName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EditStartDateTimeLocal" class="form-label">Start</label>
+                            <input id="EditStartDateTimeLocal" name="StartDateTimeLocal" type="datetime-local"
+                                   class="form-control" />
+                            <div class="invalid-feedback" data-edit-error-for="StartDateTimeLocal"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EditEndDateTimeLocal" class="form-label">End</label>
+                            <input id="EditEndDateTimeLocal" name="EndDateTimeLocal" type="datetime-local"
+                                   class="form-control" />
+                            <div class="invalid-feedback" data-edit-error-for="EndDateTimeLocal"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EditAppointmentType" class="form-label">Appointment type</label>
+                            <input id="EditAppointmentType" name="AppointmentType" maxlength="100"
+                                   class="form-control" />
+                            <div class="invalid-feedback" data-edit-error-for="AppointmentType"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="EditReason" class="form-label">Reason</label>
+                            <input id="EditReason" name="Reason" maxlength="500" class="form-control" />
+                            <div class="invalid-feedback" data-edit-error-for="Reason"></div>
+                        </div>
+                        <div class="col-12">
+                            <label for="EditNotes" class="form-label">Notes</label>
+                            <textarea id="EditNotes" name="Notes" maxlength="1000" rows="3"
+                                      class="form-control"></textarea>
+                            <div class="invalid-feedback" data-edit-error-for="Notes"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditAppointmentButton">Save</button>
             </div>
         </div>
     </div>
@@ -677,6 +756,12 @@ else
         const detailsContent = document.getElementById("appointmentDetailsContent");
         const openChartButton = document.getElementById("openPatientChartButton");
         const cancelAppointmentButton = document.getElementById("cancelAppointmentButton");
+        const editAppointmentButton = document.getElementById("editAppointmentButton");
+        const editAppointmentModalElement = document.getElementById("editAppointmentModal");
+        const editAppointmentModal = new bootstrap.Modal(editAppointmentModalElement);
+        const editAppointmentForm = document.getElementById("editAppointmentForm");
+        const editAppointmentMessage = document.getElementById("editAppointmentMessage");
+        const saveEditAppointmentButton = document.getElementById("saveEditAppointmentButton");
         const cancelAppointmentModalElement = document.getElementById("cancelAppointmentModal");
         const cancelAppointmentModal = new bootstrap.Modal(cancelAppointmentModalElement);
         const cancelAppointmentReason = document.getElementById("cancelAppointmentReason");
@@ -684,8 +769,10 @@ else
         const confirmCancelAppointmentButton = document.getElementById("confirmCancelAppointmentButton");
         const schedulingActionMessage = document.getElementById("schedulingActionMessage");
         const cancelAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("CancelAppointment", "Scheduling"), jsonOptions));
+        const updateAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("UpdateAppointment", "Scheduling"), jsonOptions));
         const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
         let currentAppointmentUid = null;
+        let currentAppointmentDetails = null;
 
         const showSchedulingActionMessage = (message, type) => {
         schedulingActionMessage.className = `alert alert-${type}`;
@@ -698,11 +785,13 @@ else
 
         const openAppointmentDetails = async appointmentUid => {
         currentAppointmentUid = null;
+        currentAppointmentDetails = null;
         detailsLoading.classList.remove("d-none");
         detailsError.classList.add("d-none");
         detailsContent.classList.add("d-none");
         openChartButton.classList.add("d-none");
         cancelAppointmentButton.classList.add("d-none");
+        editAppointmentButton.classList.add("d-none");
         detailsModal.show();
 
         try {
@@ -715,6 +804,7 @@ else
 
         const details = await response.json();
         currentAppointmentUid = details.appointmentUid;
+        currentAppointmentDetails = details;
         const start = new Date(details.startDateTimeLocal);
         const end = new Date(details.endDateTimeLocal);
         const createdAt = new Date(details.createdAtLocal);
@@ -736,6 +826,9 @@ else
         cancelAppointmentButton.classList.toggle(
         "d-none",
         String(details.status).toLowerCase() === "cancelled");
+        editAppointmentButton.classList.toggle(
+        "d-none",
+        String(details.status).toLowerCase() === "cancelled");
         detailsContent.classList.remove("d-none");
         } catch (error) {
         console.error(error);
@@ -745,6 +838,85 @@ else
         detailsLoading.classList.add("d-none");
         }
         };
+
+        const clearEditAppointmentErrors = () => {
+        editAppointmentMessage.classList.add("d-none");
+        editAppointmentMessage.textContent = "";
+        editAppointmentForm.querySelectorAll(".is-invalid").forEach(element =>
+        element.classList.remove("is-invalid"));
+        editAppointmentForm.querySelectorAll("[data-edit-error-for]").forEach(element =>
+        element.textContent = "");
+        };
+
+        const showEditAppointmentErrors = errors => {
+        if (!errors) return;
+        Object.entries(errors).forEach(([field, messages]) => {
+        const input = editAppointmentForm.elements.namedItem(field);
+        const feedback = editAppointmentForm.querySelector(`[data-edit-error-for="${field}"]`);
+        if (input) input.classList.add("is-invalid");
+        if (feedback) feedback.textContent = Array.isArray(messages) ? messages[0] : messages;
+        });
+        };
+
+        editAppointmentButton.addEventListener("click", () => {
+        if (!currentAppointmentDetails ||
+        String(currentAppointmentDetails.status).toLowerCase() === "cancelled") return;
+
+        clearEditAppointmentErrors();
+        document.getElementById("EditAppointmentUid").value = currentAppointmentDetails.appointmentUid;
+        document.getElementById("EditPrimaryResourceUid").value = currentAppointmentDetails.primaryResourceUid || "";
+        document.getElementById("EditRoomResourceUid").value = currentAppointmentDetails.roomResourceUid || "";
+        document.getElementById("EditStartDateTimeLocal").value =
+        localInputValue(new Date(currentAppointmentDetails.startDateTimeLocal));
+        document.getElementById("EditEndDateTimeLocal").value =
+        localInputValue(new Date(currentAppointmentDetails.endDateTimeLocal));
+        document.getElementById("EditAppointmentType").value = currentAppointmentDetails.appointmentType || "";
+        document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
+        document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
+
+        document.getElementById("appointmentDetailsModal").addEventListener(
+        "hidden.bs.modal",
+        () => editAppointmentModal.show(),
+        { once: true });
+        detailsModal.hide();
+        });
+
+        saveEditAppointmentButton.addEventListener("click", async () => {
+        clearEditAppointmentErrors();
+        saveEditAppointmentButton.disabled = true;
+
+        try {
+        const formData = new FormData(editAppointmentForm);
+        const token = document.querySelector(
+        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const response = await fetch(updateAppointmentUrl, {
+        method: "POST",
+        headers: { "RequestVerificationToken": token },
+        body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || !result.success) {
+        editAppointmentMessage.textContent =
+        result.message || "The appointment could not be updated. Please try again.";
+        editAppointmentMessage.classList.remove("d-none");
+        showEditAppointmentErrors(result.errors);
+        return;
+        }
+
+        editAppointmentModal.hide();
+        currentAppointmentUid = null;
+        currentAppointmentDetails = null;
+        await refreshCalendar();
+        showSchedulingActionMessage(result.message || "Appointment updated.", "success");
+        } catch (error) {
+        console.error(error);
+        editAppointmentMessage.textContent = "The appointment could not be updated. Please try again.";
+        editAppointmentMessage.classList.remove("d-none");
+        } finally {
+        saveEditAppointmentButton.disabled = false;
+        }
+        });
 
         cancelAppointmentButton.addEventListener("click", () => {
         if (!currentAppointmentUid) return;
