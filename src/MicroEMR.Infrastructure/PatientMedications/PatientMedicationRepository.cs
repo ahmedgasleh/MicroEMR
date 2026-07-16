@@ -283,6 +283,31 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         }
     }
 
+    public async Task<PatientMedicationDetailsResponse?> DiscontinueAsync(
+        Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
+        long? discontinuedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.PatientMedication_Discontinue", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
+        AddNullableString(command, "@DiscontinueReason", SqlDbType.NVarChar, 500, request.DiscontinueReason);
+        command.Parameters.Add(new SqlParameter("@DiscontinuedBy", SqlDbType.BigInt)
+        { Value = (object?)discontinuedBy ?? DBNull.Value });
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to discontinue a patient medication.");
+            throw;
+        }
+    }
+
     private static PatientMedicationListItemResponse MapListItem(
         SqlDataReader reader)
     {

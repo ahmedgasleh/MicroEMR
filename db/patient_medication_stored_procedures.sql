@@ -301,3 +301,35 @@ BEGIN
     EXEC dbo.PatientMedication_GetByUid @MedicationUid = @MedicationUid;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientMedication_Discontinue
+    @PatientUid UNIQUEIDENTIFIER,
+    @MedicationUid UNIQUEIDENTIFIER,
+    @DiscontinueReason NVARCHAR(500) = NULL,
+    @DiscontinuedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON; SET XACT_ABORT ON;
+    DECLARE @PatientId BIGINT, @CurrentStatus NVARCHAR(30);
+    BEGIN TRANSACTION;
+    SELECT @PatientId = p.PatientId, @CurrentStatus = pm.MedicationStatus
+    FROM dbo.PatientMedication AS pm WITH (UPDLOCK, HOLDLOCK)
+    INNER JOIN dbo.Patient AS p ON p.PatientUid = pm.PatientUid
+    WHERE pm.PatientUid = @PatientUid AND pm.MedicationUid = @MedicationUid AND p.IsDeleted = 0;
+    IF @PatientId IS NULL BEGIN ROLLBACK TRANSACTION; RETURN; END;
+    IF @CurrentStatus <> N'Discontinued'
+    BEGIN
+        UPDATE dbo.PatientMedication
+        SET MedicationStatus = N'Discontinued', EndDate = COALESCE(EndDate, CONVERT(DATE, SYSUTCDATETIME())),
+            UpdatedBy = @DiscontinuedBy, UpdatedAt = SYSUTCDATETIME()
+        WHERE PatientUid = @PatientUid AND MedicationUid = @MedicationUid;
+        IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+            INSERT dbo.AuditLog (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+            VALUES (@DiscontinuedBy, @PatientId, N'Discontinue', N'PatientMedication',
+                CONVERT(NVARCHAR(100), @MedicationUid), @CurrentStatus,
+                COALESCE(NULLIF(LTRIM(RTRIM(@DiscontinueReason)), N''), N'Medication discontinued'), SYSUTCDATETIME());
+    END;
+    COMMIT TRANSACTION;
+    EXEC dbo.PatientMedication_GetByUid @MedicationUid = @MedicationUid;
+END;
+GO

@@ -23,4 +23,7 @@ public interface IPatientMedicationService
     Task<PatientMedicationDetailsResponse?> UpdateAsync(
         Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
         long? updatedBy, CancellationToken cancellationToken = default);
+    Task<PatientMedicationDetailsResponse?> DiscontinueAsync(
+        Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
+        long? discontinuedBy, CancellationToken cancellationToken = default);
 }

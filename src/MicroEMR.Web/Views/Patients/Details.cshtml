@@ -735,6 +735,14 @@
                                 </td>
 
                                 <td class="text-end">
+                                    @if (!string.Equals(medication.Status, "Discontinued", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger discontinue-medication-button"
+                                                data-patient-uid="@medication.PatientUid"
+                                                data-medication-uid="@medication.MedicationUid">
+                                            Discontinue
+                                        </button>
+                                    }
                                     <a asp-controller="PatientMedications"
                                        asp-action="Edit"
                                        asp-route-medicationUid="@medication.MedicationUid"
@@ -754,3 +762,48 @@
         }
     </div>
 </div>
+
+<div class="modal fade" id="discontinueMedicationModal" tabindex="-1" aria-labelledby="discontinueMedicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="discontinueMedicationModalLabel">Discontinue Medication</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <div id="discontinueMedicationMessage" class="alert alert-danger d-none"></div>
+            <p>Are you sure you want to discontinue this medication?</p>
+            <label for="discontinueMedicationReason" class="form-label">Reason (optional)</label>
+            <textarea id="discontinueMedicationReason" class="form-control" maxlength="500" rows="3"></textarea>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="confirmDiscontinueMedicationButton">Confirm Discontinue</button></div>
+    </div></div>
+</div>
+<form id="medicationAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
+
+@section Scripts {
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const modalElement = document.getElementById("discontinueMedicationModal");
+    const modal = new bootstrap.Modal(modalElement);
+    const reason = document.getElementById("discontinueMedicationReason");
+    const message = document.getElementById("discontinueMedicationMessage");
+    const confirmButton = document.getElementById("confirmDiscontinueMedicationButton");
+    let patientUid = null;
+    let medicationUid = null;
+    document.querySelectorAll(".discontinue-medication-button").forEach(button => button.addEventListener("click", () => {
+        patientUid = button.dataset.patientUid; medicationUid = button.dataset.medicationUid;
+        reason.value = ""; message.classList.add("d-none"); modal.show();
+    }));
+    confirmButton.addEventListener("click", async () => {
+        if (!patientUid || !medicationUid) return;
+        confirmButton.disabled = true; message.classList.add("d-none");
+        try {
+            const data = new FormData(); data.append("PatientUid", patientUid); data.append("MedicationUid", medicationUid); data.append("DiscontinueReason", reason.value);
+            const token = document.querySelector('#medicationAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch('@Url.Action("DiscontinueMedication", "PatientMedications")', { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) { message.textContent = result.message || "Medication could not be discontinued."; message.classList.remove("d-none"); return; }
+            window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "medications" })';
+        } catch { message.textContent = "Medication could not be discontinued."; message.classList.remove("d-none"); }
+        finally { confirmButton.disabled = false; }
+    });
+});
+</script>
+}

@@ -54,4 +54,11 @@ public sealed class PatientMedicationService : IPatientMedicationService
         ArgumentNullException.ThrowIfNull(request);
         return _repository.UpdateAsync(patientUid, medicationUid, request, updatedBy, cancellationToken);
     }
+    public Task<PatientMedicationDetailsResponse?> DiscontinueAsync(
+        Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
+        long? discontinuedBy, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return _repository.DiscontinueAsync(patientUid, medicationUid, request, discontinuedBy, cancellationToken);
+    }
 }

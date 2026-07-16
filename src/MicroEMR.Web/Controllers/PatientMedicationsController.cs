@@ -228,6 +228,30 @@ public sealed class PatientMedicationsController : Controller
         }
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DiscontinueMedication(
+        DiscontinueMedicationViewModel model, CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.MedicationUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Medication information is invalid." });
+        if (!ModelState.IsValid)
+            return BadRequest(new { success = false, message = "Please correct the medication information." });
+        try
+        {
+            var result = await _medicationApiClient.DiscontinueAsync(model.PatientUid, model.MedicationUid,
+                new DiscontinuePatientMedicationRequest { DiscontinueReason = model.DiscontinueReason }, cancellationToken);
+            return result is null
+                ? NotFound(new { success = false, message = "Medication was not found." })
+                : Json(new { success = true, message = "Medication discontinued." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to discontinue medication.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Medication could not be discontinued." });
+        }
+    }
+
     private void AddApiValidationErrors(
         string responseBody,
         string fallbackMessage)

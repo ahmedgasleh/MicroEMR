@@ -112,6 +112,18 @@ public sealed class PatientMedicationApiClient : IPatientMedicationApiClient
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<PatientMedicationDetailsResponse>(cancellationToken: cancellationToken);
     }
+    public async Task<PatientMedicationDetailsResponse?> DiscontinueAsync(Guid patientUid, Guid medicationUid,
+        DiscontinuePatientMedicationRequest medicationRequest, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"api/patients/{patientUid}/medications/{medicationUid}/discontinue")
+        { Content = JsonContent.Create(medicationRequest) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientMedicationDetailsResponse>(cancellationToken: cancellationToken);
+    }
 
     private async Task AddBearerTokenAsync(
         HttpRequestMessage request)

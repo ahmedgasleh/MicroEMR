@@ -168,6 +168,21 @@ public sealed class PatientMedicationsController : ControllerBase
         { return Conflict(new { message = "The medication was changed by another user. Reload and try again." }); }
     }
 
+    [HttpPost("api/patients/{patientUid:guid}/medications/{medicationUid:guid}/discontinue")]
+    public async Task<ActionResult<PatientMedicationDetailsResponse>> DiscontinueMedication(
+        Guid patientUid, Guid medicationUid,
+        [FromBody] DiscontinuePatientMedicationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || medicationUid == Guid.Empty) return BadRequest();
+        request.DiscontinueReason = request.DiscontinueReason?.Trim();
+        if (request.DiscontinueReason?.Length > 500)
+            return BadRequest(new { message = "Discontinue reason cannot exceed 500 characters." });
+        var result = await _medicationService.DiscontinueAsync(
+            patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
     private long? GetAuthenticatedUserId()
     {
         var userIdValue =

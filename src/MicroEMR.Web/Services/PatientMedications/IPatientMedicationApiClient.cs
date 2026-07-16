@@ -19,4 +19,6 @@ public interface IPatientMedicationApiClient
         CancellationToken cancellationToken = default);
     Task<PatientMedicationDetailsResponse?> UpdateAsync(Guid patientUid, Guid medicationUid,
         UpdatePatientMedicationRequest request, CancellationToken cancellationToken = default);
+    Task<PatientMedicationDetailsResponse?> DiscontinueAsync(Guid patientUid, Guid medicationUid,
+        DiscontinuePatientMedicationRequest request, CancellationToken cancellationToken = default);
 }
