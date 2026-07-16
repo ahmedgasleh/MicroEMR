@@ -135,6 +135,18 @@ public sealed class AuthorizationController : Controller
                 .AuthenticationScheme);
     }
 
+    [HttpGet("~/connect/logout")]
+    [HttpPost("~/connect/logout")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await _signInManager.SignOutAsync();
+
+        return SignOut(
+            OpenIddictServerAspNetCoreDefaults
+                .AuthenticationScheme);
+    }
+
     private static void SetClaimDestinations(
         ClaimsPrincipal principal)
     {
