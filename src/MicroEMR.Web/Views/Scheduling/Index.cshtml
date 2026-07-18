@@ -270,6 +270,10 @@
             Next
         </button>
 
+        <button type="button" class="btn btn-outline-danger" id="openBlockedTimeButton">
+            Block Time
+        </button>
+
         <div class="scheduling-date-label" id="schedulingDateLabel">
         </div>
     </div>
@@ -498,6 +502,78 @@
 
 <form id="schedulingAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
+<div class="modal fade" id="createBlockedTimeModal" tabindex="-1"
+     aria-labelledby="createBlockedTimeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="createBlockedTimeModalLabel">Block Time</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="createBlockedTimeMessage" class="alert alert-danger d-none" role="alert"></div>
+                <form id="createBlockedTimeForm">
+                    <div class="mb-3">
+                        <label for="BlockedTimeResourceUid" class="form-label">Resource</label>
+                        <select id="BlockedTimeResourceUid" name="ResourceUid" class="form-select">
+                            @foreach (var resource in Model.Resources.OrderBy(r => r.SortOrder))
+                            {
+                                <option value="@resource.ResourceUid">@resource.DisplayName (@resource.ResourceType)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="BlockedTimeDate" class="form-label">Date</label>
+                        <input id="BlockedTimeDate" name="Date" type="date" class="form-control" />
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label for="BlockedTimeStart" class="form-label">Start time</label>
+                            <input id="BlockedTimeStart" name="StartTime" type="time" class="form-control" value="09:00" />
+                        </div>
+                        <div class="col-6">
+                            <label for="BlockedTimeEnd" class="form-label">End time</label>
+                            <input id="BlockedTimeEnd" name="EndTime" type="time" class="form-control" value="10:00" />
+                        </div>
+                    </div>
+                    <label for="BlockedTimeReason" class="form-label">Reason</label>
+                    <textarea id="BlockedTimeReason" name="Reason" maxlength="500" rows="3"
+                              class="form-control"></textarea>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="saveBlockedTimeButton">Save Block</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="blockedTimeDetailsModal" tabindex="-1"
+     aria-labelledby="blockedTimeDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="blockedTimeDetailsModalLabel">Blocked Time</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="blockedTimeDetailsMessage" class="alert alert-danger d-none" role="alert"></div>
+                <dl class="row mb-0">
+                    <dt class="col-4">Resource</dt><dd class="col-8" id="blockedTimeDetailsResource"></dd>
+                    <dt class="col-4">Start</dt><dd class="col-8" id="blockedTimeDetailsStart"></dd>
+                    <dt class="col-4">End</dt><dd class="col-8" id="blockedTimeDetailsEnd"></dd>
+                    <dt class="col-4">Reason</dt><dd class="col-8" id="blockedTimeDetailsReason"></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="removeBlockedTimeButton">Remove Block</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="moveAppointmentModal" tabindex="-1" aria-labelledby="moveAppointmentModalLabel"
      aria-hidden="true">
     <div class="modal-dialog">
@@ -653,6 +729,7 @@ else
         let selectedResourceUids = new Set(
         resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
         let pendingResourceUids = new Set();
+        let blockedTimes = [];
         const resourceTypeFilter = document.getElementById("schedulingResourceTypeFilter");
         const resourceFilterSummary = document.getElementById("resourceFilterSummary");
         const resourceFilterMessage = document.getElementById("resourceFilterMessage");
@@ -706,6 +783,7 @@ else
         timeRangeSelectedHandling: "Enabled",
         onEventMove: async args => {
         args.preventDefault();
+        if (args.e.data.eventKind === "blockedTime") return;
         const destination = resources.find(resource => resource.resourceUid === args.newResource);
         if (destination?.resourceType !== "Provider") {
         await refreshCalendar();
@@ -728,6 +806,12 @@ else
 
         const start = pendingMove.startDateTimeLocal;
         const end = pendingMove.endDateTimeLocal;
+        if (hasBlockedTimeConflict(pendingMove.primaryResourceUid, start, end)) {
+        pendingMove = null;
+        await refreshCalendar();
+        window.alert("This resource is blocked during the selected time.");
+        return;
+        }
         moveAppointmentSummary.textContent =
         `Move to ${destination?.displayName || "the selected resource"} on ${start.toLocaleDateString()} ` +
         `from ${start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} ` +
@@ -746,7 +830,13 @@ else
         openAppointmentModal(args.start, args.resource);
         calendar.clearSelection();
         },
-        onEventClick: args => openAppointmentDetails(args.e.id())
+        onEventClick: args => {
+        if (args.e.data.eventKind === "blockedTime") {
+        openBlockedTimeDetails(args.e.data);
+        return;
+        }
+        openAppointmentDetails(args.e.id());
+        }
         });
 
         calendar.init();
@@ -755,6 +845,14 @@ else
         const resourcePickerModal = new bootstrap.Modal(document.getElementById("resourcePickerModal"));
         const resourcePickerSearch = document.getElementById("resourcePickerSearch");
         const resourcePickerList = document.getElementById("resourcePickerList");
+        const createBlockedTimeModal = new bootstrap.Modal(
+        document.getElementById("createBlockedTimeModal"));
+        const blockedTimeDetailsModal = new bootstrap.Modal(
+        document.getElementById("blockedTimeDetailsModal"));
+        const createBlockedTimeForm = document.getElementById("createBlockedTimeForm");
+        const createBlockedTimeMessage = document.getElementById("createBlockedTimeMessage");
+        const blockedTimeDetailsMessage = document.getElementById("blockedTimeDetailsMessage");
+        let currentBlockedTimeUid = null;
         const moveAppointmentModalElement = document.getElementById("moveAppointmentModal");
         const moveAppointmentModal = new bootstrap.Modal(moveAppointmentModalElement);
         const moveAppointmentSummary = document.getElementById("moveAppointmentSummary");
@@ -765,6 +863,136 @@ else
         const appointmentMessage = document.getElementById("appointmentMessage");
         const selectedPatientLabel = document.getElementById("selectedPatientLabel");
         const searchResults = document.getElementById("patientSearchResults");
+        const hasBlockedTimeConflict = (resourceUid, start, end) => {
+        const startValue = new Date(start).getTime();
+        const endValue = new Date(end).getTime();
+        return blockedTimes.some(block =>
+        block.resourceUid === resourceUid &&
+        startValue < new Date(block.endDateTimeUtc).getTime() &&
+        endValue > new Date(block.startDateTimeUtc).getTime());
+        };
+
+        const openBlockedTimeDetails = eventData => {
+        currentBlockedTimeUid = eventData.blockedTimeUid;
+        const resource = resources.find(item => item.resourceUid === eventData.resource);
+        document.getElementById("blockedTimeDetailsResource").textContent =
+        resource?.displayName || "Unknown resource";
+        document.getElementById("blockedTimeDetailsStart").textContent =
+        new Date(eventData.start).toLocaleString();
+        document.getElementById("blockedTimeDetailsEnd").textContent =
+        new Date(eventData.end).toLocaleString();
+        document.getElementById("blockedTimeDetailsReason").textContent =
+        eventData.reason || "No reason provided";
+        blockedTimeDetailsMessage.classList.add("d-none");
+        blockedTimeDetailsModal.show();
+        };
+
+        document.getElementById("openBlockedTimeButton").addEventListener("click", () => {
+        createBlockedTimeForm.reset();
+        const date = selectedDate.toString("yyyy-MM-dd");
+        document.getElementById("BlockedTimeDate").value = date;
+        document.getElementById("BlockedTimeStart").value = "09:00";
+        document.getElementById("BlockedTimeEnd").value = "10:00";
+        const visibleResources = getFilteredResources();
+        const visibleResourceUids = new Set(visibleResources.map(resource => resource.resourceUid));
+        const resourceSelect = document.getElementById("BlockedTimeResourceUid");
+        Array.from(resourceSelect.options).forEach(option => {
+        option.hidden = !visibleResourceUids.has(option.value);
+        option.disabled = option.hidden;
+        });
+        resourceSelect.value = visibleResources[0]?.resourceUid || "";
+        createBlockedTimeMessage.classList.add("d-none");
+        createBlockedTimeModal.show();
+        });
+
+        document.getElementById("saveBlockedTimeButton").addEventListener("click", async event => {
+        const button = event.currentTarget;
+        createBlockedTimeMessage.classList.add("d-none");
+        const resourceUid = document.getElementById("BlockedTimeResourceUid").value;
+        const dateValue = document.getElementById("BlockedTimeDate").value;
+        const startTimeValue = document.getElementById("BlockedTimeStart").value;
+        const endTimeValue = document.getElementById("BlockedTimeEnd").value;
+        if (!resourceUid) {
+        createBlockedTimeMessage.textContent = "Please select a resource.";
+        createBlockedTimeMessage.classList.remove("d-none");
+        return;
+        }
+        if (!dateValue || !startTimeValue || !endTimeValue) {
+        createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
+        createBlockedTimeMessage.classList.remove("d-none");
+        return;
+        }
+        const startLocal = new Date(`${dateValue}T${startTimeValue}`);
+        const endLocal = new Date(`${dateValue}T${endTimeValue}`);
+        if (!Number.isFinite(startLocal.getTime()) || !Number.isFinite(endLocal.getTime())) {
+        createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
+        createBlockedTimeMessage.classList.remove("d-none");
+        return;
+        }
+        if (endLocal <= startLocal) {
+        createBlockedTimeMessage.textContent = "End time must be after start time.";
+        createBlockedTimeMessage.classList.remove("d-none");
+        return;
+        }
+        button.disabled = true;
+        try {
+        const token = document.querySelector(
+        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const formData = new FormData();
+        formData.append("ResourceUid", resourceUid);
+        formData.append("Date", dateValue);
+        formData.append("StartTime", startTimeValue);
+        formData.append("EndTime", endTimeValue);
+        formData.append("Reason", document.getElementById("BlockedTimeReason").value || "");
+        formData.append("__RequestVerificationToken", token);
+        const response = await fetch("/Scheduling/CreateBlockedTime", {
+        method: "POST", body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+        throw new Error(result.message || "Blocked time could not be created.");
+        }
+        createBlockedTimeModal.hide();
+        await refreshCalendar();
+        showSchedulingActionMessage(result.message || "Blocked time created.", "success");
+        } catch (error) {
+        createBlockedTimeMessage.textContent = error instanceof Error
+        ? error.message : "Blocked time could not be created.";
+        createBlockedTimeMessage.classList.remove("d-none");
+        } finally {
+        button.disabled = false;
+        }
+        });
+
+        document.getElementById("removeBlockedTimeButton").addEventListener("click", async event => {
+        if (!currentBlockedTimeUid) return;
+        const button = event.currentTarget;
+        button.disabled = true;
+        blockedTimeDetailsMessage.classList.add("d-none");
+        try {
+        const formData = new FormData();
+        formData.append("blockedTimeUid", currentBlockedTimeUid);
+        const token = document.querySelector(
+        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+        const response = await fetch("/Scheduling/CancelBlockedTime", {
+        method: "POST", headers: { "RequestVerificationToken": token }, body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+        throw new Error(result.message || "Blocked time could not be removed.");
+        }
+        currentBlockedTimeUid = null;
+        blockedTimeDetailsModal.hide();
+        await refreshCalendar();
+        showSchedulingActionMessage(result.message || "Blocked time removed.", "success");
+        } catch (error) {
+        blockedTimeDetailsMessage.textContent = error instanceof Error
+        ? error.message : "Blocked time could not be removed.";
+        blockedTimeDetailsMessage.classList.remove("d-none");
+        } finally {
+        button.disabled = false;
+        }
+        });
         const hidePatientSearchResults = () => {
         searchResults.classList.add("d-none");
         searchResults.replaceChildren();
@@ -1025,6 +1253,15 @@ else
 
         try {
         const formData = new FormData(editAppointmentForm);
+        const editStart = new Date(formData.get("StartDateTimeLocal"));
+        const editEnd = new Date(formData.get("EndDateTimeLocal"));
+        if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), editStart, editEnd) ||
+        (formData.get("RoomResourceUid") &&
+        hasBlockedTimeConflict(formData.get("RoomResourceUid"), editStart, editEnd))) {
+        editAppointmentMessage.textContent = "This resource is blocked during the selected time.";
+        editAppointmentMessage.classList.remove("d-none");
+        return;
+        }
         const token = document.querySelector(
         '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
         const response = await fetch(updateAppointmentUrl, {
@@ -1356,6 +1593,14 @@ else
         button.disabled = true;
         try {
         const formData = new FormData(appointmentForm);
+        const appointmentStart = new Date(formData.get("StartDateTimeLocal"));
+        const appointmentEnd = new Date(formData.get("EndDateTimeLocal"));
+        if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), appointmentStart, appointmentEnd) ||
+        (formData.get("RoomResourceUid") &&
+        hasBlockedTimeConflict(formData.get("RoomResourceUid"), appointmentStart, appointmentEnd))) {
+        showMessage("This resource is blocked during the selected time.");
+        return;
+        }
         const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
         const response = await fetch("/Scheduling/CreateAppointment", {
         method: "POST",
@@ -1426,8 +1671,35 @@ else
         }
 
         const events = await response.json();
+        const blockedUrl = new URL("/Scheduling/BlockedTimes", window.location.origin);
+        blockedUrl.searchParams.set("startDateTimeUtc", range.start);
+        blockedUrl.searchParams.set("endDateTimeUtc", range.end);
+        const blockedResponse = await fetch(blockedUrl, {
+        headers: { "Accept": "application/json" }
+        });
+        const blockedResult = await blockedResponse.json().catch(() => ({}));
+        if (!blockedResponse.ok || !blockedResult.success) {
+        throw new Error(blockedResult.message || "Blocked times could not be loaded.");
+        }
+        blockedTimes = blockedResult.blockedTimes || [];
+        const blockedEvents = blockedTimes.map(block => ({
+        id: `blocked-${block.blockedTimeUid}`,
+        text: `Blocked${block.reason ? `: ${block.reason}` : ""}`,
+        start: block.startDateTimeUtc,
+        end: block.endDateTimeUtc,
+        resource: block.resourceUid,
+        eventKind: "blockedTime",
+        blockedTimeUid: block.blockedTimeUid,
+        reason: block.reason,
+        moveDisabled: true,
+        resizeDisabled: true,
+        backColor: "#6c757d",
+        borderColor: "#495057",
+        fontColor: "#ffffff"
+        }));
         const visibleResourceUids = new Set(getFilteredResources().map(resource => resource.resourceUid));
-        return events.filter(event => visibleResourceUids.has(event.resource));
+        return [...events.map(event => ({ ...event, eventKind: "appointment" })), ...blockedEvents]
+        .filter(event => visibleResourceUids.has(event.resource));
         };
 
         const refreshCalendar = async () => {

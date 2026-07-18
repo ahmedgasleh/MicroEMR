@@ -99,6 +99,11 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         await AddBearerTokenAsync(request);
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new AppointmentUpdateConflictException(false, HasConflictCode(body, "blocked_time"));
+        }
         await EnsureSuccessAsync(response, cancellationToken);
 
         return await response.Content.ReadFromJsonAsync<ScheduleAppointmentListItemResponse>(
@@ -218,17 +223,20 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                 "MicroEMR API scheduling update returned a conflict. Status: {StatusCode}.",
                 (int)response.StatusCode);
             var isCancelled = false;
+            var isBlockedTime = false;
             try
             {
                 using var document = JsonDocument.Parse(body);
                 isCancelled = document.RootElement.TryGetProperty("code", out var code)
                     && code.GetString() == "appointment_cancelled";
+                isBlockedTime = document.RootElement.TryGetProperty("code", out code)
+                    && code.GetString() == "blocked_time";
             }
             catch (JsonException)
             {
                 // Treat malformed conflict responses as scheduling overlaps.
             }
-            throw new AppointmentUpdateConflictException(isCancelled);
+            throw new AppointmentUpdateConflictException(isCancelled, isBlockedTime);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
@@ -261,17 +269,20 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                 "MicroEMR API scheduling reschedule returned a conflict. Status: {StatusCode}.",
                 (int)response.StatusCode);
             var isCancelled = false;
+            var isBlockedTime = false;
             try
             {
                 using var document = JsonDocument.Parse(body);
                 isCancelled = document.RootElement.TryGetProperty("code", out var code)
                     && code.GetString() == "appointment_cancelled";
+                isBlockedTime = document.RootElement.TryGetProperty("code", out code)
+                    && code.GetString() == "blocked_time";
             }
             catch (JsonException)
             {
                 // Treat malformed conflict responses as scheduling overlaps.
             }
-            throw new AppointmentUpdateConflictException(isCancelled);
+            throw new AppointmentUpdateConflictException(isCancelled, isBlockedTime);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
@@ -354,6 +365,54 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                    "The API started the encounter but returned no encounter data.");
     }
 
+    public async Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var uri = QueryHelpers.AddQueryString("api/scheduling/blocked-times",
+            new Dictionary<string, string?>
+            {
+                ["startDateTimeUtc"] = NormalizeUtc(startDateTimeUtc).ToString("O"),
+                ["endDateTimeUtc"] = NormalizeUtc(endDateTimeUtc).ToString("O")
+            });
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<SchedulingBlockedTimeResponse>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
+    public async Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
+        CreateSchedulingBlockedTimeRequest blockedTimeRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/scheduling/blocked-times")
+        {
+            Content = JsonContent.Create(blockedTimeRequest)
+        };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<SchedulingBlockedTimeResponse>(
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<SchedulingBlockedTimeResponse?> CancelBlockedTimeAsync(
+        Guid blockedTimeUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, $"api/scheduling/blocked-times/{blockedTimeUid}/cancel");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<SchedulingBlockedTimeResponse>(
+            cancellationToken: cancellationToken);
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value.Kind == DateTimeKind.Utc)
@@ -368,6 +427,20 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         }
 
         return value.ToUniversalTime();
+    }
+
+    private static bool HasConflictCode(string body, string expectedCode)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.TryGetProperty("code", out var code)
+                && code.GetString() == expectedCode;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private async Task AddBearerTokenAsync(

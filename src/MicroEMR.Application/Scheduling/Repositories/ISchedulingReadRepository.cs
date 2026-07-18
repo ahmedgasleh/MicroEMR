@@ -25,4 +25,9 @@ public interface ISchedulingReadRepository
     Task<IReadOnlyList<AppointmentHistoryResponse>> GetHistoryAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default);
 }

@@ -65,6 +65,11 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 PrimaryResourceUid = reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid"))
             };
         }
+        catch (SqlException exception) when (exception.Number == 51073)
+        {
+            throw new SchedulingBlockedTimeConflictException(
+                "This resource is blocked during the selected time.", exception);
+        }
         catch (SqlException exception) when (exception.Number == 51063)
         {
             throw new SchedulingConflictException(
@@ -185,6 +190,11 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 RowVersion = null
             };
         }
+        catch (SqlException exception) when (exception.Number == 51073)
+        {
+            throw new SchedulingBlockedTimeConflictException(
+                "This resource is blocked during the selected time.", exception);
+        }
         catch (SqlException exception) when (exception.Number == 51063)
         {
             throw new SchedulingConflictException(
@@ -237,6 +247,11 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 return null;
 
             return ReadAppointmentDetails(reader);
+        }
+        catch (SqlException exception) when (exception.Number == 51073)
+        {
+            throw new SchedulingBlockedTimeConflictException(
+                "This resource is blocked during the selected time.", exception);
         }
         catch (SqlException exception) when (exception.Number == 51063)
         {
@@ -304,6 +319,64 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             _logger.LogError(exception, "Failed to update a scheduling appointment status.");
             throw;
         }
+    }
+
+    public Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
+        CreateSchedulingBlockedTimeRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default) =>
+        ExecuteBlockedTimeAsync(
+            "dbo.SchedulingBlockedTime_Create",
+            command =>
+            {
+                command.Parameters.Add("@ResourceUid", SqlDbType.UniqueIdentifier).Value = request.ResourceUid;
+                command.Parameters.Add("@StartDateTimeUtc", SqlDbType.DateTime2).Value = request.StartDateTimeUtc;
+                command.Parameters.Add("@EndDateTimeUtc", SqlDbType.DateTime2).Value = request.EndDateTimeUtc;
+                AddNullableString(command, "@Reason", 500, request.Reason);
+                command.Parameters.Add("@CreatedBy", SqlDbType.BigInt).Value = (object?)createdBy ?? DBNull.Value;
+            },
+            cancellationToken);
+
+    public Task<SchedulingBlockedTimeResponse?> CancelBlockedTimeAsync(
+        Guid blockedTimeUid,
+        long? cancelledBy,
+        CancellationToken cancellationToken = default) =>
+        ExecuteBlockedTimeAsync(
+            "dbo.SchedulingBlockedTime_Cancel",
+            command =>
+            {
+                command.Parameters.Add("@BlockedTimeUid", SqlDbType.UniqueIdentifier).Value = blockedTimeUid;
+                command.Parameters.Add("@CancelledBy", SqlDbType.BigInt).Value = (object?)cancelledBy ?? DBNull.Value;
+            },
+            cancellationToken);
+
+    private async Task<SchedulingBlockedTimeResponse?> ExecuteBlockedTimeAsync(
+        string procedureName,
+        Action<SqlCommand> addParameters,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(procedureName, connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        addParameters(command);
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            return null;
+        return new SchedulingBlockedTimeResponse
+        {
+            BlockedTimeUid = reader.GetGuid(reader.GetOrdinal("BlockedTimeUid")),
+            ResourceUid = reader.GetGuid(reader.GetOrdinal("ResourceUid")),
+            StartDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("StartDateTimeUtc"))),
+            EndDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("EndDateTimeUtc"))),
+            Reason = GetNullableString(reader, "Reason"),
+            IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+            CreatedAt = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("CreatedAt"))),
+            CreatedBy = GetNullableInt64(reader, "CreatedBy"),
+            CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+        };
     }
 
     private static void AddNullableString(SqlCommand command, string name, int size, string? value)

@@ -95,4 +95,29 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
             string.Equals(status, request.Status, StringComparison.OrdinalIgnoreCase));
         return _repository.UpdateStatusAsync(appointmentUid, request, updatedBy, cancellationToken);
     }
+
+    public Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
+        CreateSchedulingBlockedTimeRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.ResourceUid == Guid.Empty)
+            throw new ArgumentException("Resource is required.", nameof(request));
+        if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
+            throw new ArgumentException("End time must be after start time.", nameof(request));
+        if (request.Reason?.Length > 500)
+            throw new ArgumentException("Reason cannot exceed 500 characters.", nameof(request));
+        return _repository.CreateBlockedTimeAsync(request, createdBy, cancellationToken);
+    }
+
+    public Task<SchedulingBlockedTimeResponse?> CancelBlockedTimeAsync(
+        Guid blockedTimeUid,
+        long? cancelledBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (blockedTimeUid == Guid.Empty)
+            throw new ArgumentException("Blocked-time identifier is required.", nameof(blockedTimeUid));
+        return _repository.CancelBlockedTimeAsync(blockedTimeUid, cancelledBy, cancellationToken);
+    }
 }

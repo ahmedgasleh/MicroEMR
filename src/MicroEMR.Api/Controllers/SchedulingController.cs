@@ -65,6 +65,10 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { message = "The selected time conflicts with another appointment for this resource." });
         }
+        catch (SchedulingBlockedTimeConflictException)
+        {
+            return Conflict(new { code = "blocked_time", message = "This resource is blocked during the selected time." });
+        }
         catch (InvalidOperationException exception)
         {
             return BadRequest(new { message = exception.Message });
@@ -92,6 +96,49 @@ public sealed class SchedulingController : ControllerBase
                 cancellationToken);
 
         return Ok(resources);
+    }
+
+    [HttpGet("blocked-times")]
+    public async Task<ActionResult<IReadOnlyList<SchedulingBlockedTimeResponse>>> GetBlockedTimes(
+        [FromQuery] DateTime startDateTimeUtc,
+        [FromQuery] DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (startDateTimeUtc == default || endDateTimeUtc <= startDateTimeUtc)
+            return BadRequest(new { message = "A valid blocked-time range is required." });
+        return Ok(await _schedulingReadService.GetBlockedTimesAsync(
+            startDateTimeUtc, endDateTimeUtc, cancellationToken));
+    }
+
+    [HttpPost("blocked-times")]
+    public async Task<ActionResult<SchedulingBlockedTimeResponse>> CreateBlockedTime(
+        [FromBody] CreateSchedulingBlockedTimeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request.ResourceUid == Guid.Empty)
+            ModelState.AddModelError(nameof(request.ResourceUid), "Resource is required.");
+        if (request.StartDateTimeUtc == default)
+            ModelState.AddModelError(nameof(request.StartDateTimeUtc), "Start time is required.");
+        if (request.EndDateTimeUtc <= request.StartDateTimeUtc)
+            ModelState.AddModelError(nameof(request.EndDateTimeUtc), "End time must be after start time.");
+        if (request.Reason?.Length > 500)
+            ModelState.AddModelError(nameof(request.Reason), "Reason cannot exceed 500 characters.");
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+        var result = await _schedulingAppointmentService.CreateBlockedTimeAsync(
+            request, GetAuthenticatedUserId(), cancellationToken);
+        return result is null ? BadRequest() : Ok(result);
+    }
+
+    [HttpPost("blocked-times/{blockedTimeUid:guid}/cancel")]
+    public async Task<ActionResult<SchedulingBlockedTimeResponse>> CancelBlockedTime(
+        Guid blockedTimeUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (blockedTimeUid == Guid.Empty) return BadRequest();
+        var result = await _schedulingAppointmentService.CancelBlockedTimeAsync(
+            blockedTimeUid, GetAuthenticatedUserId(), cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 
     [HttpGet("appointments")]
@@ -303,6 +350,10 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { code = "appointment_conflict", message = "The selected time conflicts with another appointment for this resource." });
         }
+        catch (SchedulingBlockedTimeConflictException)
+        {
+            return Conflict(new { code = "blocked_time", message = "This resource is blocked during the selected time." });
+        }
         catch (AppointmentAlreadyCancelledException)
         {
             return Conflict(new { code = "appointment_cancelled", message = "Cancelled appointments cannot be edited." });
@@ -345,6 +396,10 @@ public sealed class SchedulingController : ControllerBase
         catch (SchedulingConflictException)
         {
             return Conflict(new { code = "appointment_conflict", message = "The selected time conflicts with another appointment for this resource." });
+        }
+        catch (SchedulingBlockedTimeConflictException)
+        {
+            return Conflict(new { code = "blocked_time", message = "This resource is blocked during the selected time." });
         }
         catch (AppointmentAlreadyCancelledException)
         {

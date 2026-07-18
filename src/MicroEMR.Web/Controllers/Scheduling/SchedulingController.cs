@@ -76,9 +76,15 @@ public sealed class SchedulingController : Controller
 
             return Json(new { success = true, appointmentUid = appointment.AppointmentUid });
         }
-        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        catch (AppointmentUpdateConflictException exception)
         {
-            return Conflict(new { success = false, message = "The selected time conflicts with another appointment for this resource." });
+            return Conflict(new
+            {
+                success = false,
+                message = exception.IsBlockedTime
+                    ? "This resource is blocked during the selected time."
+                    : "The selected time conflicts with another appointment for this resource."
+            });
         }
         catch (Exception exception)
         {
@@ -170,6 +176,108 @@ public sealed class SchedulingController : Controller
         }
     }
 
+    [HttpGet("BlockedTimes")]
+    public async Task<IActionResult> BlockedTimes(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken)
+    {
+        if (startDateTimeUtc == default || endDateTimeUtc <= startDateTimeUtc)
+            return BadRequest(new { success = false, message = "Blocked times could not be loaded." });
+        try
+        {
+            var blockedTimes = await _schedulingApiClient.GetBlockedTimesAsync(
+                startDateTimeUtc, endDateTimeUtc, cancellationToken);
+            return Json(new { success = true, blockedTimes });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to load scheduling blocked times.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Blocked times could not be loaded." });
+        }
+    }
+
+    [HttpPost("CreateBlockedTime")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateBlockedTime(
+        CreateSchedulingBlockedTimeViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.ResourceUid == Guid.Empty)
+            return Json(new { success = false, message = "Please select a resource." });
+
+        var startValue = $"{model.Date} {model.StartTime}";
+        var endValue = $"{model.Date} {model.EndTime}";
+        if (!DateTime.TryParseExact(
+                startValue,
+                "yyyy-MM-dd HH:mm",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var startLocal)
+            || !DateTime.TryParseExact(
+                endValue,
+                "yyyy-MM-dd HH:mm",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var endLocal))
+        {
+            return Json(new
+            {
+                success = false,
+                message = "Please enter a valid date, start time, and end time."
+            });
+        }
+
+        if (endLocal <= startLocal)
+            return Json(new { success = false, message = "End time must be after start time." });
+        if (model.Reason?.Length > 500)
+            return Json(new { success = false, message = "Reason cannot exceed 500 characters." });
+
+        try
+        {
+            var blockedTime = await _schedulingApiClient.CreateBlockedTimeAsync(
+                new CreateSchedulingBlockedTimeRequest
+                {
+                    ResourceUid = model.ResourceUid,
+                    StartDateTimeUtc = ToUtc(startLocal),
+                    EndDateTimeUtc = ToUtc(endLocal),
+                    Reason = model.Reason
+                }, cancellationToken);
+            return Json(new { success = true, message = "Blocked time created.", blockedTime });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to create scheduling blocked time.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Blocked time could not be created." });
+        }
+    }
+
+    [HttpPost("CancelBlockedTime")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CancelBlockedTime(
+        Guid blockedTimeUid,
+        CancellationToken cancellationToken)
+    {
+        if (blockedTimeUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Blocked time could not be removed." });
+        try
+        {
+            var result = await _schedulingApiClient.CancelBlockedTimeAsync(
+                blockedTimeUid, cancellationToken);
+            return result is null
+                ? NotFound(new { success = false, message = "Blocked time was not found." })
+                : Json(new { success = true, message = "Blocked time removed." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to remove scheduling blocked time.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Blocked time could not be removed." });
+        }
+    }
+
     [HttpPost("UpdateAppointment")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateAppointment(
@@ -214,7 +322,9 @@ public sealed class SchedulingController : Controller
             return Conflict(new
             {
                 success = false,
-                message = exception.IsCancelled
+                message = exception.IsBlockedTime
+                    ? "This resource is blocked during the selected time."
+                    : exception.IsCancelled
                     ? "Cancelled appointments cannot be edited."
                     : "The selected time conflicts with another appointment for this resource."
             });
@@ -268,7 +378,9 @@ public sealed class SchedulingController : Controller
             return Conflict(new
             {
                 success = false,
-                message = exception.IsCancelled
+                message = exception.IsBlockedTime
+                    ? "This resource is blocked during the selected time."
+                    : exception.IsCancelled
                     ? "Cancelled appointments cannot be rescheduled."
                     : "The selected time conflicts with another appointment for this resource."
             });

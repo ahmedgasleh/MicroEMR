@@ -55,4 +55,17 @@ public interface ISchedulingApiClient
     Task<StartEncounterFromAppointmentResponse?> StartEncounterFromAppointmentAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
+        CreateSchedulingBlockedTimeRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<SchedulingBlockedTimeResponse?> CancelBlockedTimeAsync(
+        Guid blockedTimeUid,
+        CancellationToken cancellationToken = default);
 }

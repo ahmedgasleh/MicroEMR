@@ -32,4 +32,14 @@ public interface ISchedulingAppointmentService
         UpdateAppointmentStatusRequest request,
         long? updatedBy,
         CancellationToken cancellationToken = default);
+
+    Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
+        CreateSchedulingBlockedTimeRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default);
+
+    Task<SchedulingBlockedTimeResponse?> CancelBlockedTimeAsync(
+        Guid blockedTimeUid,
+        long? cancelledBy,
+        CancellationToken cancellationToken = default);
 }

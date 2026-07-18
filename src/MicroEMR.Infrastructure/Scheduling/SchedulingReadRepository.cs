@@ -380,6 +380,41 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         return history;
     }
 
+    public async Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var blockedTimes = new List<SchedulingBlockedTimeResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.SchedulingBlockedTime_GetForDateRange", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@StartDateTimeUtc", SqlDbType.DateTime2).Value = NormalizeUtc(startDateTimeUtc);
+        command.Parameters.Add("@EndDateTimeUtc", SqlDbType.DateTime2).Value = NormalizeUtc(endDateTimeUtc);
+        command.Parameters.Add("@ResourceUid", SqlDbType.UniqueIdentifier).Value = DBNull.Value;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            blockedTimes.Add(new SchedulingBlockedTimeResponse
+            {
+                BlockedTimeUid = reader.GetGuid(reader.GetOrdinal("BlockedTimeUid")),
+                ResourceUid = reader.GetGuid(reader.GetOrdinal("ResourceUid")),
+                StartDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("StartDateTimeUtc"))),
+                EndDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("EndDateTimeUtc"))),
+                Reason = GetNullableString(reader, "Reason"),
+                IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+                CreatedAt = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("CreatedAt"))),
+                CreatedBy = GetNullableInt64(reader, "CreatedBy"),
+                CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+            });
+        }
+        return blockedTimes;
+    }
+
     private static bool IsMissingSchedulingReadObject(SqlException exception)
     {
         foreach (SqlError error in exception.Errors)

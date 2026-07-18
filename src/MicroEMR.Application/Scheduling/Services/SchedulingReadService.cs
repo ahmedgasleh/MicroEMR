@@ -71,6 +71,17 @@ public sealed class SchedulingReadService : ISchedulingReadService
             NormalizeUtc(startUtc), NormalizeUtc(endUtc), cancellationToken);
     }
 
+    public Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
+        DateTime startDateTimeUtc,
+        DateTime endDateTimeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (endDateTimeUtc <= startDateTimeUtc)
+            throw new ArgumentException("Blocked-time range is invalid.");
+        return _repository.GetBlockedTimesAsync(
+            NormalizeUtc(startDateTimeUtc), NormalizeUtc(endDateTimeUtc), cancellationToken);
+    }
+
     private static DateTime NormalizeUtc(DateTime value)
     {
         if (value.Kind == DateTimeKind.Utc)

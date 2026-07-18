@@ -185,6 +185,123 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'dbo.SchedulingBlockedTime', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SchedulingBlockedTime
+    (
+        BlockedTimeId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        BlockedTimeUid UNIQUEIDENTIFIER NOT NULL
+            CONSTRAINT DF_SchedulingBlockedTime_Uid DEFAULT NEWSEQUENTIALID(),
+        ResourceUid UNIQUEIDENTIFIER NOT NULL,
+        StartDateTimeUtc DATETIME2(0) NOT NULL,
+        EndDateTimeUtc DATETIME2(0) NOT NULL,
+        Reason NVARCHAR(500) NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_SchedulingBlockedTime_IsActive DEFAULT 1,
+        CreatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_SchedulingBlockedTime_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CreatedBy BIGINT NULL,
+        UpdatedAt DATETIME2(0) NULL,
+        UpdatedBy BIGINT NULL,
+        CancelledAt DATETIME2(0) NULL,
+        CancelledBy BIGINT NULL,
+        CONSTRAINT CK_SchedulingBlockedTime_Range
+            CHECK (StartDateTimeUtc < EndDateTimeUtc)
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SchedulingBlockedTime')
+    AND name = N'IX_SchedulingBlockedTime_Resource_Start_End')
+    CREATE INDEX IX_SchedulingBlockedTime_Resource_Start_End
+    ON dbo.SchedulingBlockedTime(ResourceUid, StartDateTimeUtc, EndDateTimeUtc);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SchedulingBlockedTime')
+    AND name = N'IX_SchedulingBlockedTime_IsActive')
+    CREATE INDEX IX_SchedulingBlockedTime_IsActive ON dbo.SchedulingBlockedTime(IsActive);
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SchedulingBlockedTime_GetForDateRange
+    @StartDateTimeUtc DATETIME2(0),
+    @EndDateTimeUtc DATETIME2(0),
+    @ResourceUid UNIQUEIDENTIFIER = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT b.BlockedTimeUid, b.ResourceUid, b.StartDateTimeUtc, b.EndDateTimeUtc,
+        b.Reason, b.IsActive, b.CreatedAt, b.CreatedBy, u.DisplayName AS CreatedByDisplayName
+    FROM dbo.SchedulingBlockedTime b
+    LEFT JOIN dbo.ApplicationUser u ON u.UserId = b.CreatedBy
+    WHERE b.IsActive = 1
+      AND b.StartDateTimeUtc < @EndDateTimeUtc
+      AND b.EndDateTimeUtc > @StartDateTimeUtc
+      AND (@ResourceUid IS NULL OR b.ResourceUid = @ResourceUid)
+    ORDER BY b.StartDateTimeUtc, b.BlockedTimeId;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SchedulingBlockedTime_Create
+    @ResourceUid UNIQUEIDENTIFIER,
+    @StartDateTimeUtc DATETIME2(0),
+    @EndDateTimeUtc DATETIME2(0),
+    @Reason NVARCHAR(500) = NULL,
+    @CreatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @EndDateTimeUtc <= @StartDateTimeUtc
+        THROW 51060, 'The end time must be after the start time.', 1;
+    IF NOT EXISTS (SELECT 1 FROM dbo.ScheduleResource WHERE ResourceUid = @ResourceUid AND IsActive = 1)
+        THROW 51062, 'The requested resource was not found.', 1;
+
+    DECLARE @BlockedTimeUid UNIQUEIDENTIFIER = NEWID();
+    INSERT dbo.SchedulingBlockedTime
+        (BlockedTimeUid, ResourceUid, StartDateTimeUtc, EndDateTimeUtc, Reason, CreatedBy)
+    VALUES
+        (@BlockedTimeUid, @ResourceUid, @StartDateTimeUtc, @EndDateTimeUtc,
+         NULLIF(LTRIM(RTRIM(@Reason)), N''), @CreatedBy);
+
+    SELECT b.BlockedTimeUid, b.ResourceUid, b.StartDateTimeUtc, b.EndDateTimeUtc,
+        b.Reason, b.IsActive, b.CreatedAt, b.CreatedBy, u.DisplayName AS CreatedByDisplayName
+    FROM dbo.SchedulingBlockedTime b
+    LEFT JOIN dbo.ApplicationUser u ON u.UserId = b.CreatedBy
+    WHERE b.BlockedTimeUid = @BlockedTimeUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SchedulingBlockedTime_Cancel
+    @BlockedTimeUid UNIQUEIDENTIFIER,
+    @CancelledBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.SchedulingBlockedTime
+    SET IsActive = 0, CancelledAt = SYSUTCDATETIME(), CancelledBy = @CancelledBy,
+        UpdatedAt = SYSUTCDATETIME(), UpdatedBy = @CancelledBy
+    WHERE BlockedTimeUid = @BlockedTimeUid AND IsActive = 1;
+    IF @@ROWCOUNT = 0 RETURN;
+    SELECT BlockedTimeUid, ResourceUid, StartDateTimeUtc, EndDateTimeUtc, Reason,
+        IsActive, CreatedAt, CreatedBy, CAST(NULL AS NVARCHAR(200)) AS CreatedByDisplayName
+    FROM dbo.SchedulingBlockedTime WHERE BlockedTimeUid = @BlockedTimeUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SchedulingBlockedTime_HasConflict
+    @ResourceUid UNIQUEIDENTIFIER,
+    @StartDateTimeUtc DATETIME2(0),
+    @EndDateTimeUtc DATETIME2(0)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT CONVERT(BIT, CASE WHEN EXISTS
+    (
+        SELECT 1 FROM dbo.SchedulingBlockedTime
+        WHERE IsActive = 1 AND ResourceUid = @ResourceUid
+          AND StartDateTimeUtc < @EndDateTimeUtc
+          AND EndDateTimeUtc > @StartDateTimeUtc
+    ) THEN 1 ELSE 0 END) AS HasConflict;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.ScheduleResource_GetActive
 AS
 BEGIN
@@ -293,6 +410,16 @@ BEGIN
             AND a.EndDateTimeUtc > @StartDateTimeUtc
     )
         THROW 51063, 'The appointment conflicts with another appointment for this resource.', 1;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM dbo.SchedulingBlockedTime
+        WHERE IsActive = 1
+          AND ResourceUid IN (@PrimaryResourceUid, ISNULL(@RoomResourceUid, @PrimaryResourceUid))
+          AND StartDateTimeUtc < @EndDateTimeUtc
+          AND EndDateTimeUtc > @StartDateTimeUtc
+    )
+        THROW 51073, 'This resource is blocked during the selected time.', 1;
 
     BEGIN TRANSACTION;
 
@@ -628,6 +755,19 @@ BEGIN
         THROW 51063, 'The appointment conflicts with another appointment for this resource.', 1;
     END;
 
+    IF EXISTS
+    (
+        SELECT 1 FROM dbo.SchedulingBlockedTime WITH (UPDLOCK, HOLDLOCK)
+        WHERE IsActive = 1
+          AND ResourceUid IN (@PrimaryResourceUid, ISNULL(@RoomResourceUid, @PrimaryResourceUid))
+          AND StartDateTimeUtc < @EndDateTimeUtc
+          AND EndDateTimeUtc > @StartDateTimeUtc
+    )
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51073, 'This resource is blocked during the selected time.', 1;
+    END;
+
     UPDATE dbo.ScheduleAppointment
     SET PrimaryResourceId = @PrimaryResourceId,
         RoomResourceId = @RoomResourceId,
@@ -787,6 +927,19 @@ BEGIN
     BEGIN
         ROLLBACK TRANSACTION;
         THROW 51063, 'The appointment conflicts with another appointment for this resource.', 1;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM dbo.SchedulingBlockedTime WITH (UPDLOCK, HOLDLOCK)
+        WHERE IsActive = 1
+          AND ResourceUid IN (@PrimaryResourceUid, ISNULL(@RoomResourceUid, @PrimaryResourceUid))
+          AND StartDateTimeUtc < @EndDateTimeUtc
+          AND EndDateTimeUtc > @StartDateTimeUtc
+    )
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51073, 'This resource is blocked during the selected time.', 1;
     END;
 
     UPDATE dbo.ScheduleAppointment
