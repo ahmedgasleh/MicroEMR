@@ -9,7 +9,6 @@ namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 // [Authorize]
-[AllowAnonymous] // For development only. Remove this attribute when API token validation is enabled consistently.
 public sealed class PatientEncountersController : ControllerBase
 {
     private readonly IPatientEncounterService _encounterService;
@@ -23,6 +22,7 @@ public sealed class PatientEncountersController : ControllerBase
         _logger = logger;
     }
 
+    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpGet("api/patients/{patientUid:guid}/encounters")]
     [ProducesResponseType<IReadOnlyList<PatientEncounterListItemResponse>>(
         StatusCodes.Status200OK)]
@@ -45,6 +45,7 @@ public sealed class PatientEncountersController : ControllerBase
         return Ok(encounters);
     }
 
+    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpGet("api/patient-encounters/{encounterUid:guid}")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -76,6 +77,26 @@ public sealed class PatientEncountersController : ControllerBase
         return Ok(encounter);
     }
 
+    [Authorize]
+    [HttpGet("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/history")]
+    [ProducesResponseType<IReadOnlyList<PatientEncounterHistoryResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<PatientEncounterHistoryResponse>>> GetEncounterHistory(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        var history = await _encounterService.GetHistoryAsync(
+            patientUid, encounterUid, cancellationToken);
+        return Ok(history);
+    }
+
+    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status201Created)]
@@ -152,6 +173,7 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
+    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/note")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -192,6 +214,7 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
+    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]

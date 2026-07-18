@@ -32,6 +32,19 @@ public sealed class PatientEncounterService : IPatientEncounterService
             cancellationToken);
     }
 
+    public Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetHistoryAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty)
+            throw new ArgumentException("Patient identifier is required.", nameof(patientUid));
+        if (encounterUid == Guid.Empty)
+            throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
+
+        return _repository.GetHistoryAsync(patientUid, encounterUid, cancellationToken);
+    }
+
     public Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,

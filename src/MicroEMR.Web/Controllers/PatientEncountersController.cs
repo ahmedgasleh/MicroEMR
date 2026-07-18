@@ -121,6 +121,46 @@ public sealed class PatientEncountersController : Controller
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> EncounterHistory(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Encounter history could not be loaded."
+            });
+        }
+
+        try
+        {
+            var history = await _encounterApiClient.GetEncounterHistoryAsync(
+                patientUid, encounterUid, cancellationToken);
+            return Json(new { success = true, history });
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Encounter history could not be loaded for encounter {EncounterUid}.",
+                encounterUid);
+            return StatusCode(StatusCodes.Status502BadGateway, new
+            {
+                success = false,
+                message = "Encounter history could not be loaded."
+            });
+        }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateEncounterNote(

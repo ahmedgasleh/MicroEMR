@@ -102,6 +102,44 @@ public sealed class PatientEncounterRepository
         return MapDetails(reader);
     }
 
+    public async Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetHistoryAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        var history = new List<PatientEncounterHistoryResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounterHistory_GetByEncounterUid", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            history.Add(new PatientEncounterHistoryResponse
+            {
+                EncounterHistoryUid = reader.GetGuid(reader.GetOrdinal("EncounterHistoryUid")),
+                EncounterUid = reader.GetGuid(reader.GetOrdinal("EncounterUid")),
+                PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+                ActionType = reader.GetString(reader.GetOrdinal("ActionType")),
+                ActionDescription = GetNullableString(reader, "ActionDescription"),
+                OldStatus = GetNullableString(reader, "OldStatus"),
+                NewStatus = GetNullableString(reader, "NewStatus"),
+                Reason = GetNullableString(reader, "Reason"),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                CreatedBy = GetNullableInt64(reader, "CreatedBy"),
+                CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+            });
+        }
+
+        return history;
+    }
+
     public async Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,

@@ -257,6 +257,116 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'dbo.PatientEncounterHistory', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PatientEncounterHistory
+    (
+        EncounterHistoryId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        EncounterHistoryUid UNIQUEIDENTIFIER NOT NULL
+            CONSTRAINT DF_PatientEncounterHistory_Uid DEFAULT NEWSEQUENTIALID(),
+        EncounterUid UNIQUEIDENTIFIER NOT NULL,
+        PatientUid UNIQUEIDENTIFIER NOT NULL,
+        ActionType NVARCHAR(50) NOT NULL,
+        ActionDescription NVARCHAR(500) NULL,
+        OldStatus NVARCHAR(50) NULL,
+        NewStatus NVARCHAR(50) NULL,
+        Reason NVARCHAR(500) NULL,
+        CreatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_PatientEncounterHistory_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CreatedBy BIGINT NULL
+    );
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.PatientEncounterHistory')
+        AND name = N'IX_PatientEncounterHistory_EncounterUid_CreatedAt'
+)
+BEGIN
+    CREATE INDEX IX_PatientEncounterHistory_EncounterUid_CreatedAt
+    ON dbo.PatientEncounterHistory (EncounterUid, CreatedAt DESC);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.PatientEncounterHistory')
+        AND name = N'IX_PatientEncounterHistory_PatientUid_CreatedAt'
+)
+BEGIN
+    CREATE INDEX IX_PatientEncounterHistory_PatientUid_CreatedAt
+    ON dbo.PatientEncounterHistory (PatientUid, CreatedAt DESC);
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientEncounterHistory_Create
+    @EncounterUid UNIQUEIDENTIFIER,
+    @PatientUid UNIQUEIDENTIFIER,
+    @ActionType NVARCHAR(50),
+    @ActionDescription NVARCHAR(500) = NULL,
+    @OldStatus NVARCHAR(50) = NULL,
+    @NewStatus NVARCHAR(50) = NULL,
+    @Reason NVARCHAR(500) = NULL,
+    @CreatedBy BIGINT = NULL,
+    @ReturnResult BIT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @EncounterHistoryUid UNIQUEIDENTIFIER = NEWID();
+
+    INSERT INTO dbo.PatientEncounterHistory
+    (
+        EncounterHistoryUid, EncounterUid, PatientUid, ActionType,
+        ActionDescription, OldStatus, NewStatus, Reason, CreatedBy
+    )
+    VALUES
+    (
+        @EncounterHistoryUid, @EncounterUid, @PatientUid,
+        LTRIM(RTRIM(@ActionType)),
+        NULLIF(LTRIM(RTRIM(@ActionDescription)), N''),
+        NULLIF(LTRIM(RTRIM(@OldStatus)), N''),
+        NULLIF(LTRIM(RTRIM(@NewStatus)), N''),
+        NULLIF(LTRIM(RTRIM(@Reason)), N''),
+        @CreatedBy
+    );
+
+    IF @ReturnResult = 1
+        SELECT @EncounterHistoryUid AS EncounterHistoryUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientEncounterHistory_GetByEncounterUid
+    @PatientUid UNIQUEIDENTIFIER,
+    @EncounterUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        history.EncounterHistoryUid,
+        history.EncounterUid,
+        history.PatientUid,
+        history.ActionType,
+        history.ActionDescription,
+        history.OldStatus,
+        history.NewStatus,
+        history.Reason,
+        history.CreatedAt,
+        history.CreatedBy,
+        users.DisplayName AS CreatedByDisplayName
+    FROM dbo.PatientEncounterHistory AS history
+    LEFT JOIN dbo.ApplicationUser AS users
+        ON users.UserId = history.CreatedBy
+    WHERE history.PatientUid = @PatientUid
+        AND history.EncounterUid = @EncounterUid
+    ORDER BY history.CreatedAt DESC, history.EncounterHistoryId DESC;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.PatientEncounter_GetByPatientUid
     @PatientUid UNIQUEIDENTIFIER
 AS
@@ -386,6 +496,10 @@ BEGIN
         );
     END;
 
+    EXEC dbo.PatientEncounterHistory_Create
+        @EncounterUid, @PatientUid, N'Signed', N'Encounter signed.',
+        @EncounterStatus, N'Signed', NULL, @SignedBy, 0;
+
     COMMIT TRANSACTION;
 
     EXEC dbo.PatientEncounter_GetByUid
@@ -450,6 +564,10 @@ BEGIN
             N'Encounter note updated', SYSUTCDATETIME()
         );
     END;
+
+    EXEC dbo.PatientEncounterHistory_Create
+        @EncounterUid, @PatientUid, N'NoteUpdated',
+        N'Encounter note updated.', NULL, @EncounterStatus, NULL, @UpdatedBy, 0;
 
     COMMIT TRANSACTION;
 
@@ -545,6 +663,10 @@ BEGIN
             SYSUTCDATETIME()
         );
     END;
+
+    EXEC dbo.PatientEncounterHistory_Create
+        @EncounterUid, @PatientUid, N'Created', N'Encounter created.',
+        NULL, N'Open', NULL, @CreatedBy, 0;
 
     COMMIT TRANSACTION;
 
@@ -646,6 +768,10 @@ BEGIN
                  CONVERT(NVARCHAR(100), @EncounterUid), NULL,
                  N'Encounter started from appointment', SYSUTCDATETIME());
         END;
+
+        EXEC dbo.PatientEncounterHistory_Create
+            @EncounterUid, @PatientUid, N'Created', N'Encounter created.',
+            NULL, N'Open', NULL, @CreatedBy, 0;
     END;
 
     COMMIT TRANSACTION;

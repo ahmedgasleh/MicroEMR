@@ -13,6 +13,11 @@ public interface IPatientEncounterRepository
         Guid encounterUid,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetHistoryAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default);
+
     Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,

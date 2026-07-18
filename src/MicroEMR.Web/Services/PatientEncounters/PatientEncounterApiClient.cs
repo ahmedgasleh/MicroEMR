@@ -76,6 +76,29 @@ public sealed class PatientEncounterApiClient
                 cancellationToken: cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetEncounterHistoryAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/history");
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<
+            List<PatientEncounterHistoryResponse>>(
+                cancellationToken: cancellationToken) ?? [];
+    }
+
     public async Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest encounterRequest,
