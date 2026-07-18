@@ -108,7 +108,7 @@
             padding-bottom: .4rem;
         }
 
-        .resource-picker-list { max-height: 24rem; overflow-y: auto; }
+        .resource-picker-list { max-height: 14rem; overflow-y: auto; }
         .resource-picker-item {
             display: flex;
             align-items: center;
@@ -276,9 +276,9 @@
 
     <div class="scheduling-filter-panel">
         <div class="scheduling-filter-field">
-            <label class="form-label" for="schedulingResourceTypeFilter">Type</label>
+            <label class="form-label" for="schedulingResourceTypeFilter">Resource Type</label>
             <select class="form-select" id="schedulingResourceTypeFilter">
-                <option value="">All</option>
+                <option value="">All resources</option>
                 <option value="Provider">Providers</option>
                 <option value="Room">Rooms</option>
             </select>
@@ -289,7 +289,7 @@
                 Select Resources
             </button>
         </div>
-        <div class="scheduling-filter-summary" id="resourceFilterSummary">Showing all active resources</div>
+        <div class="scheduling-filter-summary" id="resourceFilterSummary">0 resources selected</div>
     </div>
 </div>
 
@@ -306,11 +306,16 @@
             <div class="modal-body">
                 <label class="form-label" for="resourcePickerSearch">Search resources</label>
                 <input type="search" class="form-control mb-3" id="resourcePickerSearch"
-                       placeholder="Resource name" autocomplete="off" />
+                       placeholder="Search resources..." autocomplete="off" />
                 <div class="resource-picker-list list-group" id="resourcePickerList"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="clearResourceSelectionButton">Clear</button>
+                <button type="button" class="btn btn-outline-primary" id="selectAllVisibleResourcesButton">
+                    Select All Visible
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="clearResourceSelectionButton">
+                    Clear Selection
+                </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="applyResourceSelectionButton">Apply</button>
             </div>
@@ -609,7 +614,7 @@
 @if (Model.Resources.Count == 0)
 {
     <div class="scheduling-empty-state">
-        No active scheduling resources were returned by the API.
+        No active scheduling resources were found.
     </div>
 }
 else
@@ -645,7 +650,8 @@ else
         let selectedMonthDate = new Date();
         selectedMonthDate.setHours(0, 0, 0, 0);
         let selectedResourceType = "";
-        let selectedResourceUids = new Set();
+        let selectedResourceUids = new Set(
+        resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
         let pendingResourceUids = new Set();
         const resourceTypeFilter = document.getElementById("schedulingResourceTypeFilter");
         const resourceFilterSummary = document.getElementById("resourceFilterSummary");
@@ -664,9 +670,9 @@ else
 
         const getMatchingResources = () => resources.filter(resource =>
         (!selectedResourceType || resource.resourceType === selectedResourceType) &&
-        (!selectedResourceUids.size || selectedResourceUids.has(resource.resourceUid)));
+        selectedResourceUids.has(resource.resourceUid));
 
-        const getFilteredResources = () => getMatchingResources().slice(0, 10);
+        const getFilteredResources = () => getMatchingResources();
 
         const toColumns = () => getFilteredResources()
         .map(resource => ({
@@ -676,14 +682,13 @@ else
 
         const updateResourceFilterSummary = () => {
         const matchingCount = getMatchingResources().length;
-        const visibleCount = Math.min(matchingCount, 10);
-        resourceFilterSummary.textContent = matchingCount
-        ? `Showing ${visibleCount} ${visibleCount === 1 ? "resource" : "resources"}`
-        : "No resources match the selected filter";
-        resourceFilterMessage.classList.toggle("d-none", matchingCount <= 10 && matchingCount > 0);
-        resourceFilterMessage.textContent = matchingCount > 10
-        ? "Showing first 10 resources. Use Select Resources to narrow the view."
-        : (matchingCount === 0 ? "No resources match the selected filter." : "");
+        const selectedCount = selectedResourceUids.size;
+        resourceFilterSummary.textContent =
+        `${selectedCount} ${selectedCount === 1 ? "resource" : "resources"} selected`;
+        resourceFilterMessage.classList.toggle("d-none", matchingCount > 0);
+        resourceFilterMessage.textContent = selectedCount === 0
+        ? "Select at least one resource to display scheduling columns."
+        : "No selected resources match the selected resource type.";
         };
 
         const calendar = new DayPilot.Calendar(
@@ -1165,11 +1170,15 @@ else
         }
         });
 
-        const refreshResourcePickerList = () => {
+        const getVisibleResourceChoices = () => {
         const searchTerm = resourcePickerSearch.value.trim().toLocaleLowerCase();
-        const matchingResources = resources.filter(resource =>
+        return resources.filter(resource =>
         (!selectedResourceType || resource.resourceType === selectedResourceType) &&
         (!searchTerm || resource.displayName.toLocaleLowerCase().includes(searchTerm)));
+        };
+
+        const refreshResourcePickerList = () => {
+        const matchingResources = getVisibleResourceChoices();
         resourcePickerList.replaceChildren();
         if (!matchingResources.length) {
         const empty = document.createElement("div");
@@ -1210,6 +1219,11 @@ else
         resourcePickerModal.show();
         });
         resourcePickerSearch.addEventListener("input", refreshResourcePickerList);
+        document.getElementById("selectAllVisibleResourcesButton").addEventListener("click", () => {
+        getVisibleResourceChoices().forEach(resource =>
+        pendingResourceUids.add(resource.resourceUid));
+        refreshResourcePickerList();
+        });
         document.getElementById("applyResourceSelectionButton").addEventListener("click", async () => {
         selectedResourceUids = new Set(pendingResourceUids);
         resourcePickerModal.hide();
