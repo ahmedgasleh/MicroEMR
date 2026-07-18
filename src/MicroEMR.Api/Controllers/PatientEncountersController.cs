@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
+using MicroEMR.Application.PatientEncounters;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -148,6 +149,46 @@ public sealed class PatientEncountersController : ControllerBase
                 patientUid);
 
             throw;
+        }
+    }
+
+    [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/note")]
+    [ProducesResponseType<PatientEncounterDetailsResponse>(
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientEncounterDetailsResponse>>
+        UpdateEncounterNote(
+            Guid patientUid,
+            Guid encounterUid,
+            [FromBody] UpdateEncounterNoteRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var encounter = await _encounterService.UpdateNoteAsync(
+                patientUid,
+                encounterUid,
+                request,
+                GetAuthenticatedUserId(),
+                cancellationToken);
+
+            return encounter is null
+                ? NotFound(new { message = "Encounter was not found." })
+                : Ok(encounter);
+        }
+        catch (EncounterNoteNotEditableException)
+        {
+            return Conflict(new
+            {
+                message = "Encounter note cannot be edited."
+            });
         }
     }
 

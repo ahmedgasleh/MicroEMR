@@ -750,7 +750,8 @@ else
         searchResults.replaceChildren();
         };
         const showPatientSearchResults = () => searchResults.classList.remove("d-none");
-        const detailsModal = new bootstrap.Modal(document.getElementById("appointmentDetailsModal"));
+        const appointmentDetailsModalElement = document.getElementById("appointmentDetailsModal");
+        const detailsModal = new bootstrap.Modal(appointmentDetailsModalElement);
         const detailsLoading = document.getElementById("appointmentDetailsLoading");
         const detailsError = document.getElementById("appointmentDetailsError");
         const detailsContent = document.getElementById("appointmentDetailsContent");
@@ -874,7 +875,7 @@ else
         document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
         document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
 
-        document.getElementById("appointmentDetailsModal").addEventListener(
+        appointmentDetailsModalElement.addEventListener(
         "hidden.bs.modal",
         () => editAppointmentModal.show(),
         { once: true });
@@ -922,7 +923,7 @@ else
         if (!currentAppointmentUid) return;
         cancelAppointmentReason.value = "";
         cancelAppointmentMessage.classList.add("d-none");
-        document.getElementById("appointmentDetailsModal").addEventListener(
+        appointmentDetailsModalElement.addEventListener(
         "hidden.bs.modal",
         () => cancelAppointmentModal.show(),
         { once: true });

@@ -17,4 +17,10 @@ public interface IPatientEncounterApiClient
         Guid patientUid,
         CreatePatientEncounterRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientEncounterDetailsResponse?> UpdateNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterNoteRequest request,
+        CancellationToken cancellationToken = default);
 }

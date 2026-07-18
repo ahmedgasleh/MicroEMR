@@ -207,6 +207,71 @@ public sealed class PatientEncounterRepository
         }
     }
 
+    public async Task<PatientEncounterDetailsResponse?> UpdateNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterNoteRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounter_UpdateNote",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.Add(new SqlParameter(
+            "@PatientUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = patientUid
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@EncounterUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = encounterUid
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@EncounterNotes", SqlDbType.NVarChar, -1)
+        {
+            Value = string.IsNullOrEmpty(request.Notes)
+                ? DBNull.Value
+                : request.Notes
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@UpdatedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)updatedBy ?? DBNull.Value
+        });
+
+        await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var reader =
+                await command.ExecuteReaderAsync(cancellationToken);
+
+            return await reader.ReadAsync(cancellationToken)
+                ? MapDetails(reader)
+                : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51071)
+        {
+            throw new EncounterNoteNotEditableException(
+                "The encounter note cannot be edited in its current status.",
+                exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to update the note for encounter {EncounterUid}.",
+                encounterUid);
+            throw;
+        }
+    }
+
     public async Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,
@@ -347,6 +412,9 @@ public sealed class PatientEncounterRepository
 
             UpdatedAt =
                 GetNullableDateTime(reader, "UpdatedAt"),
+
+            Notes =
+                GetOptionalString(reader, "EncounterNotes"),
 
             RowVersion =
                 GetRowVersion(reader, "RowVersion")

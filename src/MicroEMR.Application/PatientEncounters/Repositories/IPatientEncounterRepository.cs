@@ -20,6 +20,13 @@ public interface IPatientEncounterRepository
         string? createdByDisplayName,
         CancellationToken cancellationToken = default);
 
+    Task<PatientEncounterDetailsResponse?> UpdateNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterNoteRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,

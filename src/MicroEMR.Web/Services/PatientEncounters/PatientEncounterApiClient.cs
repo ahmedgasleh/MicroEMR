@@ -103,6 +103,37 @@ public sealed class PatientEncounterApiClient
                    "The API created the encounter but returned no encounter data.");
     }
 
+    public async Task<PatientEncounterDetailsResponse?> UpdateNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterNoteRequest encounterRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/note")
+        {
+            Content = JsonContent.Create(encounterRequest)
+        };
+
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content
+            .ReadFromJsonAsync<PatientEncounterDetailsResponse>(
+                cancellationToken: cancellationToken);
+    }
+
     private async Task AddBearerTokenAsync(
         HttpRequestMessage request)
     {

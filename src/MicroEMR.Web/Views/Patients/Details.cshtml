@@ -811,6 +811,23 @@
                             <h3 class="fs-6">Reason for Visit</h3>
                             <p class="mb-0 text-break" id="encounterDetailsReason"></p>
                         </div>
+                        <div class="col-12">
+                            <label for="encounterNoteText" class="form-label fw-semibold">Encounter Note</label>
+                            <textarea id="encounterNoteText"
+                                      name="Notes"
+                                      class="form-control"
+                                      rows="8"></textarea>
+                            <div id="encounterNoteMessage"
+                                 class="alert d-none mt-3 mb-0"
+                                 role="status"></div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="button"
+                                        class="btn btn-primary"
+                                        id="saveEncounterNoteButton">
+                                    Save Note
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -818,6 +835,7 @@
         </div>
     </div>
 </div>
+<form id="encounterNoteAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 <div class="modal fade" id="resolveAllergyModal" tabindex="-1" aria-labelledby="resolveAllergyModalLabel" aria-hidden="true">
  <div class="modal-dialog"><div class="modal-content">
@@ -850,8 +868,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const loading = document.getElementById("encounterDetailsLoading");
     const content = document.getElementById("encounterDetailsContent");
     const message = document.getElementById("encounterDetailsMessage");
+    const noteText = document.getElementById("encounterNoteText");
+    const noteMessage = document.getElementById("encounterNoteMessage");
+    const saveNoteButton = document.getElementById("saveEncounterNoteButton");
     const detailsUrl = '@Url.Action("EncounterDetails", "PatientEncounters")';
+    const updateNoteUrl = '@Url.Action("UpdateEncounterNote", "PatientEncounters")';
     const emptyValue = "—";
+    let currentPatientUid = null;
+    let currentEncounterUid = null;
 
     const formatDate = value => value
         ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
@@ -866,6 +890,12 @@ document.addEventListener("DOMContentLoaded", () => {
         content.classList.add("d-none");
         message.classList.add("d-none");
         message.textContent = "";
+        noteMessage.className = "alert d-none mt-3 mb-0";
+        noteMessage.textContent = "";
+        noteText.value = "";
+        saveNoteButton.disabled = true;
+        currentPatientUid = null;
+        currentEncounterUid = null;
         modal.show();
 
         try {
@@ -887,6 +917,11 @@ document.addEventListener("DOMContentLoaded", () => {
             setText("encounterDetailsCreatedAt", formatDate(encounter.createdAt));
             setText("encounterDetailsUpdatedAt", formatDate(encounter.updatedAt));
             setText("encounterDetailsReason", encounter.reasonForVisit);
+            noteText.value = encounter.notes || "";
+            currentPatientUid = encounter.patientUid;
+            currentEncounterUid = encounter.encounterUid;
+            saveNoteButton.disabled =
+                String(encounter.status).toLowerCase() !== "open";
             content.classList.remove("d-none");
         } catch (error) {
             message.textContent = error instanceof Error
@@ -897,6 +932,51 @@ document.addEventListener("DOMContentLoaded", () => {
             loading.classList.add("d-none");
         }
     };
+
+    saveNoteButton.addEventListener("click", async () => {
+        if (!currentPatientUid || !currentEncounterUid) {
+            return;
+        }
+
+        saveNoteButton.disabled = true;
+        noteMessage.className = "alert d-none mt-3 mb-0";
+        noteMessage.textContent = "";
+
+        try {
+            const formData = new FormData();
+            formData.append("PatientUid", currentPatientUid);
+            formData.append("EncounterUid", currentEncounterUid);
+            formData.append("Notes", noteText.value);
+
+            const token = document.querySelector(
+                '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch(updateNoteUrl, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "RequestVerificationToken": token
+                },
+                body: formData
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Encounter note could not be saved.");
+            }
+
+            noteText.value = result.notes || "";
+            setText("encounterDetailsUpdatedAt", formatDate(result.updatedAt));
+            noteMessage.className = "alert alert-success mt-3 mb-0";
+            noteMessage.textContent = result.message || "Encounter note saved.";
+        } catch (error) {
+            noteMessage.className = "alert alert-danger mt-3 mb-0";
+            noteMessage.textContent = error instanceof Error
+                ? error.message
+                : "Encounter note could not be saved.";
+        } finally {
+            saveNoteButton.disabled = false;
+        }
+    });
 
     document.querySelectorAll(".open-encounter-button").forEach(button => {
         button.addEventListener("click", () => openEncounter(

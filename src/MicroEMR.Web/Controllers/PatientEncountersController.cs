@@ -121,6 +121,79 @@ public sealed class PatientEncountersController : Controller
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateEncounterNote(
+        UpdateEncounterNoteViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.EncounterUid == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Encounter note could not be saved."
+            });
+        }
+
+        try
+        {
+            var encounter = await _encounterApiClient.UpdateNoteAsync(
+                model.PatientUid,
+                model.EncounterUid,
+                new UpdateEncounterNoteRequest
+                {
+                    Notes = model.Notes
+                },
+                cancellationToken);
+
+            if (encounter is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Encounter was not found."
+                });
+            }
+
+            return Json(new
+            {
+                success = true,
+                message = "Encounter note saved.",
+                notes = encounter.Notes,
+                updatedAt = encounter.UpdatedAt
+            });
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = "Encounter note cannot be edited."
+            });
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Encounter note could not be saved.");
+
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    success = false,
+                    message = "Encounter note could not be saved."
+                });
+        }
+    }
+
     [HttpGet]
     public IActionResult Create(
         Guid patientUid)
