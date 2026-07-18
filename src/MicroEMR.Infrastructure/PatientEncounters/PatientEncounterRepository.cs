@@ -272,6 +272,63 @@ public sealed class PatientEncounterRepository
         }
     }
 
+    public async Task<PatientEncounterDetailsResponse?> SignAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        long? signedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounter_Sign",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.Add(new SqlParameter(
+            "@PatientUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = patientUid
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@EncounterUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = encounterUid
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@SignedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)signedBy ?? DBNull.Value
+        });
+
+        await connection.OpenAsync(cancellationToken);
+
+        try
+        {
+            await using var reader =
+                await command.ExecuteReaderAsync(cancellationToken);
+
+            return await reader.ReadAsync(cancellationToken)
+                ? MapDetails(reader)
+                : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51072)
+        {
+            throw new EncounterCannotBeSignedException(
+                "The encounter cannot be signed in its current status.",
+                exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to sign encounter {EncounterUid}.",
+                encounterUid);
+            throw;
+        }
+    }
+
     public async Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,
@@ -416,6 +473,15 @@ public sealed class PatientEncounterRepository
             Notes =
                 GetOptionalString(reader, "EncounterNotes"),
 
+            SignedAt =
+                GetOptionalDateTime(reader, "SignedAt"),
+
+            SignedBy =
+                GetOptionalInt64(reader, "SignedBy"),
+
+            SignedByDisplayName =
+                GetOptionalString(reader, "SignedByDisplayName"),
+
             RowVersion =
                 GetRowVersion(reader, "RowVersion")
         };
@@ -513,6 +579,46 @@ public sealed class PatientEncounterRepository
         return reader.IsDBNull(ordinal)
             ? null
             : reader.GetDateTime(ordinal);
+    }
+
+    private static DateTime? GetOptionalDateTime(
+        SqlDataReader reader,
+        string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (string.Equals(
+                    reader.GetName(ordinal),
+                    columnName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return reader.IsDBNull(ordinal)
+                    ? null
+                    : reader.GetDateTime(ordinal);
+            }
+        }
+
+        return null;
+    }
+
+    private static long? GetOptionalInt64(
+        SqlDataReader reader,
+        string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (string.Equals(
+                    reader.GetName(ordinal),
+                    columnName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return reader.IsDBNull(ordinal)
+                    ? null
+                    : reader.GetInt64(ordinal);
+            }
+        }
+
+        return null;
     }
 
     private static string GetRowVersion(

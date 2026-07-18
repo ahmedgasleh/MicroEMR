@@ -68,6 +68,25 @@ public sealed class PatientEncounterService : IPatientEncounterService
             cancellationToken);
     }
 
+    public Task<PatientEncounterDetailsResponse?> SignAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        long? signedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty)
+            throw new ArgumentException("Patient identifier is required.", nameof(patientUid));
+
+        if (encounterUid == Guid.Empty)
+            throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
+
+        return _repository.SignAsync(
+            patientUid,
+            encounterUid,
+            signedBy,
+            cancellationToken);
+    }
+
     public Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,

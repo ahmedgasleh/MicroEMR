@@ -194,6 +194,75 @@ public sealed class PatientEncountersController : Controller
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SignEncounter(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Encounter could not be signed."
+            });
+        }
+
+        try
+        {
+            var encounter = await _encounterApiClient.SignEncounterAsync(
+                patientUid,
+                encounterUid,
+                cancellationToken);
+
+            if (encounter is null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Encounter was not found."
+                });
+            }
+
+            return Json(new
+            {
+                success = true,
+                message = "Encounter signed.",
+                encounter
+            });
+        }
+        catch (HttpRequestException exception)
+            when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = "Encounter cannot be signed."
+            });
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Encounter could not be signed.");
+
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    success = false,
+                    message = "Encounter could not be signed."
+                });
+        }
+    }
+
     [HttpGet]
     public IActionResult Create(
         Guid patientUid)

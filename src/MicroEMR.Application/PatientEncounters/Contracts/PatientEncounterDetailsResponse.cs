@@ -28,5 +28,11 @@ public sealed class PatientEncounterDetailsResponse
 
     public string? Notes { get; set; }
 
+    public DateTime? SignedAt { get; set; }
+
+    public long? SignedBy { get; set; }
+
+    public string? SignedByDisplayName { get; set; }
+
     public string RowVersion { get; set; } = string.Empty;
 }

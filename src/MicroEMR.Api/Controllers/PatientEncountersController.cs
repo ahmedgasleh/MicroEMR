@@ -192,6 +192,44 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
+    [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
+    [ProducesResponseType<PatientEncounterDetailsResponse>(
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientEncounterDetailsResponse>>
+        SignEncounter(
+            Guid patientUid,
+            Guid encounterUid,
+            CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var encounter = await _encounterService.SignAsync(
+                patientUid,
+                encounterUid,
+                GetAuthenticatedUserId(),
+                cancellationToken);
+
+            return encounter is null
+                ? NotFound(new { message = "Encounter was not found." })
+                : Ok(encounter);
+        }
+        catch (EncounterCannotBeSignedException)
+        {
+            return Conflict(new
+            {
+                message = "Encounter cannot be signed."
+            });
+        }
+    }
+
     private long? GetAuthenticatedUserId()
     {
         var userIdValue =

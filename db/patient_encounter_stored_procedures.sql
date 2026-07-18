@@ -196,6 +196,20 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.PatientEncounter', 'SignedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.PatientEncounter
+        ADD SignedAt DATETIME2(0) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.PatientEncounter', 'SignedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.PatientEncounter
+        ADD SignedBy BIGINT NULL;
+END;
+GO
+
 IF COL_LENGTH('dbo.PatientEncounter', 'RowVersion') IS NULL
 BEGIN
     ALTER TABLE dbo.PatientEncounter
@@ -292,11 +306,90 @@ BEGIN
         pe.CreatedAt AS CreatedAt,
         pe.UpdatedAt AS UpdatedAt,
         pe.EncounterNotes AS EncounterNotes,
+        pe.SignedAt AS SignedAt,
+        pe.SignedBy AS SignedBy,
+        signedUser.DisplayName AS SignedByDisplayName,
         pe.RowVersion AS RowVersion
     FROM dbo.PatientEncounter AS pe
     LEFT JOIN dbo.ApplicationUser AS au
         ON au.UserId = pe.CreatedBy
+    LEFT JOIN dbo.ApplicationUser AS signedUser
+        ON signedUser.UserId = pe.SignedBy
     WHERE pe.EncounterUid = @EncounterUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientEncounter_Sign
+    @PatientUid UNIQUEIDENTIFIER,
+    @EncounterUid UNIQUEIDENTIFIER,
+    @SignedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @PatientId BIGINT;
+    DECLARE @EncounterStatus NVARCHAR(30);
+    DECLARE @EncounterFound BIT = 0;
+
+    BEGIN TRANSACTION;
+
+    SELECT
+        @PatientId = pe.PatientId,
+        @EncounterStatus = pe.EncounterStatus,
+        @EncounterFound = 1
+    FROM dbo.PatientEncounter AS pe WITH (UPDLOCK, HOLDLOCK)
+    WHERE pe.PatientUid = @PatientUid
+        AND pe.EncounterUid = @EncounterUid;
+
+    IF @EncounterFound = 0
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF @EncounterStatus = N'Signed'
+    BEGIN
+        COMMIT TRANSACTION;
+        EXEC dbo.PatientEncounter_GetByUid @EncounterUid = @EncounterUid;
+        RETURN;
+    END;
+
+    IF ISNULL(@EncounterStatus, N'') <> N'Open'
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51072, 'The encounter cannot be signed in its current status.', 1;
+    END;
+
+    UPDATE dbo.PatientEncounter
+    SET EncounterStatus = N'Signed',
+        Status = N'Signed',
+        SignedAt = SYSUTCDATETIME(),
+        SignedBy = @SignedBy,
+        UpdatedAt = SYSUTCDATETIME(),
+        UpdatedBy = @SignedBy
+    WHERE PatientUid = @PatientUid
+        AND EncounterUid = @EncounterUid;
+
+    IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+    BEGIN
+        INSERT INTO dbo.AuditLog
+        (
+            UserId, PatientId, ActionName, EntityName, EntityId,
+            OldValue, NewValue, CreatedAt
+        )
+        VALUES
+        (
+            @SignedBy, @PatientId, N'Sign', N'PatientEncounter',
+            CONVERT(NVARCHAR(100), @EncounterUid), N'Open', N'Signed',
+            SYSUTCDATETIME()
+        );
+    END;
+
+    COMMIT TRANSACTION;
+
+    EXEC dbo.PatientEncounter_GetByUid
+        @EncounterUid = @EncounterUid;
 END;
 GO
 

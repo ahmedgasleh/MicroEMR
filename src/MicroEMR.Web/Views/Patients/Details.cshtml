@@ -805,6 +805,10 @@
                                 <dt class="col-sm-5">Created by</dt><dd class="col-sm-7" id="encounterDetailsCreatedBy"></dd>
                                 <dt class="col-sm-5">Created</dt><dd class="col-sm-7" id="encounterDetailsCreatedAt"></dd>
                                 <dt class="col-sm-5">Updated</dt><dd class="col-sm-7" id="encounterDetailsUpdatedAt"></dd>
+                                <dt class="col-sm-5 d-none" id="encounterDetailsSignedAtLabel">Signed</dt>
+                                <dd class="col-sm-7 d-none" id="encounterDetailsSignedAt"></dd>
+                                <dt class="col-sm-5 d-none" id="encounterDetailsSignedByLabel">Signed by</dt>
+                                <dd class="col-sm-7 d-none" id="encounterDetailsSignedBy"></dd>
                             </dl>
                         </div>
                         <div class="col-12">
@@ -820,7 +824,12 @@
                             <div id="encounterNoteMessage"
                                  class="alert d-none mt-3 mb-0"
                                  role="status"></div>
-                            <div class="d-flex justify-content-end mt-3">
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button type="button"
+                                        class="btn btn-outline-danger"
+                                        id="signEncounterButton">
+                                    Sign Encounter
+                                </button>
                                 <button type="button"
                                         class="btn btn-primary"
                                         id="saveEncounterNoteButton">
@@ -832,6 +841,25 @@
                 </div>
             </div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="signEncounterModal" tabindex="-1" aria-labelledby="signEncounterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="signEncounterModalLabel">Sign Encounter</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="signEncounterMessage" class="alert alert-danger d-none" role="alert"></div>
+                <p class="mb-0">Signing this encounter will lock the note from further editing.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="keepEditingEncounterButton">Keep Editing</button>
+                <button type="button" class="btn btn-danger" id="confirmSignEncounterButton">Sign Encounter</button>
+            </div>
         </div>
     </div>
 </div>
@@ -871,11 +899,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const noteText = document.getElementById("encounterNoteText");
     const noteMessage = document.getElementById("encounterNoteMessage");
     const saveNoteButton = document.getElementById("saveEncounterNoteButton");
+    const signEncounterButton = document.getElementById("signEncounterButton");
+    const signModalElement = document.getElementById("signEncounterModal");
+    const signModal = new bootstrap.Modal(signModalElement);
+    const signMessage = document.getElementById("signEncounterMessage");
+    const confirmSignButton = document.getElementById("confirmSignEncounterButton");
     const detailsUrl = '@Url.Action("EncounterDetails", "PatientEncounters")';
     const updateNoteUrl = '@Url.Action("UpdateEncounterNote", "PatientEncounters")';
+    const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
     const emptyValue = "—";
     let currentPatientUid = null;
     let currentEncounterUid = null;
+    let currentEncounterIsEditable = false;
 
     const formatDate = value => value
         ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
@@ -883,6 +918,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const setText = (id, value) => {
         document.getElementById(id).textContent = value || emptyValue;
+    };
+
+    const setOptionalDetail = (labelId, valueId, value) => {
+        document.getElementById(labelId).classList.toggle("d-none", !value);
+        document.getElementById(valueId).classList.toggle("d-none", !value);
+        document.getElementById(valueId).textContent = value || "";
+    };
+
+    const applyEncounterDetails = encounter => {
+        setText("encounterDetailsDate", formatDate(encounter.encounterDateUtc));
+        setText("encounterDetailsType", encounter.encounterType);
+        setText("encounterDetailsStatus", encounter.status);
+        setText("encounterDetailsProvider", encounter.providerName);
+        setText("encounterDetailsLocation", encounter.locationName);
+        setText("encounterDetailsCreatedBy", encounter.createdByDisplayName || "Unknown");
+        setText("encounterDetailsCreatedAt", formatDate(encounter.createdAt));
+        setText("encounterDetailsUpdatedAt", formatDate(encounter.updatedAt));
+        setText("encounterDetailsReason", encounter.reasonForVisit);
+        setOptionalDetail(
+            "encounterDetailsSignedAtLabel",
+            "encounterDetailsSignedAt",
+            encounter.signedAt ? formatDate(encounter.signedAt) : null);
+        setOptionalDetail(
+            "encounterDetailsSignedByLabel",
+            "encounterDetailsSignedBy",
+            encounter.signedByDisplayName);
+        noteText.value = encounter.notes || "";
+        currentPatientUid = encounter.patientUid;
+        currentEncounterUid = encounter.encounterUid;
+        currentEncounterIsEditable =
+            String(encounter.status).toLowerCase() === "open";
+        noteText.readOnly = !currentEncounterIsEditable;
+        saveNoteButton.classList.toggle("d-none", !currentEncounterIsEditable);
+        saveNoteButton.disabled = !currentEncounterIsEditable;
+        signEncounterButton.classList.toggle("d-none", !currentEncounterIsEditable);
+        signEncounterButton.disabled = !currentEncounterIsEditable;
     };
 
     const openEncounter = async (patientUid, encounterUid) => {
@@ -894,8 +965,10 @@ document.addEventListener("DOMContentLoaded", () => {
         noteMessage.textContent = "";
         noteText.value = "";
         saveNoteButton.disabled = true;
+        signEncounterButton.disabled = true;
         currentPatientUid = null;
         currentEncounterUid = null;
+        currentEncounterIsEditable = false;
         modal.show();
 
         try {
@@ -908,20 +981,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const encounter = result.encounter;
-            setText("encounterDetailsDate", formatDate(encounter.encounterDateUtc));
-            setText("encounterDetailsType", encounter.encounterType);
-            setText("encounterDetailsStatus", encounter.status);
-            setText("encounterDetailsProvider", encounter.providerName);
-            setText("encounterDetailsLocation", encounter.locationName);
-            setText("encounterDetailsCreatedBy", encounter.createdByDisplayName || "Unknown");
-            setText("encounterDetailsCreatedAt", formatDate(encounter.createdAt));
-            setText("encounterDetailsUpdatedAt", formatDate(encounter.updatedAt));
-            setText("encounterDetailsReason", encounter.reasonForVisit);
-            noteText.value = encounter.notes || "";
-            currentPatientUid = encounter.patientUid;
-            currentEncounterUid = encounter.encounterUid;
-            saveNoteButton.disabled =
-                String(encounter.status).toLowerCase() !== "open";
+            applyEncounterDetails(encounter);
             content.classList.remove("d-none");
         } catch (error) {
             message.textContent = error instanceof Error
@@ -934,7 +994,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     saveNoteButton.addEventListener("click", async () => {
-        if (!currentPatientUid || !currentEncounterUid) {
+        if (!currentPatientUid || !currentEncounterUid || !currentEncounterIsEditable) {
             return;
         }
 
@@ -974,7 +1034,75 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? error.message
                 : "Encounter note could not be saved.";
         } finally {
-            saveNoteButton.disabled = false;
+            saveNoteButton.disabled = !currentEncounterIsEditable;
+        }
+    });
+
+    signEncounterButton.addEventListener("click", () => {
+        if (!currentPatientUid || !currentEncounterUid || !currentEncounterIsEditable) {
+            return;
+        }
+
+        signMessage.classList.add("d-none");
+        signMessage.textContent = "";
+        modalElement.addEventListener(
+            "hidden.bs.modal",
+            () => signModal.show(),
+            { once: true });
+        modal.hide();
+    });
+
+    document.getElementById("keepEditingEncounterButton").addEventListener("click", () => {
+        signModalElement.addEventListener(
+            "hidden.bs.modal",
+            () => modal.show(),
+            { once: true });
+        signModal.hide();
+    });
+
+    confirmSignButton.addEventListener("click", async () => {
+        if (!currentPatientUid || !currentEncounterUid) {
+            return;
+        }
+
+        confirmSignButton.disabled = true;
+        signMessage.classList.add("d-none");
+        signMessage.textContent = "";
+
+        try {
+            const formData = new FormData();
+            formData.append("patientUid", currentPatientUid);
+            formData.append("encounterUid", currentEncounterUid);
+            const token = document.querySelector(
+                '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch(signEncounterUrl, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "RequestVerificationToken": token
+                },
+                body: formData
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result.success || !result.encounter) {
+                throw new Error(result.message || "Encounter could not be signed.");
+            }
+
+            applyEncounterDetails(result.encounter);
+            signModalElement.addEventListener("hidden.bs.modal", () => {
+                noteMessage.className = "alert alert-success mt-3 mb-0";
+                noteMessage.textContent = result.message || "Encounter signed.";
+                modal.show();
+            }, { once: true });
+            signModal.hide();
+        } catch (error) {
+            signMessage.textContent = error instanceof Error
+                ? error.message
+                : "Encounter could not be signed.";
+            signMessage.classList.remove("d-none");
+        } finally {
+            confirmSignButton.disabled = false;
         }
     });
 
