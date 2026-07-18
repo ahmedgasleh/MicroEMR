@@ -21,4 +21,8 @@ public interface ISchedulingReadService
     Task<ScheduleAppointmentDetailsResponse?> GetAppointmentByUidAsync(
         Guid appointmentUid,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AppointmentHistoryResponse>> GetHistoryAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default);
 }

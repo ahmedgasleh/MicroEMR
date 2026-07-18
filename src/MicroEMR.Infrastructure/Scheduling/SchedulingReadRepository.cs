@@ -332,6 +332,54 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         return summary;
     }
 
+    public async Task<IReadOnlyList<AppointmentHistoryResponse>> GetHistoryAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        var history = new List<AppointmentHistoryResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.AppointmentHistory_GetByAppointmentUid",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter(
+            "@AppointmentUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = appointmentUid
+        });
+
+        await connection.OpenAsync(cancellationToken);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            history.Add(new AppointmentHistoryResponse
+            {
+                AppointmentHistoryUid = reader.GetGuid(reader.GetOrdinal("AppointmentHistoryUid")),
+                AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                ActionType = reader.GetString(reader.GetOrdinal("ActionType")),
+                ActionDescription = GetNullableString(reader, "ActionDescription"),
+                OldStartDateTimeUtc = GetNullableUtcDateTime(reader, "OldStartDateTimeUtc"),
+                NewStartDateTimeUtc = GetNullableUtcDateTime(reader, "NewStartDateTimeUtc"),
+                OldEndDateTimeUtc = GetNullableUtcDateTime(reader, "OldEndDateTimeUtc"),
+                NewEndDateTimeUtc = GetNullableUtcDateTime(reader, "NewEndDateTimeUtc"),
+                OldStatus = GetNullableString(reader, "OldStatus"),
+                NewStatus = GetNullableString(reader, "NewStatus"),
+                OldResourceUid = GetNullableGuid(reader, "OldResourceUid"),
+                NewResourceUid = GetNullableGuid(reader, "NewResourceUid"),
+                Reason = GetNullableString(reader, "Reason"),
+                CreatedAt = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("CreatedAt"))),
+                CreatedBy = GetNullableInt64(reader, "CreatedBy"),
+                CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+            });
+        }
+
+        return history;
+    }
+
     private static bool IsMissingSchedulingReadObject(SqlException exception)
     {
         foreach (SqlError error in exception.Errors)

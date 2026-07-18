@@ -149,6 +149,28 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
             cancellationToken: cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AppointmentHistoryResponse>> GetAppointmentHistoryAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"api/scheduling/appointments/{appointmentUid}/history");
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return [];
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<AppointmentHistoryResponse>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
     public async Task<CancelScheduleAppointmentResponse?> CancelAppointmentAsync(
         Guid appointmentUid,
         CancelScheduleAppointmentRequest appointmentRequest,

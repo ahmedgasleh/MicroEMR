@@ -140,6 +140,21 @@ public sealed class SchedulingController : ControllerBase
         return appointment is null ? NotFound() : Ok(appointment);
     }
 
+    [HttpGet("appointments/{appointmentUid:guid}/history")]
+    [ProducesResponseType(typeof(IReadOnlyList<AppointmentHistoryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<AppointmentHistoryResponse>>> GetAppointmentHistory(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest();
+
+        return Ok(await _schedulingReadService.GetHistoryAsync(
+            appointmentUid,
+            cancellationToken));
+    }
+
     [HttpGet("month-summary")]
     [ProducesResponseType(typeof(IReadOnlyList<ScheduleMonthSummaryItemResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

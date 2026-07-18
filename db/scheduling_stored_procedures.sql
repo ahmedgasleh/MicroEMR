@@ -71,6 +71,120 @@ IF COL_LENGTH(N'dbo.ScheduleAppointment', N'CancelReason') IS NULL
     ALTER TABLE dbo.ScheduleAppointment ADD CancelReason NVARCHAR(500) NULL;
 GO
 
+IF OBJECT_ID(N'dbo.AppointmentHistory', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AppointmentHistory
+    (
+        AppointmentHistoryId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        AppointmentHistoryUid UNIQUEIDENTIFIER NOT NULL
+            CONSTRAINT DF_AppointmentHistory_Uid DEFAULT NEWSEQUENTIALID(),
+        AppointmentUid UNIQUEIDENTIFIER NOT NULL,
+        ActionType NVARCHAR(50) NOT NULL,
+        ActionDescription NVARCHAR(500) NULL,
+        OldStartDateTimeUtc DATETIME2(0) NULL,
+        NewStartDateTimeUtc DATETIME2(0) NULL,
+        OldEndDateTimeUtc DATETIME2(0) NULL,
+        NewEndDateTimeUtc DATETIME2(0) NULL,
+        OldStatus NVARCHAR(50) NULL,
+        NewStatus NVARCHAR(50) NULL,
+        OldResourceUid UNIQUEIDENTIFIER NULL,
+        NewResourceUid UNIQUEIDENTIFIER NULL,
+        Reason NVARCHAR(500) NULL,
+        CreatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_AppointmentHistory_CreatedAt DEFAULT SYSUTCDATETIME(),
+        CreatedBy BIGINT NULL,
+        CONSTRAINT UQ_AppointmentHistory_Uid UNIQUE (AppointmentHistoryUid)
+    );
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.AppointmentHistory')
+        AND name = N'IX_AppointmentHistory_AppointmentUid_CreatedAt'
+)
+BEGIN
+    CREATE INDEX IX_AppointmentHistory_AppointmentUid_CreatedAt
+        ON dbo.AppointmentHistory (AppointmentUid, CreatedAt DESC);
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.AppointmentHistory_Create
+    @AppointmentUid UNIQUEIDENTIFIER,
+    @ActionType NVARCHAR(50),
+    @ActionDescription NVARCHAR(500) = NULL,
+    @OldStartDateTimeUtc DATETIME2(0) = NULL,
+    @NewStartDateTimeUtc DATETIME2(0) = NULL,
+    @OldEndDateTimeUtc DATETIME2(0) = NULL,
+    @NewEndDateTimeUtc DATETIME2(0) = NULL,
+    @OldStatus NVARCHAR(50) = NULL,
+    @NewStatus NVARCHAR(50) = NULL,
+    @OldResourceUid UNIQUEIDENTIFIER = NULL,
+    @NewResourceUid UNIQUEIDENTIFIER = NULL,
+    @Reason NVARCHAR(500) = NULL,
+    @CreatedBy BIGINT = NULL,
+    @ReturnResult BIT = 1
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @AppointmentHistoryUid UNIQUEIDENTIFIER = NEWID();
+
+    INSERT INTO dbo.AppointmentHistory
+    (
+        AppointmentHistoryUid, AppointmentUid, ActionType, ActionDescription,
+        OldStartDateTimeUtc, NewStartDateTimeUtc,
+        OldEndDateTimeUtc, NewEndDateTimeUtc,
+        OldStatus, NewStatus, OldResourceUid, NewResourceUid,
+        Reason, CreatedAt, CreatedBy
+    )
+    VALUES
+    (
+        @AppointmentHistoryUid, @AppointmentUid, @ActionType, @ActionDescription,
+        @OldStartDateTimeUtc, @NewStartDateTimeUtc,
+        @OldEndDateTimeUtc, @NewEndDateTimeUtc,
+        @OldStatus, @NewStatus, @OldResourceUid, @NewResourceUid,
+        @Reason, SYSUTCDATETIME(), @CreatedBy
+    );
+
+    IF @ReturnResult = 1
+        SELECT @AppointmentHistoryUid AS AppointmentHistoryUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.AppointmentHistory_GetByAppointmentUid
+    @AppointmentUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        history.AppointmentHistoryUid,
+        history.AppointmentUid,
+        history.ActionType,
+        history.ActionDescription,
+        history.OldStartDateTimeUtc,
+        history.NewStartDateTimeUtc,
+        history.OldEndDateTimeUtc,
+        history.NewEndDateTimeUtc,
+        history.OldStatus,
+        history.NewStatus,
+        history.OldResourceUid,
+        history.NewResourceUid,
+        history.Reason,
+        history.CreatedAt,
+        history.CreatedBy,
+        appUser.DisplayName AS CreatedByDisplayName
+    FROM dbo.AppointmentHistory AS history
+    LEFT JOIN dbo.ApplicationUser AS appUser
+        ON appUser.UserId = history.CreatedBy
+    WHERE history.AppointmentUid = @AppointmentUid
+    ORDER BY history.CreatedAt DESC, history.AppointmentHistoryId DESC;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.ScheduleResource_GetActive
 AS
 BEGIN
@@ -207,6 +321,17 @@ BEGIN
              NULL, N'Appointment created', SYSUTCDATETIME());
     END;
 
+    EXEC dbo.AppointmentHistory_Create
+        @AppointmentUid = @AppointmentUid,
+        @ActionType = N'Created',
+        @ActionDescription = N'Appointment created.',
+        @NewStartDateTimeUtc = @StartDateTimeUtc,
+        @NewEndDateTimeUtc = @EndDateTimeUtc,
+        @NewStatus = N'Scheduled',
+        @NewResourceUid = @PrimaryResourceUid,
+        @CreatedBy = @CreatedBy,
+        @ReturnResult = 0;
+
     COMMIT TRANSACTION;
 
     SELECT
@@ -272,6 +397,18 @@ BEGIN
             (@UpdatedBy, @PatientId, N'UpdateStatus', N'ScheduleAppointment',
              CONVERT(NVARCHAR(100), @AppointmentUid), @CurrentStatus,
              @AppointmentStatus, SYSUTCDATETIME());
+    END;
+
+    IF @CurrentStatus <> @AppointmentStatus
+    BEGIN
+        EXEC dbo.AppointmentHistory_Create
+            @AppointmentUid = @AppointmentUid,
+            @ActionType = N'StatusChanged',
+            @ActionDescription = N'Appointment status changed.',
+            @OldStatus = @CurrentStatus,
+            @NewStatus = @AppointmentStatus,
+            @CreatedBy = @UpdatedBy,
+            @ReturnResult = 0;
     END;
 
     COMMIT TRANSACTION;
@@ -383,6 +520,16 @@ BEGIN
              N'Appointment cancelled', SYSUTCDATETIME());
     END;
 
+    EXEC dbo.AppointmentHistory_Create
+        @AppointmentUid = @AppointmentUid,
+        @ActionType = N'Cancelled',
+        @ActionDescription = N'Appointment cancelled.',
+        @OldStatus = @CurrentStatus,
+        @NewStatus = N'Cancelled',
+        @Reason = @CancelReason,
+        @CreatedBy = @CancelledBy,
+        @ReturnResult = 0;
+
     COMMIT TRANSACTION;
 
     SELECT AppointmentUid, AppointmentStatus, CancelledAt, CancelReason
@@ -410,6 +557,9 @@ BEGIN
     DECLARE @RoomResourceId BIGINT;
     DECLARE @PatientId BIGINT;
     DECLARE @CurrentStatus NVARCHAR(30);
+    DECLARE @OldStartDateTimeUtc DATETIME2(0);
+    DECLARE @OldEndDateTimeUtc DATETIME2(0);
+    DECLARE @OldResourceUid UNIQUEIDENTIFIER;
 
     IF @EndDateTimeUtc <= @StartDateTimeUtc
         THROW 51060, 'The end time must be after the start time.', 1;
@@ -435,9 +585,14 @@ BEGIN
 
     SELECT
         @PatientId = p.PatientId,
-        @CurrentStatus = a.AppointmentStatus
+        @CurrentStatus = a.AppointmentStatus,
+        @OldStartDateTimeUtc = a.StartDateTimeUtc,
+        @OldEndDateTimeUtc = a.EndDateTimeUtc,
+        @OldResourceUid = oldResource.ResourceUid
     FROM dbo.ScheduleAppointment AS a WITH (UPDLOCK, HOLDLOCK)
     INNER JOIN dbo.Patient AS p ON p.PatientUid = a.PatientUid
+    INNER JOIN dbo.ScheduleResource AS oldResource
+        ON oldResource.ResourceId = a.PrimaryResourceId
     WHERE a.AppointmentUid = @AppointmentUid AND a.IsDeleted = 0;
 
     IF @CurrentStatus IS NULL
@@ -503,6 +658,21 @@ BEGIN
              N'Appointment rescheduled or updated', SYSUTCDATETIME());
     END;
 
+    EXEC dbo.AppointmentHistory_Create
+        @AppointmentUid = @AppointmentUid,
+        @ActionType = N'Edited',
+        @ActionDescription = N'Appointment details updated.',
+        @OldStartDateTimeUtc = @OldStartDateTimeUtc,
+        @NewStartDateTimeUtc = @StartDateTimeUtc,
+        @OldEndDateTimeUtc = @OldEndDateTimeUtc,
+        @NewEndDateTimeUtc = @EndDateTimeUtc,
+        @OldStatus = @CurrentStatus,
+        @NewStatus = @CurrentStatus,
+        @OldResourceUid = @OldResourceUid,
+        @NewResourceUid = @PrimaryResourceUid,
+        @CreatedBy = @ModifiedBy,
+        @ReturnResult = 0;
+
     COMMIT TRANSACTION;
 
     SELECT
@@ -549,6 +719,9 @@ BEGIN
     DECLARE @RoomResourceId BIGINT;
     DECLARE @PatientId BIGINT;
     DECLARE @CurrentStatus NVARCHAR(30);
+    DECLARE @OldStartDateTimeUtc DATETIME2(0);
+    DECLARE @OldEndDateTimeUtc DATETIME2(0);
+    DECLARE @OldResourceUid UNIQUEIDENTIFIER;
 
     IF @EndDateTimeUtc <= @StartDateTimeUtc
         THROW 51060, 'The end time must be after the start time.', 1;
@@ -573,9 +746,14 @@ BEGIN
     SELECT
         @PatientId = p.PatientId,
         @CurrentStatus = a.AppointmentStatus,
-        @RoomResourceId = COALESCE(@RoomResourceId, a.RoomResourceId)
+        @RoomResourceId = COALESCE(@RoomResourceId, a.RoomResourceId),
+        @OldStartDateTimeUtc = a.StartDateTimeUtc,
+        @OldEndDateTimeUtc = a.EndDateTimeUtc,
+        @OldResourceUid = oldResource.ResourceUid
     FROM dbo.ScheduleAppointment AS a WITH (UPDLOCK, HOLDLOCK)
     INNER JOIN dbo.Patient AS p ON p.PatientUid = a.PatientUid
+    INNER JOIN dbo.ScheduleResource AS oldResource
+        ON oldResource.ResourceId = a.PrimaryResourceId
     WHERE a.AppointmentUid = @AppointmentUid AND a.IsDeleted = 0;
 
     IF @CurrentStatus IS NULL
@@ -637,6 +815,19 @@ BEGIN
              CONVERT(NVARCHAR(100), @AppointmentUid), NULL,
              N'Appointment rescheduled', SYSUTCDATETIME());
     END;
+
+    EXEC dbo.AppointmentHistory_Create
+        @AppointmentUid = @AppointmentUid,
+        @ActionType = N'Rescheduled',
+        @ActionDescription = N'Appointment rescheduled.',
+        @OldStartDateTimeUtc = @OldStartDateTimeUtc,
+        @NewStartDateTimeUtc = @StartDateTimeUtc,
+        @OldEndDateTimeUtc = @OldEndDateTimeUtc,
+        @NewEndDateTimeUtc = @EndDateTimeUtc,
+        @OldResourceUid = @OldResourceUid,
+        @NewResourceUid = @PrimaryResourceUid,
+        @CreatedBy = @ModifiedBy,
+        @ReturnResult = 0;
 
     COMMIT TRANSACTION;
 

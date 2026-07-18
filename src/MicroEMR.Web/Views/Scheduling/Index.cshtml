@@ -361,8 +361,23 @@
                     <dt class="col-sm-4">Created date</dt>
                     <dd class="col-sm-8" id="detailsCreatedAt"></dd>
                 </dl>
+                <div id="appointmentHistoryContainer" class="d-none mt-4 pt-3 border-top">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h3 class="fs-6 mb-0">Appointment History</h3>
+                    </div>
+                    <div id="appointmentHistoryLoading" class="text-center py-3 d-none">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                            <span class="visually-hidden">Loading appointment history...</span>
+                        </div>
+                    </div>
+                    <div id="appointmentHistoryMessage" class="alert alert-warning d-none" role="status"></div>
+                    <div id="appointmentHistoryList" class="vstack gap-3"></div>
+                </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary d-none" id="viewAppointmentHistoryButton">
+                    View History
+                </button>
                 <button type="button" class="btn btn-outline-danger d-none" id="cancelAppointmentButton">
                     Cancel Appointment
                 </button>
@@ -758,6 +773,11 @@ else
         const openChartButton = document.getElementById("openPatientChartButton");
         const cancelAppointmentButton = document.getElementById("cancelAppointmentButton");
         const editAppointmentButton = document.getElementById("editAppointmentButton");
+        const viewAppointmentHistoryButton = document.getElementById("viewAppointmentHistoryButton");
+        const appointmentHistoryContainer = document.getElementById("appointmentHistoryContainer");
+        const appointmentHistoryLoading = document.getElementById("appointmentHistoryLoading");
+        const appointmentHistoryMessage = document.getElementById("appointmentHistoryMessage");
+        const appointmentHistoryList = document.getElementById("appointmentHistoryList");
         const editAppointmentModalElement = document.getElementById("editAppointmentModal");
         const editAppointmentModal = new bootstrap.Modal(editAppointmentModalElement);
         const editAppointmentForm = document.getElementById("editAppointmentForm");
@@ -771,6 +791,7 @@ else
         const schedulingActionMessage = document.getElementById("schedulingActionMessage");
         const cancelAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("CancelAppointment", "Scheduling"), jsonOptions));
         const updateAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("UpdateAppointment", "Scheduling"), jsonOptions));
+        const appointmentHistoryUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("AppointmentHistory", "Scheduling"), jsonOptions));
         const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
         let currentAppointmentUid = null;
         let currentAppointmentDetails = null;
@@ -793,6 +814,11 @@ else
         openChartButton.classList.add("d-none");
         cancelAppointmentButton.classList.add("d-none");
         editAppointmentButton.classList.add("d-none");
+        viewAppointmentHistoryButton.classList.add("d-none");
+        appointmentHistoryContainer.classList.add("d-none");
+        appointmentHistoryList.replaceChildren();
+        appointmentHistoryMessage.classList.add("d-none");
+        viewAppointmentHistoryButton.textContent = "View History";
         detailsModal.show();
 
         try {
@@ -830,6 +856,7 @@ else
         editAppointmentButton.classList.toggle(
         "d-none",
         String(details.status).toLowerCase() === "cancelled");
+        viewAppointmentHistoryButton.classList.remove("d-none");
         detailsContent.classList.remove("d-none");
         } catch (error) {
         console.error(error);
@@ -839,6 +866,111 @@ else
         detailsLoading.classList.add("d-none");
         }
         };
+
+        const formatHistoryDate = value => value
+        ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short"
+        }).format(new Date(value))
+        : null;
+
+        const appendHistoryDetail = (container, text) => {
+        if (!text) return;
+        const detail = document.createElement("div");
+        detail.className = "small text-body-secondary";
+        detail.textContent = text;
+        container.appendChild(detail);
+        };
+
+        const renderAppointmentHistory = history => {
+        appointmentHistoryList.replaceChildren();
+
+        history.forEach(item => {
+        const entry = document.createElement("div");
+        entry.className = "border-start border-3 border-primary ps-3";
+
+        const title = document.createElement("div");
+        title.className = "fw-semibold";
+        title.textContent = item.actionType || "Appointment updated";
+        entry.appendChild(title);
+
+        appendHistoryDetail(entry, item.actionDescription);
+
+        if (item.oldStatus || item.newStatus) {
+        appendHistoryDetail(
+        entry,
+        `${item.oldStatus || "Not set"} → ${item.newStatus || "Not set"}`);
+        }
+
+        if (item.oldStartDateTimeUtc || item.newStartDateTimeUtc) {
+        appendHistoryDetail(
+        entry,
+        `Time: ${formatHistoryDate(item.oldStartDateTimeUtc) || "Not set"} → ` +
+        `${formatHistoryDate(item.newStartDateTimeUtc) || "Not set"}`);
+        }
+
+        if (item.oldResourceUid || item.newResourceUid) {
+        appendHistoryDetail(entry, "Provider/resource assignment changed.");
+        }
+
+        if (item.reason) {
+        appendHistoryDetail(entry, `Reason: ${item.reason}`);
+        }
+
+        appendHistoryDetail(
+        entry,
+        `${formatHistoryDate(item.createdAt) || ""}` +
+        `${item.createdByDisplayName ? ` · ${item.createdByDisplayName}` : ""}`);
+
+        appointmentHistoryList.appendChild(entry);
+        });
+        };
+
+        viewAppointmentHistoryButton.addEventListener("click", async () => {
+        if (!appointmentHistoryContainer.classList.contains("d-none")) {
+        appointmentHistoryContainer.classList.add("d-none");
+        viewAppointmentHistoryButton.textContent = "View History";
+        return;
+        }
+
+        if (!currentAppointmentUid) return;
+
+        appointmentHistoryContainer.classList.remove("d-none");
+        viewAppointmentHistoryButton.textContent = "Hide History";
+        appointmentHistoryLoading.classList.remove("d-none");
+        appointmentHistoryMessage.classList.add("d-none");
+        appointmentHistoryList.replaceChildren();
+
+        try {
+        const url = new URL(appointmentHistoryUrl, window.location.origin);
+        url.searchParams.set("appointmentUid", currentAppointmentUid);
+        const response = await fetch(url, {
+        headers: { "Accept": "application/json" }
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || !result.success) {
+        throw new Error(result.message || "Appointment history could not be loaded.");
+        }
+
+        if (!result.history?.length) {
+        appointmentHistoryMessage.textContent = "No appointment history is available.";
+        appointmentHistoryMessage.classList.remove("d-none");
+        return;
+        }
+
+        renderAppointmentHistory(result.history);
+        } catch (error) {
+        console.error(error);
+        appointmentHistoryMessage.textContent =
+        error instanceof Error
+        ? error.message
+        : "Appointment history could not be loaded.";
+        appointmentHistoryMessage.classList.remove("d-none");
+        } finally {
+        appointmentHistoryLoading.classList.add("d-none");
+        }
+        });
 
         const clearEditAppointmentErrors = () => {
         editAppointmentMessage.classList.add("d-none");

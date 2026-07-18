@@ -128,6 +128,48 @@ public sealed class SchedulingController : Controller
         }
     }
 
+    [HttpGet("AppointmentHistory")]
+    public async Task<IActionResult> AppointmentHistory(
+        Guid appointmentUid,
+        CancellationToken cancellationToken)
+    {
+        if (appointmentUid == Guid.Empty)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Appointment identifier is required."
+            });
+        }
+
+        try
+        {
+            var history = await _schedulingApiClient.GetAppointmentHistoryAsync(
+                appointmentUid,
+                cancellationToken);
+
+            return Json(new { success = true, history });
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Unable to load appointment history.");
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    success = false,
+                    message = "Appointment history could not be loaded."
+                });
+        }
+    }
+
     [HttpPost("UpdateAppointment")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateAppointment(

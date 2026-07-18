@@ -47,6 +47,16 @@ public sealed class SchedulingReadService : ISchedulingReadService
         return _repository.GetAppointmentByUidAsync(appointmentUid, cancellationToken);
     }
 
+    public Task<IReadOnlyList<AppointmentHistoryResponse>> GetHistoryAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            throw new ArgumentException("Appointment UID is required.", nameof(appointmentUid));
+
+        return _repository.GetHistoryAsync(appointmentUid, cancellationToken);
+    }
+
     public Task<IReadOnlyList<ScheduleMonthSummaryItemResponse>> GetMonthSummaryAsync(
         DateTime startUtc,
         DateTime endUtc,

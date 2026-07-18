@@ -28,6 +28,10 @@ public interface ISchedulingApiClient
         Guid appointmentUid,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AppointmentHistoryResponse>> GetAppointmentHistoryAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default);
+
     Task<CancelScheduleAppointmentResponse?> CancelAppointmentAsync(
         Guid appointmentUid,
         CancelScheduleAppointmentRequest request,
