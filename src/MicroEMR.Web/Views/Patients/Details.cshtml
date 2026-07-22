@@ -479,28 +479,33 @@
          id="allergies"
          role="tabpanel">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 class="mb-0">Patient Allergies</h5>
-
-            <a asp-controller="PatientAllergies"
-               asp-action="Create"
-               asp-route-patientUid="@patient.PatientUid"
-               class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                Add Allergy
-            </a>
+            <div class="d-flex align-items-center gap-2">
+                <label for="allergyStatusFilter" class="form-label mb-0">Show</label>
+                <select id="allergyStatusFilter" class="form-select form-select-sm" aria-label="Filter allergies by status">
+                    <option value="Active" selected>Active</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="All">All</option>
+                </select>
+                <a asp-controller="PatientAllergies"
+                   asp-action="Create"
+                   asp-route-patientUid="@patient.PatientUid"
+                   class="btn btn-primary text-nowrap">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Add Allergy
+                </a>
+            </div>
         </div>
 
-        @if (Model.Allergies.Count == 0)
+        <div id="allergyEmptyState" class="alert alert-light border d-none">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <span>No active allergies recorded.</span>
+        </div>
+
+        @if (Model.Allergies.Count > 0)
         {
-            <div class="alert alert-light border">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                No allergies have been recorded for this patient.
-            </div>
-        }
-        else
-        {
-            <div class="table-responsive">
+            <div id="allergyTableContainer" class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
@@ -517,7 +522,7 @@
                     <tbody>
                         @foreach (var allergy in Model.Allergies)
                         {
-                            <tr>
+                            <tr data-allergy-status="@allergy.Status">
                                 <td>
                                     <strong>@allergy.AllergenName</strong>
                                 </td>
@@ -606,22 +611,29 @@
                                             @allergy.Status
                                         </span>
                                     }
+                                    @if (!string.Equals(allergy.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                                        && allergy.UpdatedAt.HasValue)
+                                    {
+                                        <div class="small text-muted mt-1">
+                                            Resolved @allergy.UpdatedAt.Value.ToLocalTime().ToString("MMM d, yyyy")
+                                        </div>
+                                    }
                                 </td>
 
                                 <td class="text-end">
-                                    @if (!string.Equals(allergy.Status, "Resolved", StringComparison.OrdinalIgnoreCase))
+                                    @if (string.Equals(allergy.Status, "Active", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-danger resolve-allergy-button"
                                                 data-patient-uid="@allergy.PatientUid" data-allergy-uid="@allergy.AllergyUid">
                                             Resolve Allergy
                                         </button>
+                                        <a asp-controller="PatientAllergies"
+                                           asp-action="Edit"
+                                           asp-route-allergyUid="@allergy.AllergyUid"
+                                           class="btn btn-sm btn-outline-secondary">
+                                            Edit
+                                        </a>
                                     }
-                                    <a asp-controller="PatientAllergies"
-                                       asp-action="Edit"
-                                       asp-route-allergyUid="@allergy.AllergyUid"
-                                       class="btn btn-sm btn-outline-secondary">
-                                        Edit
-                                    </a>
                                     <a asp-controller="PatientAllergies"
                                        asp-action="Details"
                                        asp-route-allergyUid="@allergy.AllergyUid"
@@ -641,28 +653,33 @@
          id="medications"
          role="tabpanel">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 class="mb-0">Patient Medications</h5>
-
-            <a asp-controller="PatientMedications"
-               asp-action="Create"
-               asp-route-patientUid="@patient.PatientUid"
-               class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                Add Medication
-            </a>
+            <div class="d-flex align-items-center gap-2">
+                <label for="medicationStatusFilter" class="form-label mb-0">Show</label>
+                <select id="medicationStatusFilter" class="form-select form-select-sm" aria-label="Filter medications by status">
+                    <option value="Active" selected>Active</option>
+                    <option value="Discontinued">Discontinued</option>
+                    <option value="All">All</option>
+                </select>
+                <a asp-controller="PatientMedications"
+                   asp-action="Create"
+                   asp-route-patientUid="@patient.PatientUid"
+                   class="btn btn-primary text-nowrap">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Add Medication
+                </a>
+            </div>
         </div>
 
-        @if (Model.Medications.Count == 0)
+        <div id="medicationEmptyState" class="alert alert-light border d-none">
+            <i class="bi bi-capsule me-2"></i>
+            <span>No active medications recorded.</span>
+        </div>
+
+        @if (Model.Medications.Count > 0)
         {
-            <div class="alert alert-light border">
-                <i class="bi bi-capsule me-2"></i>
-                No medications have been recorded for this patient.
-            </div>
-        }
-        else
-        {
-            <div class="table-responsive">
+            <div id="medicationTableContainer" class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
@@ -679,7 +696,7 @@
                     <tbody>
                         @foreach (var medication in Model.Medications)
                         {
-                            <tr>
+                            <tr data-medication-status="@medication.Status">
                                 <td>
                                     <strong>@medication.MedicationName</strong>
                                 </td>
@@ -745,21 +762,36 @@
                                             @medication.Status
                                         </span>
                                     }
+                                    @if (!string.Equals(medication.Status, "Active", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        if (medication.EndDate.HasValue)
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                Discontinued @medication.EndDate.Value.ToString("MMM d, yyyy")
+                                            </div>
+                                        }
+                                        else if (medication.UpdatedAt.HasValue)
+                                        {
+                                            <div class="small text-muted mt-1">
+                                                Discontinued @medication.UpdatedAt.Value.ToLocalTime().ToString("MMM d, yyyy")
+                                            </div>
+                                        }
+                                    }
                                 </td>
 
                                 <td class="text-end">
-                                    @if (!string.Equals(medication.Status, "Discontinued", StringComparison.OrdinalIgnoreCase))
+                                    @if (string.Equals(medication.Status, "Active", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-danger discontinue-medication-button"
                                                 data-patient-uid="@medication.PatientUid"
                                                 data-medication-uid="@medication.MedicationUid">
                                             Discontinue
                                         </button>
+                                        <a asp-controller="PatientMedications"
+                                           asp-action="Edit"
+                                           asp-route-medicationUid="@medication.MedicationUid"
+                                           class="btn btn-sm btn-outline-secondary">Edit</a>
                                     }
-                                    <a asp-controller="PatientMedications"
-                                       asp-action="Edit"
-                                       asp-route-medicationUid="@medication.MedicationUid"
-                                       class="btn btn-sm btn-outline-secondary">Edit</a>
                                     <a asp-controller="PatientMedications"
                                        asp-action="Details"
                                        asp-route-medicationUid="@medication.MedicationUid"
@@ -1225,6 +1257,63 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+    const configureStatusFilter = ({ selectId, rowSelector, tableId, emptyId, inactiveValue, emptyMessages }) => {
+        const select = document.getElementById(selectId);
+        const rows = Array.from(document.querySelectorAll(rowSelector));
+        const table = document.getElementById(tableId);
+        const empty = document.getElementById(emptyId);
+        if (!select || !empty) return;
+
+        const applyFilter = () => {
+            const filter = select.value;
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const status = String(row.dataset.allergyStatus || row.dataset.medicationStatus || "");
+                const isVisible = filter === "All"
+                    || (filter === "Active" && status.toLowerCase() === "active")
+                    || (filter === inactiveValue &&
+                        (status.toLowerCase() === inactiveValue.toLowerCase()
+                            || status.toLowerCase() === "inactive"));
+                row.classList.toggle("d-none", !isVisible);
+                if (isVisible) visibleCount++;
+            });
+
+            table?.classList.toggle("d-none", visibleCount === 0);
+            empty.classList.toggle("d-none", visibleCount !== 0);
+            const text = empty.querySelector("span");
+            if (text) text.textContent = emptyMessages[filter];
+        };
+
+        select.addEventListener("change", applyFilter);
+        applyFilter();
+    };
+
+    configureStatusFilter({
+        selectId: "allergyStatusFilter",
+        rowSelector: "tr[data-allergy-status]",
+        tableId: "allergyTableContainer",
+        emptyId: "allergyEmptyState",
+        inactiveValue: "Resolved",
+        emptyMessages: {
+            Active: "No active allergies recorded.",
+            Resolved: "No resolved allergies recorded.",
+            All: "No allergies recorded."
+        }
+    });
+
+    configureStatusFilter({
+        selectId: "medicationStatusFilter",
+        rowSelector: "tr[data-medication-status]",
+        tableId: "medicationTableContainer",
+        emptyId: "medicationEmptyState",
+        inactiveValue: "Discontinued",
+        emptyMessages: {
+            Active: "No active medications recorded.",
+            Discontinued: "No discontinued medications recorded.",
+            All: "No medications recorded."
+        }
+    });
+
     const modal = new bootstrap.Modal(document.getElementById("resolveAllergyModal"));
     const reason = document.getElementById("resolveAllergyReason");
     const message = document.getElementById("resolveAllergyMessage");

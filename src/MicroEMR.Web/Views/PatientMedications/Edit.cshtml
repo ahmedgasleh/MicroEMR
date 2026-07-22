@@ -1,26 +1,59 @@
 @model MicroEMR.Web.Models.PatientMedications.EditPatientMedicationViewModel
-@{ ViewData["Title"]="Edit Medication"; ViewData["Subtitle"]="Patient medication"; Layout="_AppLayout"; }
+@{
+    ViewData["Title"] = "Edit Medication"; ViewData["Subtitle"] = "Patient medication"; Layout = "_AppLayout";
+}
 <div class="content-panel">
- <div class="content-panel-header"><div><h3>Edit Medication</h3><p>Update this patient's medication record</p></div>
-  <a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@Model.PatientUid" asp-route-tab="medications" class="btn btn-outline-secondary">Back to Patient Chart</a></div>
- <form asp-action="Edit" method="post" class="mt-4">
-  @Html.AntiForgeryToken()<input asp-for="PatientUid" type="hidden"/><input asp-for="MedicationUid" type="hidden"/><input asp-for="RowVersion" type="hidden"/>
-  <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-  <div class="row g-3">
-   <div class="col-lg-6"><label asp-for="MedicationName" class="form-label"></label><input asp-for="MedicationName" class="form-control"/><span asp-validation-for="MedicationName" class="text-danger"></span></div>
-   <div class="col-lg-3"><label asp-for="Strength" class="form-label"></label><input asp-for="Strength" class="form-control"/></div>
-   <div class="col-lg-3"><label asp-for="DosageForm" class="form-label"></label><input asp-for="DosageForm" class="form-control"/></div>
-   <div class="col-lg-3"><label asp-for="Route" class="form-label"></label><input asp-for="Route" class="form-control"/></div>
-   <div class="col-lg-3"><label asp-for="Frequency" class="form-label"></label><input asp-for="Frequency" class="form-control"/></div>
-   <div class="col-lg-3"><label asp-for="StartDate" class="form-label"></label><input asp-for="StartDate" type="date" class="form-control"/></div>
-   <div class="col-lg-3"><label asp-for="EndDate" class="form-label"></label><input asp-for="EndDate" type="date" class="form-control"/><span asp-validation-for="EndDate" class="text-danger"></span></div>
-   <div class="col-lg-8"><label asp-for="Directions" class="form-label"></label><input asp-for="Directions" class="form-control"/></div>
-   <div class="col-lg-4"><label asp-for="Status" class="form-label"></label><select asp-for="Status" class="form-select"><option>Active</option><option>Inactive</option><option>Discontinued</option><option>EnteredInError</option></select></div>
-   <div class="col-lg-6"><label asp-for="Indication" class="form-label"></label><input asp-for="Indication" class="form-control"/></div>
-   <div class="col-lg-6"><label asp-for="PrescriberName" class="form-label"></label><input asp-for="PrescriberName" class="form-control"/></div>
-   <div class="col-12"><label asp-for="Notes" class="form-label"></label><textarea asp-for="Notes" rows="4" class="form-control"></textarea></div>
-  </div>
-  <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top"><a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@Model.PatientUid" asp-route-tab="medications" class="btn btn-outline-secondary">Cancel</a><button class="btn btn-primary" type="submit">Save</button></div>
- </form>
-</div>
-@section Scripts { <partial name="_ValidationScriptsPartial"/> }
+    <div class="content-panel-header">
+        <div>
+            <h3>Edit Medication</h3>
+            <p>Update this patient's medication record</p>
+        </div>
+        <a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@Model.PatientUid"
+           asp-route-tab="medications" class="btn btn-outline-secondary">Back to Patient Chart</a>
+    </div>
+    <form asp-action="Edit" method="post" class="mt-4">
+        @Html.AntiForgeryToken()<input asp-for="PatientUid" type="hidden" /><input asp-for="MedicationUid"
+                                                                                   type="hidden" /><input asp-for="RowVersion" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <div class="row g-3">
+            <div class="col-lg-6"><label asp-for="MedicationName" class="form-label"></label><input
+                asp-for="MedicationName" class="form-control" /><span asp-validation-for="MedicationName"
+                                                                      class="text-danger"></span></div>
+                <div class="col-lg-3"><label asp-for="Strength" class="form-label"></label><input asp-for="Strength"
+                                                                                                      class="form-control" /></div>
+                    <div class="col-lg-3"><label asp-for="DosageForm" class="form-label"></label><input asp-for="DosageForm"
+                                                                                                            class="form-control" /></div>
+                        <div class="col-lg-3"><label asp-for="Route" class="form-label"></label><input asp-for="Route"
+                                                                                                           class="form-control" /></div>
+                            <div class="col-lg-3"><label asp-for="Frequency" class="form-label"></label><input asp-for="Frequency"
+                                                                                                                   class="form-control" /></div>
+                                <div class="col-lg-3"><label asp-for="StartDate" class="form-label"></label><input asp-for="StartDate"
+                                                                                                                       type="date" class="form-control" /></div>
+                                    <div class="col-lg-3"><label asp-for="EndDate" class="form-label"></label><input asp-for="EndDate"
+                                                                                                                         type="date" class="form-control" /><span asp-validation-for="EndDate" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-lg-8"><label asp-for="Directions" class="form-label"></label><input asp-for="Directions"
+                                                                                                                            class="form-control" /></div>
+                                        <div class="col-lg-4"><label asp-for="Status" class="form-label"></label><select asp-for="Status"
+                                                                                                                         class="form-select">
+                                            <option>Active</option>
+                                            <option>Inactive</option>
+                                            <option>Discontinued</option>
+                                            <option>EnteredInError</option>
+                                        </select></div>
+                                        <div class="col-lg-6"><label asp-for="Indication" class="form-label"></label><input asp-for="Indication"
+                                                                                                                                class="form-control" /></div>
+                                            <div class="col-lg-6"><label asp-for="PrescriberName" class="form-label"></label><input
+                                                asp-for="PrescriberName" class="form-control" /></div>
+                                                <div class="col-12"><label asp-for="Notes" class="form-label"></label><textarea asp-for="Notes" rows="4"
+                                                                                                                                    class="form-control"></textarea></div>
+                                                </div>
+                                                <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top"><a asp-controller="Patients"
+                                                                                                                          asp-action="Details" asp-route-patientUid="@Model.PatientUid" asp-route-tab="medications"
+                                                                                                                          class="btn btn-outline-secondary">Cancel</a><button class="btn btn-primary" type="submit">Save</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        @section Scripts {
+                                            <partial name="_ValidationScriptsPartial" />
+                                        }
