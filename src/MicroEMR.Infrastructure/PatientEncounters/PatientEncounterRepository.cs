@@ -369,6 +369,44 @@ public sealed class PatientEncounterRepository
         }
     }
 
+    public async Task<PatientEncounterDetailsResponse?> UpdateSoapNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterSoapNoteRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.PatientEncounter_UpdateSoapNote", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+        AddNullableString(command, "@SubjectiveNote", SqlDbType.NVarChar, -1, request.SubjectiveNote);
+        AddNullableString(command, "@ObjectiveNote", SqlDbType.NVarChar, -1, request.ObjectiveNote);
+        AddNullableString(command, "@AssessmentNote", SqlDbType.NVarChar, -1, request.AssessmentNote);
+        AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, request.PlanNote);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = (object?)updatedBy ?? DBNull.Value;
+
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51071)
+        {
+            throw new EncounterNoteNotEditableException(
+                "The encounter note cannot be edited.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to update an encounter SOAP note.");
+            throw;
+        }
+    }
+
     public async Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,
@@ -581,6 +619,11 @@ public sealed class PatientEncounterRepository
 
             Notes =
                 GetOptionalString(reader, "EncounterNotes"),
+
+            SubjectiveNote = GetOptionalString(reader, "SubjectiveNote"),
+            ObjectiveNote = GetOptionalString(reader, "ObjectiveNote"),
+            AssessmentNote = GetOptionalString(reader, "AssessmentNote"),
+            PlanNote = GetOptionalString(reader, "PlanNote"),
 
             SignedAt =
                 GetOptionalDateTime(reader, "SignedAt"),

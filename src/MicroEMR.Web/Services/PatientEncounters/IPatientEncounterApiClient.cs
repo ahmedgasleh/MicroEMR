@@ -40,6 +40,12 @@ public interface IPatientEncounterApiClient
         UpdateEncounterNoteRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PatientEncounterDetailsResponse?> UpdateEncounterSoapNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterSoapNoteRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<PatientEncounterDetailsResponse?> SignEncounterAsync(
         Guid patientUid,
         Guid encounterUid,

@@ -27,6 +27,10 @@ public sealed class PatientEncounterDetailsResponse
     public DateTime? UpdatedAt { get; set; }
 
     public string? Notes { get; set; }
+    public string? SubjectiveNote { get; set; }
+    public string? ObjectiveNote { get; set; }
+    public string? AssessmentNote { get; set; }
+    public string? PlanNote { get; set; }
 
     public DateTime? SignedAt { get; set; }
 

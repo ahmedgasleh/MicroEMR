@@ -44,6 +44,13 @@ public interface IPatientEncounterService
         long? updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<PatientEncounterDetailsResponse?> UpdateSoapNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterSoapNoteRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,

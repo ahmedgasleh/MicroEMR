@@ -192,6 +192,25 @@ public sealed class PatientEncounterApiClient
                 cancellationToken: cancellationToken);
     }
 
+    public async Task<PatientEncounterDetailsResponse?> UpdateEncounterSoapNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterSoapNoteRequest soapNoteRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/soap-note")
+        {
+            Content = JsonContent.Create(soapNoteRequest)
+        };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientEncounterDetailsResponse>(
+            cancellationToken: cancellationToken);
+    }
+
     public async Task<PatientEncounterDetailsResponse?> SignEncounterAsync(
         Guid patientUid,
         Guid encounterUid,

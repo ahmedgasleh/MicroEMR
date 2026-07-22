@@ -307,6 +307,49 @@ public sealed class PatientEncountersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateEncounterSoapNote(
+        UpdateEncounterSoapNoteViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.EncounterUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Encounter note could not be saved." });
+
+        try
+        {
+            var encounter = await _encounterApiClient.UpdateEncounterSoapNoteAsync(
+                model.PatientUid,
+                model.EncounterUid,
+                new UpdateEncounterSoapNoteRequest
+                {
+                    SubjectiveNote = model.SubjectiveNote,
+                    ObjectiveNote = model.ObjectiveNote,
+                    AssessmentNote = model.AssessmentNote,
+                    PlanNote = model.PlanNote
+                },
+                cancellationToken);
+            return encounter is null
+                ? NotFound(new { success = false, message = "Encounter was not found." })
+                : Json(new { success = true, message = "Encounter note saved.", encounter });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new { success = false, message = "Signed encounter notes cannot be edited." });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Encounter SOAP note could not be saved for encounter {EncounterUid}.", model.EncounterUid);
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Encounter note could not be saved." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SignEncounter(
         Guid patientUid,
         Guid encounterUid,

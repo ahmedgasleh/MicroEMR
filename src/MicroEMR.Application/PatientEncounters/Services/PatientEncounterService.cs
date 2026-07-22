@@ -106,6 +106,18 @@ public sealed class PatientEncounterService : IPatientEncounterService
             cancellationToken);
     }
 
+    public Task<PatientEncounterDetailsResponse?> UpdateSoapNoteAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        UpdateEncounterSoapNoteRequest request,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifiers(patientUid, encounterUid);
+        return _repository.UpdateSoapNoteAsync(
+            patientUid, encounterUid, request, updatedBy, cancellationToken);
+    }
+
     public Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,

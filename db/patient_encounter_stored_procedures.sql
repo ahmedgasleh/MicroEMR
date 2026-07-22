@@ -196,6 +196,19 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.PatientEncounter', 'SubjectiveNote') IS NULL
+    ALTER TABLE dbo.PatientEncounter ADD SubjectiveNote NVARCHAR(MAX) NULL;
+GO
+IF COL_LENGTH('dbo.PatientEncounter', 'ObjectiveNote') IS NULL
+    ALTER TABLE dbo.PatientEncounter ADD ObjectiveNote NVARCHAR(MAX) NULL;
+GO
+IF COL_LENGTH('dbo.PatientEncounter', 'AssessmentNote') IS NULL
+    ALTER TABLE dbo.PatientEncounter ADD AssessmentNote NVARCHAR(MAX) NULL;
+GO
+IF COL_LENGTH('dbo.PatientEncounter', 'PlanNote') IS NULL
+    ALTER TABLE dbo.PatientEncounter ADD PlanNote NVARCHAR(MAX) NULL;
+GO
+
 IF COL_LENGTH('dbo.PatientEncounter', 'SignedAt') IS NULL
 BEGIN
     ALTER TABLE dbo.PatientEncounter
@@ -540,6 +553,10 @@ BEGIN
         pe.CreatedAt AS CreatedAt,
         pe.UpdatedAt AS UpdatedAt,
         pe.EncounterNotes AS EncounterNotes,
+        pe.SubjectiveNote AS SubjectiveNote,
+        pe.ObjectiveNote AS ObjectiveNote,
+        pe.AssessmentNote AS AssessmentNote,
+        pe.PlanNote AS PlanNote,
         pe.SignedAt AS SignedAt,
         pe.SignedBy AS SignedBy,
         signedUser.DisplayName AS SignedByDisplayName,
@@ -697,6 +714,70 @@ BEGIN
 
     EXEC dbo.PatientEncounter_GetByUid
         @EncounterUid = @EncounterUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.PatientEncounter_UpdateSoapNote
+    @PatientUid UNIQUEIDENTIFIER,
+    @EncounterUid UNIQUEIDENTIFIER,
+    @SubjectiveNote NVARCHAR(MAX) = NULL,
+    @ObjectiveNote NVARCHAR(MAX) = NULL,
+    @AssessmentNote NVARCHAR(MAX) = NULL,
+    @PlanNote NVARCHAR(MAX) = NULL,
+    @UpdatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @PatientId BIGINT;
+    DECLARE @EncounterStatus NVARCHAR(30);
+    DECLARE @EncounterFound BIT = 0;
+
+    BEGIN TRANSACTION;
+
+    SELECT @PatientId = pe.PatientId,
+           @EncounterStatus = pe.EncounterStatus,
+           @EncounterFound = 1
+    FROM dbo.PatientEncounter AS pe WITH (UPDLOCK, HOLDLOCK)
+    WHERE pe.PatientUid = @PatientUid AND pe.EncounterUid = @EncounterUid;
+
+    IF @EncounterFound = 0
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+
+    IF ISNULL(@EncounterStatus, N'') <> N'Open'
+    BEGIN
+        ROLLBACK TRANSACTION;
+        THROW 51071, 'The encounter note cannot be edited in its current status.', 1;
+    END;
+
+    UPDATE dbo.PatientEncounter
+    SET SubjectiveNote = NULLIF(@SubjectiveNote, N''),
+        ObjectiveNote = NULLIF(@ObjectiveNote, N''),
+        AssessmentNote = NULLIF(@AssessmentNote, N''),
+        PlanNote = NULLIF(@PlanNote, N''),
+        UpdatedBy = @UpdatedBy,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE PatientUid = @PatientUid AND EncounterUid = @EncounterUid;
+
+    IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
+        INSERT INTO dbo.AuditLog
+            (UserId, PatientId, ActionName, EntityName, EntityId, OldValue, NewValue, CreatedAt)
+        VALUES
+            (@UpdatedBy, @PatientId, N'UpdateNote', N'PatientEncounter',
+             CONVERT(NVARCHAR(100), @EncounterUid), NULL,
+             N'Encounter SOAP note updated', SYSUTCDATETIME());
+
+    EXEC dbo.PatientEncounterHistory_Create
+        @EncounterUid, @PatientUid, N'NoteUpdated',
+        N'Encounter SOAP note updated.', NULL, @EncounterStatus, NULL, @UpdatedBy, 0;
+
+    COMMIT TRANSACTION;
+
+    EXEC dbo.PatientEncounter_GetByUid @EncounterUid = @EncounterUid;
 END;
 GO
 

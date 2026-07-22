@@ -276,6 +276,42 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/soap-note")]
+    [ProducesResponseType<PatientEncounterDetailsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientEncounterDetailsResponse>> UpdateEncounterSoapNote(
+        Guid patientUid,
+        Guid encounterUid,
+        [FromBody] UpdateEncounterSoapNoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+            return BadRequest();
+
+        try
+        {
+            var encounter = await _encounterService.UpdateSoapNoteAsync(
+                patientUid, encounterUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return encounter is null
+                ? NotFound(new { message = "Encounter was not found." })
+                : Ok(encounter);
+        }
+        catch (EncounterNoteNotEditableException)
+        {
+            return Conflict(new { message = "Signed encounter notes cannot be edited." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Failed to update SOAP note for encounter {EncounterUid}.", encounterUid);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "Encounter note could not be saved." });
+        }
+    }
+
     [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(

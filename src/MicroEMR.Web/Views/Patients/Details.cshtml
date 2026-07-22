@@ -848,11 +848,30 @@
                             <p class="mb-0 text-break" id="encounterDetailsReason"></p>
                         </div>
                         <div class="col-12">
-                            <label for="encounterNoteText" class="form-label fw-semibold">Encounter Note</label>
-                            <textarea id="encounterNoteText"
-                                      name="Notes"
-                                      class="form-control"
-                                      rows="8"></textarea>
+                            <h3 class="fs-6">SOAP Encounter Note</h3>
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-6">
+                                    <label for="encounterSubjectiveNote" class="form-label">Subjective</label>
+                                    <textarea id="encounterSubjectiveNote" class="form-control" rows="4"></textarea>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <label for="encounterObjectiveNote" class="form-label">Objective</label>
+                                    <textarea id="encounterObjectiveNote" class="form-control" rows="4"></textarea>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <label for="encounterAssessmentNote" class="form-label">Assessment</label>
+                                    <textarea id="encounterAssessmentNote" class="form-control" rows="4"></textarea>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <label for="encounterPlanNote" class="form-label">Plan</label>
+                                    <textarea id="encounterPlanNote" class="form-control" rows="4"></textarea>
+                                </div>
+                            </div>
+                            <div id="encounterLegacyNoteSection" class="mt-3 d-none">
+                                <label for="encounterLegacyNote" class="form-label fw-semibold">Legacy Note</label>
+                                <textarea id="encounterLegacyNote" class="form-control" rows="5" readonly></textarea>
+                                <div class="form-text">This note is preserved from the previous note format.</div>
+                            </div>
                             <div id="encounterNoteMessage"
                                  class="alert d-none mt-3 mb-0"
                                  role="status"></div>
@@ -961,7 +980,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const loading = document.getElementById("encounterDetailsLoading");
     const content = document.getElementById("encounterDetailsContent");
     const message = document.getElementById("encounterDetailsMessage");
-    const noteText = document.getElementById("encounterNoteText");
+    const soapFields = {
+        SubjectiveNote: document.getElementById("encounterSubjectiveNote"),
+        ObjectiveNote: document.getElementById("encounterObjectiveNote"),
+        AssessmentNote: document.getElementById("encounterAssessmentNote"),
+        PlanNote: document.getElementById("encounterPlanNote")
+    };
+    const legacyNoteSection = document.getElementById("encounterLegacyNoteSection");
+    const legacyNote = document.getElementById("encounterLegacyNote");
     const noteMessage = document.getElementById("encounterNoteMessage");
     const saveNoteButton = document.getElementById("saveEncounterNoteButton");
     const signEncounterButton = document.getElementById("signEncounterButton");
@@ -980,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addendumsContent = document.getElementById("encounterAddendumsContent");
     const detailsUrl = '@Url.Action("EncounterDetails", "PatientEncounters")';
     const encounterHistoryUrl = '@Url.Action("EncounterHistory", "PatientEncounters")';
-    const updateNoteUrl = '@Url.Action("UpdateEncounterNote", "PatientEncounters")';
+    const updateSoapNoteUrl = '@Url.Action("UpdateEncounterSoapNote", "PatientEncounters")';
     const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
     const encounterAddendumsUrl = '@Url.Action("EncounterAddendums", "PatientEncounters")';
     const createEncounterAddendumUrl = '@Url.Action("CreateEncounterAddendum", "PatientEncounters")';
@@ -1022,12 +1048,19 @@ document.addEventListener("DOMContentLoaded", () => {
             "encounterDetailsSignedByLabel",
             "encounterDetailsSignedBy",
             encounter.signedByDisplayName);
-        noteText.value = encounter.notes || "";
+        soapFields.SubjectiveNote.value = encounter.subjectiveNote || "";
+        soapFields.ObjectiveNote.value = encounter.objectiveNote || "";
+        soapFields.AssessmentNote.value = encounter.assessmentNote || "";
+        soapFields.PlanNote.value = encounter.planNote || "";
+        legacyNote.value = encounter.notes || "";
+        legacyNoteSection.classList.toggle("d-none", !encounter.notes);
         currentPatientUid = encounter.patientUid;
         currentEncounterUid = encounter.encounterUid;
         currentEncounterIsEditable =
             String(encounter.status).toLowerCase() === "open";
-        noteText.readOnly = !currentEncounterIsEditable;
+        Object.values(soapFields).forEach(field => {
+            field.readOnly = !currentEncounterIsEditable;
+        });
         saveNoteButton.classList.toggle("d-none", !currentEncounterIsEditable);
         saveNoteButton.disabled = !currentEncounterIsEditable;
         signEncounterButton.classList.toggle("d-none", !currentEncounterIsEditable);
@@ -1152,7 +1185,9 @@ document.addEventListener("DOMContentLoaded", () => {
         message.textContent = "";
         noteMessage.className = "alert d-none mt-3 mb-0";
         noteMessage.textContent = "";
-        noteText.value = "";
+        Object.values(soapFields).forEach(field => { field.value = ""; });
+        legacyNote.value = "";
+        legacyNoteSection.classList.add("d-none");
         saveNoteButton.disabled = true;
         signEncounterButton.disabled = true;
         currentPatientUid = null;
@@ -1240,11 +1275,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const formData = new FormData();
             formData.append("PatientUid", currentPatientUid);
             formData.append("EncounterUid", currentEncounterUid);
-            formData.append("Notes", noteText.value);
+            formData.append("SubjectiveNote", soapFields.SubjectiveNote.value);
+            formData.append("ObjectiveNote", soapFields.ObjectiveNote.value);
+            formData.append("AssessmentNote", soapFields.AssessmentNote.value);
+            formData.append("PlanNote", soapFields.PlanNote.value);
 
             const token = document.querySelector(
                 '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-            const response = await fetch(updateNoteUrl, {
+            const response = await fetch(updateSoapNoteUrl, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json",
@@ -1258,8 +1296,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(result.message || "Encounter note could not be saved.");
             }
 
-            noteText.value = result.notes || "";
-            setText("encounterDetailsUpdatedAt", formatDate(result.updatedAt));
+            applyEncounterDetails(result.encounter);
             resetEncounterHistory();
             noteMessage.className = "alert alert-success mt-3 mb-0";
             noteMessage.textContent = result.message || "Encounter note saved.";
