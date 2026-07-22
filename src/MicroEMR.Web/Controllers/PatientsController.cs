@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientAllergies;
 using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Models.PatientMedications;
+using MicroEMR.Web.Models.PatientProblems;
 using MicroEMR.Web.Models.Patients;
 using MicroEMR.Web.Services.PatientAllergies;
 using MicroEMR.Web.Services.Patients;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Services.PatientMedications;
+using MicroEMR.Web.Services.PatientProblems;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -21,6 +23,7 @@ public sealed class PatientsController : Controller
     private readonly IPatientDocumentApiClient _patientDocumentApiClient;
     private readonly IPatientEncounterApiClient _patientEncounterApiClient;
     private readonly IPatientMedicationApiClient _patientMedicationApiClient;
+    private readonly IPatientProblemApiClient _patientProblemApiClient;
     private readonly ILogger<PatientsController> _logger;
 
     public PatientsController(
@@ -29,6 +32,7 @@ public sealed class PatientsController : Controller
         IPatientDocumentApiClient patientDocumentApiClient,
         IPatientEncounterApiClient patientEncounterApiClient,
         IPatientMedicationApiClient patientMedicationApiClient,
+        IPatientProblemApiClient patientProblemApiClient,
         ILogger<PatientsController> logger)
     {
         _patientApiClient = patientApiClient;
@@ -37,6 +41,7 @@ public sealed class PatientsController : Controller
         _patientDocumentApiClient = patientDocumentApiClient;
         _patientEncounterApiClient = patientEncounterApiClient;
         _patientMedicationApiClient = patientMedicationApiClient;
+        _patientProblemApiClient = patientProblemApiClient;
     }
 
     [HttpGet]
@@ -284,6 +289,8 @@ public sealed class PatientsController : Controller
                 patientUid,
                 cancellationToken);
 
+        var problems = await LoadProblemsForChartAsync(patientUid, cancellationToken);
+
         var model = new PatientChartViewModel
         {
             Patient = patient,
@@ -291,6 +298,7 @@ public sealed class PatientsController : Controller
             Encounters = encounters,
             Allergies = allergies,
             Medications = medications,
+            Problems = problems,
             ActiveTab = NormalizePatientChartTab(tab)
         };
 
@@ -332,6 +340,21 @@ public sealed class PatientsController : Controller
                 "Medications could not be loaded. Sign in again or restart the API service.";
 
             return Array.Empty<PatientMedicationListItemResponse>();
+        }
+    }
+
+    private async Task<IReadOnlyList<PatientProblemViewModel>> LoadProblemsForChartAsync(
+        Guid patientUid, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _patientProblemApiClient.GetByPatientUidAsync(patientUid, "All", cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(exception, "Unable to load problems for patient {PatientUid}.", patientUid);
+            TempData["WarningMessage"] = "Problems could not be loaded. Sign in again or restart the API service.";
+            return Array.Empty<PatientProblemViewModel>();
         }
     }
 
@@ -420,6 +443,7 @@ public sealed class PatientsController : Controller
             "documents" => "documents",
             "encounters" => "encounters",
             "medications" => "medications",
+            "problems" => "problems",
             _ => "demographics"
         };
     }

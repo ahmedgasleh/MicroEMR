@@ -19,6 +19,9 @@
     var allergiesActive =
         Model.ActiveTab == "allergies";
 
+    var problemsActive =
+        Model.ActiveTab == "problems";
+
     var medicationsActive =
         Model.ActiveTab == "medications";
 }
@@ -72,6 +75,15 @@
                 data-bs-target="#encounters"
                 type="button">
             Encounters
+        </button>
+    </li>
+
+    <li class="nav-item">
+        <button class="nav-link @(problemsActive ? "active" : null)"
+                data-bs-toggle="tab"
+                data-bs-target="#problems"
+                type="button">
+            Problems
         </button>
     </li>
 
@@ -475,6 +487,63 @@
         }
     </div>
 
+    <div class="tab-pane fade @(problemsActive ? "show active" : null)" id="problems" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <h5 class="mb-0">Problems</h5>
+            <div class="d-flex align-items-center gap-2">
+                <label for="problemStatusFilter" class="form-label mb-0">Show</label>
+                <select id="problemStatusFilter" class="form-select form-select-sm" aria-label="Filter problems by status">
+                    <option value="Active" selected>Active</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="All">All</option>
+                </select>
+                <button type="button" id="addProblemButton" class="btn btn-primary text-nowrap">
+                    <i class="bi bi-plus-circle me-1"></i>Add Problem
+                </button>
+            </div>
+        </div>
+        <div id="problemPageMessage" class="alert d-none" role="alert"></div>
+        <div id="problemEmptyState" class="alert alert-light border d-none">
+            <i class="bi bi-clipboard2-pulse me-2"></i><span>No active problems recorded.</span>
+        </div>
+        <div id="problemTableContainer" class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>Problem</th><th>Description</th><th>Onset Date</th><th>Status</th><th>Resolved info</th><th class="text-end">Actions</th></tr></thead>
+                <tbody id="problemTableBody">
+                @foreach (var problem in Model.Problems)
+                {
+                    <tr data-problem-status="@problem.ProblemStatus"
+                        data-problem-uid="@problem.PatientProblemUid"
+                        data-problem-name="@problem.ProblemName"
+                        data-problem-description="@problem.ProblemDescription"
+                        data-problem-onset="@(problem.OnsetDate?.ToString("yyyy-MM-dd") ?? "")">
+                        <td><strong>@problem.ProblemName</strong></td>
+                        <td>@(problem.ProblemDescription ?? "—")</td>
+                        <td>@(problem.OnsetDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                        <td><span class="badge @(problem.ProblemStatus == "Active" ? "text-bg-success" : "text-bg-secondary")">@problem.ProblemStatus</span></td>
+                        <td>
+                            @if (problem.ResolvedAt.HasValue)
+                            {
+                                <div>@problem.ResolvedAt.Value.ToLocalTime().ToString("MMM d, yyyy")</div>
+                                <div class="small text-muted">@(problem.ResolvedByDisplayName ?? "Unknown user")</div>
+                                @if (!string.IsNullOrWhiteSpace(problem.ResolutionReason)) { <div class="small">@problem.ResolutionReason</div> }
+                            }
+                            else { <span>—</span> }
+                        </td>
+                        <td class="text-end">
+                            @if (string.Equals(problem.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary edit-problem-button">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger resolve-problem-button">Resolve</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="tab-pane fade @(allergiesActive ? "show active" : null)"
          id="allergies"
          role="tabpanel">
@@ -807,6 +876,29 @@
         }
     </div>
 </div>
+
+<div class="modal fade" id="problemEditorModal" tabindex="-1" aria-labelledby="problemEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="problemEditorModalLabel">Add Problem</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <div id="problemEditorMessage" class="alert alert-danger d-none"></div>
+            <input type="hidden" id="problemEditorUid" />
+            <div class="mb-3"><label for="problemName" class="form-label">Problem Name <span class="text-danger">*</span></label><input id="problemName" class="form-control" maxlength="200" required /><div id="problemNameValidation" class="invalid-feedback">Problem name is required.</div></div>
+            <div class="mb-3"><label for="problemDescription" class="form-label">Description</label><textarea id="problemDescription" class="form-control" maxlength="1000" rows="3"></textarea></div>
+            <div><label for="problemOnsetDate" class="form-label">Onset Date</label><input id="problemOnsetDate" type="date" class="form-control" /></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="saveProblemButton">Save Problem</button></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="resolveProblemModal" tabindex="-1" aria-labelledby="resolveProblemModalLabel" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="resolveProblemModalLabel">Resolve Problem</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body"><div id="resolveProblemMessage" class="alert alert-danger d-none"></div><p>Resolve <strong id="resolveProblemName"></strong>?</p><label for="problemResolutionReason" class="form-label">Resolution Reason (optional)</label><textarea id="problemResolutionReason" class="form-control" maxlength="500" rows="3"></textarea></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="confirmResolveProblemButton">Resolve Problem</button></div>
+    </div></div>
+</div>
+<form id="problemAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 <div class="modal fade" id="encounterDetailsModal" tabindex="-1" aria-labelledby="encounterDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1445,7 +1537,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const filter = select.value;
             let visibleCount = 0;
             rows.forEach(row => {
-                const status = String(row.dataset.allergyStatus || row.dataset.medicationStatus || "");
+                const status = String(row.dataset.allergyStatus || row.dataset.medicationStatus || row.dataset.problemStatus || "");
                 const isVisible = filter === "All"
                     || (filter === "Active" && status.toLowerCase() === "active")
                     || (filter === inactiveValue &&
@@ -1477,6 +1569,27 @@ document.addEventListener("DOMContentLoaded", () => {
             All: "No allergies recorded."
         }
     });
+
+    configureStatusFilter({
+        selectId: "problemStatusFilter",
+        rowSelector: "tr[data-problem-status]",
+        tableId: "problemTableContainer",
+        emptyId: "problemEmptyState",
+        inactiveValue: "Resolved",
+        emptyMessages: {
+            Active: "No active problems recorded.",
+            Resolved: "No resolved problems recorded.",
+            All: "No problems recorded."
+        }
+    });
+
+    const savedProblemFilter = sessionStorage.getItem("microemr.problemFilter");
+    const problemFilter = document.getElementById("problemStatusFilter");
+    if (problemFilter && ["Active", "Resolved", "All"].includes(savedProblemFilter)) {
+        problemFilter.value = savedProblemFilter;
+        problemFilter.dispatchEvent(new Event("change"));
+        sessionStorage.removeItem("microemr.problemFilter");
+    }
 
     configureStatusFilter({
         selectId: "medicationStatusFilter",
@@ -1512,6 +1625,78 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "allergies" })';
         } catch { message.textContent = "Allergy could not be resolved."; message.classList.remove("d-none"); }
         finally { confirmButton.disabled = false; }
+    });
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    const patientUid = '@patient.PatientUid';
+    const editorElement = document.getElementById("problemEditorModal");
+    const resolveElement = document.getElementById("resolveProblemModal");
+    if (!editorElement || !resolveElement) return;
+    const editorModal = new bootstrap.Modal(editorElement);
+    const resolveModal = new bootstrap.Modal(resolveElement);
+    const editorTitle = document.getElementById("problemEditorModalLabel");
+    const uidInput = document.getElementById("problemEditorUid");
+    const nameInput = document.getElementById("problemName");
+    const descriptionInput = document.getElementById("problemDescription");
+    const onsetInput = document.getElementById("problemOnsetDate");
+    const editorMessage = document.getElementById("problemEditorMessage");
+    const saveButton = document.getElementById("saveProblemButton");
+    const resolveName = document.getElementById("resolveProblemName");
+    const resolveReason = document.getElementById("problemResolutionReason");
+    const resolveMessage = document.getElementById("resolveProblemMessage");
+    const resolveButton = document.getElementById("confirmResolveProblemButton");
+    const token = document.querySelector('#problemAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+    let resolvingUid = null;
+
+    const showError = (element, message) => { element.textContent = message; element.classList.remove("d-none"); };
+    const rememberFilterAndReload = () => {
+        sessionStorage.setItem("microemr.problemFilter", document.getElementById("problemStatusFilter").value);
+        window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })';
+    };
+    document.getElementById("addProblemButton").addEventListener("click", () => {
+        uidInput.value = ""; nameInput.value = ""; descriptionInput.value = ""; onsetInput.value = "";
+        nameInput.classList.remove("is-invalid"); editorMessage.classList.add("d-none"); editorTitle.textContent = "Add Problem"; editorModal.show();
+    });
+    document.querySelectorAll(".edit-problem-button").forEach(button => button.addEventListener("click", () => {
+        const row = button.closest("tr");
+        uidInput.value = row.dataset.problemUid; nameInput.value = row.dataset.problemName;
+        descriptionInput.value = row.dataset.problemDescription || ""; onsetInput.value = row.dataset.problemOnset || "";
+        nameInput.classList.remove("is-invalid"); editorMessage.classList.add("d-none"); editorTitle.textContent = "Edit Problem"; editorModal.show();
+    }));
+    document.querySelectorAll(".resolve-problem-button").forEach(button => button.addEventListener("click", () => {
+        const row = button.closest("tr"); resolvingUid = row.dataset.problemUid; resolveName.textContent = row.dataset.problemName;
+        resolveReason.value = ""; resolveMessage.classList.add("d-none"); resolveModal.show();
+    }));
+    saveButton.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        nameInput.classList.toggle("is-invalid", !name);
+        if (!name) return;
+        saveButton.disabled = true; editorMessage.classList.add("d-none");
+        try {
+            const data = new FormData(); data.append("PatientUid", patientUid); data.append("ProblemName", name);
+            data.append("ProblemDescription", descriptionInput.value); data.append("OnsetDate", onsetInput.value);
+            const isEdit = Boolean(uidInput.value);
+            if (isEdit) data.append("PatientProblemUid", uidInput.value);
+            const response = await fetch(isEdit ? '@Url.Action("UpdateProblem", "PatientProblems")' : '@Url.Action("CreateProblem", "PatientProblems")',
+                { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) { showError(editorMessage, result.message || "Problem could not be saved."); return; }
+            rememberFilterAndReload();
+        } catch { showError(editorMessage, "Problem could not be saved."); }
+        finally { saveButton.disabled = false; }
+    });
+    resolveButton.addEventListener("click", async () => {
+        if (!resolvingUid) return;
+        resolveButton.disabled = true; resolveMessage.classList.add("d-none");
+        try {
+            const data = new FormData(); data.append("PatientUid", patientUid); data.append("PatientProblemUid", resolvingUid); data.append("ResolutionReason", resolveReason.value);
+            const response = await fetch('@Url.Action("ResolveProblem", "PatientProblems")', { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) { showError(resolveMessage, result.message || "Problem could not be resolved."); return; }
+            rememberFilterAndReload();
+        } catch { showError(resolveMessage, "Problem could not be resolved."); }
+        finally { resolveButton.disabled = false; }
     });
 });
 

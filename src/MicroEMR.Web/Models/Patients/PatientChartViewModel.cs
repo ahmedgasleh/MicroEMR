@@ -2,6 +2,7 @@ using MicroEMR.Web.Models.PatientDocuments;
 using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Models.PatientAllergies;
 using MicroEMR.Web.Models.PatientMedications;
+using MicroEMR.Web.Models.PatientProblems;
 
 namespace MicroEMR.Web.Models.Patients;
 
@@ -24,6 +25,9 @@ public sealed class PatientChartViewModel
     public IReadOnlyList<PatientMedicationListItemResponse> Medications
         { get; set; } =
         Array.Empty<PatientMedicationListItemResponse>();
+
+    public IReadOnlyList<PatientProblemViewModel> Problems { get; set; } =
+        Array.Empty<PatientProblemViewModel>();
 
     public string ActiveTab { get; set; } = "demographics";
 }
