@@ -96,6 +96,68 @@ public sealed class PatientEncountersController : ControllerBase
         return Ok(history);
     }
 
+    [Authorize]
+    [HttpGet("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
+    public async Task<ActionResult<IReadOnlyList<PatientEncounterAddendumResponse>>> GetEncounterAddendums(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+            return BadRequest();
+
+        var encounter = await _encounterService.GetByUidAsync(encounterUid, cancellationToken);
+        if (encounter is null || encounter.PatientUid != patientUid)
+            return NotFound(new { message = "Encounter was not found." });
+
+        try
+        {
+            return Ok(await _encounterService.GetAddendumsAsync(
+                patientUid, encounterUid, cancellationToken));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Failed to load addendums for encounter {EncounterUid}.", encounterUid);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "Encounter addendums could not be loaded." });
+        }
+    }
+
+    [Authorize]
+    [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
+    public async Task<ActionResult<PatientEncounterAddendumResponse>> CreateEncounterAddendum(
+        Guid patientUid,
+        Guid encounterUid,
+        [FromBody] CreateEncounterAddendumRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+            return BadRequest();
+        if (string.IsNullOrWhiteSpace(request.AddendumText))
+            return BadRequest(new { message = "Addendum text is required." });
+
+        try
+        {
+            var addendum = await _encounterService.CreateAddendumAsync(
+                patientUid, encounterUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return addendum is null
+                ? NotFound(new { message = "Encounter was not found." })
+                : Ok(addendum);
+        }
+        catch (EncounterAddendumNotAllowedException)
+        {
+            return Conflict(new { message = "Addendum can only be added to a signed encounter." });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Failed to add an addendum to encounter {EncounterUid}.", encounterUid);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = "Addendum could not be saved." });
+        }
+    }
+
     [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(

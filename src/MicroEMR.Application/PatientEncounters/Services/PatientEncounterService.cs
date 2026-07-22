@@ -45,6 +45,31 @@ public sealed class PatientEncounterService : IPatientEncounterService
         return _repository.GetHistoryAsync(patientUid, encounterUid, cancellationToken);
     }
 
+    public Task<IReadOnlyList<PatientEncounterAddendumResponse>> GetAddendumsAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifiers(patientUid, encounterUid);
+        return _repository.GetAddendumsAsync(patientUid, encounterUid, cancellationToken);
+    }
+
+    public Task<PatientEncounterAddendumResponse?> CreateAddendumAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CreateEncounterAddendumRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifiers(patientUid, encounterUid);
+        if (string.IsNullOrWhiteSpace(request.AddendumText))
+            throw new ArgumentException("Addendum text is required.", nameof(request));
+
+        request.AddendumText = request.AddendumText.Trim();
+        return _repository.CreateAddendumAsync(
+            patientUid, encounterUid, request, createdBy, cancellationToken);
+    }
+
     public Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,
@@ -110,5 +135,13 @@ public sealed class PatientEncounterService : IPatientEncounterService
 
         return _repository.StartFromAppointmentAsync(
             appointmentUid, createdBy, cancellationToken);
+    }
+
+    private static void ValidateIdentifiers(Guid patientUid, Guid encounterUid)
+    {
+        if (patientUid == Guid.Empty)
+            throw new ArgumentException("Patient identifier is required.", nameof(patientUid));
+        if (encounterUid == Guid.Empty)
+            throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
     }
 }

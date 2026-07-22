@@ -140,6 +140,65 @@ public sealed class PatientEncounterRepository
         return history;
     }
 
+    public async Task<IReadOnlyList<PatientEncounterAddendumResponse>> GetAddendumsAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        var addendums = new List<PatientEncounterAddendumResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounterAddendum_GetByEncounterUid", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            addendums.Add(MapAddendum(reader));
+
+        return addendums;
+    }
+
+    public async Task<PatientEncounterAddendumResponse?> CreateAddendumAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CreateEncounterAddendumRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PatientEncounterAddendum_Create", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+        command.Parameters.Add("@AddendumText", SqlDbType.NVarChar, -1).Value = request.AddendumText;
+        command.Parameters.Add("@CreatedBy", SqlDbType.BigInt).Value = (object?)createdBy ?? DBNull.Value;
+
+        await connection.OpenAsync(cancellationToken);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapAddendum(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51075)
+        {
+            throw new EncounterAddendumNotAllowedException(
+                "Addendums can only be added to signed encounters.", exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to create an encounter addendum.");
+            throw;
+        }
+    }
+
     public async Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,
@@ -466,6 +525,18 @@ public sealed class PatientEncounterRepository
                 GetNullableDateTime(reader, "UpdatedAt")
         };
     }
+
+    private static PatientEncounterAddendumResponse MapAddendum(SqlDataReader reader) => new()
+    {
+        EncounterAddendumUid = reader.GetGuid(reader.GetOrdinal("EncounterAddendumUid")),
+        EncounterUid = reader.GetGuid(reader.GetOrdinal("EncounterUid")),
+        PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+        AddendumText = reader.GetString(reader.GetOrdinal("AddendumText")),
+        CreatedAt = DateTime.SpecifyKind(
+            reader.GetDateTime(reader.GetOrdinal("CreatedAt")), DateTimeKind.Utc),
+        CreatedBy = GetNullableInt64(reader, "CreatedBy"),
+        CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+    };
 
     private static PatientEncounterDetailsResponse MapDetails(
         SqlDataReader reader)

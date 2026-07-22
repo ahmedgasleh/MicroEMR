@@ -161,6 +161,77 @@ public sealed class PatientEncountersController : Controller
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> EncounterAddendums(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Encounter addendums could not be loaded." });
+
+        try
+        {
+            var addendums = await _encounterApiClient.GetEncounterAddendumsAsync(
+                patientUid, encounterUid, cancellationToken);
+            return Json(new { success = true, addendums });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Encounter addendums could not be loaded for encounter {EncounterUid}.", encounterUid);
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Encounter addendums could not be loaded." });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateEncounterAddendum(
+        CreateEncounterAddendumViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.EncounterUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Addendum could not be saved." });
+        if (string.IsNullOrWhiteSpace(model.AddendumText))
+            return BadRequest(new { success = false, message = "Addendum text is required." });
+
+        try
+        {
+            var addendum = await _encounterApiClient.CreateEncounterAddendumAsync(
+                model.PatientUid,
+                model.EncounterUid,
+                new CreateEncounterAddendumRequest { AddendumText = model.AddendumText.Trim() },
+                cancellationToken);
+            return addendum is null
+                ? NotFound(new { success = false, message = "Encounter was not found." })
+                : Json(new { success = true, message = "Addendum saved.", addendum });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = "Addendum can only be added to a signed encounter."
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Encounter addendum could not be saved for encounter {EncounterUid}.", model.EncounterUid);
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Addendum could not be saved." });
+        }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateEncounterNote(

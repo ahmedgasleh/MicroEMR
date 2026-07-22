@@ -99,6 +99,41 @@ public sealed class PatientEncounterApiClient
                 cancellationToken: cancellationToken) ?? [];
     }
 
+    public async Task<IReadOnlyList<PatientEncounterAddendumResponse>> GetEncounterAddendumsAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/addendums");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return [];
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<PatientEncounterAddendumResponse>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
+    public async Task<PatientEncounterAddendumResponse?> CreateEncounterAddendumAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CreateEncounterAddendumRequest addendumRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/addendums")
+        {
+            Content = JsonContent.Create(addendumRequest)
+        };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientEncounterAddendumResponse>(
+            cancellationToken: cancellationToken);
+    }
+
     public async Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest encounterRequest,

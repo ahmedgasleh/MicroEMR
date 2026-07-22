@@ -18,6 +18,18 @@ public interface IPatientEncounterService
         Guid encounterUid,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PatientEncounterAddendumResponse>> GetAddendumsAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken = default);
+
+    Task<PatientEncounterAddendumResponse?> CreateAddendumAsync(
+        Guid patientUid,
+        Guid encounterUid,
+        CreateEncounterAddendumRequest request,
+        long? createdBy,
+        CancellationToken cancellationToken = default);
+
     Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,

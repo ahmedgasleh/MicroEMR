@@ -870,6 +870,26 @@
                             </div>
                         </div>
                         <div class="col-12">
+                            <h3 class="fs-6">Addendums</h3>
+                            <p id="encounterAddendumHelper" class="small text-muted mb-3">
+                                Addendums are available after the encounter is signed.
+                            </p>
+                            <div id="encounterAddendumForm" class="d-none border rounded p-3 mb-3">
+                                <label for="encounterAddendumText" class="form-label">Add Addendum</label>
+                                <textarea id="encounterAddendumText" class="form-control" rows="4"></textarea>
+                                <div id="encounterAddendumMessage" class="alert d-none mt-3 mb-0" role="status"></div>
+                                <div class="d-flex justify-content-end gap-2 mt-3">
+                                    <button type="button" class="btn btn-outline-secondary" id="cancelEncounterAddendumButton">
+                                        Cancel
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="saveEncounterAddendumButton">
+                                        Save Addendum
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="encounterAddendumsContent" aria-live="polite"></div>
+                        </div>
+                        <div class="col-12">
                             <div class="d-flex align-items-center justify-content-between">
                                 <h3 class="fs-6 mb-0">Encounter History</h3>
                                 <button type="button"
@@ -951,10 +971,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const confirmSignButton = document.getElementById("confirmSignEncounterButton");
     const viewHistoryButton = document.getElementById("viewEncounterHistoryButton");
     const historyContent = document.getElementById("encounterHistoryContent");
+    const addendumHelper = document.getElementById("encounterAddendumHelper");
+    const addendumForm = document.getElementById("encounterAddendumForm");
+    const addendumText = document.getElementById("encounterAddendumText");
+    const addendumMessage = document.getElementById("encounterAddendumMessage");
+    const saveAddendumButton = document.getElementById("saveEncounterAddendumButton");
+    const cancelAddendumButton = document.getElementById("cancelEncounterAddendumButton");
+    const addendumsContent = document.getElementById("encounterAddendumsContent");
     const detailsUrl = '@Url.Action("EncounterDetails", "PatientEncounters")';
     const encounterHistoryUrl = '@Url.Action("EncounterHistory", "PatientEncounters")';
     const updateNoteUrl = '@Url.Action("UpdateEncounterNote", "PatientEncounters")';
     const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
+    const encounterAddendumsUrl = '@Url.Action("EncounterAddendums", "PatientEncounters")';
+    const createEncounterAddendumUrl = '@Url.Action("CreateEncounterAddendum", "PatientEncounters")';
     const emptyValue = "—";
     let currentPatientUid = null;
     let currentEncounterUid = null;
@@ -1003,6 +1032,65 @@ document.addEventListener("DOMContentLoaded", () => {
         saveNoteButton.disabled = !currentEncounterIsEditable;
         signEncounterButton.classList.toggle("d-none", !currentEncounterIsEditable);
         signEncounterButton.disabled = !currentEncounterIsEditable;
+        const isSigned = String(encounter.status).toLowerCase() === "signed";
+        addendumHelper.classList.toggle("d-none", isSigned);
+        addendumForm.classList.toggle("d-none", !isSigned);
+        addendumText.disabled = !isSigned;
+        saveAddendumButton.disabled = !isSigned;
+    };
+
+    const renderAddendums = addendums => {
+        addendumsContent.className = "";
+        addendumsContent.replaceChildren();
+        if (!addendums.length) {
+            const empty = document.createElement("p");
+            empty.className = "text-muted mb-0";
+            empty.textContent = "No addendums have been added.";
+            addendumsContent.appendChild(empty);
+            return;
+        }
+
+        addendums.forEach(addendum => {
+            const card = document.createElement("div");
+            card.className = "card mb-2";
+            const body = document.createElement("div");
+            body.className = "card-body";
+            const metadata = document.createElement("div");
+            metadata.className = "small text-muted mb-2";
+            metadata.textContent = `${formatDate(addendum.createdAt)} · ${addendum.createdByDisplayName || "Unknown"}`;
+            const text = document.createElement("p");
+            text.className = "mb-0 text-break";
+            text.style.whiteSpace = "pre-wrap";
+            text.textContent = addendum.addendumText || "";
+            body.append(metadata, text);
+            card.appendChild(body);
+            addendumsContent.appendChild(card);
+        });
+    };
+
+    const loadAddendums = async () => {
+        if (!currentPatientUid || !currentEncounterUid) return;
+        addendumsContent.className = "";
+        addendumsContent.innerHTML =
+            '<div class="text-muted"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading addendums...</div>';
+        try {
+            const query = new URLSearchParams({
+                patientUid: currentPatientUid,
+                encounterUid: currentEncounterUid
+            });
+            const response = await fetch(`${encounterAddendumsUrl}?${query}`, {
+                headers: { "Accept": "application/json" }
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success)
+                throw new Error(result.message || "Encounter addendums could not be loaded.");
+            renderAddendums(result.addendums || []);
+        } catch (error) {
+            addendumsContent.className = "alert alert-danger mb-0";
+            addendumsContent.textContent = error instanceof Error
+                ? error.message
+                : "Encounter addendums could not be loaded.";
+        }
     };
 
     const historyActionLabel = actionType => String(actionType || "")
@@ -1070,6 +1158,10 @@ document.addEventListener("DOMContentLoaded", () => {
         currentPatientUid = null;
         currentEncounterUid = null;
         currentEncounterIsEditable = false;
+        addendumText.value = "";
+        addendumMessage.className = "alert d-none mt-3 mb-0";
+        addendumMessage.textContent = "";
+        addendumsContent.replaceChildren();
         resetEncounterHistory();
         modal.show();
 
@@ -1084,6 +1176,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const encounter = result.encounter;
             applyEncounterDetails(encounter);
+            await loadAddendums();
             content.classList.remove("d-none");
         } catch (error) {
             message.textContent = error instanceof Error
@@ -1180,6 +1273,52 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    cancelAddendumButton.addEventListener("click", () => {
+        addendumText.value = "";
+        addendumMessage.className = "alert d-none mt-3 mb-0";
+        addendumMessage.textContent = "";
+    });
+
+    saveAddendumButton.addEventListener("click", async () => {
+        if (!currentPatientUid || !currentEncounterUid || !addendumText.value.trim()) {
+            addendumMessage.className = "alert alert-danger mt-3 mb-0";
+            addendumMessage.textContent = "Addendum text is required.";
+            return;
+        }
+
+        saveAddendumButton.disabled = true;
+        addendumMessage.className = "alert d-none mt-3 mb-0";
+        try {
+            const formData = new FormData();
+            formData.append("PatientUid", currentPatientUid);
+            formData.append("EncounterUid", currentEncounterUid);
+            formData.append("AddendumText", addendumText.value);
+            const token = document.querySelector(
+                '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch(createEncounterAddendumUrl, {
+                method: "POST",
+                headers: { "Accept": "application/json", "RequestVerificationToken": token },
+                body: formData
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success)
+                throw new Error(result.message || "Addendum could not be saved.");
+
+            addendumText.value = "";
+            await loadAddendums();
+            resetEncounterHistory();
+            addendumMessage.className = "alert alert-success mt-3 mb-0";
+            addendumMessage.textContent = result.message || "Addendum saved.";
+        } catch (error) {
+            addendumMessage.className = "alert alert-danger mt-3 mb-0";
+            addendumMessage.textContent = error instanceof Error
+                ? error.message
+                : "Addendum could not be saved.";
+        } finally {
+            saveAddendumButton.disabled = false;
+        }
+    });
+
     signEncounterButton.addEventListener("click", () => {
         if (!currentPatientUid || !currentEncounterUid || !currentEncounterIsEditable) {
             return;
@@ -1232,6 +1371,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             applyEncounterDetails(result.encounter);
+            await loadAddendums();
             resetEncounterHistory();
             signModalElement.addEventListener("hidden.bs.modal", () => {
                 noteMessage.className = "alert alert-success mt-3 mb-0";
