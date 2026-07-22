@@ -707,8 +707,8 @@ else
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
         if (!window.DayPilot) {
-        console.error("DayPilot Lite could not be loaded.");
-        return;
+            console.error("DayPilot Lite could not be loaded.");
+            return;
         }
 
         const resources = @Html.Raw(resourcesJson);
@@ -716,18 +716,18 @@ else
         const shouldOpenAddAppointment = @Html.Raw(openAddAppointmentJson);
 
         if (!resources.length) {
-        return;
+            return;
         }
 
         let selectedDate = initialDate
-        ? new DayPilot.Date(initialDate)
-        : DayPilot.Date.today();
+            ? new DayPilot.Date(initialDate)
+            : DayPilot.Date.today();
         let currentView = "day";
         let selectedMonthDate = new Date();
         selectedMonthDate.setHours(0, 0, 0, 0);
         let selectedResourceType = "";
         let selectedResourceUids = new Set(
-        resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
+            resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
         let pendingResourceUids = new Set();
         let blockedTimes = [];
         const resourceTypeFilter = document.getElementById("schedulingResourceTypeFilter");
@@ -735,7 +735,7 @@ else
         const resourceFilterMessage = document.getElementById("resourceFilterMessage");
 
         const dateLabel =
-        document.getElementById("schedulingDateLabel");
+            document.getElementById("schedulingDateLabel");
         const dayView = document.getElementById("schedulingDayView");
         const monthView = document.getElementById("schedulingMonthView");
         const dayViewButton = document.getElementById("schedulingDayViewButton");
@@ -746,98 +746,170 @@ else
         const monthMessage = document.getElementById("schedulingMonthMessage");
 
         const getMatchingResources = () => resources.filter(resource =>
-        (!selectedResourceType || resource.resourceType === selectedResourceType) &&
-        selectedResourceUids.has(resource.resourceUid));
+            (!selectedResourceType || resource.resourceType === selectedResourceType) &&
+            selectedResourceUids.has(resource.resourceUid));
 
         const getFilteredResources = () => getMatchingResources();
 
         const toColumns = () => getFilteredResources()
-        .map(resource => ({
-        id: resource.resourceUid,
-        name: resource.displayName
-        }));
+            .map(resource => ({
+                id: resource.resourceUid,
+                name: resource.displayName
+            }));
 
         const updateResourceFilterSummary = () => {
-        const matchingCount = getMatchingResources().length;
-        const selectedCount = selectedResourceUids.size;
-        resourceFilterSummary.textContent =
-        `${selectedCount} ${selectedCount === 1 ? "resource" : "resources"} selected`;
-        resourceFilterMessage.classList.toggle("d-none", matchingCount > 0);
-        resourceFilterMessage.textContent = selectedCount === 0
-        ? "Select at least one resource to display scheduling columns."
-        : "No selected resources match the selected resource type.";
+            const matchingCount = getMatchingResources().length;
+            const selectedCount = selectedResourceUids.size;
+            resourceFilterSummary.textContent =
+                `${selectedCount} ${selectedCount === 1 ? "resource" : "resources"} selected`;
+            resourceFilterMessage.classList.toggle("d-none", matchingCount > 0);
+            resourceFilterMessage.textContent = selectedCount === 0
+                ? "Select at least one resource to display scheduling columns."
+                : "No selected resources match the selected resource type.";
         };
 
         const calendar = new DayPilot.Calendar(
-        "schedulingCalendar",
-        {
-        viewType: "Resources",
-        columns: toColumns(),
-        startDate: selectedDate,
-        cellDuration: 15,
-        businessBeginsHour: 8,
-        businessEndsHour: 18,
-        eventMoveHandling: "Update",
-        eventResizeHandling: "Disabled",
-        eventDeleteHandling: "Disabled",
-        timeRangeSelectedHandling: "Enabled",
-        onEventMove: async args => {
-        args.preventDefault();
-        if (args.e.data.eventKind === "blockedTime") return;
-        const destination = resources.find(resource => resource.resourceUid === args.newResource);
-        if (destination?.resourceType !== "Provider") {
-        await refreshCalendar();
-        window.alert("Appointments can only be moved between provider columns.");
-        return;
-        }
-        try {
-        const detailsUrl = new URL("/Scheduling/AppointmentDetails", window.location.origin);
-        detailsUrl.searchParams.set("appointmentUid", args.e.id());
-        const detailsResponse = await fetch(detailsUrl);
-        if (!detailsResponse.ok) throw new Error(`Appointment details request failed: ${detailsResponse.status}`);
-        const details = await detailsResponse.json();
-        pendingMove = {
-        appointmentUid: args.e.id(),
-        primaryResourceUid: args.newResource,
-        roomResourceUid: details.roomResourceUid || null,
-        startDateTimeLocal: args.newStart.toDateLocal(),
-        endDateTimeLocal: args.newEnd.toDateLocal()
-        };
+            "schedulingCalendar",
+            {
+                viewType: "Resources",
+                columns: toColumns(),
+                startDate: selectedDate,
+                cellDuration: 15,
+                businessBeginsHour: 8,
+                businessEndsHour: 18,
+                eventMoveHandling: "Update",
+                eventResizeHandling: "Disabled",
+                eventDeleteHandling: "Disabled",
+                timeRangeSelectedHandling: "Enabled",
+                onEventMoving: args => {
+                    const eventKind = args.e?.data?.eventKind || args.e?.data?.EventKind;
+                    if (eventKind === "blockedTime") {
+                        args.allowed = false;
+                        return;
+                    }
 
-        const start = pendingMove.startDateTimeLocal;
-        const end = pendingMove.endDateTimeLocal;
-        if (hasBlockedTimeConflict(pendingMove.primaryResourceUid, start, end)) {
-        pendingMove = null;
-        await refreshCalendar();
-        window.alert("This resource is blocked during the selected time.");
-        return;
-        }
-        moveAppointmentSummary.textContent =
-        `Move to ${destination?.displayName || "the selected resource"} on ${start.toLocaleDateString()} ` +
-        `from ${start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} ` +
-        `to ${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}?`;
-        moveAppointmentMessage.classList.add("d-none");
-        moveAppointmentMessage.textContent = "";
-        moveAppointmentModal.show();
-        } catch (error) {
-        console.error(error);
-        pendingMove = null;
-        await refreshCalendar();
-        window.alert("The appointment could not be prepared for rescheduling. Please try again.");
-        }
-        },
-        onTimeRangeSelected: args => {
-        openAppointmentModal(args.start, args.resource);
-        calendar.clearSelection();
-        },
-        onEventClick: args => {
-        if (args.e.data.eventKind === "blockedTime") {
-        openBlockedTimeDetails(args.e.data);
-        return;
-        }
-        openAppointmentDetails(args.e.id());
-        }
-        });
+                    const resourceUid = getDayPilotMoveResourceUid(args, false);
+                    const start = toJavaScriptDate(args.start);
+                    const end = toJavaScriptDate(args.end);
+                    if (!resourceUid || !start || !end) {
+                        args.allowed = false;
+                        return;
+                    }
+
+                    const conflict =
+                        hasBlockedTimeConflict(resourceUid, start, end)
+                        || hasBlockedTimeConflictFromCalendar(resourceUid, start, end);
+                    args.allowed = !conflict;
+                    if (conflict && args.right) {
+                        args.right.enabled = true;
+                        args.right.html = "Blocked";
+                    }
+                },
+                onEventMove: async args => {
+                    args.preventDefault();
+                    if (args.e.data.eventKind === "blockedTime") {
+                        await refreshCalendar();
+                        return;
+                    }
+                    const appointmentUid = args.e.data.appointmentUid || args.e.id();
+                    const destinationResourceUid = getDayPilotMoveResourceUid(args, true);
+                    const destination = resources.find(resource =>
+                        String(resource.resourceUid).toLowerCase() === destinationResourceUid.toLowerCase());
+                    if (destination?.resourceType !== "Provider") {
+                        await refreshCalendar();
+                        window.alert("Appointments can only be moved between provider columns.");
+                        return;
+                    }
+                    const proposedStart = toJavaScriptDate(args.newStart || args.start);
+                    const originalStart = args.e.start()?.toDateLocal();
+                    const originalEnd = args.e.end()?.toDateLocal();
+                    const originalDuration =
+                        originalStart && originalEnd
+                            ? originalEnd.getTime() - originalStart.getTime()
+                            : 0;
+                    const proposedEnd = toJavaScriptDate(args.newEnd || args.end)
+                        || (proposedStart && originalDuration > 0
+                            ? new Date(proposedStart.getTime() + originalDuration)
+                            : null);
+                    if (!appointmentUid || !proposedStart || !proposedEnd) {
+                        await refreshCalendar();
+                        showSchedulingActionMessage("The appointment could not be moved. Please try again.", "warning");
+                        return;
+                    }
+                    let blockedConflict;
+                    try {
+                        blockedConflict =
+                            hasBlockedTimeConflict(destinationResourceUid, proposedStart, proposedEnd) ||
+                            await hasServerBlockedTimeConflict(destinationResourceUid, proposedStart, proposedEnd);
+                    } catch (error) {
+                        console.error(error);
+                        await refreshCalendar();
+                        showSchedulingActionMessage(
+                            "Blocked time could not be validated. Appointment was not moved.",
+                            "warning");
+                        return;
+                    }
+                    if (blockedConflict) {
+                        await refreshCalendar();
+                        showSchedulingActionMessage(
+                            "This resource is blocked during the selected time.",
+                            "warning");
+                        return;
+                    }
+                    try {
+                        const detailsUrl = new URL("/Scheduling/AppointmentDetails", window.location.origin);
+                        detailsUrl.searchParams.set("appointmentUid", appointmentUid);
+                        const detailsResponse = await fetch(detailsUrl);
+                        if (!detailsResponse.ok) throw new Error(`Appointment details request failed: ${detailsResponse.status}`);
+                        const details = await detailsResponse.json();
+                        pendingMove = {
+                            appointmentUid,
+                            primaryResourceUid: destinationResourceUid,
+                            roomResourceUid: details.roomResourceUid || null,
+                            startDateTimeLocal: proposedStart,
+                            endDateTimeLocal: proposedEnd
+                        };
+
+                        const start = pendingMove.startDateTimeLocal;
+                        const end = pendingMove.endDateTimeLocal;
+                        const finalConflictBeforeModal =
+                            hasBlockedTimeConflict(pendingMove.primaryResourceUid, start, end)
+                            || hasBlockedTimeConflictFromCalendar(
+                                pendingMove.primaryResourceUid, start, end);
+                        if (finalConflictBeforeModal) {
+                            pendingMove = null;
+                            await refreshCalendar();
+                            showSchedulingActionMessage(
+                                "This resource is blocked during the selected time.",
+                                "warning");
+                            return;
+                        }
+                        moveAppointmentSummary.textContent =
+                            `Move to ${destination?.displayName || "the selected resource"} on ${start.toLocaleDateString()} ` +
+                            `from ${start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} ` +
+                            `to ${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}?`;
+                        moveAppointmentMessage.classList.add("d-none");
+                        moveAppointmentMessage.textContent = "";
+                        moveAppointmentModal.show();
+                    } catch (error) {
+                        console.error(error);
+                        pendingMove = null;
+                        await refreshCalendar();
+                        window.alert("The appointment could not be prepared for rescheduling. Please try again.");
+                    }
+                },
+                onTimeRangeSelected: args => {
+                    openAppointmentModal(args.start, args.resource);
+                    calendar.clearSelection();
+                },
+                onEventClick: args => {
+                    if (args.e.data.eventKind === "blockedTime") {
+                        openBlockedTimeDetails(args.e.data);
+                        return;
+                    }
+                    openAppointmentDetails(args.e.id());
+                }
+            });
 
         calendar.init();
 
@@ -846,9 +918,9 @@ else
         const resourcePickerSearch = document.getElementById("resourcePickerSearch");
         const resourcePickerList = document.getElementById("resourcePickerList");
         const createBlockedTimeModal = new bootstrap.Modal(
-        document.getElementById("createBlockedTimeModal"));
+            document.getElementById("createBlockedTimeModal"));
         const blockedTimeDetailsModal = new bootstrap.Modal(
-        document.getElementById("blockedTimeDetailsModal"));
+            document.getElementById("blockedTimeDetailsModal"));
         const createBlockedTimeForm = document.getElementById("createBlockedTimeForm");
         const createBlockedTimeMessage = document.getElementById("createBlockedTimeMessage");
         const blockedTimeDetailsMessage = document.getElementById("blockedTimeDetailsMessage");
@@ -863,139 +935,239 @@ else
         const appointmentMessage = document.getElementById("appointmentMessage");
         const selectedPatientLabel = document.getElementById("selectedPatientLabel");
         const searchResults = document.getElementById("patientSearchResults");
-        const hasBlockedTimeConflict = (resourceUid, start, end) => {
-        const startValue = new Date(start).getTime();
-        const endValue = new Date(end).getTime();
-        return blockedTimes.some(block =>
-        block.resourceUid === resourceUid &&
-        startValue < new Date(block.endDateTimeUtc).getTime() &&
-        endValue > new Date(block.startDateTimeUtc).getTime());
+        const normalizeUid = value => String(value || "").trim().toLowerCase();
+
+        const toJavaScriptDate = value => {
+            if (!value) return null;
+            if (value instanceof Date) return value;
+            if (typeof value.toDateLocal === "function") return value.toDateLocal();
+            if (typeof value.toDate === "function") return value.toDate();
+            return new Date(value);
+        };
+
+        const getDayPilotMoveResourceUid = (args, useNewResource) => {
+            const candidate = useNewResource
+                ? (args.newResource || args.resource)
+                : (args.resource || args.newResource);
+            const value = candidate?.id
+                || candidate
+                || args.e?.data?.resourceUid
+                || args.e?.data?.ResourceUid
+                || args.e?.data?.resource
+                || (typeof args.e?.resource === "function" ? args.e.resource() : null);
+            return normalizeUid(value);
+        };
+
+        const parseUtcDate = value => {
+            if (!value) return null;
+            if (value instanceof Date) return value;
+            if (typeof value.toDateLocal === "function") return value.toDateLocal();
+            const text = String(value);
+            const hasTimeZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+            return new Date(hasTimeZone ? text : `${text}Z`);
+        };
+
+        const toDayPilotLocalDateTime = value => {
+            const date = parseUtcDate(value);
+            if (!date || !Number.isFinite(date.getTime())) return value;
+            const pad = number => String(number).padStart(2, "0");
+            const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+                + `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${milliseconds}`;
+        };
+
+        const rangesOverlap = (startA, endA, startB, endB) =>
+            startA < endB && endA > startB;
+
+        const hasBlockedTimeConflict = (resourceUid, start, end, ignoredBlockedTimeUid = null) => {
+            if (!resourceUid || !start || !end) return false;
+            const normalizedResourceUid = normalizeUid(resourceUid);
+            const startDate = toJavaScriptDate(start);
+            const endDate = toJavaScriptDate(end);
+            if (!startDate || !endDate) return false;
+            if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime())) return false;
+
+            return blockedTimes.some(block => {
+                const blockResourceUid = block.resourceUid || block.ResourceUid
+                    || block.extendedProps?.resourceUid || block.extendedProps?.ResourceUid;
+                const blockUid = block.blockedTimeUid || block.BlockedTimeUid;
+                if (ignoredBlockedTimeUid && normalizeUid(blockUid) ===
+                    normalizeUid(ignoredBlockedTimeUid)) return false;
+                if (normalizeUid(blockResourceUid) !== normalizedResourceUid) return false;
+                const blockStart = parseUtcDate(
+                    block.startDateTimeUtc || block.StartDateTimeUtc || block.start);
+                const blockEnd = parseUtcDate(
+                    block.endDateTimeUtc || block.EndDateTimeUtc || block.end);
+                if (!blockStart || !blockEnd) return false;
+                if (!Number.isFinite(blockStart.getTime()) || !Number.isFinite(blockEnd.getTime())) return false;
+                return rangesOverlap(startDate, endDate, blockStart, blockEnd);
+            });
+        };
+
+        const hasBlockedTimeConflictFromCalendar = (resourceUid, start, end) => {
+            const normalizedResourceUid = normalizeUid(resourceUid);
+            const appointmentStart = toJavaScriptDate(start);
+            const appointmentEnd = toJavaScriptDate(end);
+            if (!normalizedResourceUid || !appointmentStart || !appointmentEnd) return false;
+
+            return (calendar.events.list || []).some(event => {
+                if (event.eventKind !== "blockedTime") return false;
+                const eventResourceUid = normalizeUid(
+                    event.resource || event.resourceUid || event.ResourceUid);
+                if (eventResourceUid !== normalizedResourceUid) return false;
+                // DayPilot event values are local wall-clock times, unlike the UTC API values.
+                const eventStart = toJavaScriptDate(event.start);
+                const eventEnd = toJavaScriptDate(event.end);
+                return eventStart && eventEnd
+                    && rangesOverlap(appointmentStart, appointmentEnd, eventStart, eventEnd);
+            });
+        };
+
+        const hasServerBlockedTimeConflict = async (resourceUid, start, end) => {
+            const normalizedResourceUid = String(resourceUid || "").trim().toLowerCase();
+            if (!normalizedResourceUid) return true;
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime())) return true;
+
+            const url = new URL("/Scheduling/BlockedTimes", window.location.origin);
+            url.searchParams.set("startDateTimeUtc", startDate.toISOString());
+            url.searchParams.set("endDateTimeUtc", endDate.toISOString());
+            const response = await fetch(url, { headers: { "Accept": "application/json" } });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Blocked time could not be validated.");
+            }
+            const matchingBlocks = result.blockedTimes || [];
+            return matchingBlocks.some(block =>
+                String(block.resourceUid || block.ResourceUid || "").trim().toLowerCase() ===
+                normalizedResourceUid);
         };
 
         const openBlockedTimeDetails = eventData => {
-        currentBlockedTimeUid = eventData.blockedTimeUid;
-        const resource = resources.find(item => item.resourceUid === eventData.resource);
-        document.getElementById("blockedTimeDetailsResource").textContent =
-        resource?.displayName || "Unknown resource";
-        document.getElementById("blockedTimeDetailsStart").textContent =
-        new Date(eventData.start).toLocaleString();
-        document.getElementById("blockedTimeDetailsEnd").textContent =
-        new Date(eventData.end).toLocaleString();
-        document.getElementById("blockedTimeDetailsReason").textContent =
-        eventData.reason || "No reason provided";
-        blockedTimeDetailsMessage.classList.add("d-none");
-        blockedTimeDetailsModal.show();
+            currentBlockedTimeUid = eventData.blockedTimeUid;
+            const resource = resources.find(item => item.resourceUid === eventData.resource);
+            document.getElementById("blockedTimeDetailsResource").textContent =
+                resource?.displayName || "Unknown resource";
+            document.getElementById("blockedTimeDetailsStart").textContent =
+                new Date(eventData.start).toLocaleString();
+            document.getElementById("blockedTimeDetailsEnd").textContent =
+                new Date(eventData.end).toLocaleString();
+            document.getElementById("blockedTimeDetailsReason").textContent =
+                eventData.reason || "No reason provided";
+            blockedTimeDetailsMessage.classList.add("d-none");
+            blockedTimeDetailsModal.show();
         };
 
         document.getElementById("openBlockedTimeButton").addEventListener("click", () => {
-        createBlockedTimeForm.reset();
-        const date = selectedDate.toString("yyyy-MM-dd");
-        document.getElementById("BlockedTimeDate").value = date;
-        document.getElementById("BlockedTimeStart").value = "09:00";
-        document.getElementById("BlockedTimeEnd").value = "10:00";
-        const visibleResources = getFilteredResources();
-        const visibleResourceUids = new Set(visibleResources.map(resource => resource.resourceUid));
-        const resourceSelect = document.getElementById("BlockedTimeResourceUid");
-        Array.from(resourceSelect.options).forEach(option => {
-        option.hidden = !visibleResourceUids.has(option.value);
-        option.disabled = option.hidden;
-        });
-        resourceSelect.value = visibleResources[0]?.resourceUid || "";
-        createBlockedTimeMessage.classList.add("d-none");
-        createBlockedTimeModal.show();
+            createBlockedTimeForm.reset();
+            const date = selectedDate.toString("yyyy-MM-dd");
+            document.getElementById("BlockedTimeDate").value = date;
+            document.getElementById("BlockedTimeStart").value = "09:00";
+            document.getElementById("BlockedTimeEnd").value = "10:00";
+            const visibleResources = getFilteredResources();
+            const visibleResourceUids = new Set(visibleResources.map(resource => resource.resourceUid));
+            const resourceSelect = document.getElementById("BlockedTimeResourceUid");
+            Array.from(resourceSelect.options).forEach(option => {
+                option.hidden = !visibleResourceUids.has(option.value);
+                option.disabled = option.hidden;
+            });
+            resourceSelect.value = visibleResources[0]?.resourceUid || "";
+            createBlockedTimeMessage.classList.add("d-none");
+            createBlockedTimeModal.show();
         });
 
         document.getElementById("saveBlockedTimeButton").addEventListener("click", async event => {
-        const button = event.currentTarget;
-        createBlockedTimeMessage.classList.add("d-none");
-        const resourceUid = document.getElementById("BlockedTimeResourceUid").value;
-        const dateValue = document.getElementById("BlockedTimeDate").value;
-        const startTimeValue = document.getElementById("BlockedTimeStart").value;
-        const endTimeValue = document.getElementById("BlockedTimeEnd").value;
-        if (!resourceUid) {
-        createBlockedTimeMessage.textContent = "Please select a resource.";
-        createBlockedTimeMessage.classList.remove("d-none");
-        return;
-        }
-        if (!dateValue || !startTimeValue || !endTimeValue) {
-        createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
-        createBlockedTimeMessage.classList.remove("d-none");
-        return;
-        }
-        const startLocal = new Date(`${dateValue}T${startTimeValue}`);
-        const endLocal = new Date(`${dateValue}T${endTimeValue}`);
-        if (!Number.isFinite(startLocal.getTime()) || !Number.isFinite(endLocal.getTime())) {
-        createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
-        createBlockedTimeMessage.classList.remove("d-none");
-        return;
-        }
-        if (endLocal <= startLocal) {
-        createBlockedTimeMessage.textContent = "End time must be after start time.";
-        createBlockedTimeMessage.classList.remove("d-none");
-        return;
-        }
-        button.disabled = true;
-        try {
-        const token = document.querySelector(
-        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const formData = new FormData();
-        formData.append("ResourceUid", resourceUid);
-        formData.append("Date", dateValue);
-        formData.append("StartTime", startTimeValue);
-        formData.append("EndTime", endTimeValue);
-        formData.append("Reason", document.getElementById("BlockedTimeReason").value || "");
-        formData.append("__RequestVerificationToken", token);
-        const response = await fetch("/Scheduling/CreateBlockedTime", {
-        method: "POST", body: formData
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.success) {
-        throw new Error(result.message || "Blocked time could not be created.");
-        }
-        createBlockedTimeModal.hide();
-        await refreshCalendar();
-        showSchedulingActionMessage(result.message || "Blocked time created.", "success");
-        } catch (error) {
-        createBlockedTimeMessage.textContent = error instanceof Error
-        ? error.message : "Blocked time could not be created.";
-        createBlockedTimeMessage.classList.remove("d-none");
-        } finally {
-        button.disabled = false;
-        }
+            const button = event.currentTarget;
+            createBlockedTimeMessage.classList.add("d-none");
+            const resourceUid = document.getElementById("BlockedTimeResourceUid").value;
+            const dateValue = document.getElementById("BlockedTimeDate").value;
+            const startTimeValue = document.getElementById("BlockedTimeStart").value;
+            const endTimeValue = document.getElementById("BlockedTimeEnd").value;
+            if (!resourceUid) {
+                createBlockedTimeMessage.textContent = "Please select a resource.";
+                createBlockedTimeMessage.classList.remove("d-none");
+                return;
+            }
+            if (!dateValue || !startTimeValue || !endTimeValue) {
+                createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
+                createBlockedTimeMessage.classList.remove("d-none");
+                return;
+            }
+            const startLocal = new Date(`${dateValue}T${startTimeValue}`);
+            const endLocal = new Date(`${dateValue}T${endTimeValue}`);
+            if (!Number.isFinite(startLocal.getTime()) || !Number.isFinite(endLocal.getTime())) {
+                createBlockedTimeMessage.textContent = "Please enter a valid date, start time, and end time.";
+                createBlockedTimeMessage.classList.remove("d-none");
+                return;
+            }
+            if (endLocal <= startLocal) {
+                createBlockedTimeMessage.textContent = "End time must be after start time.";
+                createBlockedTimeMessage.classList.remove("d-none");
+                return;
+            }
+            button.disabled = true;
+            try {
+                const token = document.querySelector(
+                    '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const formData = new FormData();
+                formData.append("ResourceUid", resourceUid);
+                formData.append("Date", dateValue);
+                formData.append("StartTime", startTimeValue);
+                formData.append("EndTime", endTimeValue);
+                formData.append("Reason", document.getElementById("BlockedTimeReason").value || "");
+                formData.append("__RequestVerificationToken", token);
+                const response = await fetch("/Scheduling/CreateBlockedTime", {
+                    method: "POST", body: formData
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "Blocked time could not be created.");
+                }
+                createBlockedTimeModal.hide();
+                await refreshCalendar();
+                showSchedulingActionMessage(result.message || "Blocked time created.", "success");
+            } catch (error) {
+                createBlockedTimeMessage.textContent = error instanceof Error
+                    ? error.message : "Blocked time could not be created.";
+                createBlockedTimeMessage.classList.remove("d-none");
+            } finally {
+                button.disabled = false;
+            }
         });
 
         document.getElementById("removeBlockedTimeButton").addEventListener("click", async event => {
-        if (!currentBlockedTimeUid) return;
-        const button = event.currentTarget;
-        button.disabled = true;
-        blockedTimeDetailsMessage.classList.add("d-none");
-        try {
-        const formData = new FormData();
-        formData.append("blockedTimeUid", currentBlockedTimeUid);
-        const token = document.querySelector(
-        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const response = await fetch("/Scheduling/CancelBlockedTime", {
-        method: "POST", headers: { "RequestVerificationToken": token }, body: formData
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.success) {
-        throw new Error(result.message || "Blocked time could not be removed.");
-        }
-        currentBlockedTimeUid = null;
-        blockedTimeDetailsModal.hide();
-        await refreshCalendar();
-        showSchedulingActionMessage(result.message || "Blocked time removed.", "success");
-        } catch (error) {
-        blockedTimeDetailsMessage.textContent = error instanceof Error
-        ? error.message : "Blocked time could not be removed.";
-        blockedTimeDetailsMessage.classList.remove("d-none");
-        } finally {
-        button.disabled = false;
-        }
+            if (!currentBlockedTimeUid) return;
+            const button = event.currentTarget;
+            button.disabled = true;
+            blockedTimeDetailsMessage.classList.add("d-none");
+            try {
+                const formData = new FormData();
+                formData.append("blockedTimeUid", currentBlockedTimeUid);
+                const token = document.querySelector(
+                    '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const response = await fetch("/Scheduling/CancelBlockedTime", {
+                    method: "POST", headers: { "RequestVerificationToken": token }, body: formData
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "Blocked time could not be removed.");
+                }
+                currentBlockedTimeUid = null;
+                blockedTimeDetailsModal.hide();
+                await refreshCalendar();
+                showSchedulingActionMessage(result.message || "Blocked time removed.", "success");
+            } catch (error) {
+                blockedTimeDetailsMessage.textContent = error instanceof Error
+                    ? error.message : "Blocked time could not be removed.";
+                blockedTimeDetailsMessage.classList.remove("d-none");
+            } finally {
+                button.disabled = false;
+            }
         });
         const hidePatientSearchResults = () => {
-        searchResults.classList.add("d-none");
-        searchResults.replaceChildren();
+            searchResults.classList.add("d-none");
+            searchResults.replaceChildren();
         };
         const showPatientSearchResults = () => searchResults.classList.remove("d-none");
         const appointmentDetailsModalElement = document.getElementById("appointmentDetailsModal");
@@ -1030,843 +1202,872 @@ else
         let currentAppointmentDetails = null;
 
         const showSchedulingActionMessage = (message, type) => {
-        schedulingActionMessage.className = `alert alert-${type}`;
-        schedulingActionMessage.textContent = message;
+            schedulingActionMessage.className = `alert alert-${type}`;
+            schedulingActionMessage.textContent = message;
         };
 
         const setDetailsText = (id, value, fallback = "Not specified") => {
-        document.getElementById(id).textContent = value || fallback;
+            document.getElementById(id).textContent = value || fallback;
         };
 
         const openAppointmentDetails = async appointmentUid => {
-        currentAppointmentUid = null;
-        currentAppointmentDetails = null;
-        detailsLoading.classList.remove("d-none");
-        detailsError.classList.add("d-none");
-        detailsContent.classList.add("d-none");
-        openChartButton.classList.add("d-none");
-        cancelAppointmentButton.classList.add("d-none");
-        editAppointmentButton.classList.add("d-none");
-        viewAppointmentHistoryButton.classList.add("d-none");
-        appointmentHistoryContainer.classList.add("d-none");
-        appointmentHistoryList.replaceChildren();
-        appointmentHistoryMessage.classList.add("d-none");
-        viewAppointmentHistoryButton.textContent = "View History";
-        detailsModal.show();
+            currentAppointmentUid = null;
+            currentAppointmentDetails = null;
+            detailsLoading.classList.remove("d-none");
+            detailsError.classList.add("d-none");
+            detailsContent.classList.add("d-none");
+            openChartButton.classList.add("d-none");
+            cancelAppointmentButton.classList.add("d-none");
+            editAppointmentButton.classList.add("d-none");
+            viewAppointmentHistoryButton.classList.add("d-none");
+            appointmentHistoryContainer.classList.add("d-none");
+            appointmentHistoryList.replaceChildren();
+            appointmentHistoryMessage.classList.add("d-none");
+            viewAppointmentHistoryButton.textContent = "View History";
+            detailsModal.show();
 
-        try {
-        const url = new URL("/Scheduling/AppointmentDetails", window.location.origin);
-        url.searchParams.set("appointmentUid", appointmentUid);
-        const response = await fetch(url);
-        if (!response.ok) {
-        throw new Error(`Appointment details request failed: ${response.status}`);
-        }
+            try {
+                const url = new URL("/Scheduling/AppointmentDetails", window.location.origin);
+                url.searchParams.set("appointmentUid", appointmentUid);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Appointment details request failed: ${response.status}`);
+                }
 
-        const details = await response.json();
-        currentAppointmentUid = details.appointmentUid;
-        currentAppointmentDetails = details;
-        const start = new Date(details.startDateTimeLocal);
-        const end = new Date(details.endDateTimeLocal);
-        const createdAt = new Date(details.createdAtLocal);
-        setDetailsText("detailsPatient", details.patientDisplayName);
-        setDetailsText("detailsChartNumber", details.chartNumber);
-        setDetailsText("detailsStatus", details.status);
-        setDetailsText("detailsDate", start.toLocaleDateString());
-        setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-        setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
-        setDetailsText("detailsPrimaryResource", details.primaryResourceName);
-        setDetailsText("detailsRoom", details.roomResourceName, "No room assigned");
-        setDetailsText("detailsType", details.appointmentType);
-        setDetailsText("detailsReason", details.reason);
-        setDetailsText("detailsNotes", details.notes);
-        setDetailsText("detailsCreatedBy", details.createdByDisplayName, "System");
-        setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
-        openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
-        openChartButton.classList.remove("d-none");
-        cancelAppointmentButton.classList.toggle(
-        "d-none",
-        String(details.status).toLowerCase() === "cancelled");
-        editAppointmentButton.classList.toggle(
-        "d-none",
-        String(details.status).toLowerCase() === "cancelled");
-        viewAppointmentHistoryButton.classList.remove("d-none");
-        detailsContent.classList.remove("d-none");
-        } catch (error) {
-        console.error(error);
-        detailsError.textContent = "The appointment details could not be loaded. Please try again.";
-        detailsError.classList.remove("d-none");
-        } finally {
-        detailsLoading.classList.add("d-none");
-        }
+                const details = await response.json();
+                currentAppointmentUid = details.appointmentUid;
+                currentAppointmentDetails = details;
+                const start = new Date(details.startDateTimeLocal);
+                const end = new Date(details.endDateTimeLocal);
+                const createdAt = new Date(details.createdAtLocal);
+                setDetailsText("detailsPatient", details.patientDisplayName);
+                setDetailsText("detailsChartNumber", details.chartNumber);
+                setDetailsText("detailsStatus", details.status);
+                setDetailsText("detailsDate", start.toLocaleDateString());
+                setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+                setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+                setDetailsText("detailsPrimaryResource", details.primaryResourceName);
+                setDetailsText("detailsRoom", details.roomResourceName, "No room assigned");
+                setDetailsText("detailsType", details.appointmentType);
+                setDetailsText("detailsReason", details.reason);
+                setDetailsText("detailsNotes", details.notes);
+                setDetailsText("detailsCreatedBy", details.createdByDisplayName, "System");
+                setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
+                openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
+                openChartButton.classList.remove("d-none");
+                cancelAppointmentButton.classList.toggle(
+                    "d-none",
+                    String(details.status).toLowerCase() === "cancelled");
+                editAppointmentButton.classList.toggle(
+                    "d-none",
+                    String(details.status).toLowerCase() === "cancelled");
+                viewAppointmentHistoryButton.classList.remove("d-none");
+                detailsContent.classList.remove("d-none");
+            } catch (error) {
+                console.error(error);
+                detailsError.textContent = "The appointment details could not be loaded. Please try again.";
+                detailsError.classList.remove("d-none");
+            } finally {
+                detailsLoading.classList.add("d-none");
+            }
         };
 
         const formatHistoryDate = value => value
-        ? new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short"
-        }).format(new Date(value))
-        : null;
+            ? new Intl.DateTimeFormat(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short"
+            }).format(new Date(value))
+            : null;
 
         const appendHistoryDetail = (container, text) => {
-        if (!text) return;
-        const detail = document.createElement("div");
-        detail.className = "small text-body-secondary";
-        detail.textContent = text;
-        container.appendChild(detail);
+            if (!text) return;
+            const detail = document.createElement("div");
+            detail.className = "small text-body-secondary";
+            detail.textContent = text;
+            container.appendChild(detail);
         };
 
         const renderAppointmentHistory = history => {
-        appointmentHistoryList.replaceChildren();
+            appointmentHistoryList.replaceChildren();
 
-        history.forEach(item => {
-        const entry = document.createElement("div");
-        entry.className = "border-start border-3 border-primary ps-3";
+            history.forEach(item => {
+                const entry = document.createElement("div");
+                entry.className = "border-start border-3 border-primary ps-3";
 
-        const title = document.createElement("div");
-        title.className = "fw-semibold";
-        title.textContent = item.actionType || "Appointment updated";
-        entry.appendChild(title);
+                const title = document.createElement("div");
+                title.className = "fw-semibold";
+                title.textContent = item.actionType || "Appointment updated";
+                entry.appendChild(title);
 
-        appendHistoryDetail(entry, item.actionDescription);
+                appendHistoryDetail(entry, item.actionDescription);
 
-        if (item.oldStatus || item.newStatus) {
-        appendHistoryDetail(
-        entry,
-        `${item.oldStatus || "Not set"} → ${item.newStatus || "Not set"}`);
-        }
+                if (item.oldStatus || item.newStatus) {
+                    appendHistoryDetail(
+                        entry,
+                        `${item.oldStatus || "Not set"} → ${item.newStatus || "Not set"}`);
+                }
 
-        if (item.oldStartDateTimeUtc || item.newStartDateTimeUtc) {
-        appendHistoryDetail(
-        entry,
-        `Time: ${formatHistoryDate(item.oldStartDateTimeUtc) || "Not set"} → ` +
-        `${formatHistoryDate(item.newStartDateTimeUtc) || "Not set"}`);
-        }
+                if (item.oldStartDateTimeUtc || item.newStartDateTimeUtc) {
+                    appendHistoryDetail(
+                        entry,
+                        `Time: ${formatHistoryDate(item.oldStartDateTimeUtc) || "Not set"} → ` +
+                        `${formatHistoryDate(item.newStartDateTimeUtc) || "Not set"}`);
+                }
 
-        if (item.oldResourceUid || item.newResourceUid) {
-        appendHistoryDetail(entry, "Provider/resource assignment changed.");
-        }
+                if (item.oldResourceUid || item.newResourceUid) {
+                    appendHistoryDetail(entry, "Provider/resource assignment changed.");
+                }
 
-        if (item.reason) {
-        appendHistoryDetail(entry, `Reason: ${item.reason}`);
-        }
+                if (item.reason) {
+                    appendHistoryDetail(entry, `Reason: ${item.reason}`);
+                }
 
-        appendHistoryDetail(
-        entry,
-        `${formatHistoryDate(item.createdAt) || ""}` +
-        `${item.createdByDisplayName ? ` · ${item.createdByDisplayName}` : ""}`);
+                appendHistoryDetail(
+                    entry,
+                    `${formatHistoryDate(item.createdAt) || ""}` +
+                    `${item.createdByDisplayName ? ` · ${item.createdByDisplayName}` : ""}`);
 
-        appointmentHistoryList.appendChild(entry);
-        });
+                appointmentHistoryList.appendChild(entry);
+            });
         };
 
         viewAppointmentHistoryButton.addEventListener("click", async () => {
-        if (!appointmentHistoryContainer.classList.contains("d-none")) {
-        appointmentHistoryContainer.classList.add("d-none");
-        viewAppointmentHistoryButton.textContent = "View History";
-        return;
-        }
+            if (!appointmentHistoryContainer.classList.contains("d-none")) {
+                appointmentHistoryContainer.classList.add("d-none");
+                viewAppointmentHistoryButton.textContent = "View History";
+                return;
+            }
 
-        if (!currentAppointmentUid) return;
+            if (!currentAppointmentUid) return;
 
-        appointmentHistoryContainer.classList.remove("d-none");
-        viewAppointmentHistoryButton.textContent = "Hide History";
-        appointmentHistoryLoading.classList.remove("d-none");
-        appointmentHistoryMessage.classList.add("d-none");
-        appointmentHistoryList.replaceChildren();
+            appointmentHistoryContainer.classList.remove("d-none");
+            viewAppointmentHistoryButton.textContent = "Hide History";
+            appointmentHistoryLoading.classList.remove("d-none");
+            appointmentHistoryMessage.classList.add("d-none");
+            appointmentHistoryList.replaceChildren();
 
-        try {
-        const url = new URL(appointmentHistoryUrl, window.location.origin);
-        url.searchParams.set("appointmentUid", currentAppointmentUid);
-        const response = await fetch(url, {
-        headers: { "Accept": "application/json" }
-        });
-        const result = await response.json().catch(() => ({}));
+            try {
+                const url = new URL(appointmentHistoryUrl, window.location.origin);
+                url.searchParams.set("appointmentUid", currentAppointmentUid);
+                const response = await fetch(url, {
+                    headers: { "Accept": "application/json" }
+                });
+                const result = await response.json().catch(() => ({}));
 
-        if (!response.ok || !result.success) {
-        throw new Error(result.message || "Appointment history could not be loaded.");
-        }
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "Appointment history could not be loaded.");
+                }
 
-        if (!result.history?.length) {
-        appointmentHistoryMessage.textContent = "No appointment history is available.";
-        appointmentHistoryMessage.classList.remove("d-none");
-        return;
-        }
+                if (!result.history?.length) {
+                    appointmentHistoryMessage.textContent = "No appointment history is available.";
+                    appointmentHistoryMessage.classList.remove("d-none");
+                    return;
+                }
 
-        renderAppointmentHistory(result.history);
-        } catch (error) {
-        console.error(error);
-        appointmentHistoryMessage.textContent =
-        error instanceof Error
-        ? error.message
-        : "Appointment history could not be loaded.";
-        appointmentHistoryMessage.classList.remove("d-none");
-        } finally {
-        appointmentHistoryLoading.classList.add("d-none");
-        }
+                renderAppointmentHistory(result.history);
+            } catch (error) {
+                console.error(error);
+                appointmentHistoryMessage.textContent =
+                    error instanceof Error
+                        ? error.message
+                        : "Appointment history could not be loaded.";
+                appointmentHistoryMessage.classList.remove("d-none");
+            } finally {
+                appointmentHistoryLoading.classList.add("d-none");
+            }
         });
 
         const clearEditAppointmentErrors = () => {
-        editAppointmentMessage.classList.add("d-none");
-        editAppointmentMessage.textContent = "";
-        editAppointmentForm.querySelectorAll(".is-invalid").forEach(element =>
-        element.classList.remove("is-invalid"));
-        editAppointmentForm.querySelectorAll("[data-edit-error-for]").forEach(element =>
-        element.textContent = "");
+            editAppointmentMessage.classList.add("d-none");
+            editAppointmentMessage.textContent = "";
+            editAppointmentForm.querySelectorAll(".is-invalid").forEach(element =>
+                element.classList.remove("is-invalid"));
+            editAppointmentForm.querySelectorAll("[data-edit-error-for]").forEach(element =>
+                element.textContent = "");
         };
 
         const showEditAppointmentErrors = errors => {
-        if (!errors) return;
-        Object.entries(errors).forEach(([field, messages]) => {
-        const input = editAppointmentForm.elements.namedItem(field);
-        const feedback = editAppointmentForm.querySelector(`[data-edit-error-for="${field}"]`);
-        if (input) input.classList.add("is-invalid");
-        if (feedback) feedback.textContent = Array.isArray(messages) ? messages[0] : messages;
-        });
+            if (!errors) return;
+            Object.entries(errors).forEach(([field, messages]) => {
+                const input = editAppointmentForm.elements.namedItem(field);
+                const feedback = editAppointmentForm.querySelector(`[data-edit-error-for="${field}"]`);
+                if (input) input.classList.add("is-invalid");
+                if (feedback) feedback.textContent = Array.isArray(messages) ? messages[0] : messages;
+            });
         };
 
         editAppointmentButton.addEventListener("click", () => {
-        if (!currentAppointmentDetails ||
-        String(currentAppointmentDetails.status).toLowerCase() === "cancelled") return;
+            if (!currentAppointmentDetails ||
+                String(currentAppointmentDetails.status).toLowerCase() === "cancelled") return;
 
-        clearEditAppointmentErrors();
-        document.getElementById("EditAppointmentUid").value = currentAppointmentDetails.appointmentUid;
-        document.getElementById("EditPrimaryResourceUid").value = currentAppointmentDetails.primaryResourceUid || "";
-        document.getElementById("EditRoomResourceUid").value = currentAppointmentDetails.roomResourceUid || "";
-        document.getElementById("EditStartDateTimeLocal").value =
-        localInputValue(new Date(currentAppointmentDetails.startDateTimeLocal));
-        document.getElementById("EditEndDateTimeLocal").value =
-        localInputValue(new Date(currentAppointmentDetails.endDateTimeLocal));
-        document.getElementById("EditAppointmentType").value = currentAppointmentDetails.appointmentType || "";
-        document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
-        document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
+            clearEditAppointmentErrors();
+            document.getElementById("EditAppointmentUid").value = currentAppointmentDetails.appointmentUid;
+            document.getElementById("EditPrimaryResourceUid").value = currentAppointmentDetails.primaryResourceUid || "";
+            document.getElementById("EditRoomResourceUid").value = currentAppointmentDetails.roomResourceUid || "";
+            document.getElementById("EditStartDateTimeLocal").value =
+                localInputValue(new Date(currentAppointmentDetails.startDateTimeLocal));
+            document.getElementById("EditEndDateTimeLocal").value =
+                localInputValue(new Date(currentAppointmentDetails.endDateTimeLocal));
+            document.getElementById("EditAppointmentType").value = currentAppointmentDetails.appointmentType || "";
+            document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
+            document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
 
-        appointmentDetailsModalElement.addEventListener(
-        "hidden.bs.modal",
-        () => editAppointmentModal.show(),
-        { once: true });
-        detailsModal.hide();
+            appointmentDetailsModalElement.addEventListener(
+                "hidden.bs.modal",
+                () => editAppointmentModal.show(),
+                { once: true });
+            detailsModal.hide();
         });
 
         saveEditAppointmentButton.addEventListener("click", async () => {
-        clearEditAppointmentErrors();
-        saveEditAppointmentButton.disabled = true;
+            clearEditAppointmentErrors();
+            saveEditAppointmentButton.disabled = true;
 
-        try {
-        const formData = new FormData(editAppointmentForm);
-        const editStart = new Date(formData.get("StartDateTimeLocal"));
-        const editEnd = new Date(formData.get("EndDateTimeLocal"));
-        if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), editStart, editEnd) ||
-        (formData.get("RoomResourceUid") &&
-        hasBlockedTimeConflict(formData.get("RoomResourceUid"), editStart, editEnd))) {
-        editAppointmentMessage.textContent = "This resource is blocked during the selected time.";
-        editAppointmentMessage.classList.remove("d-none");
-        return;
-        }
-        const token = document.querySelector(
-        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const response = await fetch(updateAppointmentUrl, {
-        method: "POST",
-        headers: { "RequestVerificationToken": token },
-        body: formData
-        });
-        const result = await response.json().catch(() => ({}));
+            try {
+                const formData = new FormData(editAppointmentForm);
+                const editStart = new Date(formData.get("StartDateTimeLocal"));
+                const editEnd = new Date(formData.get("EndDateTimeLocal"));
+                if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), editStart, editEnd) ||
+                    (formData.get("RoomResourceUid") &&
+                        hasBlockedTimeConflict(formData.get("RoomResourceUid"), editStart, editEnd))) {
+                    editAppointmentMessage.textContent = "This resource is blocked during the selected time.";
+                    editAppointmentMessage.classList.remove("d-none");
+                    return;
+                }
+                const token = document.querySelector(
+                    '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const response = await fetch(updateAppointmentUrl, {
+                    method: "POST",
+                    headers: { "RequestVerificationToken": token },
+                    body: formData
+                });
+                const result = await response.json().catch(() => ({}));
 
-        if (!response.ok || !result.success) {
-        editAppointmentMessage.textContent =
-        result.message || "The appointment could not be updated. Please try again.";
-        editAppointmentMessage.classList.remove("d-none");
-        showEditAppointmentErrors(result.errors);
-        return;
-        }
+                if (!response.ok || !result.success) {
+                    editAppointmentMessage.textContent =
+                        result.message || "The appointment could not be updated. Please try again.";
+                    editAppointmentMessage.classList.remove("d-none");
+                    showEditAppointmentErrors(result.errors);
+                    return;
+                }
 
-        editAppointmentModal.hide();
-        currentAppointmentUid = null;
-        currentAppointmentDetails = null;
-        await refreshCalendar();
-        showSchedulingActionMessage(result.message || "Appointment updated.", "success");
-        } catch (error) {
-        console.error(error);
-        editAppointmentMessage.textContent = "The appointment could not be updated. Please try again.";
-        editAppointmentMessage.classList.remove("d-none");
-        } finally {
-        saveEditAppointmentButton.disabled = false;
-        }
+                editAppointmentModal.hide();
+                currentAppointmentUid = null;
+                currentAppointmentDetails = null;
+                await refreshCalendar();
+                showSchedulingActionMessage(result.message || "Appointment updated.", "success");
+            } catch (error) {
+                console.error(error);
+                editAppointmentMessage.textContent = "The appointment could not be updated. Please try again.";
+                editAppointmentMessage.classList.remove("d-none");
+            } finally {
+                saveEditAppointmentButton.disabled = false;
+            }
         });
 
         cancelAppointmentButton.addEventListener("click", () => {
-        if (!currentAppointmentUid) return;
-        cancelAppointmentReason.value = "";
-        cancelAppointmentMessage.classList.add("d-none");
-        appointmentDetailsModalElement.addEventListener(
-        "hidden.bs.modal",
-        () => cancelAppointmentModal.show(),
-        { once: true });
-        detailsModal.hide();
+            if (!currentAppointmentUid) return;
+            cancelAppointmentReason.value = "";
+            cancelAppointmentMessage.classList.add("d-none");
+            appointmentDetailsModalElement.addEventListener(
+                "hidden.bs.modal",
+                () => cancelAppointmentModal.show(),
+                { once: true });
+            detailsModal.hide();
         });
 
         document.getElementById("keepAppointmentButton").addEventListener("click", () => {
-        cancelAppointmentModalElement.addEventListener(
-        "hidden.bs.modal",
-        () => detailsModal.show(),
-        { once: true });
-        cancelAppointmentModal.hide();
+            cancelAppointmentModalElement.addEventListener(
+                "hidden.bs.modal",
+                () => detailsModal.show(),
+                { once: true });
+            cancelAppointmentModal.hide();
         });
 
         confirmCancelAppointmentButton.addEventListener("click", async () => {
-        if (!currentAppointmentUid) return;
-        confirmCancelAppointmentButton.disabled = true;
-        cancelAppointmentMessage.classList.add("d-none");
+            if (!currentAppointmentUid) return;
+            confirmCancelAppointmentButton.disabled = true;
+            cancelAppointmentMessage.classList.add("d-none");
 
-        try {
-        const formData = new FormData();
-        formData.append("AppointmentUid", currentAppointmentUid);
-        formData.append("CancelReason", cancelAppointmentReason.value);
-        const token = document.querySelector(
-        '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const response = await fetch(cancelAppointmentUrl, {
-        method: "POST",
-        headers: { "RequestVerificationToken": token },
-        body: formData
-        });
-        const result = await response.json().catch(() => ({}));
+            try {
+                const formData = new FormData();
+                formData.append("AppointmentUid", currentAppointmentUid);
+                formData.append("CancelReason", cancelAppointmentReason.value);
+                const token = document.querySelector(
+                    '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const response = await fetch(cancelAppointmentUrl, {
+                    method: "POST",
+                    headers: { "RequestVerificationToken": token },
+                    body: formData
+                });
+                const result = await response.json().catch(() => ({}));
 
-        if (!response.ok || !result.success) {
-        cancelAppointmentMessage.textContent =
-        result.message || "Appointment could not be cancelled.";
-        cancelAppointmentMessage.classList.remove("d-none");
-        return;
-        }
+                if (!response.ok || !result.success) {
+                    cancelAppointmentMessage.textContent =
+                        result.message || "Appointment could not be cancelled.";
+                    cancelAppointmentMessage.classList.remove("d-none");
+                    return;
+                }
 
-        cancelAppointmentModal.hide();
-        currentAppointmentUid = null;
-        await refreshCalendar();
-        showSchedulingActionMessage(
-        result.message || "Appointment cancelled.",
-        "success");
-        } catch (error) {
-        console.error(error);
-        cancelAppointmentMessage.textContent = "Appointment could not be cancelled.";
-        cancelAppointmentMessage.classList.remove("d-none");
-        } finally {
-        confirmCancelAppointmentButton.disabled = false;
-        }
+                cancelAppointmentModal.hide();
+                currentAppointmentUid = null;
+                await refreshCalendar();
+                showSchedulingActionMessage(
+                    result.message || "Appointment cancelled.",
+                    "success");
+            } catch (error) {
+                console.error(error);
+                cancelAppointmentMessage.textContent = "Appointment could not be cancelled.";
+                cancelAppointmentMessage.classList.remove("d-none");
+            } finally {
+                confirmCancelAppointmentButton.disabled = false;
+            }
         });
 
         const localInputValue = date => {
-        const pad = value => String(value).padStart(2, "0");
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            const pad = value => String(value).padStart(2, "0");
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         };
 
         document.getElementById("keepCurrentTimeButton").addEventListener("click", async () => {
-        pendingMove = null;
-        moveAppointmentModal.hide();
-        await refreshCalendar();
+            pendingMove = null;
+            moveAppointmentModal.hide();
+            await refreshCalendar();
         });
 
         confirmMoveButton.addEventListener("click", async () => {
-        if (!pendingMove) return;
-        confirmMoveButton.disabled = true;
-        moveAppointmentMessage.classList.add("d-none");
-        try {
-        const formData = new FormData();
-        formData.append("AppointmentUid", pendingMove.appointmentUid);
-        formData.append("PrimaryResourceUid", pendingMove.primaryResourceUid);
-        if (pendingMove.roomResourceUid) formData.append("RoomResourceUid", pendingMove.roomResourceUid);
-        formData.append("StartDateTimeLocal", localInputValue(pendingMove.startDateTimeLocal));
-        formData.append("EndDateTimeLocal", localInputValue(pendingMove.endDateTimeLocal));
-        const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const response = await fetch("/Scheduling/RescheduleAppointment", {
-        method: "POST",
-        headers: { "RequestVerificationToken": token },
-        body: formData
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.success) {
-        moveAppointmentMessage.textContent = result.message || "The appointment could not be moved. Please try again.";
-        moveAppointmentMessage.classList.remove("d-none");
-        await refreshCalendar();
-        return;
-        }
-        pendingMove = null;
-        moveAppointmentModal.hide();
-        await refreshCalendar();
-        } catch (error) {
-        console.error(error);
-        moveAppointmentMessage.textContent = "The appointment could not be moved. Please try again.";
-        moveAppointmentMessage.classList.remove("d-none");
-        await refreshCalendar();
-        } finally {
-        confirmMoveButton.disabled = false;
-        }
+            if (!pendingMove) return;
+            confirmMoveButton.disabled = true;
+            moveAppointmentMessage.classList.add("d-none");
+            try {
+                const blockedConflict =
+                    hasBlockedTimeConflict(
+                        pendingMove.primaryResourceUid,
+                        pendingMove.startDateTimeLocal,
+                        pendingMove.endDateTimeLocal) ||
+                    hasBlockedTimeConflictFromCalendar(
+                        pendingMove.primaryResourceUid,
+                        pendingMove.startDateTimeLocal,
+                        pendingMove.endDateTimeLocal) ||
+                    await hasServerBlockedTimeConflict(
+                        pendingMove.primaryResourceUid,
+                        pendingMove.startDateTimeLocal,
+                        pendingMove.endDateTimeLocal);
+                if (blockedConflict) {
+                    pendingMove = null;
+                    moveAppointmentModal.hide();
+                    await refreshCalendar();
+                    showSchedulingActionMessage(
+                        "This resource is blocked during the selected time.",
+                        "warning");
+                    return;
+                }
+                const formData = new FormData();
+                formData.append("AppointmentUid", pendingMove.appointmentUid);
+                formData.append("PrimaryResourceUid", pendingMove.primaryResourceUid);
+                if (pendingMove.roomResourceUid) formData.append("RoomResourceUid", pendingMove.roomResourceUid);
+                formData.append("StartDateTimeLocal", localInputValue(pendingMove.startDateTimeLocal));
+                formData.append("EndDateTimeLocal", localInputValue(pendingMove.endDateTimeLocal));
+                const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const response = await fetch("/Scheduling/RescheduleAppointment", {
+                    method: "POST",
+                    headers: { "RequestVerificationToken": token },
+                    body: formData
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || !result.success) {
+                    moveAppointmentMessage.textContent = result.message || "The appointment could not be moved. Please try again.";
+                    moveAppointmentMessage.classList.remove("d-none");
+                    await refreshCalendar();
+                    return;
+                }
+                pendingMove = null;
+                moveAppointmentModal.hide();
+                await refreshCalendar();
+            } catch (error) {
+                console.error(error);
+                moveAppointmentMessage.textContent = "The appointment could not be moved. Please try again.";
+                moveAppointmentMessage.classList.remove("d-none");
+                await refreshCalendar();
+            } finally {
+                confirmMoveButton.disabled = false;
+            }
         });
 
         moveAppointmentModalElement.addEventListener("hidden.bs.modal", () => {
-        if (pendingMove) {
-        pendingMove = null;
-        refreshCalendar();
-        }
+            if (pendingMove) {
+                pendingMove = null;
+                refreshCalendar();
+            }
         });
 
         const getVisibleResourceChoices = () => {
-        const searchTerm = resourcePickerSearch.value.trim().toLocaleLowerCase();
-        return resources.filter(resource =>
-        (!selectedResourceType || resource.resourceType === selectedResourceType) &&
-        (!searchTerm || resource.displayName.toLocaleLowerCase().includes(searchTerm)));
+            const searchTerm = resourcePickerSearch.value.trim().toLocaleLowerCase();
+            return resources.filter(resource =>
+                (!selectedResourceType || resource.resourceType === selectedResourceType) &&
+                (!searchTerm || resource.displayName.toLocaleLowerCase().includes(searchTerm)));
         };
 
         const refreshResourcePickerList = () => {
-        const matchingResources = getVisibleResourceChoices();
-        resourcePickerList.replaceChildren();
-        if (!matchingResources.length) {
-        const empty = document.createElement("div");
-        empty.className = "list-group-item text-body-secondary";
-        empty.textContent = "No resources match the current search.";
-        resourcePickerList.appendChild(empty);
-        return;
-        }
+            const matchingResources = getVisibleResourceChoices();
+            resourcePickerList.replaceChildren();
+            if (!matchingResources.length) {
+                const empty = document.createElement("div");
+                empty.className = "list-group-item text-body-secondary";
+                empty.textContent = "No resources match the current search.";
+                resourcePickerList.appendChild(empty);
+                return;
+            }
 
-        matchingResources.forEach(resource => {
-        const label = document.createElement("label");
-        label.className = "list-group-item resource-picker-item";
-        const left = document.createElement("span");
-        left.className = "d-flex align-items-center gap-2";
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.className = "form-check-input mt-0";
-        checkbox.checked = pendingResourceUids.has(resource.resourceUid);
-        checkbox.addEventListener("change", () => {
-        if (checkbox.checked) pendingResourceUids.add(resource.resourceUid);
-        else pendingResourceUids.delete(resource.resourceUid);
-        });
-        const name = document.createElement("span");
-        name.textContent = resource.displayName;
-        const type = document.createElement("span");
-        type.className = "badge text-bg-light";
-        type.textContent = resource.resourceType;
-        left.append(checkbox, name);
-        label.append(left, type);
-        resourcePickerList.appendChild(label);
-        });
+            matchingResources.forEach(resource => {
+                const label = document.createElement("label");
+                label.className = "list-group-item resource-picker-item";
+                const left = document.createElement("span");
+                left.className = "d-flex align-items-center gap-2";
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "form-check-input mt-0";
+                checkbox.checked = pendingResourceUids.has(resource.resourceUid);
+                checkbox.addEventListener("change", () => {
+                    if (checkbox.checked) pendingResourceUids.add(resource.resourceUid);
+                    else pendingResourceUids.delete(resource.resourceUid);
+                });
+                const name = document.createElement("span");
+                name.textContent = resource.displayName;
+                const type = document.createElement("span");
+                type.className = "badge text-bg-light";
+                type.textContent = resource.resourceType;
+                left.append(checkbox, name);
+                label.append(left, type);
+                resourcePickerList.appendChild(label);
+            });
         };
 
         document.getElementById("openResourcePickerButton").addEventListener("click", () => {
-        pendingResourceUids = new Set(selectedResourceUids);
-        resourcePickerSearch.value = "";
-        refreshResourcePickerList();
-        resourcePickerModal.show();
+            pendingResourceUids = new Set(selectedResourceUids);
+            resourcePickerSearch.value = "";
+            refreshResourcePickerList();
+            resourcePickerModal.show();
         });
         resourcePickerSearch.addEventListener("input", refreshResourcePickerList);
         document.getElementById("selectAllVisibleResourcesButton").addEventListener("click", () => {
-        getVisibleResourceChoices().forEach(resource =>
-        pendingResourceUids.add(resource.resourceUid));
-        refreshResourcePickerList();
+            getVisibleResourceChoices().forEach(resource =>
+                pendingResourceUids.add(resource.resourceUid));
+            refreshResourcePickerList();
         });
         document.getElementById("applyResourceSelectionButton").addEventListener("click", async () => {
-        selectedResourceUids = new Set(pendingResourceUids);
-        resourcePickerModal.hide();
-        await refreshCalendar();
+            selectedResourceUids = new Set(pendingResourceUids);
+            resourcePickerModal.hide();
+            await refreshCalendar();
         });
         document.getElementById("clearResourceSelectionButton").addEventListener("click", async () => {
-        selectedResourceUids.clear();
-        pendingResourceUids.clear();
-        resourcePickerSearch.value = "";
-        resourcePickerModal.hide();
-        await refreshCalendar();
+            selectedResourceUids.clear();
+            pendingResourceUids.clear();
+            resourcePickerSearch.value = "";
+            resourcePickerModal.hide();
+            await refreshCalendar();
         });
 
         const openAppointmentModal = (start, resourceUid) => {
-        appointmentForm.reset();
-        clearAppointmentErrors();
-        document.getElementById("PatientUid").value = "";
-        selectedPatientLabel.textContent = "No patient selected.";
-        hidePatientSearchResults();
-        const startDate = start.toDateLocal();
-        const endDate = new Date(startDate.getTime() + 15 * 60000);
-        document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
-        document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
-        const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
-        const firstVisibleProvider = getFilteredResources().find(resource => resource.resourceType === "Provider");
-        const firstProvider = resources.find(resource => resource.resourceType === "Provider");
-        document.getElementById("PrimaryResourceUid").value =
-        clickedResource?.resourceType === "Provider"
-        ? resourceUid
-        : firstVisibleProvider?.resourceUid || firstProvider?.resourceUid || "";
-        if (clickedResource?.resourceType === "Room") {
-        document.getElementById("RoomResourceUid").value = resourceUid;
-        }
-        appointmentModal.show();
+            appointmentForm.reset();
+            clearAppointmentErrors();
+            document.getElementById("PatientUid").value = "";
+            selectedPatientLabel.textContent = "No patient selected.";
+            hidePatientSearchResults();
+            const startDate = start.toDateLocal();
+            const endDate = new Date(startDate.getTime() + 15 * 60000);
+            document.getElementById("StartDateTimeLocal").value = localInputValue(startDate);
+            document.getElementById("EndDateTimeLocal").value = localInputValue(endDate);
+            const clickedResource = resources.find(resource => resource.resourceUid === resourceUid);
+            const firstVisibleProvider = getFilteredResources().find(resource => resource.resourceType === "Provider");
+            const firstProvider = resources.find(resource => resource.resourceType === "Provider");
+            document.getElementById("PrimaryResourceUid").value =
+                clickedResource?.resourceType === "Provider"
+                    ? resourceUid
+                    : firstVisibleProvider?.resourceUid || firstProvider?.resourceUid || "";
+            if (clickedResource?.resourceType === "Room") {
+                document.getElementById("RoomResourceUid").value = resourceUid;
+            }
+            appointmentModal.show();
         };
 
         const openAppointmentModalForDefaultSlot = () => {
-        const selectedLocalDate = selectedDate.toDateLocal();
-        const now = new Date();
-        const isToday =
-        selectedLocalDate.getFullYear() === now.getFullYear() &&
-        selectedLocalDate.getMonth() === now.getMonth() &&
-        selectedLocalDate.getDate() === now.getDate();
-        const start = new Date(selectedLocalDate);
+            const selectedLocalDate = selectedDate.toDateLocal();
+            const now = new Date();
+            const isToday =
+                selectedLocalDate.getFullYear() === now.getFullYear() &&
+                selectedLocalDate.getMonth() === now.getMonth() &&
+                selectedLocalDate.getDate() === now.getDate();
+            const start = new Date(selectedLocalDate);
 
-        if (isToday) {
-        start.setHours(now.getHours(), now.getMinutes(), 0, 0);
-        const remainder = start.getMinutes() % 15;
-        if (remainder !== 0) start.setMinutes(start.getMinutes() + 15 - remainder);
-        } else {
-        start.setHours(8, 0, 0, 0);
-        }
+            if (isToday) {
+                start.setHours(now.getHours(), now.getMinutes(), 0, 0);
+                const remainder = start.getMinutes() % 15;
+                if (remainder !== 0) start.setMinutes(start.getMinutes() + 15 - remainder);
+            } else {
+                start.setHours(8, 0, 0, 0);
+            }
 
-        const firstVisibleProvider = getFilteredResources()
-        .find(resource => resource.resourceType === "Provider");
-        const firstProvider = resources
-        .find(resource => resource.resourceType === "Provider");
-        openAppointmentModal(
-        new DayPilot.Date(localInputValue(start)),
-        firstVisibleProvider?.resourceUid || firstProvider?.resourceUid);
+            const firstVisibleProvider = getFilteredResources()
+                .find(resource => resource.resourceType === "Provider");
+            const firstProvider = resources
+                .find(resource => resource.resourceType === "Provider");
+            openAppointmentModal(
+                new DayPilot.Date(localInputValue(start)),
+                firstVisibleProvider?.resourceUid || firstProvider?.resourceUid);
         };
 
         const clearAppointmentErrors = () => {
-        appointmentMessage.className = "alert d-none";
-        appointmentMessage.textContent = "";
-        appointmentForm.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
-        appointmentForm.querySelectorAll("[data-error-for]").forEach(element => element.textContent = "");
+            appointmentMessage.className = "alert d-none";
+            appointmentMessage.textContent = "";
+            appointmentForm.querySelectorAll(".is-invalid").forEach(element => element.classList.remove("is-invalid"));
+            appointmentForm.querySelectorAll("[data-error-for]").forEach(element => element.textContent = "");
         };
 
         const showMessage = (message, style = "danger") => {
-        appointmentMessage.className = `alert alert-${style}`;
-        appointmentMessage.textContent = message;
+            appointmentMessage.className = `alert alert-${style}`;
+            appointmentMessage.textContent = message;
         };
 
         const searchPatients = async () => {
-        const term = document.getElementById("patientSearchTerm").value.trim();
-        searchResults.replaceChildren();
-        if (term.length < 2) {
-        showMessage("Enter at least two characters to search for a patient.");
-        hidePatientSearchResults();
-        return;
-        }
-        clearAppointmentErrors();
-        const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
-        if (!response.ok) {
-        showMessage("Patient search is unavailable. Please try again.");
-        hidePatientSearchResults();
-        return;
-        }
-        const patients = await response.json();
-        if (!patients.length) {
-        const empty = document.createElement("div");
-        empty.className = "patient-search-empty";
-        empty.textContent = "No patients found.";
-        searchResults.appendChild(empty);
-        showPatientSearchResults();
-        return;
-        }
-        patients.forEach(patient => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "patient-search-item";
-        button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
-        button.addEventListener("click", () => {
-        document.getElementById("PatientUid").value = patient.patientUid;
-        selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
-        document.getElementById("patientSearchTerm").value = patient.displayName;
-        hidePatientSearchResults();
-        });
-        searchResults.appendChild(button);
-        });
-        showPatientSearchResults();
+            const term = document.getElementById("patientSearchTerm").value.trim();
+            searchResults.replaceChildren();
+            if (term.length < 2) {
+                showMessage("Enter at least two characters to search for a patient.");
+                hidePatientSearchResults();
+                return;
+            }
+            clearAppointmentErrors();
+            const response = await fetch(`/Scheduling/SearchPatients?term=${encodeURIComponent(term)}`);
+            if (!response.ok) {
+                showMessage("Patient search is unavailable. Please try again.");
+                hidePatientSearchResults();
+                return;
+            }
+            const patients = await response.json();
+            if (!patients.length) {
+                const empty = document.createElement("div");
+                empty.className = "patient-search-empty";
+                empty.textContent = "No patients found.";
+                searchResults.appendChild(empty);
+                showPatientSearchResults();
+                return;
+            }
+            patients.forEach(patient => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "patient-search-item";
+                button.textContent = `${patient.displayName} — ${patient.chartNumber}${patient.dateOfBirth ? ` — DOB ${patient.dateOfBirth}` : ""}`;
+                button.addEventListener("click", () => {
+                    document.getElementById("PatientUid").value = patient.patientUid;
+                    selectedPatientLabel.textContent = `${patient.displayName} (${patient.chartNumber})`;
+                    document.getElementById("patientSearchTerm").value = patient.displayName;
+                    hidePatientSearchResults();
+                });
+                searchResults.appendChild(button);
+            });
+            showPatientSearchResults();
         };
 
         document.getElementById("patientSearchButton").addEventListener("click", searchPatients);
         document.getElementById("patientSearchTerm").addEventListener("keydown", event => {
-        if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
+            if (event.key === "Enter") { event.preventDefault(); searchPatients(); }
         });
         document.addEventListener("click", event => {
-        const container = document.querySelector(".patient-search-container");
-        if (container && !container.contains(event.target)) hidePatientSearchResults();
+            const container = document.querySelector(".patient-search-container");
+            if (container && !container.contains(event.target)) hidePatientSearchResults();
         });
         document.getElementById("addAppointmentModal").addEventListener("hidden.bs.modal", () => {
-        hidePatientSearchResults();
+            hidePatientSearchResults();
         });
 
         document.getElementById("saveAppointmentButton").addEventListener("click", async event => {
-        clearAppointmentErrors();
-        const button = event.currentTarget;
-        button.disabled = true;
-        try {
-        const formData = new FormData(appointmentForm);
-        const appointmentStart = new Date(formData.get("StartDateTimeLocal"));
-        const appointmentEnd = new Date(formData.get("EndDateTimeLocal"));
-        if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), appointmentStart, appointmentEnd) ||
-        (formData.get("RoomResourceUid") &&
-        hasBlockedTimeConflict(formData.get("RoomResourceUid"), appointmentStart, appointmentEnd))) {
-        showMessage("This resource is blocked during the selected time.");
-        return;
-        }
-        const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-        const response = await fetch("/Scheduling/CreateAppointment", {
-        method: "POST",
-        headers: { "RequestVerificationToken": token },
-        body: formData
-        });
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-        showMessage(result.message || "The appointment could not be saved.");
-        Object.entries(result.errors || {}).forEach(([name, messages]) => {
-        const input = document.getElementById(name);
-        if (input) input.classList.add("is-invalid");
-        const feedback = appointmentForm.querySelector(`[data-error-for="${name}"]`);
-        if (feedback) feedback.textContent = messages.join(" ");
-        });
-        return;
-        }
-        appointmentModal.hide();
-        appointmentForm.reset();
-        await refreshCalendar();
-        } catch (error) {
-        console.error(error);
-        showMessage("The appointment could not be saved. Please try again.");
-        } finally {
-        button.disabled = false;
-        }
+            clearAppointmentErrors();
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+                const formData = new FormData(appointmentForm);
+                const appointmentStart = new Date(formData.get("StartDateTimeLocal"));
+                const appointmentEnd = new Date(formData.get("EndDateTimeLocal"));
+                if (hasBlockedTimeConflict(formData.get("PrimaryResourceUid"), appointmentStart, appointmentEnd) ||
+                    (formData.get("RoomResourceUid") &&
+                        hasBlockedTimeConflict(formData.get("RoomResourceUid"), appointmentStart, appointmentEnd))) {
+                    showMessage("This resource is blocked during the selected time.");
+                    return;
+                }
+                const token = document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                const response = await fetch("/Scheduling/CreateAppointment", {
+                    method: "POST",
+                    headers: { "RequestVerificationToken": token },
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    showMessage(result.message || "The appointment could not be saved.");
+                    Object.entries(result.errors || {}).forEach(([name, messages]) => {
+                        const input = document.getElementById(name);
+                        if (input) input.classList.add("is-invalid");
+                        const feedback = appointmentForm.querySelector(`[data-error-for="${name}"]`);
+                        if (feedback) feedback.textContent = messages.join(" ");
+                    });
+                    return;
+                }
+                appointmentModal.hide();
+                appointmentForm.reset();
+                await refreshCalendar();
+            } catch (error) {
+                console.error(error);
+                showMessage("The appointment could not be saved. Please try again.");
+            } finally {
+                button.disabled = false;
+            }
         });
 
         const setDateLabel = () => {
-        dateLabel.textContent =
-        selectedDate.toDateLocal().toLocaleDateString(
-        undefined,
-        {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-        });
+            dateLabel.textContent =
+                selectedDate.toDateLocal().toLocaleDateString(
+                    undefined,
+                    {
+                        weekday: "long",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                    });
         };
 
         const dayRange = () => {
-        const start = selectedDate.toDateLocal();
-        start.setHours(0, 0, 0, 0);
+            const start = selectedDate.toDateLocal();
+            start.setHours(0, 0, 0, 0);
 
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 1);
 
-        return {
-        start: start.toISOString(),
-        end: end.toISOString()
-        };
+            return {
+                start: start.toISOString(),
+                end: end.toISOString()
+            };
         };
 
         const loadEvents = async () => {
-        const range = dayRange();
-        const url = new URL(
-        "/Scheduling/Events",
-        window.location.origin);
+            const range = dayRange();
+            const url = new URL(
+                "/Scheduling/Events",
+                window.location.origin);
 
-        url.searchParams.set("start", range.start);
-        url.searchParams.set("end", range.end);
+            url.searchParams.set("start", range.start);
+            url.searchParams.set("end", range.end);
 
-        const response = await fetch(url);
+            const response = await fetch(url);
 
-        if (!response.ok) {
-        throw new Error(
-        `Scheduling events request failed: ${response.status}`);
-        }
+            if (!response.ok) {
+                throw new Error(
+                    `Scheduling events request failed: ${response.status}`);
+            }
 
-        const events = await response.json();
-        const blockedUrl = new URL("/Scheduling/BlockedTimes", window.location.origin);
-        blockedUrl.searchParams.set("startDateTimeUtc", range.start);
-        blockedUrl.searchParams.set("endDateTimeUtc", range.end);
-        const blockedResponse = await fetch(blockedUrl, {
-        headers: { "Accept": "application/json" }
-        });
-        const blockedResult = await blockedResponse.json().catch(() => ({}));
-        if (!blockedResponse.ok || !blockedResult.success) {
-        throw new Error(blockedResult.message || "Blocked times could not be loaded.");
-        }
-        blockedTimes = blockedResult.blockedTimes || [];
-        const blockedEvents = blockedTimes.map(block => ({
-        id: `blocked-${block.blockedTimeUid}`,
-        text: `Blocked${block.reason ? `: ${block.reason}` : ""}`,
-        start: block.startDateTimeUtc,
-        end: block.endDateTimeUtc,
-        resource: block.resourceUid,
-        eventKind: "blockedTime",
-        blockedTimeUid: block.blockedTimeUid,
-        reason: block.reason,
-        moveDisabled: true,
-        resizeDisabled: true,
-        backColor: "#6c757d",
-        borderColor: "#495057",
-        fontColor: "#ffffff"
-        }));
-        const visibleResourceUids = new Set(getFilteredResources().map(resource => resource.resourceUid));
-        return [...events.map(event => ({ ...event, eventKind: "appointment" })), ...blockedEvents]
-        .filter(event => visibleResourceUids.has(event.resource));
+            const events = await response.json();
+            const blockedUrl = new URL("/Scheduling/BlockedTimes", window.location.origin);
+            blockedUrl.searchParams.set("startDateTimeUtc", range.start);
+            blockedUrl.searchParams.set("endDateTimeUtc", range.end);
+            const blockedResponse = await fetch(blockedUrl, {
+                headers: { "Accept": "application/json" }
+            });
+            const blockedResult = await blockedResponse.json().catch(() => ({}));
+            if (!blockedResponse.ok || !blockedResult.success) {
+                throw new Error(blockedResult.message || "Blocked times could not be loaded.");
+            }
+            blockedTimes = blockedResult.blockedTimes || [];
+            const blockedEvents = blockedTimes.map(block => ({
+                id: `blocked-${block.blockedTimeUid}`,
+                text: `Blocked${block.reason ? `: ${block.reason}` : ""}`,
+                // DayPilot expects the same local wall-clock format used by appointment events.
+                start: toDayPilotLocalDateTime(block.startDateTimeUtc),
+                end: toDayPilotLocalDateTime(block.endDateTimeUtc),
+                resource: block.resourceUid,
+                resourceUid: block.resourceUid,
+                eventKind: "blockedTime",
+                blockedTimeUid: block.blockedTimeUid,
+                reason: block.reason,
+                moveDisabled: true,
+                resizeDisabled: true,
+                backColor: "#6c757d",
+                borderColor: "#495057",
+                fontColor: "#ffffff"
+            }));
+            const visibleResourceUids = new Set(getFilteredResources().map(resource => resource.resourceUid));
+            return [...events.map(event => ({
+                ...event,
+                eventKind: "appointment",
+                appointmentUid: event.id,
+                resourceUid: event.resource
+            })), ...blockedEvents]
+                .filter(event => visibleResourceUids.has(event.resource));
         };
 
         const refreshCalendar = async () => {
-        setDateLabel();
-        updateResourceFilterSummary();
+            setDateLabel();
+            updateResourceFilterSummary();
 
-        calendar.update({
-        startDate: selectedDate,
-        columns: toColumns(),
-        events: []
-        });
+            calendar.update({
+                startDate: selectedDate,
+                columns: toColumns(),
+                events: []
+            });
 
-        try {
-        const events = await loadEvents();
+            try {
+                const events = await loadEvents();
 
-        calendar.update({
-        events
-        });
-        } catch (error) {
-        console.error(error);
-        calendar.update({
-        events: []
-        });
-        }
+                calendar.update({
+                    events
+                });
+            } catch (error) {
+                console.error(error);
+                calendar.update({
+                    events: []
+                });
+            }
         };
 
         const dateKey = date => {
-        const pad = value => String(value).padStart(2, "0");
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+            const pad = value => String(value).padStart(2, "0");
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
         };
 
         const refreshMonthView = async () => {
-        const year = selectedMonthDate.getFullYear();
-        const month = selectedMonthDate.getMonth();
-        const monthStart = new Date(year, month, 1);
-        const monthEnd = new Date(year, month + 1, 1);
-        monthLabel.textContent = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-        monthMessage.classList.add("d-none");
-        monthGrid.replaceChildren();
+            const year = selectedMonthDate.getFullYear();
+            const month = selectedMonthDate.getMonth();
+            const monthStart = new Date(year, month, 1);
+            const monthEnd = new Date(year, month + 1, 1);
+            monthLabel.textContent = monthStart.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+            monthMessage.classList.add("d-none");
+            monthGrid.replaceChildren();
 
-        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(dayName => {
-        const header = document.createElement("div");
-        header.className = "scheduling-month-header";
-        header.textContent = dayName;
-        monthGrid.appendChild(header);
-        });
+            ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(dayName => {
+                const header = document.createElement("div");
+                header.className = "scheduling-month-header";
+                header.textContent = dayName;
+                monthGrid.appendChild(header);
+            });
 
-        for (let index = 0; index < monthStart.getDay(); index++) {
-        const blank = document.createElement("div");
-        blank.className = "scheduling-month-blank";
-        blank.setAttribute("aria-hidden", "true");
-        monthGrid.appendChild(blank);
-        }
+            for (let index = 0; index < monthStart.getDay(); index++) {
+                const blank = document.createElement("div");
+                blank.className = "scheduling-month-blank";
+                blank.setAttribute("aria-hidden", "true");
+                monthGrid.appendChild(blank);
+            }
 
-        let summaryByDate = new Map();
-        try {
-        const url = new URL("/Scheduling/MonthSummary", window.location.origin);
-        url.searchParams.set("start", monthStart.toISOString());
-        url.searchParams.set("end", monthEnd.toISOString());
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Month summary request failed: ${response.status}`);
-        const summary = await response.json();
-        summaryByDate = new Map(summary.map(item => [String(item.date).slice(0, 10), item]));
-        } catch (error) {
-        console.error(error);
-        monthMessage.textContent = "The month appointment summary could not be loaded. Please try again.";
-        monthMessage.classList.remove("d-none");
-        }
+            let summaryByDate = new Map();
+            try {
+                const url = new URL("/Scheduling/MonthSummary", window.location.origin);
+                url.searchParams.set("start", monthStart.toISOString());
+                url.searchParams.set("end", monthEnd.toISOString());
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Month summary request failed: ${response.status}`);
+                const summary = await response.json();
+                summaryByDate = new Map(summary.map(item => [String(item.date).slice(0, 10), item]));
+            } catch (error) {
+                console.error(error);
+                monthMessage.textContent = "The month appointment summary could not be loaded. Please try again.";
+                monthMessage.classList.remove("d-none");
+            }
 
-        const todayKey = dateKey(new Date());
-        const selectedKey = selectedDate.toString("yyyy-MM-dd");
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
-        const key = dateKey(date);
-        const item = summaryByDate.get(key);
-        const count = item?.appointmentCount || 0;
-        const status = item?.status || "No appointments";
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "scheduling-month-day";
-        if (key === todayKey) cell.classList.add("is-today");
-        if (key === selectedKey) cell.classList.add("is-selected");
-        cell.innerHTML = `<div class="scheduling-month-day-number">${day}</div>` +
-        `<div class="scheduling-month-day-summary">${count} ${count === 1 ? "appointment" : "appointments"}<br>${status}</div>`;
-        cell.addEventListener("click", async () => {
-        selectedDate = new DayPilot.Date(key);
-        selectedMonthDate = date;
-        await showDayView();
-        });
-        monthGrid.appendChild(cell);
-        }
+            const todayKey = dateKey(new Date());
+            const selectedKey = selectedDate.toString("yyyy-MM-dd");
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const key = dateKey(date);
+                const item = summaryByDate.get(key);
+                const count = item?.appointmentCount || 0;
+                const status = item?.status || "No appointments";
+                const cell = document.createElement("button");
+                cell.type = "button";
+                cell.className = "scheduling-month-day";
+                if (key === todayKey) cell.classList.add("is-today");
+                if (key === selectedKey) cell.classList.add("is-selected");
+                cell.innerHTML = `<div class="scheduling-month-day-number">${day}</div>` +
+                    `<div class="scheduling-month-day-summary">${count} ${count === 1 ? "appointment" : "appointments"}<br>${status}</div>`;
+                cell.addEventListener("click", async () => {
+                    selectedDate = new DayPilot.Date(key);
+                    selectedMonthDate = date;
+                    await showDayView();
+                });
+                monthGrid.appendChild(cell);
+            }
         };
 
         const showDayView = async () => {
-        currentView = "day";
-        monthView.classList.add("d-none");
-        dayView.classList.remove("d-none");
-        dayViewButton.className = "btn btn-primary";
-        dayViewButton.setAttribute("aria-pressed", "true");
-        monthViewButton.className = "btn btn-outline-secondary";
-        monthViewButton.setAttribute("aria-pressed", "false");
-        viewTitle.textContent = "Day View";
-        await refreshCalendar();
+            currentView = "day";
+            monthView.classList.add("d-none");
+            dayView.classList.remove("d-none");
+            dayViewButton.className = "btn btn-primary";
+            dayViewButton.setAttribute("aria-pressed", "true");
+            monthViewButton.className = "btn btn-outline-secondary";
+            monthViewButton.setAttribute("aria-pressed", "false");
+            viewTitle.textContent = "Day View";
+            await refreshCalendar();
         };
 
         const showMonthView = async () => {
-        currentView = "month";
-        selectedMonthDate = selectedDate.toDateLocal();
-        selectedMonthDate.setDate(1);
-        dayView.classList.add("d-none");
-        monthView.classList.remove("d-none");
-        monthViewButton.className = "btn btn-primary";
-        monthViewButton.setAttribute("aria-pressed", "true");
-        dayViewButton.className = "btn btn-outline-secondary";
-        dayViewButton.setAttribute("aria-pressed", "false");
-        viewTitle.textContent = "Month View";
-        await refreshMonthView();
+            currentView = "month";
+            selectedMonthDate = selectedDate.toDateLocal();
+            selectedMonthDate.setDate(1);
+            dayView.classList.add("d-none");
+            monthView.classList.remove("d-none");
+            monthViewButton.className = "btn btn-primary";
+            monthViewButton.setAttribute("aria-pressed", "true");
+            dayViewButton.className = "btn btn-outline-secondary";
+            dayViewButton.setAttribute("aria-pressed", "false");
+            viewTitle.textContent = "Month View";
+            await refreshMonthView();
         };
 
         document
-        .getElementById("schedulingPreviousButton")
-        .addEventListener("click", async () => {
-        selectedDate = selectedDate.addDays(-1);
-        await refreshCalendar();
-        });
+            .getElementById("schedulingPreviousButton")
+            .addEventListener("click", async () => {
+                selectedDate = selectedDate.addDays(-1);
+                await refreshCalendar();
+            });
 
         document
-        .getElementById("schedulingTodayButton")
-        .addEventListener("click", async () => {
-        selectedDate = DayPilot.Date.today();
-        await refreshCalendar();
-        });
+            .getElementById("schedulingTodayButton")
+            .addEventListener("click", async () => {
+                selectedDate = DayPilot.Date.today();
+                await refreshCalendar();
+            });
 
         document
-        .getElementById("schedulingNextButton")
-        .addEventListener("click", async () => {
-        selectedDate = selectedDate.addDays(1);
-        await refreshCalendar();
-        });
+            .getElementById("schedulingNextButton")
+            .addEventListener("click", async () => {
+                selectedDate = selectedDate.addDays(1);
+                await refreshCalendar();
+            });
 
         resourceTypeFilter.addEventListener("change", async () => {
-        selectedResourceType = resourceTypeFilter.value;
-        refreshResourcePickerList();
-        await refreshCalendar();
+            selectedResourceType = resourceTypeFilter.value;
+            refreshResourcePickerList();
+            await refreshCalendar();
         });
 
         monthViewButton.addEventListener("click", showMonthView);
         dayViewButton.addEventListener("click", showDayView);
         document.getElementById("schedulingPreviousMonthButton").addEventListener("click", async () => {
-        selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() - 1, 1);
-        await refreshMonthView();
+            selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() - 1, 1);
+            await refreshMonthView();
         });
         document.getElementById("schedulingMonthTodayButton").addEventListener("click", async () => {
-        selectedMonthDate = new Date();
-        selectedMonthDate.setDate(1);
-        await refreshMonthView();
+            selectedMonthDate = new Date();
+            selectedMonthDate.setDate(1);
+            await refreshMonthView();
         });
         document.getElementById("schedulingNextMonthButton").addEventListener("click", async () => {
-        selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 1);
-        await refreshMonthView();
+            selectedMonthDate = new Date(selectedMonthDate.getFullYear(), selectedMonthDate.getMonth() + 1, 1);
+            await refreshMonthView();
         });
 
         await refreshCalendar();
         if (shouldOpenAddAppointment) {
-        openAppointmentModalForDefaultSlot();
+            openAppointmentModalForDefaultSlot();
         }
-        });
+    });
     </script>
 }
