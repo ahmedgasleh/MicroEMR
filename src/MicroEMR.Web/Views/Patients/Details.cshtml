@@ -24,6 +24,8 @@
 
     var medicationsActive =
         Model.ActiveTab == "medications";
+
+    var vitalsActive = Model.ActiveTab == "vitals";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -103,6 +105,9 @@
                 type="button">
             Medications
         </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(vitalsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#vitals" type="button">Vitals</button>
     </li>
 </ul>
 
@@ -875,7 +880,29 @@
             </div>
         }
     </div>
+    <div class="tab-pane fade @(vitalsActive ? "show active" : null)" id="vitals" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Vitals</h5><button type="button" id="addVitalButton" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Vitals</button></div>
+        <div id="vitalPageMessage" class="alert d-none" role="alert"></div>
+        @if (Model.Vitals.Count == 0) { <div class="alert alert-light border"><i class="bi bi-heart-pulse me-2"></i>No vitals recorded.</div> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Recorded</th><th>Blood Pressure</th><th>Heart Rate</th><th>Resp. Rate</th><th>Temperature</th><th>SpO2</th><th>Height</th><th>Weight</th><th>BMI</th><th>Notes</th><th class="text-end">Actions</th></tr></thead><tbody>
+        @foreach (var vital in Model.Vitals) {
+            <tr class="vital-row" data-vital-uid="@vital.PatientVitalUid" data-recorded-at="@vital.RecordedAt.ToString("yyyy-MM-ddTHH:mm")" data-systolic="@vital.BloodPressureSystolic" data-diastolic="@vital.BloodPressureDiastolic" data-heart-rate="@vital.HeartRate" data-respiratory-rate="@vital.RespiratoryRate" data-temperature="@vital.TemperatureCelsius" data-oxygen="@vital.OxygenSaturation" data-height="@vital.HeightCm" data-weight="@vital.WeightKg" data-notes="@vital.Notes">
+             <td>@vital.RecordedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td><td>@(vital.BloodPressureSystolic.HasValue && vital.BloodPressureDiastolic.HasValue ? $"{vital.BloodPressureSystolic}/{vital.BloodPressureDiastolic}" : "—")</td><td>@(vital.HeartRate?.ToString() ?? "—")</td><td>@(vital.RespiratoryRate?.ToString() ?? "—")</td><td>@(vital.TemperatureCelsius.HasValue ? $"{vital.TemperatureCelsius:0.##} °C" : "—")</td><td>@(vital.OxygenSaturation.HasValue ? $"{vital.OxygenSaturation}%" : "—")</td><td>@(vital.HeightCm.HasValue ? $"{vital.HeightCm:0.##} cm" : "—")</td><td>@(vital.WeightKg.HasValue ? $"{vital.WeightKg:0.##} kg" : "—")</td><td>@(vital.Bmi?.ToString("0.00") ?? "—")</td><td class="text-break">@(vital.Notes ?? "—")</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary edit-vital-button">Edit</button></td>
+            </tr> }
+        </tbody></table></div> }
+    </div>
 </div>
+
+<div class="modal fade" id="vitalEditorModal" tabindex="-1" aria-labelledby="vitalEditorModalLabel" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
+ <div class="modal-header"><h2 class="modal-title fs-5" id="vitalEditorModalLabel">Add Vitals</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><div id="vitalEditorMessage" class="alert alert-danger d-none"></div><input type="hidden" id="vitalUid" /><div class="row g-3">
+ <div class="col-12 col-md-6"><label for="vitalRecordedAt" class="form-label">Recorded At <span class="text-danger">*</span></label><input id="vitalRecordedAt" type="datetime-local" class="form-control" required /></div>
+ <div class="col-6 col-md-3"><label for="vitalSystolic" class="form-label">BP Systolic</label><input id="vitalSystolic" type="number" min="40" max="300" step="1" class="form-control" /></div><div class="col-6 col-md-3"><label for="vitalDiastolic" class="form-label">BP Diastolic</label><input id="vitalDiastolic" type="number" min="20" max="200" step="1" class="form-control" /></div>
+ <div class="col-6 col-md-3"><label for="vitalHeartRate" class="form-label">Heart Rate</label><input id="vitalHeartRate" type="number" min="20" max="250" step="1" class="form-control" /></div><div class="col-6 col-md-3"><label for="vitalRespiratoryRate" class="form-label">Respiratory Rate</label><input id="vitalRespiratoryRate" type="number" min="5" max="80" step="1" class="form-control" /></div>
+ <div class="col-6 col-md-3"><label for="vitalTemperature" class="form-label">Temperature °C</label><input id="vitalTemperature" type="number" min="25" max="45" step="0.1" class="form-control" /></div><div class="col-6 col-md-3"><label for="vitalOxygen" class="form-label">Oxygen Saturation %</label><input id="vitalOxygen" type="number" min="0" max="100" step="1" class="form-control" /></div>
+ <div class="col-6 col-md-3"><label for="vitalHeight" class="form-label">Height cm</label><input id="vitalHeight" type="number" min="20" max="260" step="0.01" class="form-control" /></div><div class="col-6 col-md-3"><label for="vitalWeight" class="form-label">Weight kg</label><input id="vitalWeight" type="number" min="1" max="500" step="0.01" class="form-control" /></div>
+ <div class="col-12"><label for="vitalNotes" class="form-label">Notes</label><textarea id="vitalNotes" maxlength="1000" rows="3" class="form-control"></textarea></div></div></div>
+ <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="saveVitalButton" class="btn btn-primary">Save Vitals</button></div></div></div></div>
+<form id="vitalAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 <div class="modal fade" id="problemEditorModal" tabindex="-1" aria-labelledby="problemEditorModalLabel" aria-hidden="true">
     <div class="modal-dialog"><div class="modal-content">
@@ -1725,6 +1752,17 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch { message.textContent = "Medication could not be discontinued."; message.classList.remove("d-none"); }
         finally { confirmButton.disabled = false; }
     });
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+ const element=document.getElementById("vitalEditorModal"); if(!element)return; const modal=new bootstrap.Modal(element);
+ const ids=["RecordedAt","Systolic","Diastolic","HeartRate","RespiratoryRate","Temperature","Oxygen","Height","Weight","Notes"];
+ const fields=Object.fromEntries(ids.map(x=>[x,document.getElementById(`vital${x}`)])); const uid=document.getElementById("vitalUid"), title=document.getElementById("vitalEditorModalLabel"), message=document.getElementById("vitalEditorMessage"), save=document.getElementById("saveVitalButton");
+ const nowLocal=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16);};
+ document.getElementById("addVitalButton")?.addEventListener("click",()=>{uid.value="";ids.forEach(x=>fields[x].value="");fields.RecordedAt.value=nowLocal();title.textContent="Add Vitals";message.classList.add("d-none");modal.show();});
+ document.querySelectorAll(".edit-vital-button").forEach(button=>button.addEventListener("click",()=>{const d=button.closest("tr").dataset;uid.value=d.vitalUid;fields.RecordedAt.value=d.recordedAt;fields.Systolic.value=d.systolic;fields.Diastolic.value=d.diastolic;fields.HeartRate.value=d.heartRate;fields.RespiratoryRate.value=d.respiratoryRate;fields.Temperature.value=d.temperature;fields.Oxygen.value=d.oxygen;fields.Height.value=d.height;fields.Weight.value=d.weight;fields.Notes.value=d.notes;title.textContent="Edit Vitals";message.classList.add("d-none");modal.show();}));
+ save.addEventListener("click",async()=>{if(!fields.RecordedAt.value){message.textContent="Recorded date and time are required.";message.classList.remove("d-none");return;} save.disabled=true;message.classList.add("d-none");const data=new FormData();data.append("PatientUid","@patient.PatientUid");if(uid.value)data.append("PatientVitalUid",uid.value);data.append("RecordedAt",fields.RecordedAt.value);const names={Systolic:"BloodPressureSystolic",Diastolic:"BloodPressureDiastolic",HeartRate:"HeartRate",RespiratoryRate:"RespiratoryRate",Temperature:"TemperatureCelsius",Oxygen:"OxygenSaturation",Height:"HeightCm",Weight:"WeightKg",Notes:"Notes"};Object.entries(names).forEach(([key,name])=>{if(fields[key].value)data.append(name,fields[key].value);});try{const token=document.querySelector('#vitalAntiforgeryForm input[name="__RequestVerificationToken"]').value;const url=uid.value?'@Url.Action("UpdateVital", "PatientVitals")':'@Url.Action("CreateVital", "PatientVitals")';const response=await fetch(url,{method:"POST",headers:{"RequestVerificationToken":token},body:data});const result=await response.json().catch(()=>({}));if(!response.ok||!result.success)throw new Error(result.message||"Vitals could not be saved.");window.location.href='@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "vitals" })';}catch(error){message.textContent=error instanceof Error?error.message:"Vitals could not be saved.";message.classList.remove("d-none");}finally{save.disabled=false;}});
 });
 </script>
 }
