@@ -2,10 +2,13 @@
 
 @{
     var patient = Model.Patient;
+    var summary = Model.Summary;
 
     ViewData ["Title"] = "Patient Chart";
     ViewData ["Subtitle"] = patient.ChartNumber;
     Layout = "_AppLayout";
+
+    var summaryActive = Model.ActiveTab == "summary";
 
     var demographicsActive =
         Model.ActiveTab == "demographics";
@@ -53,6 +56,7 @@
 }
 
 <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
     <li class="nav-item">
         <button class="nav-link @(demographicsActive ? "active" : null)"
                 data-bs-toggle="tab"
@@ -112,6 +116,22 @@
 </ul>
 
 <div class="tab-content">
+    <div class="tab-pane fade @(summaryActive ? "show active" : null)" id="summary" role="tabpanel">
+        <div class="card mb-4"><div class="card-body">
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div><h3 class="h4 mb-1">@summary.PatientDisplayName</h3>@if (!string.IsNullOrWhiteSpace(summary.PreferredName)) { <div class="text-muted">Preferred name: @summary.PreferredName</div> }<div class="text-muted">Chart @summary.ChartNumber</div></div>
+            <dl class="row mb-0 flex-grow-1"><dt class="col-sm-4">Date of birth</dt><dd class="col-sm-8">@summary.DateOfBirth.ToString("MMM d, yyyy") (@summary.AgeDisplay)</dd><dt class="col-sm-4">Health card</dt><dd class="col-sm-8">@(summary.HealthCardNumber ?? "—")</dd><dt class="col-sm-4">Sex / gender</dt><dd class="col-sm-8">@string.Join(" / ", new[] { summary.SexAtBirth, summary.GenderIdentity }.Where(value => !string.IsNullOrWhiteSpace(value)))</dd><dt class="col-sm-4">Contact</dt><dd class="col-sm-8">@(summary.PhoneNumber ?? "—")@if (!string.IsNullOrWhiteSpace(summary.Email)) { <span> · @summary.Email</span> }</dd></dl></div>
+        </div></div>
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if (summary.ActiveProblems.Count == 0) { <p class="text-muted mb-0">No active problems recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveProblems) { <div class="list-group-item px-0"><div class="fw-semibold">@item.ProblemName</div>@if (item.OnsetDate.HasValue) { <small class="text-muted">Onset @item.OnsetDate.Value.ToString("MMM d, yyyy")</small> }@if (!string.IsNullOrWhiteSpace(item.ProblemDescription)) { <div class="small">@item.ProblemDescription</div> }</div> }</div>@if (summary.ActiveProblemsTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveProblemsTotalCount - 5) more active problems</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View Problems</button></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if (summary.ActiveAllergies.Count == 0) { <p class="text-muted mb-0">No active allergies recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveAllergies) { <div class="list-group-item px-0"><div class="fw-semibold">@item.AllergenName</div><div class="small">@string.Join(" · ", new[] { item.Reaction, item.Severity }.Where(value => !string.IsNullOrWhiteSpace(value)))</div></div> }</div>@if (summary.ActiveAllergiesTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveAllergiesTotalCount - 5) more active allergies</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View Allergies</button></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Latest Vitals</h4>@if (summary.LatestVitals is null) { <p class="text-muted mb-0">No vitals recorded.</p> } else { var v = summary.LatestVitals; <div class="small text-muted mb-2">@v.RecordedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</div><dl class="row mb-0"><dt class="col-7">Blood pressure</dt><dd class="col-5">@(v.BloodPressureSystolic.HasValue && v.BloodPressureDiastolic.HasValue ? $"{v.BloodPressureSystolic}/{v.BloodPressureDiastolic}" : "—")</dd><dt class="col-7">Heart rate</dt><dd class="col-5">@(v.HeartRate.HasValue ? $"{v.HeartRate} bpm" : "—")</dd><dt class="col-7">Respiratory rate</dt><dd class="col-5">@(v.RespiratoryRate.HasValue ? $"{v.RespiratoryRate}/min" : "—")</dd><dt class="col-7">Temperature</dt><dd class="col-5">@(v.TemperatureCelsius.HasValue ? $"{v.TemperatureCelsius:0.##} °C" : "—")</dd><dt class="col-7">SpO2</dt><dd class="col-5">@(v.OxygenSaturation.HasValue ? $"{v.OxygenSaturation}%" : "—")</dd><dt class="col-7">Height / weight</dt><dd class="col-5">@(v.HeightCm.HasValue ? $"{v.HeightCm:0.##} cm" : "—") / @(v.WeightKg.HasValue ? $"{v.WeightKg:0.##} kg" : "—")</dd><dt class="col-7">BMI</dt><dd class="col-5">@(v.Bmi?.ToString("0.00") ?? "—")</dd></dl> }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="vitals">View Vitals</button></div></div></div>
+        </div>
+        <div class="row g-3">
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Medications</h4>@if (summary.ActiveMedications.Count == 0) { <p class="text-muted mb-0">No active medications recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveMedications) { <div class="list-group-item px-0"><div class="fw-semibold">@item.MedicationName @item.Strength</div><div class="small">@string.Join(" · ", new[] { item.Frequency, item.Route }.Where(value => !string.IsNullOrWhiteSpace(value)))</div>@if (item.StartDate.HasValue) { <small class="text-muted">Started @item.StartDate.Value.ToString("MMM d, yyyy")</small> }</div> }</div>@if (summary.ActiveMedicationsTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveMedicationsTotalCount - 5) more active medications</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View Medications</button></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Encounters</h4>@if (summary.RecentEncounters.Count == 0) { <p class="text-muted mb-0">No encounters recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.RecentEncounters) { <div class="list-group-item px-0"><div class="d-flex justify-content-between gap-2"><span class="fw-semibold">@item.EncounterType</span><span class="badge text-bg-secondary">@item.Status</span></div><div class="small text-muted">@item.EncounterDateUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</div><div class="small">@(item.ReasonForVisit ?? item.ProviderName ?? "—")</div></div> }</div> }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="encounters">View Encounters</button></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Documents</h4>@if (summary.RecentDocuments.Count == 0) { <p class="text-muted mb-0">No documents recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.RecentDocuments) { <div class="list-group-item px-0"><div class="d-flex justify-content-between gap-2"><span class="fw-semibold">@item.Title</span><span class="badge text-bg-secondary">@item.Status</span></div><div class="small">@item.DocumentType</div><div class="small text-muted">@item.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") · @(item.CreatedByDisplayName ?? "Unknown")</div></div> }</div> }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="documents">View Documents</button></div></div></div>
+        </div>
+    </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
          id="demographics"
          role="tabpanel">
@@ -1752,6 +1772,17 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch { message.textContent = "Medication could not be discontinued."; message.classList.remove("d-none"); }
         finally { confirmButton.disabled = false; }
     });
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+ document.querySelectorAll(".summary-tab-link").forEach(link => link.addEventListener("click", () => {
+  const target = link.dataset.tabTarget;
+  const tabButton = document.querySelector(`[data-bs-target="#${target}"]`);
+  if (!tabButton) return;
+  bootstrap.Tab.getOrCreateInstance(tabButton).show();
+  const url = new URL(window.location.href); url.searchParams.set("tab", target); window.history.replaceState({}, "", url);
+ }));
 });
 </script>
 <script>

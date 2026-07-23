@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientAllergies;
 using MicroEMR.Web.Models.PatientEncounters;
+using MicroEMR.Web.Models.PatientDocuments;
 using MicroEMR.Web.Models.PatientMedications;
 using MicroEMR.Web.Models.PatientProblems;
 using MicroEMR.Web.Models.Patients;
@@ -299,6 +300,7 @@ public sealed class PatientsController : Controller
 
         var model = new PatientChartViewModel
         {
+            Summary = BuildSummary(patient, problems, allergies, medications, vitals, encounters, documents),
             Patient = patient,
             Documents = documents,
             Encounters = encounters,
@@ -453,13 +455,44 @@ public sealed class PatientsController : Controller
     {
         return tab?.ToLowerInvariant() switch
         {
+            "summary" => "summary",
             "allergies" => "allergies",
             "documents" => "documents",
             "encounters" => "encounters",
             "medications" => "medications",
             "problems" => "problems",
             "vitals" => "vitals",
-            _ => "demographics"
+            _ => "summary"
+        };
+    }
+
+    private static PatientChartSummaryViewModel BuildSummary(
+        PatientDetailsResponse patient,
+        IReadOnlyList<PatientProblemViewModel> problems,
+        IReadOnlyList<PatientAllergyListItemResponse> allergies,
+        IReadOnlyList<PatientMedicationListItemResponse> medications,
+        IReadOnlyList<PatientVitalViewModel> vitals,
+        IReadOnlyList<PatientEncounterListItemResponse> encounters,
+        IReadOnlyList<PatientDocumentListItemResponse> documents)
+    {
+        var activeProblems = problems.Where(item => string.Equals(item.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase)).ToList();
+        var activeAllergies = allergies.Where(item => string.Equals(item.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToList();
+        var activeMedications = medications.Where(item => string.Equals(item.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToList();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - patient.DateOfBirth.Year;
+        if (patient.DateOfBirth > today.AddYears(-age)) age--;
+        return new PatientChartSummaryViewModel
+        {
+            PatientUid = patient.PatientUid, PatientDisplayName = patient.FullName, PreferredName = patient.PreferredName,
+            ChartNumber = patient.ChartNumber, HealthCardNumber = patient.HealthCardNumber, DateOfBirth = patient.DateOfBirth,
+            AgeDisplay = $"{age} years", SexAtBirth = patient.SexAtBirth, GenderIdentity = patient.GenderIdentity,
+            PhoneNumber = patient.PhoneNumber, Email = patient.Email,
+            ActiveProblems = activeProblems.Take(5).ToList(), ActiveProblemsTotalCount = activeProblems.Count,
+            ActiveAllergies = activeAllergies.Take(5).ToList(), ActiveAllergiesTotalCount = activeAllergies.Count,
+            ActiveMedications = activeMedications.Take(5).ToList(), ActiveMedicationsTotalCount = activeMedications.Count,
+            LatestVitals = vitals.OrderByDescending(item => item.RecordedAt).FirstOrDefault(),
+            RecentEncounters = encounters.OrderByDescending(item => item.EncounterDateUtc).Take(5).ToList(), RecentEncountersTotalCount = encounters.Count,
+            RecentDocuments = documents.OrderByDescending(item => item.CreatedAt).Take(5).ToList(), RecentDocumentsTotalCount = documents.Count
         };
     }
 
