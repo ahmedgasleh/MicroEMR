@@ -123,6 +123,20 @@
             <div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div><h3 class="h4 mb-1">@summary.PatientDisplayName</h3>@if (!string.IsNullOrWhiteSpace(summary.PreferredName)) { <div class="text-muted">Preferred name: @summary.PreferredName</div> }<div class="text-muted">Chart @summary.ChartNumber</div></div>
             <dl class="row mb-0 flex-grow-1"><dt class="col-sm-4">Date of birth</dt><dd class="col-sm-8">@summary.DateOfBirth.ToString("MMM d, yyyy") (@summary.AgeDisplay)</dd><dt class="col-sm-4">Health card</dt><dd class="col-sm-8">@(summary.HealthCardNumber ?? "—")</dd><dt class="col-sm-4">Sex / gender</dt><dd class="col-sm-8">@string.Join(" / ", new[] { summary.SexAtBirth, summary.GenderIdentity }.Where(value => !string.IsNullOrWhiteSpace(value)))</dd><dt class="col-sm-4">Contact</dt><dd class="col-sm-8">@(summary.PhoneNumber ?? "—")@if (!string.IsNullOrWhiteSpace(summary.Email)) { <span> · @summary.Email</span> }</dd></dl></div>
         </div></div>
+        <div class="card mb-3">
+            <div class="card-body py-3">
+                <h4 class="h6 mb-3">Quick Actions</h4>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary btn-sm summary-quick-action" type="button" data-tab-target="encounters" data-action-target="newEncounterButton"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
+                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="vitals" data-action-target="addVitalButton"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Add Vitals</button>
+                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="problems" data-action-target="addProblemButton"><i class="bi bi-clipboard2-plus me-1" aria-hidden="true"></i>Add Problem</button>
+                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="allergies" data-action-target="addAllergyButton"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
+                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="medications" data-action-target="addMedicationButton"><i class="bi bi-capsule me-1" aria-hidden="true"></i>Add Medication</button>
+                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="documents" data-action-target="newDocumentButton"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
+                </div>
+                <div id="summaryQuickActionMessage" class="alert alert-warning d-none mt-3 mb-0" role="alert"></div>
+            </div>
+        </div>
         <div class="row g-3 mb-3">
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if (summary.ActiveProblems.Count == 0) { <p class="text-muted mb-0">No active problems recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveProblems) { <div class="list-group-item px-0"><div class="fw-semibold">@item.ProblemName</div>@if (item.OnsetDate.HasValue) { <small class="text-muted">Onset @item.OnsetDate.Value.ToString("MMM d, yyyy")</small> }@if (!string.IsNullOrWhiteSpace(item.ProblemDescription)) { <div class="small">@item.ProblemDescription</div> }</div> }</div>@if (summary.ActiveProblemsTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveProblemsTotalCount - 5) more active problems</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View Problems</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if (summary.ActiveAllergies.Count == 0) { <p class="text-muted mb-0">No active allergies recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveAllergies) { <div class="list-group-item px-0"><div class="fw-semibold">@item.AllergenName</div><div class="small">@string.Join(" · ", new[] { item.Reaction, item.Severity }.Where(value => !string.IsNullOrWhiteSpace(value)))</div></div> }</div>@if (summary.ActiveAllergiesTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveAllergiesTotalCount - 5) more active allergies</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View Allergies</button></div></div></div>
@@ -308,6 +322,7 @@
             <a asp-controller="PatientDocuments"
                    asp-action="Create"
                    asp-route-patientUid="@patient.PatientUid"
+                   id="newDocumentButton"
                    class="btn btn-primary">
                 <i class="bi bi-file-earmark-plus me-1"></i>
                 New Document
@@ -408,6 +423,7 @@
             <a asp-controller="PatientEncounters"
                asp-action="Create"
                asp-route-patientUid="@patient.PatientUid"
+               id="newEncounterButton"
                class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>
                 New Encounter
@@ -590,6 +606,7 @@
                 <a asp-controller="PatientAllergies"
                    asp-action="Create"
                    asp-route-patientUid="@patient.PatientUid"
+                   id="addAllergyButton"
                    class="btn btn-primary text-nowrap">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Allergy
@@ -764,6 +781,7 @@
                 <a asp-controller="PatientMedications"
                    asp-action="Create"
                    asp-route-patientUid="@patient.PatientUid"
+                   id="addMedicationButton"
                    class="btn btn-primary text-nowrap">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Medication
@@ -1781,12 +1799,43 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+ const activatePatientDetailsTab = (target, afterActivation) => {
+  const tabButton = document.querySelector(`[data-bs-target="#${target}"]`);
+  if (!tabButton) return false;
+  const finish = () => {
+   const url = new URL(window.location.href); url.searchParams.set("tab", target); window.history.replaceState({}, "", url);
+   window.requestAnimationFrame(afterActivation);
+  };
+  if (tabButton.classList.contains("active")) finish();
+  else {
+   tabButton.addEventListener("shown.bs.tab", finish, { once: true });
+   bootstrap.Tab.getOrCreateInstance(tabButton).show();
+  }
+  return true;
+ };
+
  document.querySelectorAll(".summary-tab-link, .timeline-tab-link").forEach(link => link.addEventListener("click", () => {
   const target = link.dataset.tabTarget;
-  const tabButton = document.querySelector(`[data-bs-target="#${target}"]`);
-  if (!tabButton) return;
-  bootstrap.Tab.getOrCreateInstance(tabButton).show();
-  const url = new URL(window.location.href); url.searchParams.set("tab", target); window.history.replaceState({}, "", url);
+  activatePatientDetailsTab(target, () => {});
+ }));
+
+ const quickActionMessage = document.getElementById("summaryQuickActionMessage");
+ document.querySelectorAll(".summary-quick-action").forEach(button => button.addEventListener("click", () => {
+  quickActionMessage?.classList.add("d-none");
+  const opened = activatePatientDetailsTab(button.dataset.tabTarget, () => {
+   const actionButton = document.getElementById(button.dataset.actionTarget);
+   if (actionButton) actionButton.click();
+   else if (quickActionMessage) {
+    activatePatientDetailsTab("summary", () => {
+     quickActionMessage.textContent = "The requested action could not be opened. Please try again from the tab directly.";
+     quickActionMessage.classList.remove("d-none");
+    });
+   }
+  });
+  if (!opened && quickActionMessage) {
+   quickActionMessage.textContent = "The requested action could not be opened. Please try again from the tab directly.";
+   quickActionMessage.classList.remove("d-none");
+  }
  }));
 
  const timelineButton = document.querySelector('[data-bs-target="#timeline"]');
