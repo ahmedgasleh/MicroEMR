@@ -1,0 +1,70 @@
+@model MicroEMR.Web.Models.Patients.PatientTimelineViewModel
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+    <h5 class="mb-0">Clinical Timeline</h5>
+    <div class="d-flex align-items-center gap-2">
+        <label for="timelineFilter" class="form-label mb-0">Show</label>
+        <select id="timelineFilter" class="form-select form-select-sm" style="width: auto;">
+            <option value="All">All</option>
+            <option value="Encounter">Encounters</option>
+            <option value="Document">Documents</option>
+            <option value="Vitals">Vitals</option>
+            <option value="Problem">Problems</option>
+            <option value="Allergy">Allergies</option>
+            <option value="Medication">Medications</option>
+        </select>
+    </div>
+</div>
+
+@if (Model.LoadFailed)
+{
+    <div class="alert alert-warning" role="alert">Timeline could not be loaded.</div>
+}
+else
+{
+    <div id="timelineEmptyState" class="alert alert-light border d-none" role="status"></div>
+    <div id="timelineItems" class="vstack gap-3">
+        @foreach (var item in Model.Items)
+        {
+            <article class="card timeline-item" data-event-type="@item.EventType">
+                <div class="card-body py-3">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between gap-2">
+                        <div>
+                            <div class="small text-muted mb-1">@item.DisplayDate</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                <span class="badge @(item.BadgeCssClass ?? "text-bg-secondary")">
+                                    @if (!string.IsNullOrWhiteSpace(item.IconCssClass))
+                                    {
+                                        <i class="@item.IconCssClass me-1" aria-hidden="true"></i>
+                                    }
+                                    @item.EventType
+                                </span>
+                                <span class="fw-semibold">@item.Title</span>
+                                @if (!string.IsNullOrWhiteSpace(item.Status))
+                                {
+                                    <span class="badge text-bg-light border">@item.Status</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(item.Description))
+                            {
+                                <div class="small">@item.Description</div>
+                            }
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(item.SourceType))
+                        {
+                            <div class="flex-shrink-0">
+                                <button type="button" class="btn btn-sm btn-link timeline-tab-link px-0" data-tab-target="@item.SourceType">
+                                    View @item.SourceType[..1].ToUpperInvariant()@item.SourceType[1..]
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+    @if (Model.IsLimited)
+    {
+        <p id="timelineLimitNote" class="small text-muted mt-3 mb-0">Showing latest 50 timeline items.</p>
+    }
+}

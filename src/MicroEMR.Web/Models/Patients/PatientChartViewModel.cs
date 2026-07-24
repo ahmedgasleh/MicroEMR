@@ -10,6 +10,7 @@ namespace MicroEMR.Web.Models.Patients;
 public sealed class PatientChartViewModel
 {
     public PatientChartSummaryViewModel Summary { get; set; } = new();
+    public PatientTimelineViewModel Timeline { get; set; } = new();
     public PatientDetailsResponse Patient { get; set; } = new();
 
     public IReadOnlyList<PatientDocumentListItemResponse> Documents

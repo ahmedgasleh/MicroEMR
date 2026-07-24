@@ -255,6 +255,47 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Timeline(
+        Guid patientUid,
+        string filter = "All",
+        CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var patient = await _patientApiClient.GetByUidAsync(patientUid, cancellationToken);
+            if (patient is null)
+            {
+                return NotFound();
+            }
+
+            var documents = await _patientDocumentApiClient.GetByPatientUidAsync(patientUid, cancellationToken);
+            var encounters = await LoadEncountersForChartAsync(patientUid, cancellationToken);
+            var allergies = await LoadAllergiesForChartAsync(patientUid, cancellationToken);
+            var medications = await LoadMedicationsForChartAsync(patientUid, cancellationToken);
+            var problems = await LoadProblemsForChartAsync(patientUid, cancellationToken);
+            var vitals = await LoadVitalsForChartAsync(patientUid, cancellationToken);
+
+            return PartialView("_Timeline", BuildTimeline(
+                patientUid, encounters, documents, vitals, problems, allergies, medications, filter));
+        }
+        catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(exception, "Unable to load the clinical timeline for patient {PatientUid}.", patientUid);
+            return PartialView("_Timeline", new PatientTimelineViewModel
+            {
+                PatientUid = patientUid,
+                ActiveFilter = NormalizeTimelineFilter(filter),
+                LoadFailed = true
+            });
+        }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Details(
         Guid patientUid,
         string? tab,
@@ -301,6 +342,7 @@ public sealed class PatientsController : Controller
         var model = new PatientChartViewModel
         {
             Summary = BuildSummary(patient, problems, allergies, medications, vitals, encounters, documents),
+            Timeline = BuildTimeline(patientUid, encounters, documents, vitals, problems, allergies, medications),
             Patient = patient,
             Documents = documents,
             Encounters = encounters,
@@ -456,6 +498,7 @@ public sealed class PatientsController : Controller
         return tab?.ToLowerInvariant() switch
         {
             "summary" => "summary",
+            "timeline" => "timeline",
             "allergies" => "allergies",
             "documents" => "documents",
             "encounters" => "encounters",
@@ -465,6 +508,136 @@ public sealed class PatientsController : Controller
             _ => "summary"
         };
     }
+
+    private static PatientTimelineViewModel BuildTimeline(
+        Guid patientUid,
+        IReadOnlyList<PatientEncounterListItemResponse> encounters,
+        IReadOnlyList<PatientDocumentListItemResponse> documents,
+        IReadOnlyList<PatientVitalViewModel> vitals,
+        IReadOnlyList<PatientProblemViewModel> problems,
+        IReadOnlyList<PatientAllergyListItemResponse> allergies,
+        IReadOnlyList<PatientMedicationListItemResponse> medications,
+        string filter = "All")
+    {
+        var items = new List<PatientTimelineItemViewModel>();
+
+        items.AddRange(encounters.Select(item => NewTimelineItem(
+            item.EncounterDateUtc, "Encounter",
+            string.IsNullOrWhiteSpace(item.EncounterType) ? "Encounter" : item.EncounterType,
+            JoinDescription(item.ReasonForVisit, item.ProviderName, item.LocationName), item.Status,
+            item.EncounterUid, "encounters", "bi bi-clipboard2-pulse", "text-bg-primary")));
+
+        items.AddRange(documents.Select(item => NewTimelineItem(
+            item.CreatedAt, "Document", item.Title,
+            JoinDescription(item.DocumentType, item.CreatedByDisplayName is null ? null : $"Created by {item.CreatedByDisplayName}"),
+            item.Status, item.DocumentUid, "documents", "bi bi-file-earmark-text", "text-bg-info")));
+
+        items.AddRange(vitals.Select(item => NewTimelineItem(
+            item.RecordedAt, "Vitals", "Vitals recorded", BuildVitalsDescription(item), "Recorded",
+            item.PatientVitalUid, "vitals", "bi bi-heart-pulse", "text-bg-danger")));
+
+        foreach (var item in problems)
+        {
+            items.Add(NewTimelineItem(item.CreatedAt, "Problem", $"Problem added: {item.ProblemName}",
+                item.ProblemDescription, item.ProblemStatus, item.PatientProblemUid, "problems",
+                "bi bi-clipboard2-plus", "text-bg-warning"));
+            if (item.ResolvedAt.HasValue)
+            {
+                items.Add(NewTimelineItem(item.ResolvedAt.Value, "Problem", $"Problem resolved: {item.ProblemName}",
+                    item.ResolutionReason, "Resolved", item.PatientProblemUid, "problems",
+                    "bi bi-clipboard2-check", "text-bg-warning"));
+            }
+        }
+
+        foreach (var item in allergies)
+        {
+            items.Add(NewTimelineItem(item.CreatedAt, "Allergy", $"Allergy added: {item.AllergenName}",
+                JoinDescription(item.Reaction, item.Severity), item.Status, item.AllergyUid, "allergies",
+                "bi bi-exclamation-diamond", "text-bg-dark"));
+            if (string.Equals(item.Status, "Resolved", StringComparison.OrdinalIgnoreCase) && item.UpdatedAt.HasValue)
+            {
+                items.Add(NewTimelineItem(item.UpdatedAt.Value, "Allergy", $"Allergy resolved: {item.AllergenName}",
+                    null, "Resolved", item.AllergyUid, "allergies", "bi bi-check-circle", "text-bg-dark"));
+            }
+        }
+
+        foreach (var item in medications)
+        {
+            var startedAt = item.StartDate ?? item.CreatedAt;
+            items.Add(NewTimelineItem(startedAt, "Medication", $"Medication started: {item.MedicationName}",
+                JoinDescription(item.Strength, item.Frequency, item.Route, item.Directions), item.Status,
+                item.MedicationUid, "medications", "bi bi-capsule", "text-bg-success"));
+            if (string.Equals(item.Status, "Discontinued", StringComparison.OrdinalIgnoreCase))
+            {
+                var discontinuedAt = item.EndDate ?? item.UpdatedAt;
+                if (discontinuedAt.HasValue)
+                {
+                    items.Add(NewTimelineItem(discontinuedAt.Value, "Medication",
+                        $"Medication discontinued: {item.MedicationName}", null, "Discontinued",
+                        item.MedicationUid, "medications", "bi bi-capsule", "text-bg-success"));
+                }
+            }
+        }
+
+        var activeFilter = NormalizeTimelineFilter(filter);
+        var filteredItems = activeFilter == "All"
+            ? items
+            : items.Where(item => string.Equals(item.EventType, activeFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        var orderedItems = filteredItems.OrderByDescending(item => item.EventDateTime).ToList();
+
+        return new PatientTimelineViewModel
+        {
+            PatientUid = patientUid,
+            ActiveFilter = activeFilter,
+            IsLimited = orderedItems.Count > 50,
+            Items = orderedItems.Take(50).ToList()
+        };
+    }
+
+    private static PatientTimelineItemViewModel NewTimelineItem(
+        DateTime eventDateTime, string eventType, string title, string? description, string? status,
+        Guid sourceUid, string sourceType, string iconCssClass, string badgeCssClass) => new()
+    {
+        EventDateTime = eventDateTime,
+        EventType = eventType,
+        Title = title,
+        Description = description,
+        Status = status,
+        SourceUid = sourceUid.ToString(),
+        SourceType = sourceType,
+        DisplayDate = eventDateTime.ToLocalTime().ToString("MMM d, yyyy h:mm tt"),
+        IconCssClass = iconCssClass,
+        BadgeCssClass = badgeCssClass
+    };
+
+    private static string? JoinDescription(params string?[] values)
+    {
+        var populated = values.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
+        return populated.Length == 0 ? null : string.Join(" · ", populated);
+    }
+
+    private static string? BuildVitalsDescription(PatientVitalViewModel item)
+    {
+        var values = new List<string>();
+        if (item.BloodPressureSystolic.HasValue && item.BloodPressureDiastolic.HasValue)
+            values.Add($"BP {item.BloodPressureSystolic}/{item.BloodPressureDiastolic}");
+        if (item.HeartRate.HasValue) values.Add($"HR {item.HeartRate}");
+        if (item.RespiratoryRate.HasValue) values.Add($"RR {item.RespiratoryRate}");
+        if (item.TemperatureCelsius.HasValue) values.Add($"Temp {item.TemperatureCelsius:0.##} °C");
+        if (item.OxygenSaturation.HasValue) values.Add($"SpO2 {item.OxygenSaturation}%");
+        return values.Count == 0 ? null : string.Join(", ", values);
+    }
+
+    private static string NormalizeTimelineFilter(string? filter) => filter?.ToLowerInvariant() switch
+    {
+        "encounter" or "encounters" => "Encounter",
+        "document" or "documents" => "Document",
+        "vitals" => "Vitals",
+        "problem" or "problems" => "Problem",
+        "allergy" or "allergies" => "Allergy",
+        "medication" or "medications" => "Medication",
+        _ => "All"
+    };
 
     private static PatientChartSummaryViewModel BuildSummary(
         PatientDetailsResponse patient,
