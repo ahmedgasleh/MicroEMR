@@ -17,6 +17,9 @@ public sealed class PatientChartViewModel
         { get; set; } =
         Array.Empty<PatientDocumentListItemResponse>();
 
+    public IReadOnlyList<DocumentTemplateListItemResponse> DocumentTemplates
+        { get; set; } = Array.Empty<DocumentTemplateListItemResponse>();
+
     public IReadOnlyList<PatientEncounterListItemResponse> Encounters
         { get; set; } =
         Array.Empty<PatientEncounterListItemResponse>();

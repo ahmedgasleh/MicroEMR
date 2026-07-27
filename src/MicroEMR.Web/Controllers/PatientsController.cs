@@ -321,6 +321,9 @@ public sealed class PatientsController : Controller
                 patientUid,
                 cancellationToken);
 
+        var documentTemplates =
+            await LoadDocumentTemplatesForChartAsync(cancellationToken);
+
         var encounters =
             await LoadEncountersForChartAsync(
                 patientUid,
@@ -345,6 +348,7 @@ public sealed class PatientsController : Controller
             Timeline = BuildTimeline(patientUid, encounters, documents, vitals, problems, allergies, medications),
             Patient = patient,
             Documents = documents,
+            DocumentTemplates = documentTemplates,
             Encounters = encounters,
             Allergies = allergies,
             Medications = medications,
@@ -354,6 +358,20 @@ public sealed class PatientsController : Controller
         };
 
         return View(model);
+    }
+
+    private async Task<IReadOnlyList<DocumentTemplateListItemResponse>>
+        LoadDocumentTemplatesForChartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _patientDocumentApiClient.GetActiveTemplatesAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(exception, "Unable to load document templates for the patient chart.");
+            return Array.Empty<DocumentTemplateListItemResponse>();
+        }
     }
 
     private async Task<IReadOnlyList<PatientMedicationListItemResponse>>

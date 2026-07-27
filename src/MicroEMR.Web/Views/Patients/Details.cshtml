@@ -127,12 +127,12 @@
             <div class="card-body py-3">
                 <h4 class="h6 mb-3">Quick Actions</h4>
                 <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-primary btn-sm summary-quick-action" type="button" data-tab-target="encounters" data-action-target="newEncounterButton"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
-                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="vitals" data-action-target="addVitalButton"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Add Vitals</button>
-                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="problems" data-action-target="addProblemButton"><i class="bi bi-clipboard2-plus me-1" aria-hidden="true"></i>Add Problem</button>
-                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="allergies" data-action-target="addAllergyButton"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
-                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="medications" data-action-target="addMedicationButton"><i class="bi bi-capsule me-1" aria-hidden="true"></i>Add Medication</button>
-                    <button class="btn btn-outline-primary btn-sm summary-quick-action" type="button" data-tab-target="documents" data-action-target="newDocumentButton"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
+                    <button class="btn btn-primary btn-sm" type="button" id="summaryNewEncounterButton" data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="summary"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
+                    <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addVitalButton"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Add Vitals</button>
+                    <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addProblemButton"><i class="bi bi-clipboard2-plus me-1" aria-hidden="true"></i>Add Problem</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="summary"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryMedicationModal" data-return-tab="summary"><i class="bi bi-capsule me-1" aria-hidden="true"></i>Add Medication</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="summary"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
                 </div>
                 <div id="summaryQuickActionMessage" class="alert alert-warning d-none mt-3 mb-0" role="alert"></div>
             </div>
@@ -319,14 +319,11 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Patient Documents</h5>
 
-            <a asp-controller="PatientDocuments"
-                   asp-action="Create"
-                   asp-route-patientUid="@patient.PatientUid"
-                   id="newDocumentButton"
-                   class="btn btn-primary">
+            <button type="button" id="newDocumentButton" class="btn btn-primary"
+                    data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="documents">
                 <i class="bi bi-file-earmark-plus me-1"></i>
                 New Document
-            </a>
+            </button>
         </div>
 
         @if (Model.Documents.Count == 0)
@@ -420,14 +417,11 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Patient Encounters</h5>
 
-            <a asp-controller="PatientEncounters"
-               asp-action="Create"
-               asp-route-patientUid="@patient.PatientUid"
-               id="newEncounterButton"
-               class="btn btn-primary">
+            <button type="button" id="newEncounterButton" class="btn btn-primary"
+                    data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="encounters">
                 <i class="bi bi-plus-circle me-1"></i>
                 New Encounter
-            </a>
+            </button>
         </div>
 
         @if (Model.Encounters.Count == 0)
@@ -539,7 +533,8 @@
              data-create-url="@Url.Action("CreateProblem", "PatientProblems")"
              data-update-url="@Url.Action("UpdateProblem", "PatientProblems")"
              data-resolve-url="@Url.Action("ResolveProblem", "PatientProblems")"
-             data-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })"></div>
+             data-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })"
+             data-summary-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "summary" })"></div>
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 class="mb-0">Problems</h5>
             <div class="d-flex align-items-center gap-2">
@@ -609,14 +604,11 @@
                     <option value="Resolved">Resolved</option>
                     <option value="All">All</option>
                 </select>
-                <a asp-controller="PatientAllergies"
-                   asp-action="Create"
-                   asp-route-patientUid="@patient.PatientUid"
-                   id="addAllergyButton"
-                   class="btn btn-primary text-nowrap">
+                <button type="button" id="addAllergyButton" class="btn btn-primary text-nowrap"
+                        data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="allergies">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Allergy
-                </a>
+                </button>
             </div>
         </div>
 
@@ -784,14 +776,11 @@
                     <option value="Discontinued">Discontinued</option>
                     <option value="All">All</option>
                 </select>
-                <a asp-controller="PatientMedications"
-                   asp-action="Create"
-                   asp-route-patientUid="@patient.PatientUid"
-                   id="addMedicationButton"
-                   class="btn btn-primary text-nowrap">
+                <button type="button" id="addMedicationButton" class="btn btn-primary text-nowrap"
+                        data-bs-toggle="modal" data-bs-target="#summaryMedicationModal" data-return-tab="medications">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Medication
-                </a>
+                </button>
             </div>
         </div>
 
@@ -940,6 +929,27 @@
             </tr> }
         </tbody></table></div> }
     </div>
+</div>
+
+<partial name="_SummaryQuickActionModals" model="Model" />
+
+<div class="modal fade" id="createEncounterModal" tabindex="-1" aria-labelledby="createEncounterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg"><div class="modal-content">
+        <form asp-controller="PatientEncounters" asp-action="Create" method="post" id="summaryCreateEncounterForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="PatientUid" value="@patient.PatientUid" />
+            <input type="hidden" name="ReturnTab" value="summary" />
+            <div class="modal-header"><h2 class="modal-title fs-5" id="createEncounterModalLabel">New Encounter</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><div class="row g-3">
+                <div class="col-12 col-lg-6"><label for="summaryEncounterDateLocal" class="form-label">Encounter date/time</label><input id="summaryEncounterDateLocal" name="EncounterDateLocal" type="datetime-local" class="form-control" required /></div>
+                <div class="col-12 col-lg-6"><label for="summaryEncounterType" class="form-label">Encounter type</label><select id="summaryEncounterType" name="EncounterType" class="form-select" required><option value="">Select</option><option value="Office Visit">Office Visit</option><option value="Phone Visit">Phone Visit</option><option value="Virtual Visit">Virtual Visit</option><option value="Follow-up">Follow-up</option><option value="Consultation">Consultation</option><option value="Procedure">Procedure</option><option value="Other">Other</option></select></div>
+                <div class="col-12 col-lg-6"><label for="summaryEncounterProviderName" class="form-label">Provider</label><input id="summaryEncounterProviderName" name="ProviderName" class="form-control" maxlength="200" autocomplete="off" /></div>
+                <div class="col-12 col-lg-6"><label for="summaryEncounterLocationName" class="form-label">Location</label><input id="summaryEncounterLocationName" name="LocationName" class="form-control" maxlength="200" autocomplete="off" /></div>
+                <div class="col-12"><label for="summaryEncounterReasonForVisit" class="form-label">Reason for visit</label><textarea id="summaryEncounterReasonForVisit" name="ReasonForVisit" class="form-control" maxlength="500" rows="4"></textarea></div>
+            </div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary" id="summarySaveEncounterButton"><i class="bi bi-save me-1" aria-hidden="true"></i>Save</button></div>
+        </form>
+    </div></div>
 </div>
 
 <div class="modal fade" id="vitalEditorModal" tabindex="-1" aria-labelledby="vitalEditorModalLabel" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
@@ -1143,6 +1153,26 @@
 @section Scripts {
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+ const modal = document.getElementById("createEncounterModal");
+ const form = document.getElementById("summaryCreateEncounterForm");
+ const dateInput = document.getElementById("summaryEncounterDateLocal");
+ const saveButton = document.getElementById("summarySaveEncounterButton");
+ modal?.addEventListener("show.bs.modal", event => {
+  form?.reset();
+  const trigger = event.relatedTarget;
+  const returnTab = form?.querySelector('input[name="ReturnTab"]');
+  if (returnTab) returnTab.value = trigger?.dataset.returnTab === "summary" ? "summary" : "encounters";
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+  if (dateInput) dateInput.value = now.toISOString().slice(0, 16);
+  if (saveButton) { saveButton.disabled = false; saveButton.innerHTML = '<i class="bi bi-save me-1" aria-hidden="true"></i>Save'; }
+ });
+ form?.addEventListener("submit", event => {
+  if (!form.checkValidity()) { event.preventDefault(); form.reportValidity(); return; }
+  if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Saving...'; }
+ });
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     const modalElement = document.getElementById("encounterDetailsModal");
     const modal = new bootstrap.Modal(modalElement);
@@ -1734,23 +1764,52 @@ document.addEventListener("DOMContentLoaded", () => {
  }));
 
  const quickActionMessage = document.getElementById("summaryQuickActionMessage");
- document.querySelectorAll(".summary-quick-action").forEach(button => button.addEventListener("click", () => {
+ document.querySelectorAll(".summary-direct-action").forEach(button => button.addEventListener("click", () => {
   quickActionMessage?.classList.add("d-none");
-  const opened = activatePatientDetailsTab(button.dataset.tabTarget, () => {
-   const actionButton = document.getElementById(button.dataset.actionTarget);
-   if (actionButton) actionButton.click();
-   else if (quickActionMessage) {
-    activatePatientDetailsTab("summary", () => {
-     quickActionMessage.textContent = "The requested action could not be opened. Please try again from the tab directly.";
-     quickActionMessage.classList.remove("d-none");
-    });
-   }
-  });
-  if (!opened && quickActionMessage) {
+  const actionButton = document.getElementById(button.dataset.actionTarget);
+  if (actionButton) { actionButton.dataset.returnTab = "summary"; actionButton.click(); }
+  else if (quickActionMessage) {
    quickActionMessage.textContent = "The requested action could not be opened. Please try again from the tab directly.";
    quickActionMessage.classList.remove("d-none");
   }
  }));
+
+ document.querySelectorAll("#summaryAllergyForm, #summaryMedicationForm, #summaryDocumentForm").forEach(form => {
+  const modal = form.closest(".modal");
+  const saveButton = form.querySelector(".summary-modal-save");
+  if (saveButton) saveButton.dataset.defaultText = saveButton.textContent;
+  modal?.addEventListener("show.bs.modal", event => {
+   form.reset();
+   const trigger = event.relatedTarget;
+   const returnTab = form.querySelector('input[name="ReturnTab"]');
+   if (returnTab) returnTab.value = trigger?.dataset.returnTab === "summary" ? "summary" : trigger?.dataset.returnTab ?? "summary";
+   if (saveButton) { saveButton.disabled = false; saveButton.textContent = saveButton.dataset.defaultText; }
+  });
+  form.addEventListener("submit", event => {
+   if (!form.checkValidity()) { event.preventDefault(); form.reportValidity(); return; }
+   if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Saving...'; }
+  });
+ });
+
+ const documentTemplate = document.getElementById("summaryDocumentTemplate");
+ documentTemplate?.addEventListener("change", async () => {
+  const error = document.getElementById("summaryDocumentTemplateError");
+  error?.classList.add("d-none");
+  if (!documentTemplate.value) return;
+  documentTemplate.disabled = true;
+  try {
+   const url = new URL('@Url.Action("GetTemplate", "PatientDocuments")', window.location.origin);
+   url.searchParams.set("templateUid", documentTemplate.value);
+   const response = await fetch(url, { headers: { Accept: "application/json" } });
+   if (!response.ok) throw new Error();
+   const template = await response.json();
+   document.getElementById("summaryDocumentType").value = template.documentType ?? "";
+   document.getElementById("summaryDocumentContent").value = template.templateContent ?? "";
+   const title = document.getElementById("summaryDocumentTitle");
+   if (!title.value.trim()) title.value = template.templateName ?? "";
+  } catch { error?.classList.remove("d-none"); }
+  finally { documentTemplate.disabled = false; }
+ });
 
  const timelineButton = document.querySelector('[data-bs-target="#timeline"]');
  timelineButton?.addEventListener("shown.bs.tab", () => {
@@ -1788,9 +1847,9 @@ document.addEventListener("DOMContentLoaded", () => {
  const ids=["RecordedAt","Systolic","Diastolic","HeartRate","RespiratoryRate","Temperature","Oxygen","Height","Weight","Notes"];
  const fields=Object.fromEntries(ids.map(x=>[x,document.getElementById(`vital${x}`)])); const uid=document.getElementById("vitalUid"), title=document.getElementById("vitalEditorModalLabel"), message=document.getElementById("vitalEditorMessage"), save=document.getElementById("saveVitalButton");
  const nowLocal=()=>{const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);return d.toISOString().slice(0,16);};
- document.getElementById("addVitalButton")?.addEventListener("click",()=>{uid.value="";ids.forEach(x=>fields[x].value="");fields.RecordedAt.value=nowLocal();title.textContent="Add Vitals";message.classList.add("d-none");modal.show();});
+ document.getElementById("addVitalButton")?.addEventListener("click",()=>{element.dataset.returnTab=document.getElementById("addVitalButton").dataset.returnTab||"vitals";delete document.getElementById("addVitalButton").dataset.returnTab;uid.value="";ids.forEach(x=>fields[x].value="");fields.RecordedAt.value=nowLocal();title.textContent="Add Vitals";message.classList.add("d-none");modal.show();});
  document.querySelectorAll(".edit-vital-button").forEach(button=>button.addEventListener("click",()=>{const d=button.closest("tr").dataset;uid.value=d.vitalUid;fields.RecordedAt.value=d.recordedAt;fields.Systolic.value=d.systolic;fields.Diastolic.value=d.diastolic;fields.HeartRate.value=d.heartRate;fields.RespiratoryRate.value=d.respiratoryRate;fields.Temperature.value=d.temperature;fields.Oxygen.value=d.oxygen;fields.Height.value=d.height;fields.Weight.value=d.weight;fields.Notes.value=d.notes;title.textContent="Edit Vitals";message.classList.add("d-none");modal.show();}));
- save.addEventListener("click",async()=>{if(!fields.RecordedAt.value){message.textContent="Recorded date and time are required.";message.classList.remove("d-none");return;} save.disabled=true;message.classList.add("d-none");const data=new FormData();data.append("PatientUid","@patient.PatientUid");if(uid.value)data.append("PatientVitalUid",uid.value);data.append("RecordedAt",fields.RecordedAt.value);const names={Systolic:"BloodPressureSystolic",Diastolic:"BloodPressureDiastolic",HeartRate:"HeartRate",RespiratoryRate:"RespiratoryRate",Temperature:"TemperatureCelsius",Oxygen:"OxygenSaturation",Height:"HeightCm",Weight:"WeightKg",Notes:"Notes"};Object.entries(names).forEach(([key,name])=>{if(fields[key].value)data.append(name,fields[key].value);});try{const token=document.querySelector('#vitalAntiforgeryForm input[name="__RequestVerificationToken"]').value;const url=uid.value?'@Url.Action("UpdateVital", "PatientVitals")':'@Url.Action("CreateVital", "PatientVitals")';const response=await fetch(url,{method:"POST",headers:{"RequestVerificationToken":token},body:data});const result=await response.json().catch(()=>({}));if(!response.ok||!result.success)throw new Error(result.message||"Vitals could not be saved.");window.location.href='@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "vitals" })';}catch(error){message.textContent=error instanceof Error?error.message:"Vitals could not be saved.";message.classList.remove("d-none");}finally{save.disabled=false;}});
+ save.addEventListener("click",async()=>{if(!fields.RecordedAt.value){message.textContent="Recorded date and time are required.";message.classList.remove("d-none");return;} save.disabled=true;message.classList.add("d-none");const data=new FormData();data.append("PatientUid","@patient.PatientUid");if(uid.value)data.append("PatientVitalUid",uid.value);data.append("RecordedAt",fields.RecordedAt.value);const names={Systolic:"BloodPressureSystolic",Diastolic:"BloodPressureDiastolic",HeartRate:"HeartRate",RespiratoryRate:"RespiratoryRate",Temperature:"TemperatureCelsius",Oxygen:"OxygenSaturation",Height:"HeightCm",Weight:"WeightKg",Notes:"Notes"};Object.entries(names).forEach(([key,name])=>{if(fields[key].value)data.append(name,fields[key].value);});try{const token=document.querySelector('#vitalAntiforgeryForm input[name="__RequestVerificationToken"]').value;const url=uid.value?'@Url.Action("UpdateVital", "PatientVitals")':'@Url.Action("CreateVital", "PatientVitals")';const response=await fetch(url,{method:"POST",headers:{"RequestVerificationToken":token},body:data});const result=await response.json().catch(()=>({}));if(!response.ok||!result.success)throw new Error(result.message||"Vitals could not be saved.");window.location.href=element.dataset.returnTab==="summary"?'@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "summary" })':'@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "vitals" })';}catch(error){message.textContent=error instanceof Error?error.message:"Vitals could not be saved.";message.classList.remove("d-none");}finally{save.disabled=false;}});
 });
 </script>
 }

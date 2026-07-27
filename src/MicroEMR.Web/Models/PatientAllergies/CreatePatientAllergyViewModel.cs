@@ -5,6 +5,7 @@ namespace MicroEMR.Web.Models.PatientAllergies;
 public sealed class CreatePatientAllergyViewModel
 {
     public Guid PatientUid { get; set; }
+    public string? ReturnTab { get; set; }
 
     [Required]
     [StringLength(200)]

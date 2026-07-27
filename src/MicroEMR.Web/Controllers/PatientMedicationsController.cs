@@ -132,7 +132,9 @@ public sealed class PatientMedicationsController : Controller
                 new
                 {
                     patientUid = model.PatientUid,
-                    tab = "medications"
+                    tab = string.Equals(model.ReturnTab, "summary", StringComparison.OrdinalIgnoreCase)
+                        ? "summary"
+                        : "medications"
                 });
         }
         catch (HttpRequestException exception)

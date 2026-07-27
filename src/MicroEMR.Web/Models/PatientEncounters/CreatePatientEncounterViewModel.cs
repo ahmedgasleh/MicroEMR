@@ -6,6 +6,8 @@ public sealed class CreatePatientEncounterViewModel
 {
     public Guid PatientUid { get; set; }
 
+    public string? ReturnTab { get; set; }
+
     [Required]
     [Display(Name = "Encounter date/time")]
     public DateTime EncounterDateLocal { get; set; }

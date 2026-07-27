@@ -127,7 +127,9 @@ public sealed class PatientAllergiesController : Controller
                 new
                 {
                     patientUid = model.PatientUid,
-                    tab = "allergies"
+                    tab = string.Equals(model.ReturnTab, "summary", StringComparison.OrdinalIgnoreCase)
+                        ? "summary"
+                        : "allergies"
                 });
         }
         catch (HttpRequestException exception)

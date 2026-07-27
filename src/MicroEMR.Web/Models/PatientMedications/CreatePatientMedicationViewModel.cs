@@ -5,6 +5,7 @@ namespace MicroEMR.Web.Models.PatientMedications;
 public sealed class CreatePatientMedicationViewModel : IValidatableObject
 {
     public Guid PatientUid { get; set; }
+    public string? ReturnTab { get; set; }
 
     [Required]
     [StringLength(200)]

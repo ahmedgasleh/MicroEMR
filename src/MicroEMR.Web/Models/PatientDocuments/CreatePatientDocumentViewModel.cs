@@ -6,6 +6,7 @@ public sealed class CreatePatientDocumentViewModel
     : IValidatableObject
 {
     public Guid PatientUid { get; set; }
+    public string? ReturnTab { get; set; }
 
     public Guid? TemplateUid { get; set; }
 
