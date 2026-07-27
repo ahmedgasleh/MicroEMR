@@ -534,6 +534,12 @@
     </div>
 
     <div class="tab-pane fade @(problemsActive ? "show active" : null)" id="problems" role="tabpanel">
+        <div id="patient-problems-root"
+             data-patient-uid="@patient.PatientUid"
+             data-create-url="@Url.Action("CreateProblem", "PatientProblems")"
+             data-update-url="@Url.Action("UpdateProblem", "PatientProblems")"
+             data-resolve-url="@Url.Action("ResolveProblem", "PatientProblems")"
+             data-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })"></div>
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 class="mb-0">Problems</h5>
             <div class="d-flex align-items-center gap-2">
@@ -1135,6 +1141,7 @@
 <form id="medicationAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 @section Scripts {
+<script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const modalElement = document.getElementById("encounterDetailsModal");
@@ -1641,27 +1648,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     configureStatusFilter({
-        selectId: "problemStatusFilter",
-        rowSelector: "tr[data-problem-status]",
-        tableId: "problemTableContainer",
-        emptyId: "problemEmptyState",
-        inactiveValue: "Resolved",
-        emptyMessages: {
-            Active: "No active problems recorded.",
-            Resolved: "No resolved problems recorded.",
-            All: "No problems recorded."
-        }
-    });
-
-    const savedProblemFilter = sessionStorage.getItem("microemr.problemFilter");
-    const problemFilter = document.getElementById("problemStatusFilter");
-    if (problemFilter && ["Active", "Resolved", "All"].includes(savedProblemFilter)) {
-        problemFilter.value = savedProblemFilter;
-        problemFilter.dispatchEvent(new Event("change"));
-        sessionStorage.removeItem("microemr.problemFilter");
-    }
-
-    configureStatusFilter({
         selectId: "medicationStatusFilter",
         rowSelector: "tr[data-medication-status]",
         tableId: "medicationTableContainer",
@@ -1695,78 +1681,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "allergies" })';
         } catch { message.textContent = "Allergy could not be resolved."; message.classList.remove("d-none"); }
         finally { confirmButton.disabled = false; }
-    });
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-    const patientUid = '@patient.PatientUid';
-    const editorElement = document.getElementById("problemEditorModal");
-    const resolveElement = document.getElementById("resolveProblemModal");
-    if (!editorElement || !resolveElement) return;
-    const editorModal = new bootstrap.Modal(editorElement);
-    const resolveModal = new bootstrap.Modal(resolveElement);
-    const editorTitle = document.getElementById("problemEditorModalLabel");
-    const uidInput = document.getElementById("problemEditorUid");
-    const nameInput = document.getElementById("problemName");
-    const descriptionInput = document.getElementById("problemDescription");
-    const onsetInput = document.getElementById("problemOnsetDate");
-    const editorMessage = document.getElementById("problemEditorMessage");
-    const saveButton = document.getElementById("saveProblemButton");
-    const resolveName = document.getElementById("resolveProblemName");
-    const resolveReason = document.getElementById("problemResolutionReason");
-    const resolveMessage = document.getElementById("resolveProblemMessage");
-    const resolveButton = document.getElementById("confirmResolveProblemButton");
-    const token = document.querySelector('#problemAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-    let resolvingUid = null;
-
-    const showError = (element, message) => { element.textContent = message; element.classList.remove("d-none"); };
-    const rememberFilterAndReload = () => {
-        sessionStorage.setItem("microemr.problemFilter", document.getElementById("problemStatusFilter").value);
-        window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })';
-    };
-    document.getElementById("addProblemButton").addEventListener("click", () => {
-        uidInput.value = ""; nameInput.value = ""; descriptionInput.value = ""; onsetInput.value = "";
-        nameInput.classList.remove("is-invalid"); editorMessage.classList.add("d-none"); editorTitle.textContent = "Add Problem"; editorModal.show();
-    });
-    document.querySelectorAll(".edit-problem-button").forEach(button => button.addEventListener("click", () => {
-        const row = button.closest("tr");
-        uidInput.value = row.dataset.problemUid; nameInput.value = row.dataset.problemName;
-        descriptionInput.value = row.dataset.problemDescription || ""; onsetInput.value = row.dataset.problemOnset || "";
-        nameInput.classList.remove("is-invalid"); editorMessage.classList.add("d-none"); editorTitle.textContent = "Edit Problem"; editorModal.show();
-    }));
-    document.querySelectorAll(".resolve-problem-button").forEach(button => button.addEventListener("click", () => {
-        const row = button.closest("tr"); resolvingUid = row.dataset.problemUid; resolveName.textContent = row.dataset.problemName;
-        resolveReason.value = ""; resolveMessage.classList.add("d-none"); resolveModal.show();
-    }));
-    saveButton.addEventListener("click", async () => {
-        const name = nameInput.value.trim();
-        nameInput.classList.toggle("is-invalid", !name);
-        if (!name) return;
-        saveButton.disabled = true; editorMessage.classList.add("d-none");
-        try {
-            const data = new FormData(); data.append("PatientUid", patientUid); data.append("ProblemName", name);
-            data.append("ProblemDescription", descriptionInput.value); data.append("OnsetDate", onsetInput.value);
-            const isEdit = Boolean(uidInput.value);
-            if (isEdit) data.append("PatientProblemUid", uidInput.value);
-            const response = await fetch(isEdit ? '@Url.Action("UpdateProblem", "PatientProblems")' : '@Url.Action("CreateProblem", "PatientProblems")',
-                { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok || !result.success) { showError(editorMessage, result.message || "Problem could not be saved."); return; }
-            rememberFilterAndReload();
-        } catch { showError(editorMessage, "Problem could not be saved."); }
-        finally { saveButton.disabled = false; }
-    });
-    resolveButton.addEventListener("click", async () => {
-        if (!resolvingUid) return;
-        resolveButton.disabled = true; resolveMessage.classList.add("d-none");
-        try {
-            const data = new FormData(); data.append("PatientUid", patientUid); data.append("PatientProblemUid", resolvingUid); data.append("ResolutionReason", resolveReason.value);
-            const response = await fetch('@Url.Action("ResolveProblem", "PatientProblems")', { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok || !result.success) { showError(resolveMessage, result.message || "Problem could not be resolved."); return; }
-            rememberFilterAndReload();
-        } catch { showError(resolveMessage, "Problem could not be resolved."); }
-        finally { resolveButton.disabled = false; }
     });
 });
 
