@@ -56,6 +56,56 @@
     </div>
 }
 
+<section id="patientChartBanner"
+         class="patient-chart-banner"
+         data-patient-uid="@patient.PatientUid"
+         aria-labelledby="patientChartBannerName">
+    <div class="patient-chart-banner__identity">
+        <div>
+            <h2 id="patientChartBannerName" class="patient-chart-banner__name">
+                @summary.PatientDisplayName
+            </h2>
+            @if (!string.IsNullOrWhiteSpace(summary.PreferredName))
+            {
+                <div class="patient-chart-banner__preferred">
+                    Preferred: @summary.PreferredName
+                </div>
+            }
+        </div>
+        <div class="patient-chart-banner__meta">
+            <span><strong>Chart:</strong> @summary.ChartNumber</span>
+            <span><strong>DOB:</strong> @summary.DateOfBirth.ToString("MMM d, yyyy") (@summary.AgeDisplay)</span>
+            @if (!string.IsNullOrWhiteSpace(summary.HealthCardNumber))
+            {
+                <span><strong>HCN:</strong> @summary.HealthCardNumber</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(summary.PhoneNumber))
+            {
+                <span><strong>Phone:</strong> @summary.PhoneNumber</span>
+            }
+        </div>
+    </div>
+    <nav class="patient-chart-banner__badges" aria-label="Patient clinical summary links">
+        <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="problems">
+            Problems <span class="badge text-bg-secondary">@summary.ActiveProblemsTotalCount</span>
+        </button>
+        <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="allergies">
+            Allergies <span class="badge text-bg-secondary">@summary.ActiveAllergiesTotalCount</span>
+        </button>
+        <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="medications">
+            Medications <span class="badge text-bg-secondary">@summary.ActiveMedicationsTotalCount</span>
+        </button>
+        <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="vitals">
+            Latest vitals
+            <span class="patient-chart-banner__badge-value">
+                @(summary.LatestVitals is null
+                    ? "None recorded"
+                    : summary.LatestVitals.RecordedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt"))
+            </span>
+        </button>
+    </nav>
+</section>
+
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
     <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
@@ -1151,6 +1201,7 @@
 <form id="medicationAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 @section Scripts {
+<script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -1852,4 +1903,8 @@ document.addEventListener("DOMContentLoaded", () => {
  save.addEventListener("click",async()=>{if(!fields.RecordedAt.value){message.textContent="Recorded date and time are required.";message.classList.remove("d-none");return;} save.disabled=true;message.classList.add("d-none");const data=new FormData();data.append("PatientUid","@patient.PatientUid");if(uid.value)data.append("PatientVitalUid",uid.value);data.append("RecordedAt",fields.RecordedAt.value);const names={Systolic:"BloodPressureSystolic",Diastolic:"BloodPressureDiastolic",HeartRate:"HeartRate",RespiratoryRate:"RespiratoryRate",Temperature:"TemperatureCelsius",Oxygen:"OxygenSaturation",Height:"HeightCm",Weight:"WeightKg",Notes:"Notes"};Object.entries(names).forEach(([key,name])=>{if(fields[key].value)data.append(name,fields[key].value);});try{const token=document.querySelector('#vitalAntiforgeryForm input[name="__RequestVerificationToken"]').value;const url=uid.value?'@Url.Action("UpdateVital", "PatientVitals")':'@Url.Action("CreateVital", "PatientVitals")';const response=await fetch(url,{method:"POST",headers:{"RequestVerificationToken":token},body:data});const result=await response.json().catch(()=>({}));if(!response.ok||!result.success)throw new Error(result.message||"Vitals could not be saved.");window.location.href=element.dataset.returnTab==="summary"?'@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "summary" })':'@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "vitals" })';}catch(error){message.textContent=error instanceof Error?error.message:"Vitals could not be saved.";message.classList.remove("d-none");}finally{save.disabled=false;}});
 });
 </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/patient-chart.css" asp-append-version="true" />
 }
