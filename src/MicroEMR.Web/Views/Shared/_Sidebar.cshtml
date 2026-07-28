@@ -53,6 +53,7 @@
                         <span class="sidebar-text">Scheduling</span>
                     </a>
                 </li>
+                <li class="sidebar-menu-item"><a asp-controller="EncounterSoapTemplates" asp-action="Index" class="sidebar-link" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="SOAP Templates"><span class="sidebar-icon"><i class="bi bi-journal-medical"></i></span><span class="sidebar-text">SOAP Templates</span></a></li>
             }
 
             @if (User.IsInRole(AppRoles.Administrator) ||

@@ -40,6 +40,7 @@
         }
 
         <div class="row g-3">
+            <div class="col-12"><label asp-for="EncounterSoapTemplateUid" class="form-label"></label><select asp-for="EncounterSoapTemplateUid" class="form-select encounter-soap-template-select"><option value="">No template</option></select></div>
             <div class="col-12 col-lg-4">
                 <label asp-for="EncounterDateLocal"
                        class="form-label">
@@ -140,6 +141,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script type="module" src="~/dist/encounter-soap-templates/apply.js" asp-append-version="true"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

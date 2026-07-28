@@ -28,4 +28,6 @@ public sealed class CreatePatientEncounterViewModel
     [StringLength(200)]
     [Display(Name = "Provider")]
     public string? ProviderName { get; set; }
+    [Display(Name = "Template")]
+    public Guid? EncounterSoapTemplateUid { get; set; }
 }

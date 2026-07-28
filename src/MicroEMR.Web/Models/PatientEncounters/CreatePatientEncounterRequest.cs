@@ -19,4 +19,5 @@ public sealed class CreatePatientEncounterRequest
 
     [StringLength(200)]
     public string? ProviderName { get; set; }
+    public Guid? EncounterSoapTemplateUid { get; set; }
 }

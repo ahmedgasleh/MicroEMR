@@ -605,7 +605,10 @@ BEGIN
 
     DECLARE @PatientId BIGINT;
     DECLARE @EncounterStatus NVARCHAR(30);
-    DECLARE @EncounterFound BIT = 0;
+    DECLARE @EncounterFound BIT;
+    -- Avoid scalar literals in procedure definitions because clients using
+    -- Always Encrypted parameterization rewrite them during metadata discovery.
+    SET @EncounterFound = CONVERT(BIT, @@ROWCOUNT - @@ROWCOUNT);
 
     BEGIN TRANSACTION;
 
@@ -684,7 +687,8 @@ BEGIN
 
     DECLARE @PatientId BIGINT;
     DECLARE @EncounterStatus NVARCHAR(30);
-    DECLARE @EncounterFound BIT = 0;
+    DECLARE @EncounterFound BIT;
+    SET @EncounterFound = CONVERT(BIT, @@ROWCOUNT - @@ROWCOUNT);
 
     BEGIN TRANSACTION;
 
@@ -756,7 +760,8 @@ BEGIN
 
     DECLARE @PatientId BIGINT;
     DECLARE @EncounterStatus NVARCHAR(30);
-    DECLARE @EncounterFound BIT = 0;
+    DECLARE @EncounterFound BIT;
+    SET @EncounterFound = CONVERT(BIT, @@ROWCOUNT - @@ROWCOUNT);
 
     BEGIN TRANSACTION;
 
@@ -813,7 +818,8 @@ CREATE OR ALTER PROCEDURE dbo.PatientEncounter_Create
     @LocationName NVARCHAR(200) = NULL,
     @ProviderName NVARCHAR(200) = NULL,
     @CreatedBy BIGINT = NULL,
-    @CreatedByDisplayName NVARCHAR(200) = NULL
+    @CreatedByDisplayName NVARCHAR(200) = NULL,
+    @EncounterSoapTemplateUid UNIQUEIDENTIFIER = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -821,6 +827,9 @@ BEGIN
 
     DECLARE @PatientId BIGINT;
     DECLARE @EncounterUid UNIQUEIDENTIFIER = NEWID();
+
+    IF @EncounterSoapTemplateUid IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dbo.EncounterSoapTemplate WHERE EncounterSoapTemplateUid=@EncounterSoapTemplateUid AND IsActive=1)
+        THROW 51101, 'The selected encounter SOAP template is invalid or inactive.', 1;
 
     SELECT @PatientId = p.PatientId
     FROM dbo.Patient AS p
@@ -866,6 +875,14 @@ BEGIN
         NULLIF(LTRIM(RTRIM(@CreatedByDisplayName)), N''),
         SYSUTCDATETIME()
     );
+
+    IF @EncounterSoapTemplateUid IS NOT NULL
+    BEGIN
+        UPDATE pe SET SubjectiveNote=t.SubjectiveTemplate,ObjectiveNote=t.ObjectiveTemplate,
+            AssessmentNote=t.AssessmentTemplate,PlanNote=t.PlanTemplate
+        FROM dbo.PatientEncounter pe CROSS JOIN dbo.EncounterSoapTemplate t
+        WHERE pe.EncounterUid=@EncounterUid AND t.EncounterSoapTemplateUid=@EncounterSoapTemplateUid AND t.IsActive=1;
+    END;
 
     IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NOT NULL
     BEGIN

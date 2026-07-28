@@ -261,6 +261,9 @@ public sealed class PatientEncounterRepository
             200,
             request.ProviderName);
 
+        command.Parameters.Add(new SqlParameter("@EncounterSoapTemplateUid", SqlDbType.UniqueIdentifier)
+        { Value = (object?)request.EncounterSoapTemplateUid ?? DBNull.Value });
+
         command.Parameters.Add(
             new SqlParameter(
                 "@CreatedBy",

@@ -991,6 +991,7 @@
             <input type="hidden" name="ReturnTab" value="summary" />
             <div class="modal-header"><h2 class="modal-title fs-5" id="createEncounterModalLabel">New Encounter</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body"><div class="row g-3">
+                <div class="col-12"><label for="summaryEncounterSoapTemplateUid" class="form-label">Template</label><select id="summaryEncounterSoapTemplateUid" name="EncounterSoapTemplateUid" class="form-select encounter-soap-template-select"><option value="">No template</option></select></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterDateLocal" class="form-label">Encounter date/time</label><input id="summaryEncounterDateLocal" name="EncounterDateLocal" type="datetime-local" class="form-control" required /></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterType" class="form-label">Encounter type</label><select id="summaryEncounterType" name="EncounterType" class="form-select" required><option value="">Select</option><option value="Office Visit">Office Visit</option><option value="Phone Visit">Phone Visit</option><option value="Virtual Visit">Virtual Visit</option><option value="Follow-up">Follow-up</option><option value="Consultation">Consultation</option><option value="Procedure">Procedure</option><option value="Other">Other</option></select></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterProviderName" class="form-label">Provider</label><input id="summaryEncounterProviderName" name="ProviderName" class="form-control" maxlength="200" autocomplete="off" /></div>
@@ -1077,6 +1078,7 @@
                         </div>
                         <div class="col-12">
                             <h3 class="fs-6">SOAP Encounter Note</h3>
+                            <div id="applySoapTemplateContainer" class="mb-3 d-none"><label for="applyEncounterSoapTemplate" class="form-label">Apply Template</label><select id="applyEncounterSoapTemplate" class="form-select"><option value="">Select a template</option></select></div>
                             <div class="row g-3">
                                 <div class="col-12 col-lg-6">
                                     <label for="encounterSubjectiveNote" class="form-label">Subjective</label>
@@ -1203,6 +1205,7 @@
 @section Scripts {
 <script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/encounter-soap-templates/apply.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
  const modal = document.getElementById("createEncounterModal");

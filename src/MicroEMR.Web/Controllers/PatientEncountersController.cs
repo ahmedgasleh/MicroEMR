@@ -473,7 +473,8 @@ public sealed class PatientEncountersController : Controller
             EncounterType = model.EncounterType,
             ReasonForVisit = model.ReasonForVisit,
             LocationName = model.LocationName,
-            ProviderName = model.ProviderName
+            ProviderName = model.ProviderName,
+            EncounterSoapTemplateUid = model.EncounterSoapTemplateUid
         };
 
         try
