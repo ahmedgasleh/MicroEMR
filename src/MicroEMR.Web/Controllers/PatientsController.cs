@@ -517,6 +517,7 @@ public sealed class PatientsController : Controller
         {
             "summary" => "summary",
             "timeline" => "timeline",
+            "alerts" => "alerts",
             "allergies" => "allergies",
             "documents" => "documents",
             "encounters" => "encounters",

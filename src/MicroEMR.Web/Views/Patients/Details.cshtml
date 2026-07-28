@@ -10,6 +10,7 @@
 
     var summaryActive = Model.ActiveTab == "summary";
     var timelineActive = Model.ActiveTab == "timeline";
+    var alertsActive = Model.ActiveTab == "alerts";
 
     var demographicsActive =
         Model.ActiveTab == "demographics";
@@ -86,6 +87,7 @@
         </div>
     </div>
     <nav class="patient-chart-banner__badges" aria-label="Patient clinical summary links">
+        <button type="button" id="patientAlertBadge" class="patient-chart-banner__badge d-none" data-chart-tab-link="alerts">Alerts <span class="badge text-bg-warning" id="patientAlertCount">0</span></button>
         <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="problems">
             Problems <span class="badge text-bg-secondary">@summary.ActiveProblemsTotalCount</span>
         </button>
@@ -109,6 +111,7 @@
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
     <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
+    <li class="nav-item"><button class="nav-link @(alertsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#alerts" type="button">Alerts</button></li>
     <li class="nav-item">
         <button class="nav-link @(demographicsActive ? "active" : null)"
                 data-bs-toggle="tab"
@@ -200,6 +203,11 @@
     </div>
     <div class="tab-pane fade @(timelineActive ? "show active" : null)" id="timeline" role="tabpanel">
         <partial name="_Timeline" model="Model.Timeline" />
+    </div>
+    <div class="tab-pane fade @(alertsActive ? "show active" : null)" id="alerts" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Chart Alerts</h5><button id="addChartAlert" class="btn btn-primary">Add Alert</button></div>
+        <div class="d-flex justify-content-end mb-3"><select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select></div>
+        <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList"></div>
     </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
          id="demographics"
@@ -981,6 +989,9 @@
     </div>
 </div>
 
+<div class="modal fade" id="chartAlertModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Chart Alert</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="chartAlertForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientChartAlertUid"/><div class="mb-3"><label class="form-label">Alert Title</label><input name="AlertTitle" maxlength="200" required class="form-control"/></div><div class="mb-3"><label class="form-label">Alert Message</label><textarea name="AlertMessage" maxlength="1000" rows="3" class="form-control"></textarea></div><div class="row"><div class="col"><label class="form-label">Type</label><select name="AlertType" class="form-select">@foreach(var x in new[]{"General","Clinical","Administrative","Safety","Scheduling"}){<option>@x</option>}</select></div><div class="col"><label class="form-label">Priority</label><select name="AlertPriority" class="form-select">@foreach(var x in new[]{"Low","Normal","High","Critical"}){<option selected="@(x=="Normal")">@x</option>}</select></div></div></form><div id="chartAlertModalMessage" class="alert alert-danger d-none mt-3"></div></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="saveChartAlert" class="btn btn-primary">Save Alert</button></div></div></div></div>
+<div class="modal fade" id="resolveChartAlertModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Resolve Alert</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="resolveChartAlertForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientChartAlertUid"/><label class="form-label">Resolution Reason</label><textarea name="ResolutionReason" maxlength="500" class="form-control" rows="3"></textarea></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="confirmResolveChartAlert" class="btn btn-primary">Resolve</button></div></div></div></div>
+<form id="chartAlertAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <partial name="_SummaryQuickActionModals" model="Model" />
 
 <div class="modal fade" id="createEncounterModal" tabindex="-1" aria-labelledby="createEncounterModalLabel" aria-hidden="true">
@@ -1205,6 +1216,7 @@
 @section Scripts {
 <script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-chart-alerts.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/encounter-soap-templates/apply.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {

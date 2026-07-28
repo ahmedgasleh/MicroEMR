@@ -13,6 +13,7 @@ using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Services.Scheduling;
 using System.Globalization;
 using MicroEMR.Web.Services.EncounterSoapTemplates;
+using MicroEMR.Web.Services.PatientChartAlerts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,7 @@ builder.Services.AddHttpClient<
     IPatientApiClient,
     PatientApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IEncounterSoapTemplateApiClient, EncounterSoapTemplateApiClient>(ConfigureApiClient);
+builder.Services.AddHttpClient<IPatientChartAlertApiClient, PatientChartAlertApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<
     IPatientAllergyApiClient,
