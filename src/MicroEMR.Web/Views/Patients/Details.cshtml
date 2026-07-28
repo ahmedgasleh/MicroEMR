@@ -61,6 +61,9 @@
 <section id="patientChartBanner"
          class="patient-chart-banner"
          data-patient-uid="@patient.PatientUid"
+         data-patient-name="@summary.PatientDisplayName"
+         data-chart-number="@summary.ChartNumber"
+         data-date-of-birth="@summary.DateOfBirth.ToString("yyyy-MM-dd")"
          aria-labelledby="patientChartBannerName">
     <div class="patient-chart-banner__identity">
         <div>
@@ -1220,6 +1223,7 @@
 
 @section Scripts {
 <script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/recent-patients.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-chart-alerts.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-results.js" asp-append-version="true"></script>

@@ -11,6 +11,7 @@ public sealed class PatientListItem
     public string? MiddleName { get; set; }
 
     public string LastName { get; set; } = string.Empty;
+    public string? PreferredName { get; set; }
 
     public DateOnly DateOfBirth { get; set; }
 

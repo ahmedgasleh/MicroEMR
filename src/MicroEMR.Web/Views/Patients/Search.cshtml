@@ -41,7 +41,8 @@
                    name="searchText"
                    value="@searchText"
                    class="form-control"
-                   placeholder="Name, chart number, health card or phone" />
+                   placeholder="Search by name, chart number, health card, or phone" />
+            <div class="form-text">You can search by name, chart number, health card, or phone.</div>
         </div>
 
         <div class="col-12 col-sm-6 col-lg-3">
@@ -107,12 +108,10 @@
                                     @patient.FullName
                                 </div>
 
-                                @if (!string.IsNullOrWhiteSpace(
-                                        patient.LastName))
+                                @if (!string.IsNullOrWhiteSpace(patient.PreferredName))
                                 {
                                     <small class="text-muted">
-                                        Preferred:
-                                        @patient.LastName, @patient.FirstName
+                                        Preferred: @patient.PreferredName
                                     </small>
                                 }
                             </td>

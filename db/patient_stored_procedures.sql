@@ -82,3 +82,36 @@ BEGIN
         @PatientUid = @PatientUid;
 END;
 GO
+CREATE OR ALTER PROCEDURE dbo.Patient_Search
+    @SearchText NVARCHAR(200) = NULL,
+    @DateOfBirth DATE = NULL,
+    @PageNumber INT = 1,
+    @PageSize INT = 25,
+    @IncludeInactive BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @PageNumber = CASE WHEN @PageNumber < 1 THEN 1 ELSE @PageNumber END;
+    SET @PageSize = CASE WHEN @PageSize < 1 THEN 25 WHEN @PageSize > 100 THEN 100 ELSE @PageSize END;
+    DECLARE @Term NVARCHAR(200) = NULLIF(LTRIM(RTRIM(@SearchText)), N'');
+
+    ;WITH Matches AS
+    (
+        SELECT p.*, COUNT(*) OVER() AS TotalRows,
+            CASE WHEN p.ChartNumber = @Term THEN 0 WHEN p.HealthCardNumber = @Term THEN 1
+                 WHEN p.LastName = @Term OR p.FirstName = @Term THEN 2 ELSE 3 END AS MatchRank
+        FROM dbo.Patient p
+        WHERE p.IsDeleted = 0
+          AND (@IncludeInactive = 1 OR p.IsActive = 1)
+          AND (@DateOfBirth IS NULL OR p.DateOfBirth = @DateOfBirth)
+          AND (@Term IS NULL OR p.FirstName LIKE N'%' + @Term + N'%' OR p.LastName LIKE N'%' + @Term + N'%'
+               OR p.PreferredName LIKE N'%' + @Term + N'%' OR p.ChartNumber LIKE N'%' + @Term + N'%'
+               OR p.HealthCardNumber LIKE N'%' + @Term + N'%' OR p.PhoneNumber LIKE N'%' + @Term + N'%'
+               OR CONCAT(p.FirstName,N' ',p.LastName) LIKE N'%' + @Term + N'%')
+    )
+    SELECT PatientUid,ChartNumber,FirstName,MiddleName,LastName,PreferredName,DateOfBirth,SexAtBirth,
+           HealthCardNumber,HealthCardVersion,PhoneNumber,Email,IsActive,CONVERT(INT,TotalRows) TotalRows
+    FROM Matches ORDER BY MatchRank,LastName,FirstName,COALESCE(UpdatedAt,CreatedAt) DESC
+    OFFSET (@PageNumber-1)*@PageSize ROWS FETCH NEXT @PageSize ROWS ONLY;
+END;
+GO
