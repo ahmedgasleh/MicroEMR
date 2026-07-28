@@ -77,6 +77,36 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.DocumentTemplate', 'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.DocumentTemplate
+        ADD CreatedAt DATETIME2(0) NOT NULL
+            CONSTRAINT DF_DocumentTemplate_CreatedAt
+            DEFAULT SYSUTCDATETIME()
+            WITH VALUES;
+END;
+GO
+
+IF COL_LENGTH('dbo.DocumentTemplate', 'CreatedBy') IS NULL
+BEGIN
+    ALTER TABLE dbo.DocumentTemplate
+        ADD CreatedBy BIGINT NULL;
+END;
+GO
+
+ALTER TABLE dbo.DocumentTemplate ALTER COLUMN TemplateName NVARCHAR(200) NOT NULL;
+GO
+
+IF COL_LENGTH('dbo.DocumentTemplate', 'UpdatedAt') IS NULL
+    ALTER TABLE dbo.DocumentTemplate ADD UpdatedAt DATETIME2(0) NULL;
+GO
+IF COL_LENGTH('dbo.DocumentTemplate', 'UpdatedBy') IS NULL
+    ALTER TABLE dbo.DocumentTemplate ADD UpdatedBy BIGINT NULL;
+GO
+IF COL_LENGTH('dbo.DocumentTemplate', 'RowVersion') IS NULL
+    ALTER TABLE dbo.DocumentTemplate ADD RowVersion ROWVERSION;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1
@@ -292,9 +322,78 @@ BEGIN
         dt.TemplateType AS DocumentType,
         dt.Description AS Description,
         dt.TemplateHtml AS TemplateContent,
-        dt.IsActive AS IsActive
+        dt.IsActive AS IsActive,
+        dt.CreatedAt, dt.CreatedBy, createdUser.DisplayName AS CreatedByDisplayName,
+        dt.UpdatedAt, dt.UpdatedBy, updatedUser.DisplayName AS UpdatedByDisplayName,
+        dt.RowVersion
     FROM dbo.DocumentTemplate AS dt
+    LEFT JOIN dbo.ApplicationUser createdUser ON createdUser.UserId = dt.CreatedBy
+    LEFT JOIN dbo.ApplicationUser updatedUser ON updatedUser.UserId = dt.UpdatedBy
     WHERE dt.TemplateUid = @TemplateUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.DocumentTemplate_GetAll
+    @StatusFilter NVARCHAR(50) = N'Active'
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @StatusFilter NOT IN (N'Active', N'Inactive', N'All') SET @StatusFilter = N'Active';
+    SELECT dt.TemplateUid, dt.TemplateName, dt.TemplateType AS DocumentType,
+        dt.Description, dt.TemplateHtml AS TemplateContent, dt.IsActive,
+        dt.CreatedAt, dt.CreatedBy, createdUser.DisplayName AS CreatedByDisplayName,
+        dt.UpdatedAt, dt.UpdatedBy, updatedUser.DisplayName AS UpdatedByDisplayName,
+        dt.RowVersion
+    FROM dbo.DocumentTemplate dt
+    LEFT JOIN dbo.ApplicationUser createdUser ON createdUser.UserId = dt.CreatedBy
+    LEFT JOIN dbo.ApplicationUser updatedUser ON updatedUser.UserId = dt.UpdatedBy
+    WHERE @StatusFilter = N'All'
+       OR (@StatusFilter = N'Active' AND dt.IsActive = 1)
+       OR (@StatusFilter = N'Inactive' AND dt.IsActive = 0)
+    ORDER BY dt.IsActive DESC, dt.TemplateName ASC;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.DocumentTemplate_Create
+    @TemplateName NVARCHAR(200), @DocumentType NVARCHAR(100),
+    @TemplateContent NVARCHAR(MAX), @CreatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NULLIF(LTRIM(RTRIM(@TemplateName)), N'') IS NULL THROW 51020, 'Template name is required.', 1;
+    IF NULLIF(LTRIM(RTRIM(@DocumentType)), N'') IS NULL THROW 51021, 'Document type is required.', 1;
+    DECLARE @TemplateUid UNIQUEIDENTIFIER = NEWID();
+    INSERT dbo.DocumentTemplate(TemplateUid, TemplateName, TemplateType, TemplateHtml, IsActive, CreatedAt, CreatedBy)
+    VALUES(@TemplateUid, LTRIM(RTRIM(@TemplateName)), LTRIM(RTRIM(@DocumentType)), COALESCE(@TemplateContent,N''), 1, SYSUTCDATETIME(), @CreatedBy);
+    EXEC dbo.DocumentTemplate_GetByUid @TemplateUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.DocumentTemplate_Update
+    @TemplateUid UNIQUEIDENTIFIER, @TemplateName NVARCHAR(200),
+    @DocumentType NVARCHAR(100), @TemplateContent NVARCHAR(MAX), @UpdatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NULLIF(LTRIM(RTRIM(@TemplateName)), N'') IS NULL THROW 51020, 'Template name is required.', 1;
+    IF NULLIF(LTRIM(RTRIM(@DocumentType)), N'') IS NULL THROW 51021, 'Document type is required.', 1;
+    UPDATE dbo.DocumentTemplate SET TemplateName=LTRIM(RTRIM(@TemplateName)), TemplateType=LTRIM(RTRIM(@DocumentType)),
+        TemplateHtml=COALESCE(@TemplateContent,N''), UpdatedAt=SYSUTCDATETIME(), UpdatedBy=@UpdatedBy
+    WHERE TemplateUid=@TemplateUid;
+    IF @@ROWCOUNT = 0 RETURN;
+    EXEC dbo.DocumentTemplate_GetByUid @TemplateUid;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.DocumentTemplate_SetActive
+    @TemplateUid UNIQUEIDENTIFIER, @IsActive BIT, @UpdatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE dbo.DocumentTemplate SET IsActive=@IsActive, UpdatedAt=SYSUTCDATETIME(), UpdatedBy=@UpdatedBy
+    WHERE TemplateUid=@TemplateUid;
+    IF @@ROWCOUNT = 0 RETURN;
+    EXEC dbo.DocumentTemplate_GetByUid @TemplateUid;
 END;
 GO
 

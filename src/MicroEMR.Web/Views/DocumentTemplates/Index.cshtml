@@ -1,0 +1,50 @@
+@using System.Text.Json
+@model MicroEMR.Web.Models.DocumentTemplates.DocumentTemplateIndexViewModel
+@{ ViewData["Title"]="Document Templates"; Layout="_AppLayout"; }
+
+<div class="content-panel" id="documentTemplatesPage" data-status="@Model.Status">
+    <div class="content-panel-header">
+        <div><h3>Document Templates</h3><p>Manage templates available to Patient Documents.</p></div>
+        <button class="btn btn-primary" id="addTemplateButton"><i class="bi bi-plus-lg me-1"></i>Add Template</button>
+    </div>
+    @Html.AntiForgeryToken()
+    <div id="templateMessage" class="alert d-none" role="alert"></div>
+    <div class="d-flex justify-content-end mb-3">
+        <label class="me-2 pt-2" for="templateStatusFilter">Show</label>
+        <select id="templateStatusFilter" class="form-select w-auto">
+            @foreach(var value in new[]{"Active","Inactive","All"}) { <option value="@value" selected="@(value==Model.Status)">@value</option> }
+        </select>
+    </div>
+    @if(Model.Templates.Count == 0)
+    {
+        <div class="text-center text-body-secondary py-5">@(Model.Status == "Active" ? "No active document templates." : Model.Status == "Inactive" ? "No inactive document templates." : "No document templates.")</div>
+    }
+    else
+    {
+        <div class="table-responsive"><table class="table table-hover align-middle">
+            <thead><tr><th>Template Name</th><th>Document Type</th><th>Status</th><th>Updated At</th><th class="text-end">Actions</th></tr></thead>
+            <tbody>@foreach(var item in Model.Templates){<tr>
+                <td class="fw-semibold">@item.TemplateName</td><td>@item.DocumentType</td>
+                <td><span class="badge @(item.IsActive ? "text-bg-success" : "text-bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span></td>
+                <td>@((item.UpdatedAt ?? item.CreatedAt).ToLocalTime().ToString("MMM d, yyyy h:mm tt"))</td>
+                <td class="text-end"><button class="btn btn-sm btn-outline-primary edit-template" data-template-uid="@item.TemplateUid">Edit</button>
+                    <button class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success") toggle-template" data-template-uid="@item.TemplateUid" data-is-active="@(!item.IsActive).ToString().ToLowerInvariant()">@(item.IsActive ? "Deactivate" : "Reactivate")</button></td>
+            </tr>}</tbody>
+        </table></div>
+    }
+</div>
+
+<div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title fs-5" id="templateModalTitle">Add Document Template</h2><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body"><form id="templateForm" novalidate>
+        <input type="hidden" name="TemplateUid" id="TemplateUid" />
+        <div class="mb-3"><label class="form-label" for="TemplateName">Template Name</label><input class="form-control" name="TemplateName" id="TemplateName" maxlength="200" required /><div class="invalid-feedback" data-error-for="TemplateName"></div></div>
+        <div class="mb-3"><label class="form-label" for="DocumentType">Document Type</label><input class="form-control" name="DocumentType" id="DocumentType" maxlength="100" required /><div class="invalid-feedback" data-error-for="DocumentType"></div></div>
+        <div><label class="form-label" for="TemplateContent">Template Content</label><textarea class="form-control" name="TemplateContent" id="TemplateContent" rows="12"></textarea></div>
+    </form><div id="templateModalMessage" class="alert alert-danger d-none mt-3"></div></div>
+    <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveTemplateButton">Save Template</button></div>
+</div></div></div>
+
+<script type="application/json" id="documentTemplateData">@Html.Raw(JsonSerializer.Serialize(Model.Templates, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))</script>
+
+@section Scripts { <script type="module" src="~/dist/document-templates/document-templates.js" asp-append-version="true"></script> }

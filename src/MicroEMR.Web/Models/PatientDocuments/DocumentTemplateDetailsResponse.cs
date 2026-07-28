@@ -13,4 +13,11 @@ public sealed class DocumentTemplateDetailsResponse
     public string TemplateContent { get; set; } = string.Empty;
 
     public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public long? CreatedBy { get; set; }
+    public string? CreatedByDisplayName { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public long? UpdatedBy { get; set; }
+    public string? UpdatedByDisplayName { get; set; }
+    public string? RowVersion { get; set; }
 }

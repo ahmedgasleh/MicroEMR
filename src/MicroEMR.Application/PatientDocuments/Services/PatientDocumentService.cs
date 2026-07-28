@@ -48,6 +48,25 @@ public sealed class PatientDocumentService : IPatientDocumentService
             cancellationToken);
     }
 
+    public Task<IReadOnlyList<DocumentTemplateDetailsResponse>> GetTemplatesAsync(string statusFilter, CancellationToken cancellationToken = default) =>
+        _repository.GetTemplatesAsync(NormalizeStatus(statusFilter), cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> CreateTemplateAsync(CreateDocumentTemplateRequest request, long? createdBy, CancellationToken cancellationToken = default) =>
+        _repository.CreateTemplateAsync(request, createdBy, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> UpdateTemplateAsync(Guid templateUid, UpdateDocumentTemplateRequest request, long? updatedBy, CancellationToken cancellationToken = default) =>
+        _repository.UpdateTemplateAsync(templateUid, request, updatedBy, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> SetTemplateActiveAsync(Guid templateUid, bool isActive, long? updatedBy, CancellationToken cancellationToken = default) =>
+        _repository.SetTemplateActiveAsync(templateUid, isActive, updatedBy, cancellationToken);
+
+    private static string NormalizeStatus(string? status) => status?.Trim().ToLowerInvariant() switch
+    {
+        "inactive" => "Inactive",
+        "all" => "All",
+        _ => "Active"
+    };
+
     public Task<PatientDocumentDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientDocumentRequest request,

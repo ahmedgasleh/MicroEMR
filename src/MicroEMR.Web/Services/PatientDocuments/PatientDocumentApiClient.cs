@@ -129,6 +129,41 @@ public sealed class PatientDocumentApiClient
                 cancellationToken: cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DocumentTemplateDetailsResponse>> GetDocumentTemplatesAsync(
+        string statusFilter, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/document-templates?status={Uri.EscapeDataString(statusFilter)}");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<DocumentTemplateDetailsResponse>>(cancellationToken: cancellationToken) ?? [];
+    }
+
+    public Task<DocumentTemplateDetailsResponse?> CreateDocumentTemplateAsync(
+        SaveDocumentTemplateRequest request, CancellationToken cancellationToken = default) =>
+        SendTemplateMutationAsync(HttpMethod.Post, "api/document-templates", request, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> UpdateDocumentTemplateAsync(
+        Guid templateUid, SaveDocumentTemplateRequest request, CancellationToken cancellationToken = default) =>
+        SendTemplateMutationAsync(HttpMethod.Put, $"api/document-templates/{templateUid}", request, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> SetDocumentTemplateActiveAsync(
+        Guid templateUid, bool isActive, CancellationToken cancellationToken = default) =>
+        SendTemplateMutationAsync(HttpMethod.Post, $"api/document-templates/{templateUid}/set-active",
+            new SetDocumentTemplateActiveRequest { IsActive = isActive }, cancellationToken);
+
+    private async Task<DocumentTemplateDetailsResponse?> SendTemplateMutationAsync(
+        HttpMethod method, string uri, object body, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, uri) { Content = JsonContent.Create(body) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<DocumentTemplateDetailsResponse>(cancellationToken: cancellationToken);
+    }
+
     public async Task<PatientDocumentDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientDocumentRequest documentRequest,

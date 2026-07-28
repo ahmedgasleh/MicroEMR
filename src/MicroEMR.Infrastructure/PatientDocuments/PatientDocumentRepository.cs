@@ -172,6 +172,53 @@ public sealed class PatientDocumentRepository
         return MapTemplateDetails(reader);
     }
 
+    public async Task<IReadOnlyList<DocumentTemplateDetailsResponse>> GetTemplatesAsync(
+        string statusFilter, CancellationToken cancellationToken = default)
+    {
+        var templates = new List<DocumentTemplateDetailsResponse>();
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("dbo.DocumentTemplate_GetAll", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@StatusFilter", SqlDbType.NVarChar, 50) { Value = statusFilter });
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken)) templates.Add(MapTemplateDetails(reader));
+        return templates;
+    }
+
+    public Task<DocumentTemplateDetailsResponse?> CreateTemplateAsync(
+        CreateDocumentTemplateRequest request, long? createdBy, CancellationToken cancellationToken = default) =>
+        ExecuteTemplateMutationAsync("dbo.DocumentTemplate_Create", null, request.TemplateName,
+            request.DocumentType, request.TemplateContent, null, createdBy, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> UpdateTemplateAsync(
+        Guid templateUid, UpdateDocumentTemplateRequest request, long? updatedBy, CancellationToken cancellationToken = default) =>
+        ExecuteTemplateMutationAsync("dbo.DocumentTemplate_Update", templateUid, request.TemplateName,
+            request.DocumentType, request.TemplateContent, null, updatedBy, cancellationToken);
+
+    public Task<DocumentTemplateDetailsResponse?> SetTemplateActiveAsync(
+        Guid templateUid, bool isActive, long? updatedBy, CancellationToken cancellationToken = default) =>
+        ExecuteTemplateMutationAsync("dbo.DocumentTemplate_SetActive", templateUid, null, null, null,
+            isActive, updatedBy, cancellationToken);
+
+    private async Task<DocumentTemplateDetailsResponse?> ExecuteTemplateMutationAsync(
+        string procedure, Guid? templateUid, string? name, string? type, string? content,
+        bool? isActive, long? userId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(procedure, connection) { CommandType = CommandType.StoredProcedure };
+        if (templateUid.HasValue) command.Parameters.Add(new SqlParameter("@TemplateUid", SqlDbType.UniqueIdentifier) { Value = templateUid.Value });
+        if (name is not null) AddRequiredString(command, "@TemplateName", SqlDbType.NVarChar, 200, name);
+        if (type is not null) AddRequiredString(command, "@DocumentType", SqlDbType.NVarChar, 100, type);
+        if (content is not null) command.Parameters.Add(new SqlParameter("@TemplateContent", SqlDbType.NVarChar, -1) { Value = content });
+        if (isActive.HasValue) command.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = isActive.Value });
+        command.Parameters.Add(new SqlParameter(procedure.EndsWith("Create", StringComparison.Ordinal) ? "@CreatedBy" : "@UpdatedBy", SqlDbType.BigInt)
+        { Value = (object?)userId ?? DBNull.Value });
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? MapTemplateDetails(reader) : null;
+    }
+
     public async Task<PatientDocumentDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientDocumentRequest request,
@@ -435,8 +482,47 @@ public sealed class PatientDocumentRepository
 
             IsActive =
                 reader.GetBoolean(
-                    reader.GetOrdinal("IsActive"))
+                    reader.GetOrdinal("IsActive")),
+
+            CreatedAt = GetOptionalDateTime(reader, "CreatedAt") ?? default,
+            CreatedBy = GetOptionalInt64(reader, "CreatedBy"),
+            CreatedByDisplayName = GetOptionalString(reader, "CreatedByDisplayName"),
+            UpdatedAt = GetOptionalDateTime(reader, "UpdatedAt"),
+            UpdatedBy = GetOptionalInt64(reader, "UpdatedBy"),
+            UpdatedByDisplayName = GetOptionalString(reader, "UpdatedByDisplayName"),
+            RowVersion = GetOptionalRowVersion(reader, "RowVersion")
         };
+    }
+
+    private static int FindOrdinal(SqlDataReader reader, string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+            if (string.Equals(reader.GetName(ordinal), columnName, StringComparison.OrdinalIgnoreCase)) return ordinal;
+        return -1;
+    }
+
+    private static string? GetOptionalString(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    }
+
+    private static long? GetOptionalInt64(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
+    }
+
+    private static DateTime? GetOptionalDateTime(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetDateTime(ordinal);
+    }
+
+    private static string? GetOptionalRowVersion(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : Convert.ToBase64String((byte[])reader.GetValue(ordinal));
     }
 
     private static void AddRequiredString(
