@@ -4,6 +4,7 @@ using MicroEMR.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Web.Models.Dashboard;
 using MicroEMR.Web.Services.Scheduling;
+using MicroEMR.Web.Services.PatientTasks;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -16,13 +17,16 @@ public class HomeController : Controller
             "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
         };
     private readonly ISchedulingApiClient _schedulingApiClient;
+    private readonly IPatientTaskApiClient _patientTaskApiClient;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         ISchedulingApiClient schedulingApiClient,
+        IPatientTaskApiClient patientTaskApiClient,
         ILogger<HomeController> logger)
     {
         _schedulingApiClient = schedulingApiClient;
+        _patientTaskApiClient = patientTaskApiClient;
         _logger = logger;
     }
 
@@ -74,6 +78,16 @@ public class HomeController : Controller
         {
             model.ScheduleLoadFailed = true;
             _logger.LogError(exception, "Unable to load today's dashboard schedule.");
+        }
+
+        try
+        {
+            model.OpenTasks = await _patientTaskApiClient.GetDashboardOpenTasksAsync(10, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            model.TasksLoadFailed = true;
+            _logger.LogError(exception, "Unable to load dashboard open tasks.");
         }
 
         return View(model);

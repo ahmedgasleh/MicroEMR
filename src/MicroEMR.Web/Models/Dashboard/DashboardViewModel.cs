@@ -1,5 +1,7 @@
 namespace MicroEMR.Web.Models.Dashboard;
 
+using MicroEMR.Web.Models.PatientTasks;
+
 public sealed class DashboardViewModel
 {
     public IReadOnlyList<DashboardAppointmentViewModel> TodaysAppointments { get; set; }
@@ -8,6 +10,8 @@ public sealed class DashboardViewModel
     public int TodaysAppointmentCount { get; set; }
 
     public bool ScheduleLoadFailed { get; set; }
+    public IReadOnlyList<PatientDashboardTaskViewModel> OpenTasks { get; set; } = Array.Empty<PatientDashboardTaskViewModel>();
+    public bool TasksLoadFailed { get; set; }
 }
 
 public sealed class DashboardAppointmentViewModel

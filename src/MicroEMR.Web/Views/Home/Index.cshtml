@@ -317,6 +317,32 @@
                     <div class="text-body-secondary py-3">No recent patients yet.</div>
                 </div>
             </section>
+
+            <section class="content-panel mt-4" aria-labelledby="openTasksHeading">
+                <div class="content-panel-header"><div><h3 id="openTasksHeading">My Open Tasks</h3><p>Due and upcoming patient follow-ups</p></div></div>
+                @if (Model.TasksLoadFailed)
+                {
+                    <div class="alert alert-warning mb-0">Open tasks could not be loaded.</div>
+                }
+                else if (Model.OpenTasks.Count == 0)
+                {
+                    <div class="text-body-secondary py-3">No open tasks.</div>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var task in Model.OpenTasks)
+                        {
+                            var priorityClass = task.TaskPriority == "Urgent" ? "text-bg-danger" : task.TaskPriority == "High" ? "text-bg-warning" : "text-bg-secondary";
+                            <a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@task.PatientUid" asp-route-tab="tasks" class="list-group-item list-group-item-action px-0">
+                                <div class="d-flex justify-content-between gap-2"><span class="fw-semibold">@task.TaskTitle</span><span class="badge @priorityClass">@task.TaskPriority</span></div>
+                                <div class="small">@task.PatientDisplayName@if (!string.IsNullOrWhiteSpace(task.ChartNumber)) { <span> · @task.ChartNumber</span> }</div>
+                                <div class="small text-body-secondary">@(task.DueAt.HasValue ? $"Due {task.DueAt.Value.ToLocalTime():MMM d, yyyy h:mm tt}" : "No due date")</div>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
         </div>
 
     </div>

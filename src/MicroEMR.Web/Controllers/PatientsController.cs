@@ -518,6 +518,7 @@ public sealed class PatientsController : Controller
             "summary" => "summary",
             "timeline" => "timeline",
             "alerts" => "alerts",
+            "tasks" => "tasks",
             "results" => "results",
             "allergies" => "allergies",
             "documents" => "documents",

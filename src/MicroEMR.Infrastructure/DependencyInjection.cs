@@ -21,6 +21,8 @@ using MicroEMR.Application.PatientChartAlerts;
 using MicroEMR.Infrastructure.PatientChartAlerts;
 using MicroEMR.Application.PatientResults;
 using MicroEMR.Infrastructure.PatientResults;
+using MicroEMR.Application.PatientTasks;
+using MicroEMR.Infrastructure.PatientTasks;
 
 namespace MicroEMR.Infrastructure;
 
@@ -33,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IEncounterSoapTemplateRepository, EncounterSoapTemplateRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();
+        services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
             services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();
