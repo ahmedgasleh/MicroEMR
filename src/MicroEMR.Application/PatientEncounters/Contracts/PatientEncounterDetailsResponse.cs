@@ -39,4 +39,10 @@ public sealed class PatientEncounterDetailsResponse
     public string? SignedByDisplayName { get; set; }
 
     public string RowVersion { get; set; } = string.Empty;
+    public Guid? AppointmentUid { get; set; }
+    public DateTime? AppointmentStartDateTime { get; set; }
+    public DateTime? AppointmentEndDateTime { get; set; }
+    public string? AppointmentReason { get; set; }
+    public string? AppointmentProviderDisplayName { get; set; }
+    public string? AppointmentStatus { get; set; }
 }

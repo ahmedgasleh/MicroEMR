@@ -124,12 +124,16 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 a.EndDateTimeUtc,
                 sr.ResourceUid AS PrimaryResourceUid,
                 sr.DisplayName AS PrimaryResourceName,
-                a.AppointmentStatus AS Status
+                a.AppointmentStatus AS Status,
+                linkedEncounter.EncounterUid AS LinkedEncounterUid,
+                linkedEncounter.EncounterStatus AS LinkedEncounterStatus
             FROM dbo.ScheduleAppointment a
             INNER JOIN dbo.Patient p
                 ON p.PatientUid = a.PatientUid
             INNER JOIN dbo.ScheduleResource sr
                 ON sr.ResourceId = a.PrimaryResourceId
+            LEFT JOIN dbo.PatientEncounter linkedEncounter
+                ON linkedEncounter.AppointmentUid = a.AppointmentUid
             WHERE a.IsDeleted = 0
                 AND a.AppointmentStatus <> N'Cancelled'
                 AND a.StartDateTimeUtc < @EndUtc
@@ -223,7 +227,9 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid")),
                     PrimaryResourceName =
                         GetNullableString(reader, "PrimaryResourceName"),
-                    Status = reader.GetString(reader.GetOrdinal("Status"))
+                    Status = reader.GetString(reader.GetOrdinal("Status")),
+                    LinkedEncounterUid = GetNullableGuid(reader, "LinkedEncounterUid"),
+                    LinkedEncounterStatus = GetNullableString(reader, "LinkedEncounterStatus")
                 });
             }
         }
@@ -291,7 +297,9 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName"),
             CreatedAt = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("CreatedAt"))),
             UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt"),
-            RowVersion = GetNullableBase64(reader, "RowVersion")
+            RowVersion = GetNullableBase64(reader, "RowVersion"),
+            LinkedEncounterUid = GetOptionalGuid(reader, "LinkedEncounterUid"),
+            LinkedEncounterStatus = GetOptionalString(reader, "LinkedEncounterStatus")
         };
     }
 
@@ -443,6 +451,28 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
     {
         var ordinal = reader.GetOrdinal(columnName);
         return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
+    }
+
+    private static Guid? GetOptionalGuid(SqlDataReader reader, string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (string.Equals(reader.GetName(ordinal), columnName, StringComparison.OrdinalIgnoreCase))
+                return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
+        }
+
+        return null;
+    }
+
+    private static string? GetOptionalString(SqlDataReader reader, string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (string.Equals(reader.GetName(ordinal), columnName, StringComparison.OrdinalIgnoreCase))
+                return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+        }
+
+        return null;
     }
 
     private static long? GetNullableInt64(SqlDataReader reader, string columnName)

@@ -438,6 +438,8 @@ public sealed class SchedulingController : Controller
                 appointment.Reason,
                 appointment.Notes,
                 appointment.Status,
+                appointment.LinkedEncounterUid,
+                appointment.LinkedEncounterStatus,
                 appointment.CreatedByDisplayName,
                 createdAtLocal = NormalizeUtc(appointment.CreatedAt).ToLocalTime()
             });
@@ -447,6 +449,41 @@ public sealed class SchedulingController : Controller
             _logger.LogError(exception, "Unable to load scheduling appointment details.");
             return StatusCode(StatusCodes.Status502BadGateway,
                 new { message = "Appointment details could not be loaded." });
+        }
+    }
+
+    [HttpPost("StartEncounter")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StartEncounter(
+        Guid appointmentUid,
+        CancellationToken cancellationToken)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Appointment identifier is required." });
+
+        try
+        {
+            var result = await _schedulingApiClient.StartEncounterFromAppointmentAsync(
+                appointmentUid, cancellationToken);
+            return result is null
+                ? NotFound(new { success = false, message = "Appointment was not found." })
+                : Json(new { success = true, encounter = result });
+        }
+        catch (StartEncounterConflictException exception)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = exception.IsCompleted
+                    ? "Completed appointments cannot start a new encounter."
+                    : "Cancelled appointments cannot start encounters."
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to start an encounter from a scheduling appointment.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "Encounter could not be started." });
         }
     }
 

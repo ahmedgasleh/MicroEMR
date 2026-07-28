@@ -27,6 +27,33 @@
     </div>
 
     <div class="row g-4 mt-1">
+        @if (Model.AppointmentUid.HasValue)
+        {
+            <div class="col-12">
+                <div class="border rounded-3 p-3 bg-body-tertiary">
+                    <h5 class="mb-3">Appointment</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">Date/time</dt>
+                        <dd class="col-sm-9">
+                            @Model.AppointmentStartDateTime?.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                            @if (Model.AppointmentEndDateTime.HasValue)
+                            {
+                                <text> - @Model.AppointmentEndDateTime.Value.ToLocalTime().ToString("h:mm tt")</text>
+                            }
+                        </dd>
+                        <dt class="col-sm-3">Provider/resource</dt>
+                        <dd class="col-sm-9">@(Model.AppointmentProviderDisplayName ?? "Not assigned")</dd>
+                        <dt class="col-sm-3">Status</dt>
+                        <dd class="col-sm-9"><span class="badge text-bg-secondary">@Model.AppointmentStatus</span></dd>
+                        @if (!string.IsNullOrWhiteSpace(Model.AppointmentReason))
+                        {
+                            <dt class="col-sm-3">Reason</dt>
+                            <dd class="col-sm-9">@Model.AppointmentReason</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        }
         <div class="col-12 col-lg-6">
             <div class="border rounded-3 p-3 h-100">
                 <h5 class="mb-3">Encounter</h5>

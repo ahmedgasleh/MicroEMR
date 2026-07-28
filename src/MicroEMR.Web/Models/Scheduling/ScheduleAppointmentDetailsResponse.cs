@@ -21,4 +21,6 @@ public sealed class ScheduleAppointmentDetailsResponse
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public string? RowVersion { get; set; }
+    public Guid? LinkedEncounterUid { get; set; }
+    public string? LinkedEncounterStatus { get; set; }
 }

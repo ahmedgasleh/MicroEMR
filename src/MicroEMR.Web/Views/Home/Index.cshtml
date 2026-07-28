@@ -186,7 +186,16 @@
                                             </select>
                                         </td>
                                         <td class="text-end text-nowrap">
-                                            @if (encounterStartStatuses.Contains(appointment.Status))
+                                            @if (appointment.LinkedEncounterUid.HasValue)
+                                            {
+                                                <a asp-controller="Patients" asp-action="Details"
+                                                   asp-route-patientUid="@appointment.PatientUid"
+                                                   asp-route-tab="encounters"
+                                                   asp-route-encounterUid="@appointment.LinkedEncounterUid"
+                                                   class="btn btn-sm btn-primary">Open Encounter</a>
+                                                <span class="badge text-bg-secondary">Encounter: @appointment.LinkedEncounterStatus</span>
+                                            }
+                                            else if (encounterStartStatuses.Contains(appointment.Status))
                                             {
                                                 <form asp-controller="Home"
                                                       asp-action="StartEncounter"

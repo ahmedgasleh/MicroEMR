@@ -64,7 +64,9 @@ public class HomeController : Controller
                     Reason = appointment.Reason,
                     Status = string.Equals(appointment.Status, "Booked", StringComparison.OrdinalIgnoreCase)
                         ? "Scheduled"
-                        : appointment.Status
+                        : appointment.Status,
+                    LinkedEncounterUid = appointment.LinkedEncounterUid,
+                    LinkedEncounterStatus = appointment.LinkedEncounterStatus
                 })
                 .ToArray();
         }

@@ -31,4 +31,6 @@ public sealed class DashboardAppointmentViewModel
     public string? Reason { get; set; }
 
     public string Status { get; set; } = string.Empty;
+    public Guid? LinkedEncounterUid { get; set; }
+    public string? LinkedEncounterStatus { get; set; }
 }

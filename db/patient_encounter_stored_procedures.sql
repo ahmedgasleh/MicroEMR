@@ -47,6 +47,19 @@ BEGIN
 END;
 GO
 
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.PatientEncounter')
+      AND name = N'UX_PatientEncounter_AppointmentUid'
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_PatientEncounter_AppointmentUid
+        ON dbo.PatientEncounter(AppointmentUid)
+        WHERE AppointmentUid IS NOT NULL;
+END;
+GO
+
 IF COL_LENGTH('dbo.PatientEncounter', 'EncounterUid') IS NULL
 BEGIN
     ALTER TABLE dbo.PatientEncounter
@@ -560,12 +573,23 @@ BEGIN
         pe.SignedAt AS SignedAt,
         pe.SignedBy AS SignedBy,
         signedUser.DisplayName AS SignedByDisplayName,
+        pe.AppointmentUid AS AppointmentUid,
+        appointment.StartDateTimeUtc AS AppointmentStartDateTime,
+        appointment.EndDateTimeUtc AS AppointmentEndDateTime,
+        appointment.Reason AS AppointmentReason,
+        resource.DisplayName AS AppointmentProviderDisplayName,
+        appointment.AppointmentStatus AS AppointmentStatus,
         pe.RowVersion AS RowVersion
     FROM dbo.PatientEncounter AS pe
     LEFT JOIN dbo.ApplicationUser AS au
         ON au.UserId = pe.CreatedBy
     LEFT JOIN dbo.ApplicationUser AS signedUser
         ON signedUser.UserId = pe.SignedBy
+    LEFT JOIN dbo.ScheduleAppointment AS appointment
+        ON appointment.AppointmentUid = pe.AppointmentUid
+       AND appointment.IsDeleted = 0
+    LEFT JOIN dbo.ScheduleResource AS resource
+        ON resource.ResourceId = appointment.PrimaryResourceId
     WHERE pe.EncounterUid = @EncounterUid;
 END;
 GO

@@ -393,6 +393,11 @@
                 <button type="button" class="btn btn-primary d-none" id="editAppointmentButton">
                     Edit Appointment
                 </button>
+                <span id="linkedEncounterStatusBadge" class="badge text-bg-secondary d-none"></span>
+                <button type="button" class="btn btn-success d-none" id="startAppointmentEncounterButton">
+                    Start Encounter
+                </button>
+                <a id="openAppointmentEncounterButton" class="btn btn-success d-none" href="#">Open Encounter</a>
                 <a id="openPatientChartButton" class="btn btn-primary d-none" href="#">Open Chart</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
@@ -1217,6 +1222,9 @@ else
             detailsError.classList.add("d-none");
             detailsContent.classList.add("d-none");
             openChartButton.classList.add("d-none");
+            document.getElementById("startAppointmentEncounterButton").classList.add("d-none");
+            document.getElementById("openAppointmentEncounterButton").classList.add("d-none");
+            document.getElementById("linkedEncounterStatusBadge").classList.add("d-none");
             cancelAppointmentButton.classList.add("d-none");
             editAppointmentButton.classList.add("d-none");
             viewAppointmentHistoryButton.classList.add("d-none");
@@ -1262,6 +1270,7 @@ else
                     "d-none",
                     String(details.status).toLowerCase() === "cancelled");
                 viewAppointmentHistoryButton.classList.remove("d-none");
+                window.appointmentEncounterLinking?.render(details);
                 detailsContent.classList.remove("d-none");
             } catch (error) {
                 console.error(error);
@@ -2070,4 +2079,5 @@ else
         }
     });
     </script>
+    <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>
 }

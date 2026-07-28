@@ -573,6 +573,8 @@ BEGIN
         createdByUser.DisplayName AS CreatedByDisplayName,
         a.CreatedAt,
         a.UpdatedAt,
+        linkedEncounter.EncounterUid AS LinkedEncounterUid,
+        linkedEncounter.EncounterStatus AS LinkedEncounterStatus,
         CAST(NULL AS VARBINARY(8)) AS RowVersion
     FROM dbo.ScheduleAppointment AS a
     INNER JOIN dbo.Patient AS p
@@ -583,6 +585,8 @@ BEGIN
         ON roomResource.ResourceId = a.RoomResourceId
     LEFT JOIN dbo.ApplicationUser AS createdByUser
         ON createdByUser.UserId = a.CreatedBy
+    LEFT JOIN dbo.PatientEncounter AS linkedEncounter
+        ON linkedEncounter.AppointmentUid = a.AppointmentUid
     WHERE a.AppointmentUid = @AppointmentUid
         AND a.IsDeleted = 0;
 END;

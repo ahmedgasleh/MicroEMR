@@ -635,7 +635,14 @@ public sealed class PatientEncounterRepository
                 GetOptionalString(reader, "SignedByDisplayName"),
 
             RowVersion =
-                GetRowVersion(reader, "RowVersion")
+                GetRowVersion(reader, "RowVersion"),
+
+            AppointmentUid = GetOptionalGuid(reader, "AppointmentUid"),
+            AppointmentStartDateTime = GetOptionalUtcDateTime(reader, "AppointmentStartDateTime"),
+            AppointmentEndDateTime = GetOptionalUtcDateTime(reader, "AppointmentEndDateTime"),
+            AppointmentReason = GetOptionalString(reader, "AppointmentReason"),
+            AppointmentProviderDisplayName = GetOptionalString(reader, "AppointmentProviderDisplayName"),
+            AppointmentStatus = GetOptionalString(reader, "AppointmentStatus")
         };
     }
 
@@ -654,6 +661,24 @@ public sealed class PatientEncounterRepository
             {
                 Value = value.Trim()
             });
+    }
+
+    private static Guid? GetOptionalGuid(SqlDataReader reader, string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+        {
+            if (string.Equals(
+                    reader.GetName(ordinal),
+                    columnName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return reader.IsDBNull(ordinal)
+                    ? null
+                    : reader.GetGuid(ordinal);
+            }
+        }
+
+        return null;
     }
 
     private static void AddNullableString(
@@ -751,6 +776,16 @@ public sealed class PatientEncounterRepository
         }
 
         return null;
+    }
+
+    private static DateTime? GetOptionalUtcDateTime(
+        SqlDataReader reader,
+        string columnName)
+    {
+        var value = GetOptionalDateTime(reader, columnName);
+        return value.HasValue
+            ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+            : null;
     }
 
     private static long? GetOptionalInt64(
