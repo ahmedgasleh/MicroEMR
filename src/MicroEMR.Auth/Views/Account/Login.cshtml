@@ -5,6 +5,8 @@
     Layout = "_AuthLayout";
 }
 
+<partial name="_SplashScreen" />
+
 <div class="auth-page">
     <div class="auth-shell">
         <section class="auth-brand-panel" aria-labelledby="microemrBrandTitle">
@@ -47,7 +49,12 @@
                     <p class="auth-subtitle">Continue to your clinical workspace.</p>
                 </header>
 
-                <form asp-controller="Account" asp-action="Login" method="post" class="auth-form">
+                <form asp-controller="Account"
+                      asp-action="Login"
+                      method="post"
+                      class="auth-form"
+                      id="microEmrLoginForm"
+                      data-microemr-login-form="true">
                     @Html.AntiForgeryToken()
                     <input asp-for="ReturnUrl" type="hidden" />
 
@@ -114,5 +121,6 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script type="module" src="~/dist/splash-screen.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/login-page.js" asp-append-version="true"></script>
 }

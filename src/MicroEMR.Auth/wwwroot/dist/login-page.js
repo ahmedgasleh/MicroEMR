@@ -1,4 +1,3 @@
-"use strict";
 const passwordInput = document.getElementById("Password");
 const toggleButton = document.getElementById("btnTogglePassword");
 const loginForm = document.querySelector(".auth-form");
@@ -12,11 +11,17 @@ toggleButton?.addEventListener("click", () => {
     toggleButton.setAttribute("aria-pressed", showPassword.toString());
     toggleButton.classList.toggle("password-toggle--visible", showPassword);
 });
-loginForm?.addEventListener("submit", () => {
+loginForm?.addEventListener("submit", (event) => {
     if (!loginForm.checkValidity() || !submitButton)
         return;
-    submitButton.disabled = true;
-    submitButton.setAttribute("aria-busy", "true");
-    submitButton.classList.add("auth-submit--busy");
+    // Wait until unobtrusive validation has had an opportunity to cancel submit.
+    window.setTimeout(() => {
+        if (event.defaultPrevented)
+            return;
+        submitButton.disabled = true;
+        submitButton.setAttribute("aria-busy", "true");
+        submitButton.classList.add("auth-submit--busy");
+    }, 0);
 });
+export {};
 //# sourceMappingURL=login-page.js.map

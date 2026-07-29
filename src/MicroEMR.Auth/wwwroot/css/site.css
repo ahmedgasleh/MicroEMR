@@ -255,9 +255,9 @@ body {
   opacity: 1;
   visibility: visible;
   transition: opacity 250ms ease, visibility 250ms ease;
-  animation: microemr-splash-failsafe 1ms linear 2250ms forwards;
 }
 
+.microemr-splash--active { animation: microemr-splash-failsafe 1ms linear 2250ms forwards; }
 .microemr-splash--hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .microemr-splash__card { width: min(100%, 25rem); padding: 2.5rem 2rem 2.25rem; border: 1px solid rgba(37, 99, 235, 0.12); border-radius: 1.25rem; background: rgba(255, 255, 255, 0.96); box-shadow: 0 1.5rem 4rem rgba(23, 32, 51, 0.14); text-align: center; }
 .microemr-splash__mark { display: grid; place-items: center; width: 3.75rem; height: 3.75rem; margin: 0 auto 1.1rem; border-radius: 1rem; background: linear-gradient(145deg, #3b82f6, #1d4ed8); box-shadow: 0 0.75rem 1.75rem rgba(37, 99, 235, 0.25); color: #fff; font-size: 2.35rem; font-weight: 300; line-height: 1; }

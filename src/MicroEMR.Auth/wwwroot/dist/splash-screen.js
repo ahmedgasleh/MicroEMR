@@ -1,32 +1,23 @@
-"use strict";
 const splash = document.getElementById("microEmrSplash");
-if (splash) {
-    const minimumVisibleDuration = 650;
-    const fallbackDuration = 2000;
-    const fadeDuration = 250;
-    const startedAt = Date.now();
-    let isHidden = false;
-    const hideSplash = () => {
-        if (isHidden)
+const loginForm = document.querySelector("[data-microemr-login-form]");
+if (splash && loginForm) {
+    const showSplash = () => {
+        splash.hidden = false;
+        splash.setAttribute("aria-hidden", "false");
+        window.requestAnimationFrame(() => {
+            splash.classList.remove("microemr-splash--hidden");
+            splash.classList.add("microemr-splash--active");
+        });
+    };
+    loginForm.addEventListener("submit", (event) => {
+        if (!loginForm.checkValidity())
             return;
-        isHidden = true;
-        splash.classList.add("microemr-splash--hidden");
-        splash.setAttribute("aria-hidden", "true");
-        document.body.classList.add("microemr-app-ready");
+        // Unobtrusive validation may cancel submission after this listener runs.
         window.setTimeout(() => {
-            splash.hidden = true;
-        }, fadeDuration);
-    };
-    const hideAfterMinimumDuration = () => {
-        const elapsed = Date.now() - startedAt;
-        window.setTimeout(hideSplash, Math.max(0, minimumVisibleDuration - elapsed));
-    };
-    if (document.readyState === "complete") {
-        hideAfterMinimumDuration();
-    }
-    else {
-        window.addEventListener("load", hideAfterMinimumDuration, { once: true });
-    }
-    window.setTimeout(hideSplash, fallbackDuration);
+            if (!event.defaultPrevented)
+                showSplash();
+        }, 0);
+    });
 }
+export {};
 //# sourceMappingURL=splash-screen.js.map
