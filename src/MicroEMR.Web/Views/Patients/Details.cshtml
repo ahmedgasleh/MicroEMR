@@ -9,13 +9,15 @@
     Layout = "_AppLayout";
 
     var summaryActive = Model.ActiveTab == "summary";
+
+    var demographicsActive =
+        Model.ActiveTab == "demographics";
     var timelineActive = Model.ActiveTab == "timeline";
     var alertsActive = Model.ActiveTab == "alerts";
     var tasksActive = Model.ActiveTab == "tasks";
     var resultsActive = Model.ActiveTab == "results";
 
-    var demographicsActive =
-        Model.ActiveTab == "demographics";
+    
 
     var documentsActive =
         Model.ActiveTab == "documents";
@@ -115,9 +117,6 @@
 
 <ul class="nav nav-tabs mb-3 patient-chart-tabs" aria-label="Patient chart sections">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
-    <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
-    <li class="nav-item"><button class="nav-link @(alertsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#alerts" type="button">Alerts</button></li>
-    <li class="nav-item"><button class="nav-link @(tasksActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
     <li class="nav-item">
         <button class="nav-link @(demographicsActive ? "active" : null)"
                 data-bs-toggle="tab"
@@ -126,6 +125,10 @@
             Demographics
         </button>
     </li>
+    <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
+    <li class="nav-item"><button class="nav-link @(alertsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#alerts" type="button">Alerts</button></li>
+    <li class="nav-item"><button class="nav-link @(tasksActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
+    
 
     <li class="nav-item">
         <button class="nav-link @(documentsActive ? "active" : null)"
