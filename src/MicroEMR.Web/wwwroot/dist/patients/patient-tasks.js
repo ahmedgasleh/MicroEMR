@@ -26,8 +26,21 @@ if (patientUid) {
         root.querySelectorAll(".reopen-task").forEach(button => button.addEventListener("click", () => { if (window.confirm("Reopen Task?"))
             void reopen(button.dataset.id ?? ""); }));
     }
-    async function load() { const response = await fetch(`/PatientTasks/List?patientUid=${patientUid}&status=${encodeURIComponent(filter.value)}`); const result = await response.json(); if (!response.ok)
-        throw new Error(result.message ?? "Tasks could not be loaded."); tasks = result.tasks ?? []; render(); }
+    async function load() { root.setAttribute("aria-busy", "true"); root.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div>`; try {
+        const response = await fetch(`/PatientTasks/List?patientUid=${patientUid}&status=${encodeURIComponent(filter.value)}`);
+        const result = await response.json();
+        if (!response.ok)
+            throw new Error(result.message ?? "Tasks could not be loaded.");
+        tasks = result.tasks ?? [];
+        render();
+    }
+    catch (error) {
+        root.replaceChildren();
+        throw error;
+    }
+    finally {
+        root.setAttribute("aria-busy", "false");
+    } }
     function openTask(task) { form.reset(); form.classList.remove("was-validated"); titleInput.classList.remove("is-invalid"); form.elements.namedItem("PatientUid").value = patientUid; form.elements.namedItem("PatientTaskUid").value = task?.patientTaskUid ?? ""; titleInput.value = task?.taskTitle ?? ""; form.elements.namedItem("TaskDescription").value = task?.taskDescription ?? ""; form.elements.namedItem("TaskType").value = task?.taskType ?? "General"; form.elements.namedItem("TaskPriority").value = task?.taskPriority ?? "Normal"; form.elements.namedItem("DueAt").value = task?.dueAt ? new Date(task.dueAt).toISOString().slice(0, 16) : ""; document.querySelector("#patientTaskModalTitle").textContent = task ? "Edit Task" : "Add Task"; taskModal.show(); }
     async function post(url, target) { const body = new FormData(target); body.set("__RequestVerificationToken", token.value); const response = await fetch(url, { method: "POST", body }); const result = await response.json(); if (!response.ok || !result.success)
         throw new Error(result.message ?? "Task operation failed."); window.location.reload(); }

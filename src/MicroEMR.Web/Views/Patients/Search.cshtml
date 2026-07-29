@@ -30,7 +30,8 @@
 
     <form method="get"
           asp-action="Search"
-          class="row g-3 mt-1">
+          class="row g-3 mt-1"
+          data-microemr-search-form>
 
         <div class="col-12 col-lg-6">
             <label class="form-label">
@@ -64,7 +65,8 @@
 
             <div class="d-flex gap-2">
                 <button type="submit"
-                        class="btn btn-primary flex-grow-1">
+                        class="btn btn-primary flex-grow-1"
+                        data-microemr-search-button>
                     <i class="bi bi-search me-1"></i>
                     Search
                 </button>
@@ -77,7 +79,12 @@
         </div>
     </form>
 
-    <div class="table-responsive mt-4">
+    <div class="microemr-loading-state mt-4 d-none" data-microemr-search-loading role="status" aria-live="polite">
+        <span class="microemr-loading-spinner" aria-hidden="true"></span>
+        <span>Searching patient records...</span>
+    </div>
+
+    <div class="table-responsive mt-4" data-microemr-search-results>
         <table class="table table-hover align-middle">
 
             <thead>
@@ -168,3 +175,7 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/dist/loading-states.js" asp-append-version="true"></script>
+}

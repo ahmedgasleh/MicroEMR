@@ -34,10 +34,19 @@ function render(): void {
   list.querySelectorAll<HTMLElement>(".resolve-alert").forEach(button => button.onclick = () => { resolveForm.reset(); (resolveForm.elements.namedItem("PatientChartAlertUid") as HTMLInputElement).value = button.dataset.id ?? ""; resolveModal.show(); });
 }
 async function load(status = filter.value): Promise<void> {
-  const response = await fetch(`/PatientChartAlerts/List?patientUid=${patientUid}&status=${encodeURIComponent(status)}`);
-  const result = await response.json() as AlertResult;
-  if (!response.ok) throw new Error(result.message ?? "Alerts could not be loaded.");
-  alerts = result.alerts ?? []; render(); if (status === "Active") updateHeader(alerts);
+  list.setAttribute("aria-busy", "true");
+  list.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div>`;
+  try {
+    const response = await fetch(`/PatientChartAlerts/List?patientUid=${patientUid}&status=${encodeURIComponent(status)}`);
+    const result = await response.json() as AlertResult;
+    if (!response.ok) throw new Error(result.message ?? "Alerts could not be loaded.");
+    alerts = result.alerts ?? []; render(); if (status === "Active") updateHeader(alerts);
+  } catch (error: unknown) {
+    list.replaceChildren();
+    throw error;
+  } finally {
+    list.setAttribute("aria-busy", "false");
+  }
 }
 function openAlert(alert?: AlertItem): void {
   form.reset(); (form.elements.namedItem("PatientUid") as HTMLInputElement).value = patientUid;

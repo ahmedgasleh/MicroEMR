@@ -210,14 +210,14 @@
     <div class="tab-pane fade @(alertsActive ? "show active" : null)" id="alerts" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Chart Alerts</h5><button id="addChartAlert" class="btn btn-primary">Add Alert</button></div>
         <div class="d-flex justify-content-end mb-3"><select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select></div>
-        <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList"></div>
+        <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div></div>
     </div>
     <div class="tab-pane fade @(tasksActive ? "show active" : null)" id="tasks" role="tabpanel">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
             <h5 class="mb-0">Tasks</h5><button id="addPatientTask" class="btn btn-primary" type="button">Add Task</button>
         </div>
         <div class="d-flex justify-content-end mb-3"><label class="visually-hidden" for="patientTaskFilter">Task status</label><select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select></div>
-        <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList"></div>
+        <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div></div>
     </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
          id="demographics"
@@ -1003,7 +1003,7 @@
             </tr> }
         </tbody></table></div> }
     </div>
-    <div class="tab-pane fade @(resultsActive ? "show active" : null)" id="results" role="tabpanel"><div class="d-flex justify-content-between mb-3"><h5>Results</h5><button id="addPatientResult" class="btn btn-primary">Add Result</button></div><div class="d-flex justify-content-end mb-3"><select id="patientResultFilter" class="form-select w-auto"><option>New</option><option>Reviewed</option><option>All</option></select></div><div id="patientResultList"></div></div>
+    <div class="tab-pane fade @(resultsActive ? "show active" : null)" id="results" role="tabpanel"><div class="d-flex justify-content-between mb-3"><h5>Results</h5><button id="addPatientResult" class="btn btn-primary">Add Result</button></div><div class="d-flex justify-content-end mb-3"><select id="patientResultFilter" class="form-select w-auto"><option>New</option><option>Reviewed</option><option>All</option></select></div><div id="patientResultList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading results...</span></div></div></div>
 </div>
 
 <div class="modal fade" id="chartAlertModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Chart Alert</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="chartAlertForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientChartAlertUid"/><div class="mb-3"><label class="form-label">Alert Title</label><input name="AlertTitle" maxlength="200" required class="form-control"/></div><div class="mb-3"><label class="form-label">Alert Message</label><textarea name="AlertMessage" maxlength="1000" rows="3" class="form-control"></textarea></div><div class="row"><div class="col"><label class="form-label">Type</label><select name="AlertType" class="form-select">@foreach(var x in new[]{"General","Clinical","Administrative","Safety","Scheduling"}){<option>@x</option>}</select></div><div class="col"><label class="form-label">Priority</label><select name="AlertPriority" class="form-select">@foreach(var x in new[]{"Low","Normal","High","Critical"}){<option selected="@(x=="Normal")">@x</option>}</select></div></div></form><div id="chartAlertModalMessage" class="alert alert-danger d-none mt-3"></div></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="saveChartAlert" class="btn btn-primary">Save Alert</button></div></div></div></div>
