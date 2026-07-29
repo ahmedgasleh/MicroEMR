@@ -16,11 +16,13 @@
 </head>
 
 <body>
+    <partial name="_SplashScreen" />
     <main>
         @RenderBody()
     </main>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="~/dist/splash-screen.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
