@@ -113,7 +113,7 @@
     </nav>
 </section>
 
-<ul class="nav nav-tabs mb-3">
+<ul class="nav nav-tabs mb-3 patient-chart-tabs" aria-label="Patient chart sections">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
     <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
     <li class="nav-item"><button class="nav-link @(alertsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#alerts" type="button">Alerts</button></li>
@@ -177,12 +177,8 @@
     <li class="nav-item"><button class="nav-link @(resultsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#results" type="button">Results</button></li>
 </ul>
 
-<div class="tab-content">
-    <div class="tab-pane fade @(summaryActive ? "show active" : null)" id="summary" role="tabpanel">
-        <div class="card mb-4"><div class="card-body">
-            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3"><div><h3 class="h4 mb-1">@summary.PatientDisplayName</h3>@if (!string.IsNullOrWhiteSpace(summary.PreferredName)) { <div class="text-muted">Preferred name: @summary.PreferredName</div> }<div class="text-muted">Chart @summary.ChartNumber</div></div>
-            <dl class="row mb-0 flex-grow-1"><dt class="col-sm-4">Date of birth</dt><dd class="col-sm-8">@summary.DateOfBirth.ToString("MMM d, yyyy") (@summary.AgeDisplay)</dd><dt class="col-sm-4">Health card</dt><dd class="col-sm-8">@(summary.HealthCardNumber ?? "—")</dd><dt class="col-sm-4">Sex / gender</dt><dd class="col-sm-8">@string.Join(" / ", new[] { summary.SexAtBirth, summary.GenderIdentity }.Where(value => !string.IsNullOrWhiteSpace(value)))</dd><dt class="col-sm-4">Contact</dt><dd class="col-sm-8">@(summary.PhoneNumber ?? "—")@if (!string.IsNullOrWhiteSpace(summary.Email)) { <span> · @summary.Email</span> }</dd></dl></div>
-        </div></div>
+<div class="tab-content patient-chart-content">
+    <div class="tab-pane fade patient-chart-summary @(summaryActive ? "show active" : null)" id="summary" role="tabpanel">
         <div class="card mb-3">
             <div class="card-body py-3">
                 <h4 class="h6 mb-3">Quick Actions</h4>

@@ -89,6 +89,244 @@
     color: var(--microemr-text-muted);
 }
 
+/* Conservative Patient Chart polish */
+.patient-chart-banner {
+    border-color: #dce2eb;
+    border-left-width: 4px;
+    border-radius: 12px;
+    box-shadow: 0 5px 16px rgba(16, 24, 40, 0.075);
+    backdrop-filter: blur(8px);
+}
+
+.patient-chart-banner__identity {
+    flex: 1 1 25rem;
+}
+
+.patient-chart-banner__name {
+    font-size: 1.28rem;
+    letter-spacing: -0.018em;
+}
+
+.patient-chart-banner__meta {
+    row-gap: 5px;
+    line-height: 1.45;
+}
+
+.patient-chart-banner__meta strong {
+    color: #475467;
+    font-weight: 600;
+}
+
+.patient-chart-banner__badges {
+    align-items: center;
+}
+
+.patient-chart-banner__badge {
+    border-color: #dfe4ec;
+    background: #f7f9fc;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.patient-chart-banner__badge > .badge {
+    min-width: 1.45rem;
+}
+
+.patient-chart-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 3px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 4px 0;
+    border: 1px solid var(--microemr-border);
+    border-radius: 10px 10px 0 0;
+    background: #ffffff;
+    scrollbar-width: thin;
+}
+
+.patient-chart-tabs .nav-item {
+    flex: 0 0 auto;
+}
+
+.patient-chart-tabs .nav-link {
+    position: relative;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 7px 7px 0 0;
+    color: var(--microemr-text-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.patient-chart-tabs .nav-link:hover {
+    background: #f5f7fa;
+    color: var(--microemr-text-primary);
+}
+
+.patient-chart-tabs .nav-link.active {
+    background: var(--microemr-primary-soft);
+    color: var(--microemr-brand-primary);
+}
+
+.patient-chart-tabs .nav-link.active::after {
+    position: absolute;
+    right: 10px;
+    bottom: 0;
+    left: 10px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--microemr-brand-primary);
+    content: "";
+}
+
+.patient-chart-tabs .nav-link:focus-visible {
+    outline: 3px solid rgba(var(--bs-primary-rgb), 0.2);
+    outline-offset: -2px;
+}
+
+.patient-chart-content {
+    min-width: 0;
+}
+
+.patient-chart-content > .tab-pane {
+    min-width: 0;
+    padding-top: 2px;
+}
+
+.patient-chart-content .card,
+.patient-chart-content .content-panel {
+    border-color: #dfe4ec;
+    border-radius: 11px;
+    box-shadow: 0 3px 11px rgba(16, 24, 40, 0.045);
+}
+
+.patient-chart-content .card-body {
+    padding: 1.15rem;
+}
+
+.patient-chart-content .card-body > h4:first-child,
+.patient-chart-content .card-body > h5:first-child,
+.patient-chart-content .content-panel-header h3 {
+    color: var(--microemr-text-primary);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.patient-chart-content .card-footer {
+    padding: 0.7rem 1.15rem;
+    border-top-color: #edf0f4;
+}
+
+.patient-chart-content .card-footer .btn-link {
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.patient-chart-content .list-group-item {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-color: #edf0f4;
+}
+
+.patient-chart-content .list-group-item:first-child {
+    border-top: 0;
+}
+
+.patient-chart-content .list-group-item:last-child {
+    border-bottom: 0;
+}
+
+.patient-chart-content .table-responsive {
+    border: 1px solid #e3e8ef;
+    border-radius: 9px;
+}
+
+.patient-chart-content .table {
+    margin-bottom: 0;
+}
+
+.patient-chart-content .table thead th {
+    padding: 0.72rem 0.75rem;
+    border-bottom-color: #dfe4ec;
+    background: #f7f9fc;
+    color: #667085;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.patient-chart-content .table tbody td {
+    padding: 0.8rem 0.75rem;
+    border-color: #edf0f4;
+    color: #344054;
+    vertical-align: middle;
+}
+
+.patient-chart-content .table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.patient-chart-content .table tbody tr:hover td {
+    background: #fafcff;
+}
+
+.patient-chart-content .badge {
+    font-weight: 600;
+    letter-spacing: 0.005em;
+}
+
+.patient-chart-content .btn {
+    border-radius: 7px;
+}
+
+.patient-chart-content .form-select.w-auto,
+.patient-chart-content .form-select-sm {
+    border-radius: 7px;
+}
+
+.patient-chart-content .text-muted.mb-0,
+.patient-chart-content .text-body-secondary.py-3 {
+    line-height: 1.55;
+}
+
+.patient-chart-summary > .card:first-child {
+    background: #fbfcfe;
+}
+
+.patient-chart-summary > .card:first-child .btn {
+    min-height: 34px;
+}
+
+.patient-chart-summary dl dt {
+    color: #667085;
+    font-weight: 600;
+}
+
+.patient-chart-summary dl dd {
+    color: #344054;
+}
+
+.patient-chart-content .timeline-item {
+    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.035);
+}
+
+.patient-chart-content .alert-light.border,
+.patient-chart-content [id$="List"]:empty::after {
+    color: var(--microemr-text-muted);
+}
+
+.patient-chart-content .content-panel-header {
+    gap: 16px;
+}
+
+.patient-chart-content .content-panel-header .d-flex {
+    flex-wrap: wrap;
+}
+
 @media (max-width: 991.98px) {
     .patient-chart-banner {
         align-items: flex-start;
@@ -98,6 +336,14 @@
 
     .patient-chart-banner__badges {
         justify-content: flex-start;
+    }
+
+    .patient-chart-banner__identity {
+        flex-basis: auto;
+    }
+
+    .patient-chart-content .content-panel {
+        min-height: auto;
     }
 }
 
@@ -115,5 +361,29 @@
     .patient-chart-banner__badge {
         justify-content: center;
         white-space: normal;
+    }
+
+    .patient-chart-tabs .nav-link {
+        min-height: 40px;
+        padding: 8px 10px;
+    }
+
+    .patient-chart-content .card-body {
+        padding: 1rem;
+    }
+
+    .patient-chart-content .content-panel {
+        padding: 16px;
+    }
+
+    .patient-chart-content .content-panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .patient-chart-banner__badge {
+        transition: none;
     }
 }
