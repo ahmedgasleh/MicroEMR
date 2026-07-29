@@ -23,6 +23,8 @@ using MicroEMR.Application.PatientResults;
 using MicroEMR.Infrastructure.PatientResults;
 using MicroEMR.Application.PatientTasks;
 using MicroEMR.Infrastructure.PatientTasks;
+using MicroEMR.Application.Tenancy;
+using MicroEMR.Infrastructure.Tenancy;
 
 namespace MicroEMR.Infrastructure;
 
@@ -44,6 +46,8 @@ public static class DependencyInjection
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();
+            services.AddScoped<ITenantCatalog, SqlTenantCatalog>();
+            services.AddScoped<ITenantDatabaseResolver, SqlTenantDatabaseResolver>();
 
             return services;
         }
