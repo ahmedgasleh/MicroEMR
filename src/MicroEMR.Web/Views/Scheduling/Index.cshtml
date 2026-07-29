@@ -203,6 +203,58 @@
         .scheduling-month-day-number { font-weight: 600; }
         .scheduling-month-day-summary { margin-top: .5rem; font-size: .85rem; }
         .scheduling-month-blank { min-height: 6.5rem; }
+
+        @@media (max-width: 767.98px) {
+            .scheduling-toolbar,
+            .scheduling-view-bar,
+            .scheduling-month-toolbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .scheduling-toolbar-actions,
+            .scheduling-filter,
+            .scheduling-filter-panel {
+                width: 100%;
+            }
+
+            .scheduling-date-label {
+                min-width: 0;
+                text-align: left;
+            }
+
+            .scheduling-filter,
+            .scheduling-filter-panel {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .scheduling-filter .form-select,
+            .scheduling-filter-field,
+            .scheduling-filter-field .form-select {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .scheduling-calendar-shell {
+                max-width: 100%;
+                min-height: 560px;
+                overflow: auto;
+            }
+
+            #schedulingCalendar {
+                min-width: 720px;
+            }
+
+            .scheduling-month-grid {
+                min-width: 680px;
+            }
+
+            #schedulingMonthView {
+                max-width: 100%;
+                overflow-x: auto;
+            }
+        }
     </style>
 }
 

@@ -260,6 +260,12 @@ body.app-body {
 .topbar-right {
     display: flex;
     align-items: center;
+    min-width: 0;
+}
+
+.topbar-left,
+.page-heading {
+    min-width: 0;
 }
 
 .topbar-right {
@@ -462,15 +468,108 @@ body:not(.sidebar-collapsed) .tooltip {
     .sidebar-collapse-button {
         display: none;
     }
+
+    .app-main {
+        padding: 16px;
+    }
+
+    .app-topbar {
+        padding-right: 18px;
+        padding-left: 18px;
+    }
+
+    .content-panel {
+        min-width: 0;
+        padding: 18px;
+    }
+
+    .app-body .card,
+    .app-body .row > * {
+        min-width: 0;
+    }
 }
 
 @media (max-width: 575.98px) {
     .app-topbar {
+        gap: 8px;
         padding: 0 14px;
     }
 
     .app-main {
-        padding: 18px 14px;
+        padding: 12px;
+    }
+
+    .page-heading {
+        overflow: hidden;
+    }
+
+    .page-title,
+    .page-subtitle {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .page-title {
+        font-size: 17px;
+    }
+
+    .topbar-right {
+        flex: 0 0 auto;
+        gap: 2px;
+    }
+
+    .topbar-icon-button,
+    .mobile-sidebar-button {
+        width: 38px;
+        height: 38px;
+    }
+
+    .mobile-sidebar-button {
+        margin-right: 4px;
+    }
+
+    .user-menu-button {
+        min-height: 42px;
+        padding: 2px 4px;
+    }
+
+    .user-avatar {
+        width: 34px;
+        height: 34px;
+    }
+
+    .user-dropdown {
+        width: min(250px, calc(100vw - 24px));
+    }
+
+    .content-panel {
+        padding: 14px;
+    }
+
+    .content-panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .content-panel-header > .btn,
+    .content-panel-header > a.btn {
+        width: 100%;
+    }
+
+    .app-body .table-responsive {
+        max-width: 100%;
+    }
+
+    .app-body .table-responsive .table {
+        min-width: 640px;
+    }
+
+    .app-body .table td .btn,
+    .app-body .table td form {
+        margin-top: 2px;
+        margin-bottom: 2px;
     }
 
     .user-information {
@@ -482,6 +581,8 @@ body:not(.sidebar-collapsed) .tooltip {
     }
 
     .app-footer {
+        flex-wrap: wrap;
+        gap: 6px;
         padding: 14px;
     }
 
@@ -1013,6 +1114,7 @@ body:not(.sidebar-collapsed) .tooltip {
 .app-body .modal-body {
     padding: 20px;
     color: var(--microemr-text-primary);
+    overflow-y: auto;
 }
 
 .app-body .modal-body > :last-child,
@@ -1115,7 +1217,12 @@ body:not(.sidebar-collapsed) .tooltip {
 
 @media (max-width: 575.98px) {
     .app-body .modal-dialog {
+        max-height: calc(100dvh - 1.5rem);
         margin: 0.75rem;
+    }
+
+    .app-body .modal-content {
+        max-height: calc(100dvh - 1.5rem);
     }
 
     .app-body .modal-header,
