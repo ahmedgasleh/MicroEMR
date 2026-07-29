@@ -310,6 +310,19 @@
     color: #344054;
 }
 
+.patient-chart-summary .row .card-body > p.text-muted.mb-0 {
+    display: flex;
+    align-items: center;
+    min-height: 76px;
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px dashed var(--microemr-border);
+    border-radius: 8px;
+    background: #fafbfd;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+
 .patient-chart-content .timeline-item {
     box-shadow: 0 2px 8px rgba(16, 24, 40, 0.035);
 }

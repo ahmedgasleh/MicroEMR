@@ -94,10 +94,21 @@
             <tbody>
                 @if (Model.Items.Count == 0)
                 {
-                    <tr>
-                        <td colspan="6"
-                            class="text-center text-muted py-5">
-                            No patients found.
+                    <tr class="microemr-empty-state-row">
+                        <td colspan="6">
+                            <div class="microemr-empty-state">
+                                <div class="microemr-empty-state__icon"><i class="bi bi-search"></i></div>
+                                @if (string.IsNullOrWhiteSpace(searchText) && !dateOfBirth.HasValue)
+                                {
+                                    <div class="microemr-empty-state__title">Search for a patient</div>
+                                    <div class="microemr-empty-state__text">Enter a name, chart number, health card, or phone number to find a chart.</div>
+                                }
+                                else
+                                {
+                                    <div class="microemr-empty-state__title">No matching patients found</div>
+                                    <div class="microemr-empty-state__text">Try searching by name, chart number, health card, or phone.</div>
+                                }
+                            </div>
                         </td>
                     </tr>
                 }

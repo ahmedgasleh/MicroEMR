@@ -396,9 +396,10 @@
 
         @if (Model.Documents.Count == 0)
         {
-            <div class="alert alert-light border">
-                <i class="bi bi-file-earmark-text me-2"></i>
-                No documents have been created for this patient.
+            <div class="microemr-empty-state">
+                <div class="microemr-empty-state__icon"><i class="bi bi-file-earmark-text"></i></div>
+                <div class="microemr-empty-state__title">No documents recorded</div>
+                <div class="microemr-empty-state__text">Clinical documents created for this patient will appear here.</div>
             </div>
         }
         else
@@ -494,9 +495,10 @@
 
         @if (Model.Encounters.Count == 0)
         {
-            <div class="alert alert-light border">
-                <i class="bi bi-journal-medical me-2"></i>
-                No encounters have been created for this patient.
+            <div class="microemr-empty-state">
+                <div class="microemr-empty-state__icon"><i class="bi bi-journal-medical"></i></div>
+                <div class="microemr-empty-state__title">No encounters recorded</div>
+                <div class="microemr-empty-state__text">Encounter notes created for this patient will appear here.</div>
             </div>
         }
         else
@@ -618,8 +620,10 @@
             </div>
         </div>
         <div id="problemPageMessage" class="alert d-none" role="alert"></div>
-        <div id="problemEmptyState" class="alert alert-light border d-none">
-            <i class="bi bi-clipboard2-pulse me-2"></i><span>No active problems recorded.</span>
+        <div id="problemEmptyState" class="microemr-empty-state d-none">
+            <div class="microemr-empty-state__icon"><i class="bi bi-clipboard2-pulse"></i></div>
+            <span class="microemr-empty-state__title">No active problems recorded</span>
+            <div class="microemr-empty-state__text">Problems added to this chart will appear here.</div>
         </div>
         <div id="problemTableContainer" class="table-responsive">
             <table class="table table-hover align-middle">
@@ -680,9 +684,10 @@
             </div>
         </div>
 
-        <div id="allergyEmptyState" class="alert alert-light border d-none">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <span>No active allergies recorded.</span>
+        <div id="allergyEmptyState" class="microemr-empty-state d-none">
+            <div class="microemr-empty-state__icon"><i class="bi bi-exclamation-triangle"></i></div>
+            <span class="microemr-empty-state__title">No active allergies recorded</span>
+            <div class="microemr-empty-state__text">Allergies added to this chart will appear here.</div>
         </div>
 
         @if (Model.Allergies.Count > 0)
@@ -852,9 +857,10 @@
             </div>
         </div>
 
-        <div id="medicationEmptyState" class="alert alert-light border d-none">
-            <i class="bi bi-capsule me-2"></i>
-            <span>No active medications recorded.</span>
+        <div id="medicationEmptyState" class="microemr-empty-state d-none">
+            <div class="microemr-empty-state__icon"><i class="bi bi-capsule"></i></div>
+            <span class="microemr-empty-state__title">No active medications recorded</span>
+            <div class="microemr-empty-state__text">Active medications will appear here.</div>
         </div>
 
         @if (Model.Medications.Count > 0)
@@ -989,7 +995,7 @@
     <div class="tab-pane fade @(vitalsActive ? "show active" : null)" id="vitals" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Vitals</h5><button type="button" id="addVitalButton" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Vitals</button></div>
         <div id="vitalPageMessage" class="alert d-none" role="alert"></div>
-        @if (Model.Vitals.Count == 0) { <div class="alert alert-light border"><i class="bi bi-heart-pulse me-2"></i>No vitals recorded.</div> }
+        @if (Model.Vitals.Count == 0) { <div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-heart-pulse"></i></div><div class="microemr-empty-state__title">No vitals recorded</div><div class="microemr-empty-state__text">Vitals added to this chart will appear here.</div></div> }
         else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Recorded</th><th>Blood Pressure</th><th>Heart Rate</th><th>Resp. Rate</th><th>Temperature</th><th>SpO2</th><th>Height</th><th>Weight</th><th>BMI</th><th>Notes</th><th class="text-end">Actions</th></tr></thead><tbody>
         @foreach (var vital in Model.Vitals) {
             <tr class="vital-row" data-vital-uid="@vital.PatientVitalUid" data-recorded-at="@vital.RecordedAt.ToString("yyyy-MM-ddTHH:mm")" data-systolic="@vital.BloodPressureSystolic" data-diastolic="@vital.BloodPressureDiastolic" data-heart-rate="@vital.HeartRate" data-respiratory-rate="@vital.RespiratoryRate" data-temperature="@vital.TemperatureCelsius" data-oxygen="@vital.OxygenSaturation" data-height="@vital.HeightCm" data-weight="@vital.WeightKg" data-notes="@vital.Notes">

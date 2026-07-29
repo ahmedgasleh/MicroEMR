@@ -74,8 +74,11 @@ function renderRecentPatients() {
     container.replaceChildren();
     if (patients.length === 0) {
         const emptyState = document.createElement("div");
-        emptyState.className = "text-body-secondary py-3";
-        emptyState.textContent = "No recent patients yet.";
+        emptyState.className = "microemr-empty-state microemr-empty-state--compact";
+        emptyState.innerHTML = `
+            <div class="microemr-empty-state__icon"><i class="bi bi-person-clock"></i></div>
+            <div class="microemr-empty-state__title">No recent patients yet</div>
+            <div class="microemr-empty-state__text">Patient charts opened in this browser will appear here.</div>`;
         container.append(emptyState);
         return;
     }

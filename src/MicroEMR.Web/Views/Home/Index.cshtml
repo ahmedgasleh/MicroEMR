@@ -238,13 +238,13 @@
                 }
                 else
                 {
-                    <div class="empty-state">
-                        <div class="empty-state-icon"><i class="bi bi-calendar2-week"></i></div>
-                        <h4>No appointments scheduled for today.</h4>
-                        <a asp-controller="Scheduling"
-                           asp-action="Index"
-                           asp-route-openAddAppointment="true"
-                           class="btn btn-primary btn-sm mt-2">Book Appointment</a>
+                    <div class="microemr-empty-state">
+                        <div class="microemr-empty-state__icon"><i class="bi bi-calendar2-week"></i></div>
+                        <div class="microemr-empty-state__title">No appointments scheduled</div>
+                        <div class="microemr-empty-state__text">Appointments for today will appear here.</div>
+                        <div class="microemr-empty-state__actions">
+                            <a asp-controller="Scheduling" asp-action="Index" asp-route-openAddAppointment="true" class="btn btn-primary btn-sm">Book Appointment</a>
+                        </div>
                     </div>
                 }
             </section>
@@ -314,7 +314,11 @@
                 </div>
 
                 <div id="recentPatientsList" class="list-group list-group-flush">
-                    <div class="text-body-secondary py-3">No recent patients yet.</div>
+                    <div class="microemr-empty-state microemr-empty-state--compact">
+                        <div class="microemr-empty-state__icon"><i class="bi bi-person-clock"></i></div>
+                        <div class="microemr-empty-state__title">No recent patients yet</div>
+                        <div class="microemr-empty-state__text">Patient charts opened in this browser will appear here.</div>
+                    </div>
                 </div>
             </section>
 
@@ -326,7 +330,11 @@
                 }
                 else if (Model.OpenTasks.Count == 0)
                 {
-                    <div class="text-body-secondary py-3">No open tasks.</div>
+                    <div class="microemr-empty-state microemr-empty-state--compact">
+                        <div class="microemr-empty-state__icon"><i class="bi bi-check2-square"></i></div>
+                        <div class="microemr-empty-state__title">No open tasks</div>
+                        <div class="microemr-empty-state__text">Open follow-up tasks will appear here.</div>
+                    </div>
                 }
                 else
                 {

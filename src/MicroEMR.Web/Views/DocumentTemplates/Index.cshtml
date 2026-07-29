@@ -17,7 +17,11 @@
     </div>
     @if(Model.Templates.Count == 0)
     {
-        <div class="text-center text-body-secondary py-5">@(Model.Status == "Active" ? "No active document templates." : Model.Status == "Inactive" ? "No inactive document templates." : "No document templates.")</div>
+        <div class="microemr-empty-state">
+            <div class="microemr-empty-state__icon"><i class="bi bi-file-earmark-text"></i></div>
+            <div class="microemr-empty-state__title">No document templates found</div>
+            <div class="microemr-empty-state__text">Create a template to reuse document structure in patient charts.</div>
+        </div>
     }
     else
     {
