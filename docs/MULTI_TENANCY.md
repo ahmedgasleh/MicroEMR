@@ -186,3 +186,122 @@ the connection string.
 This step still uses only the existing `MicroEMR_Db`; it does not create, copy,
 or migrate another tenant database. The next step will introduce repeatable
 tenant database creation and schema migration.
+
+## Step 07: tenant database provisioning
+
+Tenant clinical schema deployment is explicit and never runs during Auth, API,
+or Web startup. `MicroEMR.DatabaseTool` initializes a manually created blank SQL
+Server database selected from the platform tenant assignment. Ordinary runtime
+API credentials do not need `CREATE DATABASE` permission.
+
+The canonical manifest is `db/tenant-clinical/manifest.json`. It deterministically
+orders the existing verified clinical SQL assets, beginning with
+`0000-tenant-metadata.sql`. Migration files are deployment-controlled assets;
+their SHA-256 hashes are stored at application time. After release, change schema
+by adding a new migration rather than editing an applied script. A retry rejects
+any applied migration whose stored hash differs from the controlled asset.
+
+Each clinical database contains:
+
+- `dbo.TenantDatabaseIdentity`: exactly one tenant identity, with no credentials,
+  secret references, or membership data. A different tenant UID is never allowed
+  to take over an initialized database.
+- `dbo.SchemaMigration`: stable migration ID, schema version, SHA-256 script hash,
+  application time, and applying machine identity.
+
+Provisioning obtains an exclusive SQL Server session application lock named from
+the assigned database, with a 30-second timeout. Each pending migration executes
+in its own SQL transaction and is recorded only before that transaction commits.
+A failed migration is rolled back, is not recorded, and prevents later scripts
+from running. `GO` batches are parsed only when `GO` appears alone on a line;
+strings and comments are respected, and repeat counts are rejected.
+
+Platform state transitions use stored procedures:
+
+```text
+Tenant:         Provisioning -> Active
+TenantDatabase: Provisioning -> Active
+                              -> MigrationFailed on failure
+```
+
+The platform schema version is updated only after tenant-database migrations and
+post-provisioning object checks succeed. If the platform completion update fails,
+the command reports failure; retry reads tenant-local history and does not reapply
+recorded migrations.
+
+### Provision a blank local test database
+
+First rerun `db/platform/002_platform_stored_procedures.sql` in SSMS to deploy the
+provisioning transition procedures. Do not use or modify `MicroEMR_Db` for this
+test.
+
+Create a separate blank database in SSMS:
+
+```sql
+USE master;
+GO
+CREATE DATABASE MicroEMR_Tenant_ProvisioningTest;
+GO
+```
+
+Generate a new tenant UID and register metadata in `MicroEMR_Platform`:
+
+```sql
+USE MicroEMR_Platform;
+GO
+
+DECLARE @TenantUid UNIQUEIDENTIFIER = NEWID();
+SELECT @TenantUid AS ProvisioningTestTenantUid;
+
+EXEC dbo.TenantDatabase_RegisterProvisioning
+    @TenantUid = @TenantUid,
+    @TenantKey = N'provisioning-test',
+    @DisplayName = N'Provisioning Test Clinic',
+    @DatabaseServerKey = N'local-sql',
+    @DatabaseName = N'MicroEMR_Tenant_ProvisioningTest',
+    @SecretReference = N'development:MicroEMR_Tenant_ProvisioningTest';
+GO
+```
+
+Configure both values in the shared API/database-tool user-secret store:
+
+```powershell
+dotnet user-secrets set `
+  "ConnectionStrings:PlatformDatabase" `
+  "YOUR-PLATFORM-DATABASE-CONNECTION-STRING" `
+  --project src/MicroEMR.DatabaseTool/MicroEMR.DatabaseTool.csproj
+
+dotnet user-secrets set `
+  "TenantDatabaseSecrets:development:MicroEMR_Tenant_ProvisioningTest" `
+  "YOUR-CONNECTION-STRING-WITH-INITIAL-CATALOG-MicroEMR_Tenant_ProvisioningTest" `
+  --project src/MicroEMR.DatabaseTool/MicroEMR.DatabaseTool.csproj
+```
+
+Run the controlled command from the repository root:
+
+```powershell
+dotnet run --project src/MicroEMR.DatabaseTool -- `
+  provision-tenant-database --tenant-key provisioning-test
+```
+
+The command prints only status, version, and migration count. It never prints a
+connection string, password, or secret value. Run it again to verify
+`AlreadyCurrent`.
+
+Verify in the test clinical database that one identity row and all migration rows
+exist, and verify in `MicroEMR_Platform` that both tenant statuses are `Active`
+and `CurrentSchemaVersion` is `1.0.0`. An identity mismatch or changed script hash
+must fail. After correcting a failed migration, rerun the same command; recorded
+migrations are skipped safely.
+
+To remove the test after validation, first verify the exact database name in
+SSMS, remove only the `provisioning-test` platform metadata through an approved
+administrative process, and then explicitly drop only
+`MicroEMR_Tenant_ProvisioningTest`. Never target `MicroEMR_Db`.
+
+Required reference data from the historical baseline is applied automatically.
+No patients, encounters, appointments, documents, allergies, or medications are
+added as demo data. A future step should normalize the overlapping historical
+encounter SQL assets into newly numbered immutable migrations; the manifest
+currently selects the consolidated encounter script and deliberately excludes
+the older duplicate addendum/SOAP-note fragments.

@@ -1,4 +1,4 @@
-<!-- Core tables --->
+-- Core tables
 
 CREATE TABLE dbo.Patient
 (
@@ -77,22 +77,7 @@ CREATE TABLE dbo.ClinicResource
         FOREIGN KEY (LocationId) REFERENCES dbo.ClinicLocation(LocationId)
 );
 
-CREATE TABLE dbo.ClinicResource
-(
-    ResourceId BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    LocationId BIGINT NULL,
-
-    ResourceName NVARCHAR(150) NOT NULL,
-    ResourceType NVARCHAR(50) NOT NULL, -- Room, Machine, Staff, Equipment
-
-    IsBookable BIT NOT NULL DEFAULT 1,
-    IsActive BIT NOT NULL DEFAULT 1,
-
-    CONSTRAINT FK_ClinicResource_Location
-        FOREIGN KEY (LocationId) REFERENCES dbo.ClinicLocation(LocationId)
-);
-
-<!-- Scheduling tables -->
+-- Scheduling tables
 
 CREATE TABLE dbo.AppointmentStatus
 (
@@ -237,7 +222,7 @@ CREATE TABLE dbo.ScheduleBlock
         )
 );
 
-<!-- Patient Chart tables --->
+-- Patient chart tables
 
 CREATE TABLE dbo.PatientEncounter
 (
@@ -371,7 +356,7 @@ CREATE TABLE dbo.DocumentAttachment
         FOREIGN KEY (PatientDocumentId) REFERENCES dbo.PatientDocument(PatientDocumentId)
 );
 
-<!-- Login / access control tables --->
+-- Login / access control tables
 
 CREATE TABLE dbo.ApplicationUser
 (
@@ -417,24 +402,7 @@ CREATE TABLE dbo.UserPermission
         FOREIGN KEY (UserId) REFERENCES dbo.ApplicationUser(UserId)
 );
 
-<!-- Example permissions -->
-
-INSERT INTO dbo.UserPermission
-(
-    UserId,
-    PermissionCode,
-    IsAllowed
-)
-VALUES
-(1, 'SCHEDULING_VIEW', 1),
-(1, 'SCHEDULING_EDIT', 1),
-(1, 'PATIENT_CHART_VIEW', 1),
-(1, 'PATIENT_CHART_EDIT', 1),
-(1, 'DOCUMENT_SIGN', 1),
-(1, 'ADMIN_USERS', 1);
-
-<!-- Audit table -->
-<!-- For healthcare software, this is very important. -->
+-- Audit table
 
 CREATE TABLE dbo.AuditLog
 (
@@ -462,7 +430,7 @@ CREATE TABLE dbo.AuditLog
         FOREIGN KEY (PatientId) REFERENCES dbo.Patient(PatientId)
 );
 
-<!-- Add indexes for performance -->
+-- Indexes
 
 CREATE INDEX IX_Patient_Name
 ON dbo.Patient (LastName, FirstName);

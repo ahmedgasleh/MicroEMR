@@ -1,0 +1,16 @@
+[
+  { "migrationId": "0000-tenant-metadata", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0000-tenant-metadata.sql" },
+  { "migrationId": "0001-initial-schema", "schemaVersion": "1.0.0", "script": "initial.sql" },
+  { "migrationId": "0002-patients", "schemaVersion": "1.0.0", "script": "patient_stored_procedures.sql" },
+  { "migrationId": "0003-documents", "schemaVersion": "1.0.0", "script": "patient_document_stored_procedures.sql" },
+  { "migrationId": "0004-encounters", "schemaVersion": "1.0.0", "script": "patient_encounter_stored_procedures.sql" },
+  { "migrationId": "0005-allergies", "schemaVersion": "1.0.0", "script": "patient_allergy_stored_procedures.sql" },
+  { "migrationId": "0006-medications", "schemaVersion": "1.0.0", "script": "patient_medication_stored_procedures.sql" },
+  { "migrationId": "0007-problems", "schemaVersion": "1.0.0", "script": "patient_problem_stored_procedures.sql" },
+  { "migrationId": "0008-vitals", "schemaVersion": "1.0.0", "script": "patient_vital_stored_procedures.sql" },
+  { "migrationId": "0009-chart-alerts", "schemaVersion": "1.0.0", "script": "patient_chart_alert_stored_procedures.sql" },
+  { "migrationId": "0010-results", "schemaVersion": "1.0.0", "script": "patient_result_stored_procedures.sql" },
+  { "migrationId": "0011-tasks", "schemaVersion": "1.0.0", "script": "patient_task_stored_procedures.sql" },
+  { "migrationId": "0012-encounter-soap-templates", "schemaVersion": "1.0.0", "script": "encounter_soap_template_stored_procedures.sql" },
+  { "migrationId": "0013-scheduling", "schemaVersion": "1.0.0", "script": "scheduling_stored_procedures.sql" }
+]
