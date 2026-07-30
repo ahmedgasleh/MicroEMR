@@ -68,6 +68,23 @@ public sealed class TenantSqlConnectionFactoryTests
     }
 
     [Fact]
+    public void MatchingDatabaseIdentityIsAccepted() =>
+        TenantSqlConnectionFactory.ValidateDatabaseIdentities([TenantUid], TenantUid);
+
+    [Fact]
+    public void MissingEmptyMultipleAndMismatchedDatabaseIdentitiesAreRejected()
+    {
+        Assert.Throws<TenantDatabaseConnectionException>(() =>
+            TenantSqlConnectionFactory.ValidateDatabaseIdentities([], TenantUid));
+        Assert.Throws<TenantDatabaseConnectionException>(() =>
+            TenantSqlConnectionFactory.ValidateDatabaseIdentities([Guid.Empty], TenantUid));
+        Assert.Throws<TenantDatabaseConnectionException>(() =>
+            TenantSqlConnectionFactory.ValidateDatabaseIdentities([TenantUid, Guid.NewGuid()], TenantUid));
+        Assert.Throws<TenantDatabaseConnectionException>(() =>
+            TenantSqlConnectionFactory.ValidateDatabaseIdentities([Guid.NewGuid()], TenantUid));
+    }
+
+    [Fact]
     public async Task FactoryAlwaysResolvesUsingCurrentTenantUid()
     {
         var resolver = new CapturingResolver();

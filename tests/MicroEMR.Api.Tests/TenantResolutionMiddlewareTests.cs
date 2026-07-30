@@ -87,6 +87,52 @@ public sealed class TenantResolutionMiddlewareTests
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
     }
 
+    [Fact]
+    public async Task DuplicateIdenticalTenantClaimsAreRejectedConsistently()
+    {
+        var context = AuthenticatedContext(TenantUid.ToString("D"));
+        ((ClaimsIdentity)context.User.Identity!).AddClaim(new Claim(
+            MicroEmrClaimTypes.TenantId,
+            TenantUid.ToString("D")));
+
+        await Middleware(_ => Task.CompletedTask).InvokeAsync(
+            context,
+            new StubCatalog(ActiveTenant()),
+            new StubMembershipRepository(Membership()),
+            new TenantContextAccessor());
+
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RequestControlledTenantValuesCannotOverrideTokenTenant()
+    {
+        var accessor = new TenantContextAccessor();
+        var context = AuthenticatedContext(TenantUid.ToString("D"));
+        context.Request.Headers["X-Tenant-Id"] = Guid.NewGuid().ToString("D");
+        context.Request.QueryString = new QueryString($"?tenantId={Guid.NewGuid():D}");
+        context.Request.RouteValues["tenantUid"] = Guid.NewGuid().ToString("D");
+        context.Request.Headers["Cookie"] = $"tenant={Guid.NewGuid():D}";
+        context.Request.Form = new FormCollection(new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
+        {
+            ["tenant"] = Guid.NewGuid().ToString("D")
+        });
+        context.Request.Host = new HostString($"{Guid.NewGuid():N}.example.test");
+        ITenantContext? observed = null;
+
+        await Middleware(_ =>
+        {
+            observed = accessor.Current;
+            return Task.CompletedTask;
+        }).InvokeAsync(
+            context,
+            new StubCatalog(ActiveTenant()),
+            new StubMembershipRepository(Membership()),
+            accessor);
+
+        Assert.Equal(TenantUid, observed!.TenantUid);
+    }
+
     [Theory]
     [InlineData(TenantStatus.Provisioning)]
     [InlineData(TenantStatus.Suspended)]
@@ -122,6 +168,50 @@ public sealed class TenantResolutionMiddlewareTests
             new StubMembershipRepository(null),
             new TenantContextAccessor());
         Assert.Equal(StatusCodes.Status403Forbidden, missingMembershipContext.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MismatchedOrInactiveMembershipReturnsForbidden()
+    {
+        foreach (var membership in new[]
+                 {
+                     Membership() with { UserId = "other-user" },
+                     Membership() with { TenantUid = Guid.NewGuid() },
+                     Membership() with { MembershipStatus = "Suspended" },
+                     Membership() with { MembershipStatus = "Revoked" }
+                 })
+        {
+            var context = AuthenticatedContext(TenantUid.ToString("D"));
+            await Middleware(_ => Task.CompletedTask).InvokeAsync(
+                context,
+                new StubCatalog(ActiveTenant()),
+                new StubMembershipRepository(membership),
+                new TenantContextAccessor());
+            Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task CurrentMembershipRolesReplaceStaleTokenRoles()
+    {
+        var context = AuthenticatedContext(TenantUid.ToString("D"));
+        ((ClaimsIdentity)context.User.Identity!).AddClaim(
+            new Claim(MicroEmrClaimTypes.TenantRole, "StaleRole"));
+        IReadOnlyList<string>? roles = null;
+
+        await Middleware(_ =>
+        {
+            roles = context.User.FindAll(MicroEmrClaimTypes.TenantRole)
+                .Select(claim => claim.Value)
+                .ToArray();
+            return Task.CompletedTask;
+        }).InvokeAsync(
+            context,
+            new StubCatalog(ActiveTenant()),
+            new StubMembershipRepository(Membership()),
+            new TenantContextAccessor());
+
+        Assert.Equal(["ClinicAdministrator"], roles);
     }
 
     [Fact]
@@ -176,6 +266,7 @@ public sealed class TenantResolutionMiddlewareTests
     public async Task PlatformFailureReturnsServiceUnavailable()
     {
         var context = AuthenticatedContext(TenantUid.ToString("D"));
+        context.Response.Body = new MemoryStream();
 
         await Middleware(_ => Task.CompletedTask).InvokeAsync(
             context,
@@ -184,6 +275,11 @@ public sealed class TenantResolutionMiddlewareTests
             new TenantContextAccessor());
 
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        var response = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        Assert.DoesNotContain("connection string", response, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("database", response, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", response, StringComparison.OrdinalIgnoreCase);
     }
 
     private static TenantResolutionMiddleware Middleware(RequestDelegate next) =>

@@ -78,11 +78,17 @@ public sealed class TenantResolutionMiddleware
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(subject) ||
-                await membershipRepository.GetMembershipAsync(
+            var membership = string.IsNullOrWhiteSpace(subject)
+                ? null
+                : await membershipRepository.GetMembershipAsync(
                     subject,
                     tenantUid,
-                    httpContext.RequestAborted) is null)
+                    httpContext.RequestAborted);
+
+            if (membership is null ||
+                !string.Equals(membership.UserId, subject, StringComparison.Ordinal) ||
+                membership.TenantUid != tenantUid ||
+                !string.Equals(membership.MembershipStatus, "Active", StringComparison.Ordinal))
             {
                 _logger.LogWarning(
                     "Active tenant membership was not found. TenantUid: {TenantUid}; Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: MembershipInactive",
@@ -93,6 +99,8 @@ public sealed class TenantResolutionMiddleware
                 await WriteProblemAsync(httpContext, StatusCodes.Status403Forbidden, UnavailableMessage);
                 return;
             }
+
+            ReplaceTenantRoleClaims(httpContext.User, membership.Roles);
 
             tenantContextAccessor.SetTenant(new TenantContext(
                 tenant.TenantUid,
@@ -138,6 +146,29 @@ public sealed class TenantResolutionMiddleware
 
     private static bool ShouldSkip(HttpContext context) =>
         context.User.Identity?.IsAuthenticated != true;
+
+    private static void ReplaceTenantRoleClaims(
+        ClaimsPrincipal principal,
+        IReadOnlyCollection<string> currentRoles)
+    {
+        foreach (var identity in principal.Identities.OfType<ClaimsIdentity>())
+        {
+            foreach (var claim in identity.FindAll(MicroEmrClaimTypes.TenantRole).ToArray())
+                identity.RemoveClaim(claim);
+        }
+
+        if (principal.Identity is not ClaimsIdentity authenticatedIdentity)
+            return;
+
+        foreach (var role in currentRoles
+                     .Where(role => !string.IsNullOrWhiteSpace(role))
+                     .Distinct(StringComparer.Ordinal))
+        {
+            authenticatedIdentity.AddClaim(new Claim(
+                MicroEmrClaimTypes.TenantRole,
+                role));
+        }
+    }
 
     private static async Task WriteProblemAsync(
         HttpContext context,

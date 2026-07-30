@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Middleware;
 using MicroEMR.Application.Tenancy;
+using MicroEMR.Api.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks()
+    .AddCheck<PlatformDatabaseHealthCheck>("platform_database");
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -79,9 +82,11 @@ app.UseSwaggerUI(options =>
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.UseMiddleware<TenantDatabaseExceptionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health/platform");
 app.MapControllers();
 
 app.Run();

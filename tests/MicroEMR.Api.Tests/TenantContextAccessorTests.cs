@@ -6,34 +6,70 @@ namespace MicroEMR.Api.Tests;
 
 public sealed class TenantContextAccessorTests
 {
+    private static readonly Guid TenantUid = Guid.NewGuid();
+
     [Fact]
-    public void DifferentTenantCannotReplaceCurrentTenant()
+    public void ContextStartsEmptyAndCanBeCleared()
     {
         var accessor = new TenantContextAccessor();
-        accessor.SetTenant(Context(Guid.NewGuid()));
+        Assert.Null(accessor.Current);
 
-        Assert.Throws<InvalidOperationException>(() =>
-            accessor.SetTenant(Context(Guid.NewGuid())));
+        accessor.SetTenant(Context());
+        Assert.Equal(TenantUid, accessor.Current!.TenantUid);
+
+        accessor.Clear();
+        Assert.Null(accessor.Current);
     }
 
     [Fact]
-    public void RequiredTenantResolutionFailsWithoutCurrentContext()
+    public void ExactSameTenantReassignmentIsHarmless()
     {
-        var services = new ServiceCollection();
-        services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
-        services.AddScoped<ITenantContext>(provider =>
-            provider.GetRequiredService<ITenantContextAccessor>().Current
-            ?? throw new InvalidOperationException(
-                "Tenant context has not been established for the current operation."));
+        var accessor = new TenantContextAccessor();
+        accessor.SetTenant(Context());
+        accessor.SetTenant(Context());
 
-        using var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            scope.ServiceProvider.GetRequiredService<ITenantContext>());
-        Assert.Contains("has not been established", exception.Message);
+        Assert.Equal(TenantUid, accessor.Current!.TenantUid);
     }
 
-    private static TenantContext Context(Guid tenantUid) =>
-        new(tenantUid, "key", "Display");
+    [Fact]
+    public void ConflictingTenantReassignmentIsRejected()
+    {
+        var accessor = new TenantContextAccessor();
+        accessor.SetTenant(Context());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            accessor.SetTenant(new TenantContext(Guid.NewGuid(), "other", "Other")));
+        Assert.Throws<InvalidOperationException>(() =>
+            accessor.SetTenant(new TenantContext(TenantUid, "conflict", "Tenant")));
+    }
+
+    [Fact]
+    public async Task SeparateParallelScopesRemainIsolated()
+    {
+        var services = new ServiceCollection()
+            .AddScoped<ITenantContextAccessor, TenantContextAccessor>()
+            .BuildServiceProvider();
+        var firstUid = Guid.NewGuid();
+        var secondUid = Guid.NewGuid();
+
+        var results = await Task.WhenAll(
+            ResolveInScopeAsync(services, firstUid),
+            ResolveInScopeAsync(services, secondUid));
+
+        Assert.Equal([firstUid, secondUid], results);
+    }
+
+    private static async Task<Guid> ResolveInScopeAsync(
+        IServiceProvider services,
+        Guid tenantUid)
+    {
+        await Task.Yield();
+        await using var scope = services.CreateAsyncScope();
+        var accessor = scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>();
+        accessor.SetTenant(new TenantContext(tenantUid, tenantUid.ToString("N"), "Tenant"));
+        return accessor.Current!.TenantUid;
+    }
+
+    private static TenantContext Context() =>
+        new(TenantUid, "tenant", "Tenant");
 }

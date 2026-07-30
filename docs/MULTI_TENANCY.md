@@ -305,3 +305,61 @@ added as demo data. A future step should normalize the overlapping historical
 encounter SQL assets into newly numbered immutable migrations; the manifest
 currently selects the consolidated encounter script and deliberately excludes
 the older duplicate addendum/SOAP-note fragments.
+
+## Tenant isolation hardening
+
+The authenticated `tenant_id` claim is the only request input used to begin
+tenant resolution. The API requires exactly one non-empty GUID claim, loads the
+tenant from `MicroEMR_Platform`, requires `Active` status, and revalidates an
+exact active subject/tenant membership on every authenticated request. Tenant
+roles are refreshed from that membership, so stale token roles are not trusted.
+
+> A tenant identifier in a route or request is never sufficient to select a database. Only the validated tenant context may control database resolution.
+
+Headers, routes, query strings, forms, cookies, tenant key/name claims, and
+hostnames never select a clinical database. Missing, conflicting, inactive, or
+unavailable state fails closed with a safe 403 or 503 response. The scoped tenant
+context starts empty, allows only exact same-tenant reassignment, rejects a
+different UID/key/name, and is cleared in middleware `finally` handling.
+
+Every clinical repository must inject `ITenantSqlConnectionFactory`; it must not
+inject `IConfiguration`, a raw connection string, or `SqlConnection`. Platform
+repositories intentionally use only `ConnectionStrings:PlatformDatabase`. The
+tenant connection factory has no fallback: it validates the active assignment,
+secret, and initial catalog, then verifies exactly one matching row in
+`dbo.TenantDatabaseIdentity` before returning the connection. Verification is
+cached only in the scoped factory and keyed by tenant plus assignment/server
+metadata. `GET /health/platform` checks platform connectivity without enumerating
+tenants or exposing database metadata.
+
+No tenant-dependent cache or clinical background job currently exists. Future
+cache keys must include `tenant:{tenantUid}:`; future clinical jobs must carry an
+explicit tenant UID and correlation ID, establish a dedicated scope, and never
+capture request tenant state. External clinical file/export storage is not yet
+implemented; future server-generated paths must live under
+`tenants/{tenantUid}/...` and clients must never supply physical paths. Clinical
+audit/history writes remain in the selected tenant database. Logs must not
+contain clinical content, credentials, connection strings, tokens, or secrets.
+
+Fixed `ConnectionStrings:MicroEmrDatabase` configuration is unsupported. Store
+platform and tenant connections in user secrets or environment variables. The
+API/database tool share a secret store; Auth uses its own:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:PlatformDatabase" "YOUR-PLATFORM-CONNECTION" --project src/MicroEMR.Api/MicroEMR.Api.csproj
+dotnet user-secrets set "ConnectionStrings:PlatformDatabase" "YOUR-PLATFORM-CONNECTION" --project src/MicroEMR.Auth/MicroEMR.Auth.csproj
+```
+
+For release regression, provision two non-production tenant databases and use
+only synthetic records. Verify patient, scheduling, encounter, document,
+allergy, medication, and audit reads/writes in both directions. While logged in
+as Tenant A, submit known Tenant B entity UIDs and require not-found/forbidden
+without modification or ownership disclosure. Repeat with membership and tenant
+suspension and a temporary assignment to the other database; identity validation
+must block that mismatch. Restore metadata and clean up through normal workflows.
+
+Automated tests cover context isolation, request-input override resistance,
+status/membership checks, assignment/name/identity mismatches, current tenant
+roles, safe errors, and repository construction. Remaining work is a controlled
+SQL-backed two-database integration harness and explicit tenant job/file
+envelopes when those features are introduced.
