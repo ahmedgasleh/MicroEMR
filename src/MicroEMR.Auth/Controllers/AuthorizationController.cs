@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Auth.Data;
 using MicroEMR.Auth.Extensions;
 using MicroEMR.Auth.Services.Tenancy;
+using Microsoft.AspNetCore.WebUtilities;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 
@@ -19,17 +20,29 @@ public sealed class AuthorizationController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IOpenIddictScopeManager _scopeManager;
     private readonly ITenantClaimEnricher _tenantClaimEnricher;
+    private readonly IUserTenantResolver _tenantResolver;
+    private readonly IUserTenantMembershipService _membershipService;
+    private readonly IPendingTenantSelectionStore _selectionStore;
+    private readonly ILogger<AuthorizationController> _logger;
 
     public AuthorizationController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IOpenIddictScopeManager scopeManager,
-        ITenantClaimEnricher tenantClaimEnricher)
+        ITenantClaimEnricher tenantClaimEnricher,
+        IUserTenantResolver tenantResolver,
+        IUserTenantMembershipService membershipService,
+        IPendingTenantSelectionStore selectionStore,
+        ILogger<AuthorizationController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _scopeManager = scopeManager;
         _tenantClaimEnricher = tenantClaimEnricher;
+        _tenantResolver = tenantResolver;
+        _membershipService = membershipService;
+        _selectionStore = selectionStore;
+        _logger = logger;
     }
 
     [HttpGet("~/connect/authorize")]
@@ -114,23 +127,86 @@ public sealed class AuthorizationController : Controller
                 new Claim(Claims.Role, role));
         }
 
-        var tenantResult = await _tenantClaimEnricher.EnrichAsync(
-            identityUser,
-            identity,
-            HttpContext.TraceIdentifier,
-            HttpContext.RequestAborted);
+        TenantClaimEnrichmentResult tenantResult;
+        var continuationId = Request.Query["tenant_continuation"].FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(continuationId))
+        {
+            var continuation = await _selectionStore.TakeContinuationAsync(
+                continuationId, HttpContext.RequestAborted);
+            var resumedReturnUrl = Request.PathBase + Request.Path + QueryString.Create(
+                Request.Query.Where(parameter => parameter.Key != "tenant_continuation").ToList());
+            if (continuation is null || continuation.ExpiresAt <= DateTimeOffset.UtcNow ||
+                !string.Equals(continuation.UserId, identityUser.Id, StringComparison.Ordinal) ||
+                !string.Equals(continuation.ReturnUrl, resumedReturnUrl, StringComparison.Ordinal))
+            {
+                _logger.LogWarning(
+                    "Tenant selection continuation rejected for user {UserId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUser.Id, HttpContext.TraceIdentifier);
+                return TenantForbid("Your clinic selection has expired. Please sign in again.");
+            }
+
+            var memberships = await _membershipService.GetActiveMembershipsAsync(
+                identityUser, HttpContext.RequestAborted);
+            var selected = memberships.SingleOrDefault(m => m.TenantUid == continuation.SelectedTenantUid);
+            if (selected is null)
+            {
+                _logger.LogWarning(
+                    "Selected tenant membership was revoked before authorization completion for user {UserId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUser.Id, HttpContext.TraceIdentifier);
+                return TenantForbid("You no longer have access to the selected clinic.");
+            }
+
+            tenantResult = _tenantClaimEnricher.EnrichFromValidatedMembership(identity, selected);
+            _logger.LogInformation(
+                "Authorization resumed successfully for user {UserId}, tenant {TenantUid}. TraceIdentifier: {TraceIdentifier}",
+                identityUser.Id, selected.TenantUid, HttpContext.TraceIdentifier);
+        }
+        else
+        {
+            TenantMembershipResolutionResult resolution;
+            try
+            {
+                resolution = await _tenantResolver.ResolveAsync(identityUser, HttpContext.RequestAborted);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                _logger.LogError(exception,
+                    "Invalid tenant membership state for user {UserId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUser.Id, HttpContext.TraceIdentifier);
+                return TenantForbid("Your account could not be assigned to a clinic.");
+            }
+
+            if (resolution.Status == TenantMembershipResolutionStatus.SelectionRequired)
+            {
+                _logger.LogInformation(
+                    "Tenant selection required for user {UserId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUser.Id, HttpContext.TraceIdentifier);
+                var returnUrl = Request.PathBase + Request.Path + Request.QueryString;
+                if (!Url.IsLocalUrl(returnUrl))
+                {
+                    return TenantForbid("The authorization request could not be continued.");
+                }
+
+                var selectionId = WebEncoders.Base64UrlEncode(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+                var now = DateTimeOffset.UtcNow;
+                await _selectionStore.StoreAsync(new PendingTenantSelection(
+                    selectionId, identityUser.Id, returnUrl, now, now.AddMinutes(5),
+                    resolution.AvailableMemberships.Select(m => m.TenantUid).Distinct().ToArray()),
+                    HttpContext.RequestAborted);
+                _logger.LogInformation(
+                    "Pending tenant selection created for user {UserId}, selection {SelectionId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUser.Id, selectionId, HttpContext.TraceIdentifier);
+                return RedirectToAction("SelectTenant", "Account", new { selectionId });
+            }
+
+            tenantResult = await _tenantClaimEnricher.EnrichAsync(
+                identityUser, identity, HttpContext.TraceIdentifier, HttpContext.RequestAborted);
+        }
 
         if (tenantResult.Status != TenantClaimEnrichmentStatus.Resolved)
         {
-            return Forbid(
-                new AuthenticationProperties(new Dictionary<string, string?>
-                {
-                    [OpenIddictServerAspNetCoreConstants.Properties.Error] =
-                        Errors.AccessDenied,
-                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
-                        tenantResult.ErrorDescription
-                }),
-                OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+            return TenantForbid(tenantResult.ErrorDescription ?? "Your account could not be assigned to a clinic.");
         }
 
         var principal =
@@ -159,6 +235,13 @@ public sealed class AuthorizationController : Controller
             OpenIddictServerAspNetCoreDefaults
                 .AuthenticationScheme);
     }
+
+    private IActionResult TenantForbid(string description) => Forbid(
+        new AuthenticationProperties(new Dictionary<string, string?>
+        {
+            [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.AccessDenied,
+            [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
+        }), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
     [HttpGet("~/connect/logout")]
     [HttpPost("~/connect/logout")]

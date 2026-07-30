@@ -1,5 +1,65 @@
 # MicroEMR multi-tenancy
 
+## Step 09: secure tenant selection
+
+The Auth server now presents `GET/POST /Account/SelectTenant` when the existing
+membership resolver returns `SelectionRequired`. The resolver's established
+policy is preserved: zero active memberships are denied, one active membership
+continues automatically, and one valid default among multiple memberships also
+continues automatically. Multiple memberships without a default require user
+selection. Multiple active defaults are invalid platform state and fail closed.
+
+The authorization endpoint creates a cryptographically random opaque selection
+ID. Its server-side record is bound to the authenticated Identity user, the
+exact locally validated `/connect/authorize` return URL, the allowed tenant
+UIDs, and a five-minute expiration. Each authorization attempt and browser tab
+gets an independent record. The selection POST requires authentication and
+antiforgery validation, checks the submitted UID against the original allowlist,
+and reloads active memberships from `MicroEMR_Platform` before proceeding.
+
+After a successful atomic consume, Auth creates a separate opaque two-minute,
+single-use continuation. The resumed authorization request must match both its
+owner and exact stored authorization URL. Auth reloads membership and current
+tenant roles once more before building claims. Replays, expiration, cross-user
+use, modified authorization requests, revoked memberships, and inactive tenants
+fail closed. No return URL submitted by the selection form is used.
+
+`IPendingTenantSelectionStore` is registered as a singleton over
+`IDistributedCache`. Development uses `AddDistributedMemoryCache`, which is
+single-instance only. Production must configure a shared distributed provider
+and an atomic distributed consume implementation before running multiple Auth
+instances; the current per-key lock makes consume atomic only within one Auth
+process. Pending records expire naturally. Logout behavior is unchanged and no
+tenant choice is written to the Identity cookie, user record, or persistent
+browser cookie.
+
+> A browser-submitted tenant UID is never trusted by itself. The Auth server must validate it against the authenticated user's active platform memberships before issuing tenant claims.
+
+Only the selected membership contributes `tenant_id`, `tenant_key`,
+`tenant_name`, and `tenant_role` claims. Global Identity roles remain separate,
+and one access token continues to represent exactly one tenant. No database
+metadata is stored in selection state or rendered in the page. Clinical database
+routing and API tenant middleware are unchanged.
+
+Tenant switching remains out of scope. A future switch must end or replace the
+current tenant session/token, return to Auth, revalidate memberships, make a new
+selection, and issue a new authorization code and one-tenant token. It must not
+edit an existing token or tenant context.
+
+### Manual verification
+
+Use only a non-production Identity user with active memberships in two active
+test tenants (for example `local-dev` and `provisioning-test`) and no default.
+Start Auth, API, and Web; log out; sign in once; and verify the selection page
+shows only those memberships. Select each tenant in separate login cycles and
+verify only that tenant's data and claims are available. While a selection page
+is open, revoke its membership and then suspend its tenant in separate attempts;
+both submissions must be denied. Also submit an unlisted tenant UID, replay a
+successful form, and use two simultaneous browser tabs. The unlisted and replayed
+submissions must fail, while the tabs must remain independent. Finally verify
+logout returns to login and that neither browser content nor tokens expose
+database names, server keys, secret references, or connection strings.
+
 ## Step 04: token claims
 
 The Auth application resolves a user's active membership from the validated

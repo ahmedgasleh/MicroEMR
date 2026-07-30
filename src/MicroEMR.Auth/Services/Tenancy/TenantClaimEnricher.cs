@@ -117,6 +117,16 @@ public sealed class TenantClaimEnricher : ITenantClaimEnricher
         }
     }
 
+    public TenantClaimEnrichmentResult EnrichFromValidatedMembership(
+        ClaimsIdentity identity,
+        UserTenantMembershipInfo membership)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(membership);
+        ReplaceTenantClaims(identity, membership);
+        return new TenantClaimEnrichmentResult(TenantClaimEnrichmentStatus.Resolved);
+    }
+
     private static void ReplaceTenantClaims(
         ClaimsIdentity identity,
         UserTenantMembershipInfo membership)
