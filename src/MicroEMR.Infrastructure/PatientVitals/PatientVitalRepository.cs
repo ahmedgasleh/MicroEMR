@@ -1,30 +1,30 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientVitals.Contracts;
 using MicroEMR.Application.PatientVitals.Repositories;
 namespace MicroEMR.Infrastructure.PatientVitals;
-public sealed class PatientVitalRepository(IConfiguration configuration, ILogger<PatientVitalRepository> logger) : IPatientVitalRepository
+public sealed class PatientVitalRepository(ITenantSqlConnectionFactory connectionFactory, ILogger<PatientVitalRepository> logger) : IPatientVitalRepository
 {
-    private readonly string _connectionString = configuration.GetConnectionString("MicroEmrDatabase") ?? throw new InvalidOperationException("Connection string 'MicroEmrDatabase' was not found.");
+    private readonly ITenantSqlConnectionFactory _connectionFactory = connectionFactory;
     public async Task<IReadOnlyList<PatientVitalResponse>> GetByPatientUidAsync(Guid patientUid, CancellationToken cancellationToken = default)
     {
         var results = new List<PatientVitalResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.PatientVital_GetByPatientUid");
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) results.Add(Map(reader));
         return results;
     }
     public async Task<PatientVitalResponse?> GetByUidAsync(Guid patientUid, Guid patientVitalUid, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.PatientVital_GetByUid");
         AddIds(command, patientUid, patientVitalUid);
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
     }
@@ -32,7 +32,7 @@ public sealed class PatientVitalRepository(IConfiguration configuration, ILogger
     public Task<PatientVitalResponse?> UpdateAsync(Guid patientUid, Guid patientVitalUid, UpdatePatientVitalRequest request, long? updatedBy, CancellationToken cancellationToken = default) => SaveAsync("dbo.PatientVital_Update", patientUid, patientVitalUid, request, updatedBy, cancellationToken);
     private async Task<PatientVitalResponse?> SaveAsync(string procedure, Guid patientUid, Guid? vitalUid, CreatePatientVitalRequest request, long? userId, CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, procedure);
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         if (vitalUid.HasValue) command.Parameters.Add("@PatientVitalUid", SqlDbType.UniqueIdentifier).Value = vitalUid.Value;
@@ -47,7 +47,7 @@ public sealed class PatientVitalRepository(IConfiguration configuration, ILogger
         AddDecimal(command,"@WeightKg",6,2,request.WeightKg);
         command.Parameters.Add("@Notes",SqlDbType.NVarChar,1000).Value = string.IsNullOrWhiteSpace(request.Notes) ? DBNull.Value : request.Notes.Trim();
         command.Parameters.Add(vitalUid.HasValue ? "@UpdatedBy" : "@CreatedBy",SqlDbType.BigInt).Value = (object?)userId ?? DBNull.Value;
-        await connection.OpenAsync(cancellationToken);
+
         try { await using var reader=await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken)?Map(reader):null; }
         catch(SqlException ex) { logger.LogError(ex,"Failed to save patient vitals."); throw; }
     }

@@ -46,6 +46,7 @@ public sealed class SqlTenantDatabaseResolver : ITenantDatabaseResolver
             reader.GetGuid(reader.GetOrdinal("TenantUid")),
             reader.GetString(reader.GetOrdinal("DatabaseServerKey")),
             reader.GetString(reader.GetOrdinal("DatabaseName")),
-            reader.GetString(reader.GetOrdinal("SecretReference")));
+            reader.GetString(reader.GetOrdinal("SecretReference")),
+            reader.GetString(reader.GetOrdinal("DatabaseStatus")));
     }
 }

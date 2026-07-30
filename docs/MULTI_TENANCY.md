@@ -116,3 +116,73 @@ resolve and open the appropriate tenant clinical database.
 6. Temporarily suspend the tenant and confirm authenticated API calls return 403.
 7. Reactivate the tenant and confirm a newly attempted API call succeeds.
 8. Confirm the configured clinical database remains unchanged throughout.
+
+## Step 06: tenant clinical database connections
+
+Clinical database selection now starts exclusively from the validated
+`ITenantContext.TenantUid`. `ITenantDatabaseResolver` reads the matching database
+assignment from `MicroEMR_Platform`, which stores metadata only: server key,
+database name, status, and an opaque secret reference. It never stores raw
+credentials or a connection string.
+
+`ConfigurationTenantDatabaseSecretProvider` resolves the opaque reference from
+server-side configuration. This local provider is replaceable with a managed
+secret store in production. The browser, tokens, controllers, and API responses
+never receive database metadata or credentials.
+
+The implementation uses a full protected connection string per secret reference
+(Option A). Before opening it, `TenantSqlConnectionFactory` requires:
+
+- An assignment for the current tenant UID, with the same UID.
+- `DatabaseStatus` equal to `Active`.
+- Nonblank server key, database name, and secret reference.
+- A valid SQL Server connection string with nonblank data source and catalog.
+- An `InitialCatalog` matching the platform database name, ignoring case.
+- No `AttachDbFilename` option.
+
+All clinical repositories open late and dispose early through
+`ITenantSqlConnectionFactory`. Platform catalog, database-assignment, and user
+membership repositories continue using the separate fixed `PlatformDatabase`
+connection. The old `MicroEmrDatabase` setting remains transitional but is no
+longer consumed by API clinical repositories.
+
+### Local secret configuration
+
+Configure the existing `local-dev` assignment with `DatabaseName = MicroEMR_Db`,
+`DatabaseStatus = Active`, and `SecretReference = development:MicroEMR_Db`.
+Store its current clinical connection string in API user secrets:
+
+```powershell
+dotnet user-secrets set `
+  "TenantDatabaseSecrets:development:MicroEMR_Db" `
+  "YOUR-LOCAL-MICROEMR-DB-CONNECTION-STRING" `
+  --project src/MicroEMR.Api/MicroEMR.Api.csproj
+```
+
+An environment variable may be used instead:
+
+```text
+TenantDatabaseSecrets__development__MicroEMR_Db
+```
+
+Do not commit the substituted value. Existing clinical calls provide safe manual
+verification; no connection-diagnostic endpoint was added.
+
+### Pooling and verification
+
+ADO.NET pools connections by normalized connection string, so each distinct
+tenant connection string can create a separate pool. Connections remain pooled,
+are opened only for an operation, and are disposed promptly. Pool count and SQL
+connection usage should be monitored as tenant count grows.
+
+After configuring the secret, log out and back in, then verify dashboard,
+patients, demographics, documents, encounters, allergies, medications,
+scheduling, and appointment details. Temporarily setting the assignment to
+`Unavailable` must make clinical calls fail safely. A temporary database-name
+mismatch must also be rejected. Restore both values afterward. Logs may identify
+tenant UID, server key, database name, and status, but never secret contents or
+the connection string.
+
+This step still uses only the existing `MicroEMR_Db`; it does not create, copy,
+or migrate another tenant database. The next step will introduce repeatable
+tenant database creation and schema migration.

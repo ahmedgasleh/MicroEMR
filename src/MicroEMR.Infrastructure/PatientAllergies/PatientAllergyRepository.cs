@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Repositories;
@@ -10,17 +10,14 @@ namespace MicroEMR.Infrastructure.PatientAllergies;
 
 public sealed class PatientAllergyRepository : IPatientAllergyRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<PatientAllergyRepository> _logger;
 
     public PatientAllergyRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<PatientAllergyRepository> logger)
     {
-        _connectionString =
-            configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException(
-                "Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
 
         _logger = logger;
     }
@@ -34,7 +31,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
             new List<PatientAllergyListItemResponse>();
 
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -52,7 +49,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
                 Value = patientUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -70,7 +67,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -88,7 +85,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
                 Value = allergyUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -109,7 +106,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -189,7 +186,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
             200,
             createdByDisplayName);
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -222,7 +219,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.PatientAllergy_Update", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -249,7 +246,7 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
             Value = Convert.FromBase64String(request.RowVersion)
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -271,14 +268,14 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         ResolvePatientAllergyRequest request, long? resolvedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.PatientAllergy_Resolve", connection)
         { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
         command.Parameters.Add(new SqlParameter("@AllergyUid", SqlDbType.UniqueIdentifier) { Value = allergyUid });
         AddNullableString(command, "@ResolveReason", SqlDbType.NVarChar, 500, request.ResolveReason);
         command.Parameters.Add(new SqlParameter("@ResolvedBy", SqlDbType.BigInt) { Value = (object?)resolvedBy ?? DBNull.Value });
-        await connection.OpenAsync(cancellationToken);
+
         try {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;

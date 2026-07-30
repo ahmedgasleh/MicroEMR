@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientMedications.Contracts;
 using MicroEMR.Application.PatientMedications.Repositories;
@@ -10,17 +10,14 @@ namespace MicroEMR.Infrastructure.PatientMedications;
 
 public sealed class PatientMedicationRepository : IPatientMedicationRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<PatientMedicationRepository> _logger;
 
     public PatientMedicationRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<PatientMedicationRepository> logger)
     {
-        _connectionString =
-            configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException(
-                "Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
 
         _logger = logger;
     }
@@ -34,7 +31,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             new List<PatientMedicationListItemResponse>();
 
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -52,7 +49,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
                 Value = patientUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -70,7 +67,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -88,7 +85,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
                 Value = medicationUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -109,7 +106,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -217,7 +214,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             200,
             createdByDisplayName);
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -247,7 +244,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
         long? updatedBy, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.PatientMedication_Update", connection)
         { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
@@ -266,7 +263,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         AddNullableString(command, "@Notes", SqlDbType.NVarChar, 1000, request.Notes);
         command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt) { Value = (object?)updatedBy ?? DBNull.Value });
         command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Timestamp) { Value = Convert.FromBase64String(request.RowVersion) });
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -287,7 +284,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
         long? discontinuedBy, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.PatientMedication_Discontinue", connection)
         { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
@@ -295,7 +292,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         AddNullableString(command, "@DiscontinueReason", SqlDbType.NVarChar, 500, request.DiscontinueReason);
         command.Parameters.Add(new SqlParameter("@DiscontinuedBy", SqlDbType.BigInt)
         { Value = (object?)discontinuedBy ?? DBNull.Value });
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

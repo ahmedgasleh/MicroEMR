@@ -148,6 +148,31 @@ public sealed class TenantResolutionMiddlewareTests
     }
 
     [Fact]
+    public async Task AuthenticatedAllowAnonymousEndpointStillEstablishesTenant()
+    {
+        var accessor = new TenantContextAccessor();
+        var context = AuthenticatedContext(TenantUid.ToString("D"));
+        context.SetEndpoint(new Endpoint(
+            _ => Task.CompletedTask,
+            new EndpointMetadataCollection(new AllowAnonymousAttribute()),
+            "authenticated-allow-anonymous"));
+        ITenantContext? observed = null;
+
+        await Middleware(_ =>
+        {
+            observed = accessor.Current;
+            return Task.CompletedTask;
+        }).InvokeAsync(
+            context,
+            new StubCatalog(ActiveTenant()),
+            new StubMembershipRepository(Membership()),
+            accessor);
+
+        Assert.NotNull(observed);
+        Assert.Null(accessor.Current);
+    }
+
+    [Fact]
     public async Task PlatformFailureReturnsServiceUnavailable()
     {
         var context = AuthenticatedContext(TenantUid.ToString("D"));

@@ -2,24 +2,21 @@ using System.Data;
 using MicroEMR.Application.Scheduling.Contracts;
 using MicroEMR.Application.Scheduling.Repositories;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 
 namespace MicroEMR.Infrastructure.Scheduling;
 
 public sealed class SchedulingReadRepository : ISchedulingReadRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<SchedulingReadRepository> _logger;
 
     public SchedulingReadRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<SchedulingReadRepository> logger)
     {
-        _connectionString =
-            configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException(
-                "Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
 
         _logger = logger;
     }
@@ -29,7 +26,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
     {
         var resources = new List<ScheduleResourceResponse>();
 
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             """
             IF OBJECT_ID(N'dbo.ScheduleResource_GetActive', N'P') IS NOT NULL
@@ -69,7 +66,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             CommandType = CommandType.Text
         };
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -153,8 +150,8 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             ORDER BY a.StartDateTimeUtc, a.ScheduleAppointmentId;
             """;
 
-        await using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+
 
         await using (var requiredObjectsCommand =
             new SqlCommand(requiredObjectsSql, connection))
@@ -260,7 +257,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         Guid appointmentUid,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.ScheduleAppointment_GetByUid",
             connection)
@@ -272,7 +269,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             Value = appointmentUid
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return null;
@@ -309,7 +306,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         CancellationToken cancellationToken = default)
     {
         var summary = new List<ScheduleMonthSummaryItemResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.ScheduleAppointment_GetMonthSummary", connection)
         {
@@ -324,7 +321,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             Value = NormalizeUtc(endUtc)
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -345,7 +342,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         CancellationToken cancellationToken = default)
     {
         var history = new List<AppointmentHistoryResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.AppointmentHistory_GetByAppointmentUid",
             connection)
@@ -358,7 +355,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             Value = appointmentUid
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
 
@@ -394,7 +391,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         CancellationToken cancellationToken = default)
     {
         var blockedTimes = new List<SchedulingBlockedTimeResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.SchedulingBlockedTime_GetForDateRange", connection)
         {
@@ -403,7 +400,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         command.Parameters.Add("@StartDateTimeUtc", SqlDbType.DateTime2).Value = NormalizeUtc(startDateTimeUtc);
         command.Parameters.Add("@EndDateTimeUtc", SqlDbType.DateTime2).Value = NormalizeUtc(endDateTimeUtc);
         command.Parameters.Add("@ResourceUid", SqlDbType.UniqueIdentifier).Value = DBNull.Value;
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
