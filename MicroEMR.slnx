@@ -8,6 +8,7 @@
     <Project Path="src/MicroEMR.Web/MicroEMR.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MicroEMR.Api.Tests/MicroEMR.Api.Tests.csproj" />
     <Project Path="tests/MicroEMR.Auth.Tests/MicroEMR.Auth.Tests.csproj" />
   </Folder>
 </Solution>
