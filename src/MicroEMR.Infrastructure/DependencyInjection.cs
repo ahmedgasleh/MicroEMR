@@ -45,6 +45,8 @@ public static class DependencyInjection
     public static IServiceCollection AddMicroEmrInfrastructure(
         this IServiceCollection services)
     {
+        services.AddScoped<ITenantDatabaseSecretProvider, ConfigurationTenantDatabaseSecretProvider>();
+        services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IEncounterSoapTemplateRepository, EncounterSoapTemplateRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();

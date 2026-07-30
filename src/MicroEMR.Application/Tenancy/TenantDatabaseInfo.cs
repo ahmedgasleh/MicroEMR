@@ -4,4 +4,5 @@ public sealed record TenantDatabaseInfo(
     Guid TenantUid,
     string DatabaseServerKey,
     string DatabaseName,
-    string SecretReference);
+    string SecretReference,
+    string DatabaseStatus);

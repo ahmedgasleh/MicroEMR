@@ -1,24 +1,24 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using MicroEMR.Application.PatientTasks;
 
 namespace MicroEMR.Infrastructure.PatientTasks;
 
 public sealed class PatientTaskRepository : IPatientTaskRepository
 {
-    private readonly string _connectionString;
-    public PatientTaskRepository(IConfiguration configuration) =>
-        _connectionString = configuration.GetConnectionString("MicroEmrDatabase") ?? throw new InvalidOperationException("Database connection is missing.");
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
+    public PatientTaskRepository(ITenantSqlConnectionFactory connectionFactory) =>
+        _connectionFactory = connectionFactory;
 
     public async Task<IReadOnlyList<PatientTaskResponse>> GetByPatientUidAsync(Guid patientUid, string statusFilter, CancellationToken cancellationToken = default)
     {
         var items = new List<PatientTaskResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.PatientTask_GetByPatientUid");
         Add(command, "@PatientUid", SqlDbType.UniqueIdentifier, patientUid);
         Add(command, "@StatusFilter", SqlDbType.NVarChar, statusFilter, 50);
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) items.Add(Map(reader));
         return items;
@@ -42,11 +42,11 @@ public sealed class PatientTaskRepository : IPatientTaskRepository
     public async Task<IReadOnlyList<PatientDashboardTaskResponse>> GetOpenForDashboardAsync(long? assignedTo, int maxRows, CancellationToken cancellationToken = default)
     {
         var items = new List<PatientDashboardTaskResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.PatientTask_GetOpenForDashboard");
         Add(command, "@AssignedTo", SqlDbType.BigInt, assignedTo);
         Add(command, "@MaxRows", SqlDbType.Int, maxRows);
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -65,7 +65,7 @@ public sealed class PatientTaskRepository : IPatientTaskRepository
 
     private async Task<PatientTaskResponse?> ExecuteAsync(string procedure, Guid patientUid, Guid? taskUid, SavePatientTaskRequest? save, CompletePatientTaskRequest? complete, long? userId, CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, procedure);
         Add(command, "@PatientUid", SqlDbType.UniqueIdentifier, patientUid);
         if (taskUid.HasValue) Add(command, "@PatientTaskUid", SqlDbType.UniqueIdentifier, taskUid.Value);
@@ -79,7 +79,7 @@ public sealed class PatientTaskRepository : IPatientTaskRepository
         if (procedure.EndsWith("Create", StringComparison.Ordinal)) Add(command, "@CreatedBy", SqlDbType.BigInt, userId);
         else if (procedure.EndsWith("Complete", StringComparison.Ordinal)) Add(command, "@CompletedBy", SqlDbType.BigInt, userId);
         else if (!procedure.EndsWith("GetByUid", StringComparison.Ordinal)) Add(command, "@UpdatedBy", SqlDbType.BigInt, userId);
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
     }

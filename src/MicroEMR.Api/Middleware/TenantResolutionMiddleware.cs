@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Application.Security;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Core.Tenancy;
@@ -138,8 +137,7 @@ public sealed class TenantResolutionMiddleware
     }
 
     private static bool ShouldSkip(HttpContext context) =>
-        context.User.Identity?.IsAuthenticated != true ||
-        context.GetEndpoint()?.Metadata.GetMetadata<IAllowAnonymous>() is not null;
+        context.User.Identity?.IsAuthenticated != true;
 
     private static async Task WriteProblemAsync(
         HttpContext context,

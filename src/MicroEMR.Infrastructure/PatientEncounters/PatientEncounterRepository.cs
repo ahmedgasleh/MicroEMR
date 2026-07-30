@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Repositories;
@@ -11,17 +11,14 @@ namespace MicroEMR.Infrastructure.PatientEncounters;
 public sealed class PatientEncounterRepository
     : IPatientEncounterRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<PatientEncounterRepository> _logger;
 
     public PatientEncounterRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<PatientEncounterRepository> logger)
     {
-        _connectionString =
-            configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException(
-                "Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
 
         _logger = logger;
     }
@@ -35,7 +32,7 @@ public sealed class PatientEncounterRepository
             new List<PatientEncounterListItemResponse>();
 
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -53,7 +50,7 @@ public sealed class PatientEncounterRepository
                 Value = patientUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -71,7 +68,7 @@ public sealed class PatientEncounterRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -89,7 +86,7 @@ public sealed class PatientEncounterRepository
                 Value = encounterUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -108,7 +105,7 @@ public sealed class PatientEncounterRepository
         CancellationToken cancellationToken = default)
     {
         var history = new List<PatientEncounterHistoryResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounterHistory_GetByEncounterUid", connection)
         {
@@ -117,7 +114,7 @@ public sealed class PatientEncounterRepository
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
 
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -146,7 +143,7 @@ public sealed class PatientEncounterRepository
         CancellationToken cancellationToken = default)
     {
         var addendums = new List<PatientEncounterAddendumResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounterAddendum_GetByEncounterUid", connection)
         {
@@ -155,7 +152,7 @@ public sealed class PatientEncounterRepository
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
 
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
             addendums.Add(MapAddendum(reader));
@@ -170,7 +167,7 @@ public sealed class PatientEncounterRepository
         long? createdBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounterAddendum_Create", connection)
         {
@@ -181,7 +178,7 @@ public sealed class PatientEncounterRepository
         command.Parameters.Add("@AddendumText", SqlDbType.NVarChar, -1).Value = request.AddendumText;
         command.Parameters.Add("@CreatedBy", SqlDbType.BigInt).Value = (object?)createdBy ?? DBNull.Value;
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -207,7 +204,7 @@ public sealed class PatientEncounterRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -281,7 +278,7 @@ public sealed class PatientEncounterRepository
             200,
             createdByDisplayName);
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -314,7 +311,7 @@ public sealed class PatientEncounterRepository
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounter_UpdateNote",
             connection)
@@ -345,7 +342,7 @@ public sealed class PatientEncounterRepository
             Value = (object?)updatedBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -379,7 +376,7 @@ public sealed class PatientEncounterRepository
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.PatientEncounter_UpdateSoapNote", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -392,7 +389,7 @@ public sealed class PatientEncounterRepository
         AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, request.PlanNote);
         command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = (object?)updatedBy ?? DBNull.Value;
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -416,7 +413,7 @@ public sealed class PatientEncounterRepository
         long? signedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounter_Sign",
             connection)
@@ -440,7 +437,7 @@ public sealed class PatientEncounterRepository
             Value = (object?)signedBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -472,7 +469,7 @@ public sealed class PatientEncounterRepository
         long? createdBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
             "dbo.PatientEncounter_StartFromAppointment", connection)
         {
@@ -488,7 +485,7 @@ public sealed class PatientEncounterRepository
             Value = (object?)createdBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
