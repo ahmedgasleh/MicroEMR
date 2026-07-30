@@ -1,17 +1,10 @@
 USE MicroEMR_Platform;
 GO
 
--- Supply the ASP.NET Identity user ID with sqlcmd's -v option.
--- Example: -v IdentityUserId="00000000-0000-0000-0000-000000000000"
-IF N'$(IdentityUserId)' LIKE N'$(%'
-BEGIN
-    THROW 51001, 'Supply IdentityUserId using sqlcmd -v.', 1;
-END;
-
-IF NULLIF(LTRIM(RTRIM(N'$(IdentityUserId)')), N'') IS NULL
-BEGIN
-    THROW 51002, 'IdentityUserId must not be blank.', 1;
-END;
+-- In SSMS, replace every occurrence of IDENTITY-USER-ID-HERE with Id from
+-- MicroEMR_Auth.dbo.AspNetUsers, then execute this entire script.
+-- The ID is used directly against UserId columns so this also works when the
+-- SSMS connection has Always Encrypted parameterization enabled.
 
 INSERT INTO dbo.UserTenantMembership
 (
@@ -22,7 +15,7 @@ INSERT INTO dbo.UserTenantMembership
     CreatedAt
 )
 SELECT
-    N'$(IdentityUserId)',
+    N'IDENTITY-USER-ID-HERE',
     tenant.TenantUid,
     'Active',
     CONVERT(BIT, 1),
@@ -33,7 +26,7 @@ WHERE tenant.TenantKey = N'local-dev'
     (
         SELECT 1
         FROM dbo.UserTenantMembership AS membership
-        WHERE membership.UserId = N'$(IdentityUserId)'
+        WHERE membership.UserId = N'IDENTITY-USER-ID-HERE'
             AND membership.TenantUid = tenant.TenantUid
     );
 
@@ -45,14 +38,14 @@ INSERT INTO dbo.UserTenantRole
     CreatedAt
 )
 SELECT
-    N'$(IdentityUserId)',
+    N'IDENTITY-USER-ID-HERE',
     tenant.TenantUid,
     N'ClinicAdministrator',
     SYSUTCDATETIME()
 FROM dbo.Tenant AS tenant
 INNER JOIN dbo.UserTenantMembership AS membership
     ON membership.TenantUid = tenant.TenantUid
-    AND membership.UserId = N'$(IdentityUserId)'
+    AND membership.UserId = N'IDENTITY-USER-ID-HERE'
 WHERE tenant.TenantKey = N'local-dev'
     AND NOT EXISTS
     (
@@ -62,4 +55,21 @@ WHERE tenant.TenantKey = N'local-dev'
             AND role.TenantUid = membership.TenantUid
             AND role.RoleName = N'ClinicAdministrator'
     );
+
+SELECT
+    membership.UserId,
+    tenant.TenantUid,
+    tenant.TenantKey,
+    tenant.DisplayName AS TenantDisplayName,
+    membership.MembershipStatus,
+    membership.IsDefaultTenant,
+    role.RoleName
+FROM dbo.UserTenantMembership AS membership
+INNER JOIN dbo.Tenant AS tenant
+    ON tenant.TenantUid = membership.TenantUid
+LEFT JOIN dbo.UserTenantRole AS role
+    ON role.UserId = membership.UserId
+    AND role.TenantUid = membership.TenantUid
+WHERE membership.UserId = N'IDENTITY-USER-ID-HERE'
+    AND tenant.TenantKey = N'local-dev';
 GO

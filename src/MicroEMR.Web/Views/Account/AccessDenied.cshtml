@@ -11,15 +11,15 @@
         </h4>
 
         <p class="mb-2">
-            You are signed in, but your account does not have permission to access this page.
+            @ViewData["AccessDeniedMessage"]
         </p>
 
         <hr />
 
-        <a asp-controller="Home"
-           asp-action="Index"
+        <a asp-controller="Account"
+           asp-action="Login"
            class="btn btn-outline-secondary">
-            Go Home
+            Try Again
         </a>
     </div>
 </div>

@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Auth.Data;
+using MicroEMR.Auth.Extensions;
+using MicroEMR.Auth.Services.Tenancy;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
 
@@ -16,15 +18,18 @@ public sealed class AuthorizationController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IOpenIddictScopeManager _scopeManager;
+    private readonly ITenantClaimEnricher _tenantClaimEnricher;
 
     public AuthorizationController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
-        IOpenIddictScopeManager scopeManager)
+        IOpenIddictScopeManager scopeManager,
+        ITenantClaimEnricher tenantClaimEnricher)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _scopeManager = scopeManager;
+        _tenantClaimEnricher = tenantClaimEnricher;
     }
 
     [HttpGet("~/connect/authorize")]
@@ -108,6 +113,26 @@ public sealed class AuthorizationController : Controller
             identity.AddClaim(
                 new Claim(Claims.Role, role));
         }
+
+        var tenantResult = await _tenantClaimEnricher.EnrichAsync(
+            identityUser,
+            identity,
+            HttpContext.TraceIdentifier,
+            HttpContext.RequestAborted);
+
+        if (tenantResult.Status != TenantClaimEnrichmentStatus.Resolved)
+        {
+            return Forbid(
+                new AuthenticationProperties(new Dictionary<string, string?>
+                {
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] =
+                        Errors.AccessDenied,
+                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
+                        tenantResult.ErrorDescription
+                }),
+                OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        }
+
         var principal =
             new ClaimsPrincipal(identity);
 
@@ -127,7 +152,7 @@ public sealed class AuthorizationController : Controller
 
         principal.SetResources(resources);
 
-        SetClaimDestinations(principal);
+        principal.SetDestinations();
 
         return SignIn(
             principal,
@@ -147,60 +172,4 @@ public sealed class AuthorizationController : Controller
                 .AuthenticationScheme);
     }
 
-    private static void SetClaimDestinations(
-        ClaimsPrincipal principal)
-    {
-        foreach (var claim in principal.Claims)
-        {
-            claim.SetDestinations(
-                GetDestinations(claim, principal));
-        }
-    }
-
-    private static IEnumerable<string> GetDestinations(
-        Claim claim,
-        ClaimsPrincipal principal)
-    {
-        switch (claim.Type)
-        {
-            case Claims.Name:
-                yield return Destinations.AccessToken;
-
-                if (principal.HasScope(Scopes.Profile))
-                {
-                    yield return Destinations.IdentityToken;
-                }
-
-                yield break;
-
-            case Claims.Email:
-                yield return Destinations.AccessToken;
-
-                if (principal.HasScope(Scopes.Email))
-                {
-                    yield return Destinations.IdentityToken;
-                }
-
-                yield break;
-
-            case Claims.Role:
-                yield return Destinations.AccessToken;
-
-                if (principal.HasScope(Scopes.Roles))
-                {
-                    yield return Destinations.IdentityToken;
-                }
-
-                yield break;
-
-            case Claims.Subject:
-                yield return Destinations.AccessToken;
-                yield return Destinations.IdentityToken;
-                yield break;
-
-            default:
-                yield return Destinations.AccessToken;
-                yield break;
-        }
-    }
 }
