@@ -43,8 +43,17 @@ public class AccountController : Controller
     }
 
     [AllowAnonymous]
-    public IActionResult AccessDenied()
+    public IActionResult AccessDenied(string? reason = null)
     {
+        ViewData["AccessDeniedMessage"] = reason switch
+        {
+            "no-active-clinic" =>
+                "Your account is not assigned to an active clinic.",
+            "clinic-selection-required" =>
+                "Your account is assigned to multiple clinics and requires clinic selection.",
+            _ => "Your account does not have permission to access this page."
+        };
+
         return View();
     }
 }

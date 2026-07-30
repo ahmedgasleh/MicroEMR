@@ -15,6 +15,7 @@ builder.Services.AddScoped<
     IUserTenantMembershipService,
     UserTenantMembershipService>();
 builder.Services.AddScoped<IUserTenantResolver, UserTenantResolver>();
+builder.Services.AddScoped<ITenantClaimEnricher, TenantClaimEnricher>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

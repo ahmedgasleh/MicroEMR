@@ -44,12 +44,13 @@ Identity users remain in `MicroEMR_Auth`. Memberships and tenant-scoped roles ar
 stored in `MicroEMR_Platform`, using the Identity user ID as a stable reference.
 There is intentionally no cross-database foreign key between these databases.
 
-After applying `003_seed_local_development.sql`, copy the local user's `Id` from
-`MicroEMR_Auth.dbo.AspNetUsers` and run:
-
-```powershell
-sqlcmd -S localhost -E -v IdentityUserId="YOUR-IDENTITY-USER-ID" -i 005_seed_local_user_membership.sql
-```
+After applying `003_seed_local_development.sql`, query
+`MicroEMR_Auth.dbo.AspNetUsers` in SSMS, copy the local user's `Id`, open
+`005_seed_local_user_membership.sql`, and replace every occurrence of
+`IDENTITY-USER-ID-HERE` with that ID. Execute the entire script in SSMS. Its
+final result set shows the membership and tenant role that were created or
+already existed. The script also supports connections where SSMS Always
+Encrypted parameterization is enabled.
 
 The script idempotently creates an active default membership and the
 `ClinicAdministrator` tenant role. It does not alter or replace ASP.NET Identity
