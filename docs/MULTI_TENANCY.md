@@ -61,3 +61,58 @@ step will establish and validate tenant context in the API.
    server key, or secret reference.
 9. Confirm existing Web pages and authenticated API calls continue to work, then
    verify logout returns to the login screen.
+
+## Step 05: API tenant context
+
+The access token's signed `tenant_id` claim proposes the tenant for an
+authenticated API request. After JWT authentication, the API tenant-resolution
+middleware validates that exactly one non-empty GUID claim is present. It then
+loads the tenant from `MicroEMR_Platform`; the platform catalog, rather than the
+token's convenience claims, is authoritative for tenant status, key, and display
+name.
+
+The middleware also revalidates the authenticated `sub` user's active membership
+for that tenant on every request. Missing or invalid claims, inactive or missing
+tenants, and inactive memberships receive `403 Forbidden`. Platform database
+failures receive a safe `503 Service Unavailable` response.
+
+The resolved `ITenantContext` and its accessor are scoped to one request. The
+middleware clears the context in a `finally` block. Tenant identity cannot be
+selected or replaced through browser headers, query strings, route values,
+cookies, hostnames, or form fields.
+
+The API pipeline order is:
+
+```csharp
+app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseAuthorization();
+```
+
+Endpoints explicitly marked anonymous bypass tenant resolution. Swagger runs
+before the tenant middleware and remains available under its existing setup.
+Older tokens without `tenant_id` are rejected, so users must log out and log back
+in after deployment.
+
+Tenant roles remain dedicated `tenant_role` claims and do not become global
+ASP.NET roles. The reusable `TenantClinicAdministrator` policy checks only the
+tenant-role claim type and is not broadly applied to existing endpoints.
+
+For authenticated verification, call `GET /api/context/tenant`. It returns only
+`tenantUid`, `tenantKey`, and `displayName`, sourced from the platform catalog.
+
+This step does not modify or select the clinical database connection. Existing
+repositories continue using the original clinical connection. The next step will
+resolve and open the appropriate tenant clinical database.
+
+### Manual verification
+
+1. Configure `ConnectionStrings:PlatformDatabase` for the API using user secrets
+   or `ConnectionStrings__PlatformDatabase`; do not commit new credentials.
+2. Confirm the platform tenant and user membership are active.
+3. Start Auth, API, and Web, then log out and back in to replace older tokens.
+4. Confirm existing authenticated pages and API calls succeed.
+5. Call `GET /api/context/tenant` and compare its values with the platform tenant.
+6. Temporarily suspend the tenant and confirm authenticated API calls return 403.
+7. Reactivate the tenant and confirm a newly attempted API call succeeds.
+8. Confirm the configured clinical database remains unchanged throughout.
