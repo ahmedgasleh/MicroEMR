@@ -30,6 +30,18 @@ namespace MicroEMR.Infrastructure;
 
 public static class DependencyInjection
 {
+    public static IServiceCollection AddMicroEmrPlatformInfrastructure(
+        this IServiceCollection services)
+    {
+        services.AddScoped<ITenantCatalog, SqlTenantCatalog>();
+        services.AddScoped<ITenantDatabaseResolver, SqlTenantDatabaseResolver>();
+        services.AddScoped<
+            IUserTenantMembershipRepository,
+            SqlUserTenantMembershipRepository>();
+
+        return services;
+    }
+
     public static IServiceCollection AddMicroEmrInfrastructure(
         this IServiceCollection services)
     {
@@ -46,8 +58,7 @@ public static class DependencyInjection
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();
-            services.AddScoped<ITenantCatalog, SqlTenantCatalog>();
-            services.AddScoped<ITenantDatabaseResolver, SqlTenantDatabaseResolver>();
+            services.AddMicroEmrPlatformInfrastructure();
 
             return services;
         }

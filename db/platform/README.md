@@ -37,3 +37,21 @@ The optional seed generates its tenant UID with `NEWID()`, is idempotent by tena
 key, and stores only `development:MicroEMR_Db` as a secret reference. It does not
 store a password or raw connection string and is not executed automatically by the
 application.
+
+## Link a local Identity user
+
+Identity users remain in `MicroEMR_Auth`. Memberships and tenant-scoped roles are
+stored in `MicroEMR_Platform`, using the Identity user ID as a stable reference.
+There is intentionally no cross-database foreign key between these databases.
+
+After applying `003_seed_local_development.sql`, copy the local user's `Id` from
+`MicroEMR_Auth.dbo.AspNetUsers` and run:
+
+```powershell
+sqlcmd -S localhost -E -v IdentityUserId="YOUR-IDENTITY-USER-ID" -i 005_seed_local_user_membership.sql
+```
+
+The script idempotently creates an active default membership and the
+`ClinicAdministrator` tenant role. It does not alter or replace ASP.NET Identity
+roles. Current login, global role claims, and issued tokens remain unchanged; a
+later step will add tenant claims to authentication.

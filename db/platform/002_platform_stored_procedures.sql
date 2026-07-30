@@ -72,9 +72,7 @@ BEGIN
         membership.MembershipStatus,
         membership.IsDefaultTenant,
         tenant.TenantKey,
-        tenant.DisplayName,
-        tenant.TenantStatus,
-        tenant.DefaultTimeZoneId,
+        tenant.DisplayName AS TenantDisplayName,
         role.RoleName
     FROM dbo.UserTenantMembership AS membership
     INNER JOIN dbo.Tenant AS tenant
@@ -84,6 +82,36 @@ BEGIN
         AND role.TenantUid = membership.TenantUid
     WHERE membership.UserId = @UserId
         AND membership.MembershipStatus = 'Active'
+        AND tenant.TenantStatus = 'Active'
     ORDER BY membership.IsDefaultTenant DESC, tenant.DisplayName, role.RoleName;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.UserTenantMembership_GetActiveByUserAndTenant
+    @UserId NVARCHAR(450),
+    @TenantUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        membership.UserId,
+        membership.TenantUid,
+        tenant.TenantKey,
+        tenant.DisplayName AS TenantDisplayName,
+        membership.MembershipStatus,
+        membership.IsDefaultTenant,
+        role.RoleName
+    FROM dbo.UserTenantMembership AS membership
+    INNER JOIN dbo.Tenant AS tenant
+        ON tenant.TenantUid = membership.TenantUid
+    LEFT JOIN dbo.UserTenantRole AS role
+        ON role.UserId = membership.UserId
+        AND role.TenantUid = membership.TenantUid
+    WHERE membership.UserId = @UserId
+        AND membership.TenantUid = @TenantUid
+        AND membership.MembershipStatus = 'Active'
+        AND tenant.TenantStatus = 'Active'
+    ORDER BY role.RoleName;
 END;
 GO
