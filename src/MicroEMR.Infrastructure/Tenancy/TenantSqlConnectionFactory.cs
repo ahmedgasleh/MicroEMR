@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.Tenancy;
+using System.Data;
 
 namespace MicroEMR.Infrastructure.Tenancy;
 
@@ -10,6 +11,7 @@ public sealed class TenantSqlConnectionFactory : ITenantSqlConnectionFactory
     private readonly ITenantDatabaseResolver _databaseResolver;
     private readonly ITenantDatabaseSecretProvider _secretProvider;
     private readonly ILogger<TenantSqlConnectionFactory> _logger;
+    private string? _verifiedAssignmentKey;
 
     public TenantSqlConnectionFactory(
         ITenantContext tenantContext,
@@ -41,10 +43,8 @@ public sealed class TenantSqlConnectionFactory : ITenantSqlConnectionFactory
         var validAssignment = assignment!;
 
         _logger.LogInformation(
-            "Tenant database metadata resolved. TenantUid: {TenantUid}; DatabaseServerKey: {DatabaseServerKey}; DatabaseName: {DatabaseName}; DatabaseStatus: {DatabaseStatus}",
+            "Tenant database metadata resolved. TenantUid: {TenantUid}; DatabaseStatus: {DatabaseStatus}; Outcome: AssignmentValidated",
             tenantUid,
-            validAssignment.DatabaseServerKey,
-            validAssignment.DatabaseName,
             validAssignment.DatabaseStatus);
 
         var secret = await _secretProvider.ResolveAsync(
@@ -59,22 +59,36 @@ public sealed class TenantSqlConnectionFactory : ITenantSqlConnectionFactory
         try
         {
             await connection.OpenAsync(cancellationToken);
-            _logger.LogDebug(
-                "Tenant database connection opened. TenantUid: {TenantUid}; DatabaseServerKey: {DatabaseServerKey}; DatabaseName: {DatabaseName}",
-                tenantUid,
+            var assignmentKey = string.Join(
+                '|',
+                tenantUid.ToString("D"),
                 validAssignment.DatabaseServerKey,
-                validAssignment.DatabaseName);
+                validAssignment.DatabaseName,
+                validAssignment.SecretReference,
+                builder.DataSource);
+            if (!string.Equals(_verifiedAssignmentKey, assignmentKey, StringComparison.Ordinal))
+            {
+                await VerifyDatabaseIdentityAsync(connection, tenantUid, cancellationToken);
+                _verifiedAssignmentKey = assignmentKey;
+            }
+
+            _logger.LogDebug(
+                "Tenant database connection opened. TenantUid: {TenantUid}; Outcome: DatabaseIdentityVerified",
+                tenantUid);
             return connection;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await connection.DisposeAsync();
+            throw;
         }
         catch (Exception exception)
         {
             await connection.DisposeAsync();
             _logger.LogError(
                 exception,
-                "Tenant database connection failed. TenantUid: {TenantUid}; DatabaseServerKey: {DatabaseServerKey}; DatabaseName: {DatabaseName}",
-                tenantUid,
-                validAssignment.DatabaseServerKey,
-                validAssignment.DatabaseName);
+                "Tenant database connection or identity validation failed. TenantUid: {TenantUid}; Outcome: DatabaseRejected",
+                tenantUid);
             throw new TenantDatabaseConnectionException(
                 "The tenant clinical database connection could not be opened.",
                 exception);
@@ -129,5 +143,44 @@ public sealed class TenantSqlConnectionFactory : ITenantSqlConnectionFactory
                 "The resolved database does not match the tenant database assignment.");
 
         return builder;
+    }
+
+    private static async Task VerifyDatabaseIdentityAsync(
+        SqlConnection connection,
+        Guid expectedTenantUid,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand(
+            "SELECT TenantUid FROM dbo.TenantDatabaseIdentity;",
+            connection)
+        {
+            CommandType = CommandType.Text
+        };
+
+        var identities = new List<Guid>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.IsDBNull(0))
+                throw new TenantDatabaseConnectionException(
+                    "The tenant database identity is invalid.");
+            identities.Add(reader.GetGuid(0));
+        }
+
+        ValidateDatabaseIdentities(identities, expectedTenantUid);
+    }
+
+    internal static void ValidateDatabaseIdentities(
+        IReadOnlyCollection<Guid> identities,
+        Guid expectedTenantUid)
+    {
+        if (expectedTenantUid == Guid.Empty)
+            throw new TenantDatabaseConnectionException("The current tenant identity is invalid.");
+        if (identities.Count != 1 || identities.Single() == Guid.Empty)
+            throw new TenantDatabaseConnectionException(
+                "The tenant database identity is missing or invalid.");
+        if (identities.Single() != expectedTenantUid)
+            throw new TenantDatabaseConnectionException(
+                "The tenant database identity does not match the current tenant.");
     }
 }

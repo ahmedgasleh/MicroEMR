@@ -8,10 +8,13 @@ public sealed class TenantContextAccessor : ITenantContextAccessor
     {
         ArgumentNullException.ThrowIfNull(tenant);
 
-        if (Current is not null && Current.TenantUid != tenant.TenantUid)
+        if (Current is not null &&
+            (Current.TenantUid != tenant.TenantUid ||
+             !string.Equals(Current.TenantKey, tenant.TenantKey, StringComparison.Ordinal) ||
+             !string.Equals(Current.DisplayName, tenant.DisplayName, StringComparison.Ordinal)))
         {
             throw new InvalidOperationException(
-                "A different tenant context has already been established for the current operation.");
+                "A conflicting tenant context has already been established for the current operation.");
         }
 
         Current ??= tenant;
