@@ -16,6 +16,8 @@ builder.Services.AddScoped<
     UserTenantMembershipService>();
 builder.Services.AddScoped<IUserTenantResolver, UserTenantResolver>();
 builder.Services.AddScoped<ITenantClaimEnricher, TenantClaimEnricher>();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSingleton<IPendingTenantSelectionStore, DistributedPendingTenantSelectionStore>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

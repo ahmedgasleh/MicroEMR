@@ -1,0 +1,14 @@
+@{
+    ViewData["Title"] = "Clinic selection expired";
+    Layout = "_AuthLayout";
+}
+
+<div class="auth-page">
+    <main class="container d-flex align-items-center justify-content-center py-5">
+        <section class="auth-card w-100" style="max-width: 560px">
+            <h1 class="auth-title">Clinic selection expired</h1>
+            <p class="auth-subtitle">Your clinic selection has expired. Please sign in again.</p>
+            <a asp-controller="Account" asp-action="Login" class="btn btn-primary auth-submit">Return to sign in</a>
+        </section>
+    </main>
+</div>

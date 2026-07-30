@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MicroEMR.Application.Tenancy;
 using MicroEMR.Auth.Data;
 
 namespace MicroEMR.Auth.Services.Tenancy;
@@ -10,4 +11,8 @@ public interface ITenantClaimEnricher
         ClaimsIdentity identity,
         string traceIdentifier,
         CancellationToken cancellationToken = default);
+
+    TenantClaimEnrichmentResult EnrichFromValidatedMembership(
+        ClaimsIdentity identity,
+        UserTenantMembershipInfo membership);
 }
