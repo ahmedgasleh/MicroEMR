@@ -115,3 +115,148 @@ BEGIN
     ORDER BY role.RoleName;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.TenantDatabase_ProvisioningStarted
+    @TenantUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRANSACTION;
+
+    UPDATE dbo.TenantDatabase
+    SET DatabaseStatus = 'Provisioning',
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE TenantUid = @TenantUid;
+
+    IF @@ROWCOUNT <> 1
+        THROW 51100, 'Tenant database assignment was not found.', 1;
+
+    UPDATE dbo.Tenant
+    SET TenantStatus = 'Provisioning'
+    WHERE TenantUid = @TenantUid;
+
+    IF @@ROWCOUNT <> 1
+        THROW 51101, 'Tenant was not found.', 1;
+
+    COMMIT TRANSACTION;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.TenantDatabase_RegisterProvisioning
+    @TenantUid UNIQUEIDENTIFIER,
+    @TenantKey NVARCHAR(50),
+    @DisplayName NVARCHAR(200),
+    @DatabaseServerKey NVARCHAR(100),
+    @DatabaseName SYSNAME,
+    @SecretReference NVARCHAR(500)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @TenantUid = '00000000-0000-0000-0000-000000000000'
+        THROW 51110, 'Tenant UID must not be empty.', 1;
+    IF NULLIF(LTRIM(RTRIM(@TenantKey)), N'') IS NULL
+        OR NULLIF(LTRIM(RTRIM(@DisplayName)), N'') IS NULL
+        OR NULLIF(LTRIM(RTRIM(@DatabaseServerKey)), N'') IS NULL
+        OR NULLIF(LTRIM(RTRIM(@DatabaseName)), N'') IS NULL
+        OR NULLIF(LTRIM(RTRIM(@SecretReference)), N'') IS NULL
+        THROW 51111, 'Provisioning registration values must not be blank.', 1;
+
+    BEGIN TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM dbo.Tenant WHERE TenantKey = @TenantKey AND TenantUid <> @TenantUid)
+        THROW 51112, 'Tenant key is already assigned to another tenant.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.Tenant WHERE TenantUid = @TenantUid)
+    BEGIN
+        INSERT dbo.Tenant
+        (
+            TenantUid, TenantKey, DisplayName, TenantStatus,
+            DefaultTimeZoneId, CreatedAt
+        )
+        VALUES
+        (
+            @TenantUid, LTRIM(RTRIM(@TenantKey)), LTRIM(RTRIM(@DisplayName)),
+            'Provisioning', 'America/Toronto', SYSUTCDATETIME()
+        );
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.TenantDatabase
+        WHERE TenantUid = @TenantUid
+          AND (DatabaseName <> @DatabaseName OR SecretReference <> @SecretReference)
+    )
+        THROW 51113, 'Tenant database assignment already exists with different metadata.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.TenantDatabase WHERE TenantUid = @TenantUid)
+    BEGIN
+        INSERT dbo.TenantDatabase
+        (
+            TenantUid, DatabaseServerKey, DatabaseName,
+            SecretReference, DatabaseStatus, CreatedAt
+        )
+        VALUES
+        (
+            @TenantUid, LTRIM(RTRIM(@DatabaseServerKey)),
+            LTRIM(RTRIM(@DatabaseName)), LTRIM(RTRIM(@SecretReference)),
+            'Provisioning', SYSUTCDATETIME()
+        );
+    END;
+
+    COMMIT TRANSACTION;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.TenantDatabase_ProvisioningCompleted
+    @TenantUid UNIQUEIDENTIFIER,
+    @CurrentSchemaVersion NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRANSACTION;
+
+    UPDATE dbo.TenantDatabase
+    SET DatabaseStatus = 'Active',
+        CurrentSchemaVersion = @CurrentSchemaVersion,
+        LastMigrationAt = SYSUTCDATETIME(),
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE TenantUid = @TenantUid
+      AND DatabaseStatus = 'Provisioning';
+
+    IF @@ROWCOUNT <> 1
+        THROW 51102, 'Tenant database is not in the expected provisioning state.', 1;
+
+    UPDATE dbo.Tenant
+    SET TenantStatus = 'Active',
+        ActivatedAt = COALESCE(ActivatedAt, SYSUTCDATETIME()),
+        SuspendedAt = NULL
+    WHERE TenantUid = @TenantUid
+      AND TenantStatus = 'Provisioning';
+
+    IF @@ROWCOUNT <> 1
+        THROW 51103, 'Tenant is not in the expected provisioning state.', 1;
+
+    COMMIT TRANSACTION;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.TenantDatabase_ProvisioningFailed
+    @TenantUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.TenantDatabase
+    SET DatabaseStatus = 'MigrationFailed',
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE TenantUid = @TenantUid
+      AND DatabaseStatus = 'Provisioning';
+END;
+GO
