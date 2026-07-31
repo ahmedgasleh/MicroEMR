@@ -6,13 +6,25 @@ interface RecentPatient {
     lastOpenedAt: string;
 }
 
-const storageKey = "microemr.recentPatients.v1";
+const legacyStorageKey = "microemr.recentPatients.v1";
+const storageKeyPrefix = "microemr.recentPatients.v2";
 const maximumStoredPatients = 10;
 const maximumDisplayedPatients = 5;
 
-// MVP local recent-patient cache. Replace with server-side per-user recent patients for production.
+function getStorageKey(): string | null {
+    const tenantUid = document
+        .querySelector<HTMLMetaElement>('meta[name="microemr-tenant-id"]')
+        ?.content.trim()
+        .toLowerCase();
+
+    return tenantUid ? `${storageKeyPrefix}.${tenantUid}` : null;
+}
+
+// Browser-local convenience cache. It must always be scoped to the signed tenant claim.
 function readRecentPatients(): RecentPatient[] {
     try {
+        const storageKey = getStorageKey();
+        if (!storageKey) return [];
         const value = window.localStorage.getItem(storageKey);
         if (!value) return [];
 
@@ -54,11 +66,21 @@ function recordCurrentPatient(): void {
     recentPatients.unshift(current);
 
     try {
+        const storageKey = getStorageKey();
+        if (!storageKey) return;
         window.localStorage.setItem(
             storageKey,
             JSON.stringify(recentPatients.slice(0, maximumStoredPatients)));
     } catch {
         // Patient navigation must continue when storage is disabled or full.
+    }
+}
+
+function removeLegacyUnscopedCache(): void {
+    try {
+        window.localStorage.removeItem(legacyStorageKey);
+    } catch {
+        // Patient navigation must continue when storage is disabled.
     }
 }
 
@@ -131,5 +153,6 @@ function renderRecentPatients(): void {
     });
 }
 
+removeLegacyUnscopedCache();
 recordCurrentPatient();
 renderRecentPatients();

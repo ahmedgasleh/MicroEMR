@@ -8,8 +8,7 @@ using MicroEMR.Application.PatientAllergies;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-// [Authorize]
-[AllowAnonymous] // For development only. Remove this attribute when API token validation is enabled consistently.
+[Authorize]
 public sealed class PatientAllergiesController : ControllerBase
 {
     private readonly IPatientAllergyService _allergyService;

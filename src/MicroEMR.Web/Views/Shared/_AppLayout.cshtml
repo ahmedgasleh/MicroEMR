@@ -1,4 +1,5 @@
 @using System.Security.Claims
+@using MicroEMR.Application.Security
 
 @{
     var currentController =
@@ -21,6 +22,8 @@
         User.FindFirst(ClaimTypes.Role)?.Value
         ?? User.FindFirst("role")?.Value
         ?? "Staff";
+
+    var tenantUid = User.FindFirst(MicroEmrClaimTypes.TenantId)?.Value;
 }
 
 <!DOCTYPE html>
@@ -30,6 +33,11 @@
 
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0" />
+
+    @if (!string.IsNullOrWhiteSpace(tenantUid))
+    {
+        <meta name="microemr-tenant-id" content="@tenantUid" />
+    }
 
     <title>@ViewData["Title"] - Micro EMR</title>
 

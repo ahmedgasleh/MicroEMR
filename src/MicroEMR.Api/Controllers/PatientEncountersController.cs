@@ -8,7 +8,7 @@ using MicroEMR.Application.PatientEncounters;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-// [Authorize]
+[Authorize]
 public sealed class PatientEncountersController : ControllerBase
 {
     private readonly IPatientEncounterService _encounterService;
@@ -22,7 +22,6 @@ public sealed class PatientEncountersController : ControllerBase
         _logger = logger;
     }
 
-    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpGet("api/patients/{patientUid:guid}/encounters")]
     [ProducesResponseType<IReadOnlyList<PatientEncounterListItemResponse>>(
         StatusCodes.Status200OK)]
@@ -45,7 +44,6 @@ public sealed class PatientEncountersController : ControllerBase
         return Ok(encounters);
     }
 
-    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpGet("api/patient-encounters/{encounterUid:guid}")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -158,7 +156,6 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
-    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status201Created)]
@@ -235,7 +232,6 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
-    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/note")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -312,7 +308,6 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
-    [AllowAnonymous] // For development only. Remove when API token validation is enabled consistently.
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
