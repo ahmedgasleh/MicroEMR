@@ -1,7 +1,6 @@
 namespace MicroEMR.Web.Models.PatientEncounters;
 
-public sealed class UpdateEncounterNoteRequest
+public sealed class SignPatientEncounterRequest
 {
-    public string? Notes { get; set; }
     public string RowVersion { get; set; } = string.Empty;
 }

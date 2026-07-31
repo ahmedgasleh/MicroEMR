@@ -64,8 +64,11 @@ public sealed class PatientEncounterService : IPatientEncounterService
         ValidateIdentifiers(patientUid, encounterUid);
         if (string.IsNullOrWhiteSpace(request.AddendumText))
             throw new ArgumentException("Addendum text is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.ReasonForAmendment))
+            throw new ArgumentException("A reason for amendment is required.", nameof(request));
 
         request.AddendumText = request.AddendumText.Trim();
+        request.ReasonForAmendment = request.ReasonForAmendment.Trim();
         return _repository.CreateAddendumAsync(
             patientUid, encounterUid, request, createdBy, cancellationToken);
     }
@@ -118,9 +121,10 @@ public sealed class PatientEncounterService : IPatientEncounterService
             patientUid, encounterUid, request, updatedBy, cancellationToken);
     }
 
-    public Task<PatientEncounterDetailsResponse?> SignAsync(
+    public async Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,
+        SignPatientEncounterRequest request,
         long? signedBy,
         CancellationToken cancellationToken = default)
     {
@@ -130,9 +134,21 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (encounterUid == Guid.Empty)
             throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
 
-        return _repository.SignAsync(
+        if (string.IsNullOrWhiteSpace(request.RowVersion))
+            throw new ArgumentException("Row version is required.", nameof(request));
+
+        var encounter = await _repository.GetByUidAsync(encounterUid, cancellationToken);
+        if (encounter is null || encounter.PatientUid != patientUid)
+            return null;
+
+        var errors = EncounterSigningValidator.Validate(encounter);
+        if (errors.Count > 0)
+            throw new EncounterSigningValidationException(errors);
+
+        return await _repository.SignAsync(
             patientUid,
             encounterUid,
+            request,
             signedBy,
             cancellationToken);
     }

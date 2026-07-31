@@ -214,11 +214,13 @@ public sealed class PatientEncounterApiClient
     public async Task<PatientEncounterDetailsResponse?> SignEncounterAsync(
         Guid patientUid,
         Guid encounterUid,
+        SignPatientEncounterRequest signRequest,
         CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
-            $"api/patients/{patientUid}/encounters/{encounterUid}/sign");
+            $"api/patients/{patientUid}/encounters/{encounterUid}/sign")
+        { Content = JsonContent.Create(signRequest) };
 
         await AddBearerTokenAsync(request);
 

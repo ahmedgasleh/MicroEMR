@@ -2,9 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MicroEMR.Application.PatientEncounters.Contracts;
 
-public sealed class UpdateEncounterNoteRequest
+public sealed class SignPatientEncounterRequest
 {
-    public string? Notes { get; set; }
     [Required]
     public string RowVersion { get; set; } = string.Empty;
 }

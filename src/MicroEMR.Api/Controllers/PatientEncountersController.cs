@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Application.PatientEncounters;
+using MicroEMR.Api.Authorization;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -124,6 +125,7 @@ public sealed class PatientEncountersController : ControllerBase
 
     [Authorize]
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
+    [Authorize(Policy = TenantAuthorizationPolicies.EncounterSigner)]
     public async Task<ActionResult<PatientEncounterAddendumResponse>> CreateEncounterAddendum(
         Guid patientUid,
         Guid encounterUid,
@@ -134,6 +136,8 @@ public sealed class PatientEncountersController : ControllerBase
             return BadRequest();
         if (string.IsNullOrWhiteSpace(request.AddendumText))
             return BadRequest(new { message = "Addendum text is required." });
+        if (string.IsNullOrWhiteSpace(request.ReasonForAmendment))
+            return BadRequest(new { message = "A reason for amendment is required." });
 
         try
         {
@@ -270,6 +274,10 @@ public sealed class PatientEncountersController : ControllerBase
                 message = "Encounter note cannot be edited."
             });
         }
+        catch (EncounterConcurrencyException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
     }
 
     [Authorize]
@@ -299,6 +307,10 @@ public sealed class PatientEncountersController : ControllerBase
         {
             return Conflict(new { message = "Signed encounter notes cannot be edited." });
         }
+        catch (EncounterConcurrencyException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
         catch (Exception exception)
         {
             _logger.LogError(exception,
@@ -309,6 +321,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
+    [Authorize(Policy = TenantAuthorizationPolicies.EncounterSigner)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -318,6 +331,7 @@ public sealed class PatientEncountersController : ControllerBase
         SignEncounter(
             Guid patientUid,
             Guid encounterUid,
+            [FromBody] SignPatientEncounterRequest request,
             CancellationToken cancellationToken)
     {
         if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
@@ -330,6 +344,7 @@ public sealed class PatientEncountersController : ControllerBase
             var encounter = await _encounterService.SignAsync(
                 patientUid,
                 encounterUid,
+                request,
                 GetAuthenticatedUserId(),
                 cancellationToken);
 
@@ -343,6 +358,14 @@ public sealed class PatientEncountersController : ControllerBase
             {
                 message = "Encounter cannot be signed."
             });
+        }
+        catch (EncounterConcurrencyException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
+        catch (EncounterSigningValidationException exception)
+        {
+            return UnprocessableEntity(new { message = exception.Message, errors = exception.Errors });
         }
     }
 

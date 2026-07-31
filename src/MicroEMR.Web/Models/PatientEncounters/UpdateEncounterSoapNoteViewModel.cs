@@ -8,4 +8,5 @@ public sealed class UpdateEncounterSoapNoteViewModel
     public string? ObjectiveNote { get; set; }
     public string? AssessmentNote { get; set; }
     public string? PlanNote { get; set; }
+    public string RowVersion { get; set; } = string.Empty;
 }

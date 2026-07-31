@@ -49,5 +49,6 @@ public interface IPatientEncounterApiClient
     Task<PatientEncounterDetailsResponse?> SignEncounterAsync(
         Guid patientUid,
         Guid encounterUid,
+        SignPatientEncounterRequest request,
         CancellationToken cancellationToken = default);
 }

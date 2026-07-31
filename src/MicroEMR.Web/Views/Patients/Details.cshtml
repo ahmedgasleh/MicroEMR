@@ -211,16 +211,31 @@
         <partial name="_Timeline" model="Model.Timeline" />
     </div>
     <div class="tab-pane fade @(alertsActive ? "show active" : null)" id="alerts" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Chart Alerts</h5><button id="addChartAlert" class="btn btn-primary">Add Alert</button></div>
-        <div class="d-flex justify-content-end mb-3"><select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select></div>
-        <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div></div>
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+            <h5 class="mb-0">Chart Alerts</h5>
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                 <div class="d-flex justify-content-end"><select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select></div>
+                <button id="addChartAlert" class="btn btn-primary">Add Alert</button>
+       
+            </div>
+            </div>
+           <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div></div>
     </div>
+    
+    
+    
     <div class="tab-pane fade @(tasksActive ? "show active" : null)" id="tasks" role="tabpanel">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-            <h5 class="mb-0">Tasks</h5><button id="addPatientTask" class="btn btn-primary" type="button">Add Task</button>
+            <h5 class="mb-0">Tasks</h5>
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                
+                <div class="d-flex justify-content-end"><label class="visually-hidden" for="patientTaskFilter">Task status</label><select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select></div>
+                <button id="addPatientTask" class="btn btn-primary" type="button">Add Task</button>
+            </div>
+           
+            
         </div>
-        <div class="d-flex justify-content-end mb-3"><label class="visually-hidden" for="patientTaskFilter">Task status</label><select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select></div>
-        <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div></div>
+          <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div></div>
     </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
          id="demographics"
@@ -516,6 +531,7 @@
                             <th>Provider</th>
                             <th>Location</th>
                             <th>Status</th>
+                            <th>Signed</th>
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
@@ -549,7 +565,7 @@
                                         StringComparison.OrdinalIgnoreCase))
                                     {
                                         <span class="badge text-bg-primary">
-                                            Open
+                                            Draft
                                         </span>
                                     }
                                     else if (string.Equals(
@@ -575,6 +591,14 @@
                                         <span class="badge text-bg-secondary">
                                             @encounter.Status
                                         </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @(encounter.SignedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "—")
+                                    @if (encounter.HasAmendments)
+                                    {
+                                        <span class="badge text-bg-warning ms-1">Amended</span>
                                     }
                                 </td>
 
@@ -1161,6 +1185,8 @@
                                 Addendums are available after the encounter is signed.
                             </p>
                             <div id="encounterAddendumForm" class="d-none border rounded p-3 mb-3">
+                                <label for="encounterAddendumReason" class="form-label">Reason for amendment</label>
+                                <input id="encounterAddendumReason" class="form-control mb-3" maxlength="500" />
                                 <label for="encounterAddendumText" class="form-label">Add Addendum</label>
                                 <textarea id="encounterAddendumText" class="form-control" rows="4"></textarea>
                                 <div id="encounterAddendumMessage" class="alert d-none mt-3 mb-0" role="status"></div>
@@ -1294,6 +1320,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addendumHelper = document.getElementById("encounterAddendumHelper");
     const addendumForm = document.getElementById("encounterAddendumForm");
     const addendumText = document.getElementById("encounterAddendumText");
+    const addendumReason = document.getElementById("encounterAddendumReason");
     const addendumMessage = document.getElementById("encounterAddendumMessage");
     const saveAddendumButton = document.getElementById("saveEncounterAddendumButton");
     const cancelAddendumButton = document.getElementById("cancelEncounterAddendumButton");
@@ -1308,6 +1335,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPatientUid = null;
     let currentEncounterUid = null;
     let currentEncounterIsEditable = false;
+    let currentEncounterRowVersion = "";
     let historyLoaded = false;
 
     const formatDate = value => value
@@ -1350,6 +1378,7 @@ document.addEventListener("DOMContentLoaded", () => {
         legacyNoteSection.classList.toggle("d-none", !encounter.notes);
         currentPatientUid = encounter.patientUid;
         currentEncounterUid = encounter.encounterUid;
+        currentEncounterRowVersion = encounter.rowVersion || "";
         currentEncounterIsEditable =
             String(encounter.status).toLowerCase() === "open";
         Object.values(soapFields).forEach(field => {
@@ -1385,11 +1414,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const metadata = document.createElement("div");
             metadata.className = "small text-muted mb-2";
             metadata.textContent = `${formatDate(addendum.createdAt)} · ${addendum.createdByDisplayName || "Unknown"}`;
+            const reason = document.createElement("div");
+            reason.className = "small fw-semibold mb-2";
+            reason.textContent = `Reason: ${addendum.reasonForAmendment || "Not recorded"}`;
             const text = document.createElement("p");
             text.className = "mb-0 text-break";
             text.style.whiteSpace = "pre-wrap";
             text.textContent = addendum.addendumText || "";
-            body.append(metadata, text);
+            body.append(metadata, reason, text);
             card.appendChild(body);
             addendumsContent.appendChild(card);
         });
@@ -1488,6 +1520,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentEncounterUid = null;
         currentEncounterIsEditable = false;
         addendumText.value = "";
+        addendumReason.value = "";
         addendumMessage.className = "alert d-none mt-3 mb-0";
         addendumMessage.textContent = "";
         addendumsContent.replaceChildren();
@@ -1573,6 +1606,7 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append("ObjectiveNote", soapFields.ObjectiveNote.value);
             formData.append("AssessmentNote", soapFields.AssessmentNote.value);
             formData.append("PlanNote", soapFields.PlanNote.value);
+            formData.append("RowVersion", currentEncounterRowVersion);
 
             const token = document.querySelector(
                 '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
@@ -1606,14 +1640,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     cancelAddendumButton.addEventListener("click", () => {
         addendumText.value = "";
+        addendumReason.value = "";
         addendumMessage.className = "alert d-none mt-3 mb-0";
         addendumMessage.textContent = "";
     });
 
     saveAddendumButton.addEventListener("click", async () => {
-        if (!currentPatientUid || !currentEncounterUid || !addendumText.value.trim()) {
+        if (!currentPatientUid || !currentEncounterUid || !addendumText.value.trim() || !addendumReason.value.trim()) {
             addendumMessage.className = "alert alert-danger mt-3 mb-0";
-            addendumMessage.textContent = "Addendum text is required.";
+            addendumMessage.textContent = "Amendment text and reason are required.";
             return;
         }
 
@@ -1624,6 +1659,7 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append("PatientUid", currentPatientUid);
             formData.append("EncounterUid", currentEncounterUid);
             formData.append("AddendumText", addendumText.value);
+            formData.append("ReasonForAmendment", addendumReason.value);
             const token = document.querySelector(
                 '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
             const response = await fetch(createEncounterAddendumUrl, {
@@ -1636,6 +1672,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(result.message || "Addendum could not be saved.");
 
             addendumText.value = "";
+            addendumReason.value = "";
             await loadAddendums();
             resetEncounterHistory();
             addendumMessage.className = "alert alert-success mt-3 mb-0";
@@ -1685,6 +1722,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const formData = new FormData();
             formData.append("patientUid", currentPatientUid);
             formData.append("encounterUid", currentEncounterUid);
+            formData.append("rowVersion", currentEncounterRowVersion);
             const token = document.querySelector(
                 '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
             const response = await fetch(signEncounterUrl, {

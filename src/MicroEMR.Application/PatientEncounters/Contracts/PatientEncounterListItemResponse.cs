@@ -25,4 +25,6 @@ public sealed class PatientEncounterListItemResponse
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    public DateTime? SignedAt { get; set; }
+    public bool HasAmendments { get; set; }
 }

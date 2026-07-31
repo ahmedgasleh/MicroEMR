@@ -176,6 +176,7 @@ public sealed class PatientEncounterRepository
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
         command.Parameters.Add("@AddendumText", SqlDbType.NVarChar, -1).Value = request.AddendumText;
+        command.Parameters.Add("@ReasonForAmendment", SqlDbType.NVarChar, 500).Value = request.ReasonForAmendment;
         command.Parameters.Add("@CreatedBy", SqlDbType.BigInt).Value = (object?)createdBy ?? DBNull.Value;
 
 
@@ -341,6 +342,7 @@ public sealed class PatientEncounterRepository
         {
             Value = (object?)updatedBy ?? DBNull.Value
         });
+        command.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value = DecodeRowVersion(request.RowVersion);
 
 
 
@@ -358,6 +360,10 @@ public sealed class PatientEncounterRepository
             throw new EncounterNoteNotEditableException(
                 "The encounter note cannot be edited in its current status.",
                 exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51076)
+        {
+            throw new EncounterConcurrencyException("The encounter was changed by another user.", exception);
         }
         catch (SqlException exception)
         {
@@ -388,6 +394,7 @@ public sealed class PatientEncounterRepository
         AddNullableString(command, "@AssessmentNote", SqlDbType.NVarChar, -1, request.AssessmentNote);
         AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, request.PlanNote);
         command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = (object?)updatedBy ?? DBNull.Value;
+        command.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value = DecodeRowVersion(request.RowVersion);
 
 
         try
@@ -400,6 +407,10 @@ public sealed class PatientEncounterRepository
             throw new EncounterNoteNotEditableException(
                 "The encounter note cannot be edited.", exception);
         }
+        catch (SqlException exception) when (exception.Number == 51076)
+        {
+            throw new EncounterConcurrencyException("The encounter was changed by another user.", exception);
+        }
         catch (SqlException exception)
         {
             _logger.LogError(exception, "Failed to update an encounter SOAP note.");
@@ -410,6 +421,7 @@ public sealed class PatientEncounterRepository
     public async Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,
+        SignPatientEncounterRequest request,
         long? signedBy,
         CancellationToken cancellationToken = default)
     {
@@ -436,6 +448,7 @@ public sealed class PatientEncounterRepository
         {
             Value = (object?)signedBy ?? DBNull.Value
         });
+        command.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value = DecodeRowVersion(request.RowVersion);
 
 
 
@@ -453,6 +466,10 @@ public sealed class PatientEncounterRepository
             throw new EncounterCannotBeSignedException(
                 "The encounter cannot be signed in its current status.",
                 exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51076)
+        {
+            throw new EncounterConcurrencyException("The encounter was changed by another user.", exception);
         }
         catch (SqlException exception)
         {
@@ -560,7 +577,9 @@ public sealed class PatientEncounterRepository
                 reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
 
             UpdatedAt =
-                GetNullableDateTime(reader, "UpdatedAt")
+                GetNullableDateTime(reader, "UpdatedAt"),
+            SignedAt = GetOptionalDateTime(reader, "SignedAt"),
+            HasAmendments = GetOptionalBoolean(reader, "HasAmendments")
         };
     }
 
@@ -570,10 +589,15 @@ public sealed class PatientEncounterRepository
         EncounterUid = reader.GetGuid(reader.GetOrdinal("EncounterUid")),
         PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
         AddendumText = reader.GetString(reader.GetOrdinal("AddendumText")),
+        ReasonForAmendment = reader.GetString(reader.GetOrdinal("ReasonForAmendment")),
         CreatedAt = DateTime.SpecifyKind(
             reader.GetDateTime(reader.GetOrdinal("CreatedAt")), DateTimeKind.Utc),
         CreatedBy = GetNullableInt64(reader, "CreatedBy"),
-        CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName")
+        CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName"),
+        SignedBy = GetNullableInt64(reader, "SignedBy"),
+        SignedByDisplayName = GetNullableString(reader, "SignedByDisplayName"),
+        SignedAt = DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("SignedAt")), DateTimeKind.Utc),
+        RowVersion = GetRowVersion(reader, "RowVersion")
     };
 
     private static PatientEncounterDetailsResponse MapDetails(
@@ -642,7 +666,8 @@ public sealed class PatientEncounterRepository
             AppointmentEndDateTime = GetOptionalUtcDateTime(reader, "AppointmentEndDateTime"),
             AppointmentReason = GetOptionalString(reader, "AppointmentReason"),
             AppointmentProviderDisplayName = GetOptionalString(reader, "AppointmentProviderDisplayName"),
-            AppointmentStatus = GetOptionalString(reader, "AppointmentStatus")
+            AppointmentStatus = GetOptionalString(reader, "AppointmentStatus"),
+            HasAmendments = GetOptionalBoolean(reader, "HasAmendments")
         };
     }
 
@@ -819,5 +844,20 @@ public sealed class PatientEncounterRepository
             ? string.Empty
             : Convert.ToBase64String(
                 (byte[])reader.GetValue(ordinal));
+    }
+
+    private static byte[] DecodeRowVersion(string rowVersion)
+    {
+        try { return Convert.FromBase64String(rowVersion); }
+        catch (FormatException exception)
+        { throw new ArgumentException("Row version is invalid.", nameof(rowVersion), exception); }
+    }
+
+    private static bool GetOptionalBoolean(SqlDataReader reader, string columnName)
+    {
+        for (var ordinal = 0; ordinal < reader.FieldCount; ordinal++)
+            if (string.Equals(reader.GetName(ordinal), columnName, StringComparison.OrdinalIgnoreCase))
+                return !reader.IsDBNull(ordinal) && reader.GetBoolean(ordinal);
+        return false;
     }
 }

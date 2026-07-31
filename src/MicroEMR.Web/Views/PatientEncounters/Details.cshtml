@@ -75,7 +75,7 @@
                             StringComparison.OrdinalIgnoreCase))
                         {
                             <span class="badge text-bg-primary">
-                                Open
+                                Draft
                             </span>
                         }
                         else if (string.Equals(
@@ -131,6 +131,38 @@
                     <dd class="col-sm-7">
                         @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
                     </dd>
+
+                    <dt class="col-sm-5">Last updated</dt>
+                    <dd class="col-sm-7">@(Model.UpdatedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "—")</dd>
+
+                    @if (Model.SignedAt.HasValue)
+                    {
+                        <dt class="col-sm-5">Signed by</dt>
+                        <dd class="col-sm-7">@(Model.SignedByDisplayName ?? "Unknown")</dd>
+                        <dt class="col-sm-5">Signed</dt>
+                        <dd class="col-sm-7">@Model.SignedAt.Value.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</dd>
+                    }
+
+                    @if (Model.HasAmendments)
+                    {
+                        <dt class="col-sm-5">Amendments</dt>
+                        <dd class="col-sm-7"><span class="badge text-bg-warning">Amended</span></dd>
+                    }
+                </dl>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="border rounded-3 p-3">
+                <h5 class="mb-3">Clinical Note</h5>
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <p class="text-break" style="white-space: pre-wrap">@Model.Notes</p>
+                }
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Subjective</dt><dd class="col-sm-9 text-break">@(Model.SubjectiveNote ?? "—")</dd>
+                    <dt class="col-sm-3">Objective</dt><dd class="col-sm-9 text-break">@(Model.ObjectiveNote ?? "—")</dd>
+                    <dt class="col-sm-3">Assessment</dt><dd class="col-sm-9 text-break">@(Model.AssessmentNote ?? "—")</dd>
+                    <dt class="col-sm-3">Plan</dt><dd class="col-sm-9 text-break">@(Model.PlanNote ?? "—")</dd>
                 </dl>
             </div>
         </div>

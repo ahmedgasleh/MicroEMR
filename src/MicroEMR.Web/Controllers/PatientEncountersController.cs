@@ -199,13 +199,19 @@ public sealed class PatientEncountersController : Controller
             return BadRequest(new { success = false, message = "Addendum could not be saved." });
         if (string.IsNullOrWhiteSpace(model.AddendumText))
             return BadRequest(new { success = false, message = "Addendum text is required." });
+        if (string.IsNullOrWhiteSpace(model.ReasonForAmendment))
+            return BadRequest(new { success = false, message = "A reason for amendment is required." });
 
         try
         {
             var addendum = await _encounterApiClient.CreateEncounterAddendumAsync(
                 model.PatientUid,
                 model.EncounterUid,
-                new CreateEncounterAddendumRequest { AddendumText = model.AddendumText.Trim() },
+                new CreateEncounterAddendumRequest
+                {
+                    AddendumText = model.AddendumText.Trim(),
+                    ReasonForAmendment = model.ReasonForAmendment.Trim()
+                },
                 cancellationToken);
             return addendum is null
                 ? NotFound(new { success = false, message = "Encounter was not found." })
@@ -255,6 +261,7 @@ public sealed class PatientEncountersController : Controller
                 new UpdateEncounterNoteRequest
                 {
                     Notes = model.Notes
+                    ,RowVersion = model.RowVersion
                 },
                 cancellationToken);
 
@@ -325,6 +332,7 @@ public sealed class PatientEncountersController : Controller
                     ObjectiveNote = model.ObjectiveNote,
                     AssessmentNote = model.AssessmentNote,
                     PlanNote = model.PlanNote
+                    ,RowVersion = model.RowVersion
                 },
                 cancellationToken);
             return encounter is null
@@ -353,6 +361,7 @@ public sealed class PatientEncountersController : Controller
     public async Task<IActionResult> SignEncounter(
         Guid patientUid,
         Guid encounterUid,
+        string rowVersion,
         CancellationToken cancellationToken)
     {
         if (patientUid == Guid.Empty || encounterUid == Guid.Empty)
@@ -369,6 +378,7 @@ public sealed class PatientEncountersController : Controller
             var encounter = await _encounterApiClient.SignEncounterAsync(
                 patientUid,
                 encounterUid,
+                new SignPatientEncounterRequest { RowVersion = rowVersion },
                 cancellationToken);
 
             if (encounter is null)

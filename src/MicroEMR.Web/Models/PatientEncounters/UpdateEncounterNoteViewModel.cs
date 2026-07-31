@@ -7,4 +7,5 @@ public sealed class UpdateEncounterNoteViewModel
     public Guid EncounterUid { get; set; }
 
     public string? Notes { get; set; }
+    public string RowVersion { get; set; } = string.Empty;
 }

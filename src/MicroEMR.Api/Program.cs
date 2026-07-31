@@ -54,8 +54,13 @@ builder.Services.AddAuthorization(options =>
         TenantAuthorizationPolicies.ClinicAdministrator,
         policy => policy.AddRequirements(
             new TenantRoleRequirement("ClinicAdministrator")));
+    options.AddPolicy(
+        TenantAuthorizationPolicies.EncounterSigner,
+        policy => policy.AddRequirements(
+            new AnyTenantRoleRequirement("Physician", "ClinicAdministrator")));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, AnyTenantRoleAuthorizationHandler>();
 
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext>(serviceProvider =>

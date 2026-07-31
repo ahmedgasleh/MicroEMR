@@ -45,4 +45,5 @@ public sealed class PatientEncounterDetailsResponse
     public string? AppointmentReason { get; set; }
     public string? AppointmentProviderDisplayName { get; set; }
     public string? AppointmentStatus { get; set; }
+    public bool HasAmendments { get; set; }
 }
