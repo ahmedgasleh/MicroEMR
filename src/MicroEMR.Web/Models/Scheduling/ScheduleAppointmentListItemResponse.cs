@@ -25,4 +25,5 @@ public sealed class ScheduleAppointmentListItemResponse
     public string Status { get; set; } = string.Empty;
     public Guid? LinkedEncounterUid { get; set; }
     public string? LinkedEncounterStatus { get; set; }
+    public string RowVersion { get; set; } = string.Empty;
 }

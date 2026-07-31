@@ -7,4 +7,5 @@ public sealed class UpdateAppointmentStatusResponse
     public string Status { get; set; } = string.Empty;
 
     public DateTime? UpdatedAt { get; set; }
+    public string RowVersion { get; set; } = string.Empty;
 }

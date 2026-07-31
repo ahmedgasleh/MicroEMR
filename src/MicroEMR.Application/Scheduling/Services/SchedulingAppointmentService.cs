@@ -5,16 +5,15 @@ namespace MicroEMR.Application.Scheduling.Services;
 
 public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
 {
-    private static readonly HashSet<string> AllowedStatuses =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
-        };
     private readonly ISchedulingAppointmentRepository _repository;
+    private readonly IAppointmentStatusTransitionService _transitionService;
 
-    public SchedulingAppointmentService(ISchedulingAppointmentRepository repository)
+    public SchedulingAppointmentService(
+        ISchedulingAppointmentRepository repository,
+        IAppointmentStatusTransitionService transitionService)
     {
         _repository = repository;
+        _transitionService = transitionService;
     }
 
     public Task<ScheduleAppointmentListItemResponse> CreateAsync(
@@ -88,11 +87,18 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
         ArgumentNullException.ThrowIfNull(request);
         if (appointmentUid == Guid.Empty)
             throw new ArgumentException("Appointment identifier is required.", nameof(appointmentUid));
-        if (!AllowedStatuses.Contains(request.Status))
-            throw new ArgumentException("Invalid appointment status.", nameof(request));
-
-        request.Status = AllowedStatuses.Single(status =>
-            string.Equals(status, request.Status, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(request.ExpectedStatus))
+            throw new ArgumentException("Expected status is required.", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.RowVersion))
+            throw new ArgumentException("Row version is required.", nameof(request));
+        var current = AppointmentStatusCatalog.Parse(request.ExpectedStatus);
+        var target = AppointmentStatusCatalog.Parse(request.Status);
+        _transitionService.EnsureCanTransition(current, target);
+        request.ExpectedStatus = AppointmentStatusCatalog.ToStoredValue(current);
+        request.Status = AppointmentStatusCatalog.ToStoredValue(target);
+        request.Reason = request.Reason?.Trim();
+        if (request.Reason?.Length > 500)
+            throw new ArgumentException("Reason cannot exceed 500 characters.", nameof(request));
         return _repository.UpdateStatusAsync(appointmentUid, request, updatedBy, cancellationToken);
     }
 

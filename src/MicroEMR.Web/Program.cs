@@ -16,10 +16,14 @@ using MicroEMR.Web.Services.EncounterSoapTemplates;
 using MicroEMR.Web.Services.PatientChartAlerts;
 using MicroEMR.Web.Services.PatientResults;
 using MicroEMR.Web.Services.PatientTasks;
+using MicroEMR.Application.Scheduling.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton<
+    IAppointmentStatusTransitionService,
+    AppointmentStatusTransitionService>();
 
 builder.Services.AddHttpContextAccessor();
 

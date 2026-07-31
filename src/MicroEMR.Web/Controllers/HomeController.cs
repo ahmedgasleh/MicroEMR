@@ -5,28 +5,28 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Web.Models.Dashboard;
 using MicroEMR.Web.Services.Scheduling;
 using MicroEMR.Web.Services.PatientTasks;
+using MicroEMR.Application.Scheduling;
+using MicroEMR.Application.Scheduling.Services;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
 public class HomeController : Controller
 {
-    private static readonly HashSet<string> AllowedAppointmentStatuses =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
-        };
     private readonly ISchedulingApiClient _schedulingApiClient;
     private readonly IPatientTaskApiClient _patientTaskApiClient;
     private readonly ILogger<HomeController> _logger;
+    private readonly IAppointmentStatusTransitionService _transitionService;
 
     public HomeController(
         ISchedulingApiClient schedulingApiClient,
         IPatientTaskApiClient patientTaskApiClient,
+        IAppointmentStatusTransitionService transitionService,
         ILogger<HomeController> logger)
     {
         _schedulingApiClient = schedulingApiClient;
         _patientTaskApiClient = patientTaskApiClient;
+        _transitionService = transitionService;
         _logger = logger;
     }
 
@@ -53,6 +53,8 @@ public class HomeController : Controller
                 .ToArray();
 
             model.TodaysAppointmentCount = activeAppointments.Length;
+            model.CheckedInPatientCount = activeAppointments.Count(appointment =>
+                appointment.Status is "CheckedIn" or "Roomed" or "Seen");
             model.TodaysAppointments = activeAppointments
                 .Take(10)
                 .Select(appointment => new DashboardAppointmentViewModel
@@ -71,6 +73,14 @@ public class HomeController : Controller
                         : appointment.Status,
                     LinkedEncounterUid = appointment.LinkedEncounterUid,
                     LinkedEncounterStatus = appointment.LinkedEncounterStatus
+                    ,RowVersion = appointment.RowVersion
+                    ,NextStatuses = string.IsNullOrWhiteSpace(appointment.RowVersion)
+                        ? Array.Empty<string>()
+                        : _transitionService.GetAllowedTransitions(
+                                AppointmentStatusCatalog.Parse(appointment.Status))
+                            .Where(status => status != AppointmentStatus.Cancelled)
+                            .Select(AppointmentStatusCatalog.ToStoredValue)
+                            .ToArray()
                 })
                 .ToArray();
         }
@@ -101,8 +111,6 @@ public class HomeController : Controller
     {
         if (model.AppointmentUid == Guid.Empty)
             ModelState.AddModelError(nameof(model.AppointmentUid), "Appointment identifier is required.");
-        if (!AllowedAppointmentStatuses.Contains(model.Status))
-            ModelState.AddModelError(nameof(model.Status), "Invalid appointment status.");
         if (!ModelState.IsValid)
             return BadRequest(new { success = false, message = "Invalid appointment status." });
 
@@ -110,7 +118,12 @@ public class HomeController : Controller
         {
             var result = await _schedulingApiClient.UpdateAppointmentStatusAsync(
                 model.AppointmentUid,
-                new Models.Scheduling.UpdateAppointmentStatusRequest { Status = model.Status },
+                new Models.Scheduling.UpdateAppointmentStatusRequest
+                {
+                    Status = model.Status,
+                    ExpectedStatus = model.ExpectedStatus,
+                    RowVersion = model.RowVersion
+                },
                 cancellationToken);
             if (result is null)
                 return NotFound(new { success = false, message = "Appointment was not found." });
@@ -127,7 +140,7 @@ public class HomeController : Controller
             return Conflict(new
             {
                 success = false,
-                message = "Cancelled appointments cannot be updated."
+                message = "This appointment was updated or cannot make that transition. Refresh and try again."
             });
         }
         catch (Exception exception)
@@ -178,9 +191,7 @@ public class HomeController : Controller
         }
         catch (StartEncounterConflictException exception)
         {
-            TempData["ErrorMessage"] = exception.IsCompleted
-                ? "Completed appointments cannot start a new encounter."
-                : "Cancelled appointments cannot start encounters.";
+            TempData["ErrorMessage"] = exception.Message;
             return RedirectToAction(nameof(Index));
         }
         catch (Exception exception)

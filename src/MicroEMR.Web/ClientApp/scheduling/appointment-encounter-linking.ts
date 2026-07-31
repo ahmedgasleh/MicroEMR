@@ -3,6 +3,7 @@ interface AppointmentLinkDetails {
     patientUid: string;
     linkedEncounterUid?: string | null;
     linkedEncounterStatus?: string | null;
+    status: string;
 }
 
 interface StartEncounterResult {
@@ -28,7 +29,8 @@ function encounterUrl(patientUid: string, encounterUid: string): string {
 function render(details: AppointmentLinkDetails): void {
     current = details;
     const linked = Boolean(details.linkedEncounterUid);
-    startButton?.classList.toggle("d-none", linked);
+    const terminal = ["cancelled", "completed", "noshow"].includes(details.status.toLowerCase());
+    startButton?.classList.toggle("d-none", linked || terminal);
     openButton?.classList.toggle("d-none", !linked);
     statusBadge?.classList.toggle("d-none", !linked);
     if (linked && openButton && details.linkedEncounterUid) {

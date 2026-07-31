@@ -8,6 +8,7 @@ public sealed class DashboardViewModel
         = Array.Empty<DashboardAppointmentViewModel>();
 
     public int TodaysAppointmentCount { get; set; }
+    public int CheckedInPatientCount { get; set; }
 
     public bool ScheduleLoadFailed { get; set; }
     public IReadOnlyList<PatientDashboardTaskViewModel> OpenTasks { get; set; } = Array.Empty<PatientDashboardTaskViewModel>();
@@ -37,4 +38,6 @@ public sealed class DashboardAppointmentViewModel
     public string Status { get; set; } = string.Empty;
     public Guid? LinkedEncounterUid { get; set; }
     public string? LinkedEncounterStatus { get; set; }
+    public string RowVersion { get; set; } = string.Empty;
+    public IReadOnlyList<string> NextStatuses { get; set; } = Array.Empty<string>();
 }

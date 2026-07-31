@@ -315,7 +315,15 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                 "MicroEMR API appointment status update conflicted. Status: {StatusCode}. Response: {ResponseBody}",
                 (int)response.StatusCode,
                 responseBody);
-            throw new AppointmentStatusConflictException();
+            var message = "Appointment status could not be updated.";
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                if (document.RootElement.TryGetProperty("message", out var value))
+                    message = value.GetString() ?? message;
+            }
+            catch (JsonException) { }
+            throw new AppointmentStatusConflictException(message);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
@@ -340,12 +348,17 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            var isCompleted = false;
+            var reason = StartEncounterConflictReason.Cancelled;
             try
             {
                 using var document = JsonDocument.Parse(responseBody);
-                isCompleted = document.RootElement.TryGetProperty("code", out var code)
-                    && code.GetString() == "appointment_completed";
+                if (document.RootElement.TryGetProperty("code", out var code))
+                    reason = code.GetString() switch
+                    {
+                        "appointment_completed" => StartEncounterConflictReason.Completed,
+                        "appointment_no_show" => StartEncounterConflictReason.NoShow,
+                        _ => StartEncounterConflictReason.Cancelled
+                    };
             }
             catch (JsonException)
             {
@@ -355,7 +368,7 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
             _logger.LogWarning(
                 "MicroEMR API rejected encounter start with status {StatusCode}.",
                 (int)response.StatusCode);
-            throw new StartEncounterConflictException(isCompleted);
+            throw new StartEncounterConflictException(reason);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);

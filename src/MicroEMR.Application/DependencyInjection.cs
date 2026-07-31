@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientVitalService, PatientVitalService>();
         services.AddScoped<ISchedulingReadService, SchedulingReadService>();
         services.AddScoped<ISchedulingAppointmentService, SchedulingAppointmentService>();
+        services.AddSingleton<IAppointmentStatusTransitionService, AppointmentStatusTransitionService>();
 
         return services;
     }

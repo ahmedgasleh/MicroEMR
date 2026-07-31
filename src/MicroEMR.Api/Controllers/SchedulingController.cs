@@ -7,6 +7,7 @@ using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
+using MicroEMR.Api.Authorization;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -15,11 +16,6 @@ namespace MicroEMR.Api.Controllers;
 [Route("api/scheduling")]
 public sealed class SchedulingController : ControllerBase
 {
-    private static readonly HashSet<string> AllowedAppointmentStatuses =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
-        };
     private readonly ISchedulingReadService _schedulingReadService;
     private readonly ISchedulingAppointmentService _schedulingAppointmentService;
     private readonly IPatientEncounterService _patientEncounterService;
@@ -244,9 +240,14 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { message = "The appointment is already cancelled." });
         }
+        catch (AppointmentTerminalStateException exception)
+        {
+            return Conflict(new { code = "appointment_terminal", message = exception.Message });
+        }
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/start-encounter")]
+    [Authorize(Policy = TenantAuthorizationPolicies.EncounterStarter)]
     [ProducesResponseType(typeof(StartEncounterFromAppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -280,9 +281,18 @@ public sealed class SchedulingController : ControllerBase
                 message = "Completed appointments cannot start a new encounter."
             });
         }
+        catch (AppointmentNoShowException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_no_show",
+                message = "No-show appointments cannot start encounters."
+            });
+        }
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/status")]
+    [Authorize(Policy = TenantAuthorizationPolicies.SchedulingStatusManager)]
     [ProducesResponseType(typeof(UpdateAppointmentStatusResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -294,9 +304,6 @@ public sealed class SchedulingController : ControllerBase
     {
         if (appointmentUid == Guid.Empty)
             return BadRequest(new { message = "Appointment identifier is required." });
-        if (!AllowedAppointmentStatuses.Contains(request.Status))
-            return BadRequest(new { message = "Invalid appointment status." });
-
         try
         {
             var result = await _schedulingAppointmentService.UpdateStatusAsync(
@@ -310,6 +317,14 @@ public sealed class SchedulingController : ControllerBase
                 code = "appointment_cancelled",
                 message = "Cancelled appointments cannot be updated."
             });
+        }
+        catch (AppointmentConcurrencyException exception)
+        {
+            return Conflict(new { code = "appointment_concurrency", message = exception.Message });
+        }
+        catch (AppointmentStatusTransitionException exception)
+        {
+            return Conflict(new { code = "invalid_transition", message = exception.Message });
         }
         catch (ArgumentException)
         {

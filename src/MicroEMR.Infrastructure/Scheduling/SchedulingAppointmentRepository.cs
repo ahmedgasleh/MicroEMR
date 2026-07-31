@@ -285,6 +285,9 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         };
         command.Parameters.Add(new SqlParameter("@AppointmentUid", SqlDbType.UniqueIdentifier) { Value = appointmentUid });
         command.Parameters.Add(new SqlParameter("@AppointmentStatus", SqlDbType.NVarChar, 30) { Value = request.Status });
+        command.Parameters.Add(new SqlParameter("@ExpectedCurrentStatus", SqlDbType.NVarChar, 30) { Value = request.ExpectedStatus });
+        command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Timestamp) { Value = DecodeRowVersion(request.RowVersion) });
+        AddNullableString(command, "@Reason", 500, request.Reason);
         command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
         {
             Value = (object?)updatedBy ?? DBNull.Value
@@ -301,7 +304,8 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             {
                 AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
                 Status = reader.GetString(reader.GetOrdinal("AppointmentStatus")),
-                UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt")
+                UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt"),
+                RowVersion = Convert.ToBase64String((byte[])reader.GetValue(reader.GetOrdinal("RowVersion")))
             };
         }
         catch (SqlException exception) when (exception.Number == 51067)
@@ -312,6 +316,22 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         catch (SqlException exception) when (exception.Number == 51068)
         {
             throw new InvalidOperationException("Invalid appointment status.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51081)
+        {
+            throw new AppointmentTerminalStateException(
+                "Completed and no-show appointments cannot be cancelled.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51078)
+        {
+            throw new AppointmentStatusTransitionException(
+                AppointmentStatusCatalog.Parse(request.ExpectedStatus),
+                AppointmentStatusCatalog.Parse(request.Status), exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51079)
+        {
+            throw new AppointmentConcurrencyException(
+                "This appointment was updated by another user. Refresh and try again.", exception);
         }
         catch (SqlException exception)
         {
@@ -411,6 +431,13 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
     {
         var ordinal = reader.GetOrdinal(name);
         return reader.IsDBNull(ordinal) ? null : SpecifyUtc(reader.GetDateTime(ordinal));
+    }
+
+    private static byte[] DecodeRowVersion(string rowVersion)
+    {
+        try { return Convert.FromBase64String(rowVersion); }
+        catch (FormatException exception)
+        { throw new ArgumentException("Row version is invalid.", nameof(rowVersion), exception); }
     }
 
     private static ScheduleAppointmentDetailsResponse ReadAppointmentDetails(SqlDataReader reader) => new()

@@ -104,10 +104,12 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         AND OBJECT_ID(N'dbo.ScheduleResource', N'U') IS NOT NULL
                     THEN CAST(1 AS BIT)
                     ELSE CAST(0 AS BIT)
-                END;
+                END AS HasSchedulingSchema,
+                CASE WHEN COL_LENGTH(N'dbo.ScheduleAppointment', N'RowVersion') IS NOT NULL
+                    THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS HasRowVersion;
             """;
 
-        const string sql = """
+        const string sqlWithRowVersion = """
             SELECT
                 a.AppointmentUid,
                 p.PatientUid,
@@ -122,6 +124,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 sr.ResourceUid AS PrimaryResourceUid,
                 sr.DisplayName AS PrimaryResourceName,
                 a.AppointmentStatus AS Status,
+                a.RowVersion,
                 linkedEncounter.EncounterUid AS LinkedEncounterUid,
                 linkedEncounter.EncounterStatus AS LinkedEncounterStatus
             FROM dbo.ScheduleAppointment a
@@ -153,13 +156,17 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
 
+        bool hasRowVersion;
         await using (var requiredObjectsCommand =
             new SqlCommand(requiredObjectsSql, connection))
         {
-            var requiredObjectsExist =
-                (bool)(await requiredObjectsCommand.ExecuteScalarAsync(
-                    cancellationToken)
-                    ?? false);
+            await using var schemaReader =
+                await requiredObjectsCommand.ExecuteReaderAsync(cancellationToken);
+            await schemaReader.ReadAsync(cancellationToken);
+            var requiredObjectsExist = schemaReader.GetBoolean(
+                schemaReader.GetOrdinal("HasSchedulingSchema"));
+            hasRowVersion = schemaReader.GetBoolean(
+                schemaReader.GetOrdinal("HasRowVersion"));
 
             if (!requiredObjectsExist)
             {
@@ -169,6 +176,13 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 return appointments;
             }
         }
+
+        var sql = hasRowVersion
+            ? sqlWithRowVersion
+            : sqlWithRowVersion.Replace(
+                "a.RowVersion,",
+                "CAST(NULL AS VARBINARY(8)) AS RowVersion,",
+                StringComparison.Ordinal);
 
         await using var command = new SqlCommand(sql, connection)
         {
@@ -226,7 +240,10 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         GetNullableString(reader, "PrimaryResourceName"),
                     Status = reader.GetString(reader.GetOrdinal("Status")),
                     LinkedEncounterUid = GetNullableGuid(reader, "LinkedEncounterUid"),
-                    LinkedEncounterStatus = GetNullableString(reader, "LinkedEncounterStatus")
+                    LinkedEncounterStatus = GetNullableString(reader, "LinkedEncounterStatus"),
+                    RowVersion = reader.IsDBNull(reader.GetOrdinal("RowVersion"))
+                        ? string.Empty
+                        : Convert.ToBase64String((byte[])reader.GetValue(reader.GetOrdinal("RowVersion")))
                 });
             }
         }

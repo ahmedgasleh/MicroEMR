@@ -1,14 +1,21 @@
 namespace MicroEMR.Web.Services.Scheduling;
 
+public enum StartEncounterConflictReason { Cancelled, Completed, NoShow }
+
 public sealed class StartEncounterConflictException : Exception
 {
-    public StartEncounterConflictException(bool isCompleted)
-        : base(isCompleted
-            ? "Completed appointments cannot start a new encounter."
-            : "Cancelled appointments cannot start encounters.")
+    public StartEncounterConflictException(StartEncounterConflictReason reason)
+        : base(reason switch
+        {
+            StartEncounterConflictReason.Completed => "Completed appointments cannot start a new encounter.",
+            StartEncounterConflictReason.NoShow => "No-show appointments cannot start encounters.",
+            _ => "Cancelled appointments cannot start encounters."
+        })
     {
-        IsCompleted = isCompleted;
+        Reason = reason;
     }
 
-    public bool IsCompleted { get; }
+    public StartEncounterConflictReason Reason { get; }
+    public bool IsCompleted => Reason == StartEncounterConflictReason.Completed;
+    public bool IsNoShow => Reason == StartEncounterConflictReason.NoShow;
 }

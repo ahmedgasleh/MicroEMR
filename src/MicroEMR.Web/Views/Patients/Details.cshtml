@@ -211,15 +211,25 @@
         <partial name="_Timeline" model="Model.Timeline" />
     </div>
     <div class="tab-pane fade @(alertsActive ? "show active" : null)" id="alerts" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Chart Alerts</h5><button id="addChartAlert" class="btn btn-primary">Add Alert</button></div>
-        <div class="d-flex justify-content-end mb-3"><select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select></div>
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+            <h5 class="mb-0">Chart Alerts</h5>
+            <div class="d-flex align-items-center gap-2">
+                <label class="visually-hidden" for="chartAlertFilter">Alert status</label>
+                <select id="chartAlertFilter" class="form-select w-auto"><option>Active</option><option>Resolved</option><option>All</option></select>
+                <button id="addChartAlert" class="btn btn-primary text-nowrap" type="button">Add Alert</button>
+            </div>
+        </div>
         <div id="chartAlertMessage" class="alert d-none"></div><div id="chartAlertList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div></div>
     </div>
     <div class="tab-pane fade @(tasksActive ? "show active" : null)" id="tasks" role="tabpanel">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
-            <h5 class="mb-0">Tasks</h5><button id="addPatientTask" class="btn btn-primary" type="button">Add Task</button>
+            <h5 class="mb-0">Tasks</h5>
+            <div class="d-flex align-items-center gap-2">
+                <label class="visually-hidden" for="patientTaskFilter">Task status</label>
+                <select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select>
+                <button id="addPatientTask" class="btn btn-primary text-nowrap" type="button">Add Task</button>
+            </div>
         </div>
-        <div class="d-flex justify-content-end mb-3"><label class="visually-hidden" for="patientTaskFilter">Task status</label><select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select></div>
         <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div></div>
     </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"

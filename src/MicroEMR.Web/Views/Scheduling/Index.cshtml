@@ -1315,12 +1315,10 @@ else
                 setDetailsText("detailsCreatedAt", createdAt.toLocaleString());
                 openChartButton.href = `${patientChartBaseUrl}?patientUid=${encodeURIComponent(details.patientUid)}`;
                 openChartButton.classList.remove("d-none");
-                cancelAppointmentButton.classList.toggle(
-                    "d-none",
-                    String(details.status).toLowerCase() === "cancelled");
-                editAppointmentButton.classList.toggle(
-                    "d-none",
-                    String(details.status).toLowerCase() === "cancelled");
+                const isTerminalStatus = ["cancelled", "completed", "noshow"]
+                    .includes(String(details.status).toLowerCase());
+                cancelAppointmentButton.classList.toggle("d-none", isTerminalStatus);
+                editAppointmentButton.classList.toggle("d-none", isTerminalStatus);
                 viewAppointmentHistoryButton.classList.remove("d-none");
                 window.appointmentEncounterLinking?.render(details);
                 detailsContent.classList.remove("d-none");

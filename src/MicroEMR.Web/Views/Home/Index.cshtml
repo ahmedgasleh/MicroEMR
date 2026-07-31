@@ -1,5 +1,6 @@
 ﻿@using System.Security.Claims
 
+@using MicroEMR.Application.Scheduling
 @model MicroEMR.Web.Models.Dashboard.DashboardViewModel
 
 @{
@@ -13,13 +14,8 @@
         ?? User.Identity?.Name
         ?? "User";
 
-    var appointmentStatuses = new[]
-    {
-        "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
-    };
-
     var encounterStartStatuses = new HashSet<string>(
-        new[] { "Scheduled", "Arrived", "Roomed", "Seen" },
+        new[] { "Scheduled", "Confirmed", "Arrived", "CheckedIn", "Roomed", "Seen" },
         StringComparer.OrdinalIgnoreCase);
 }
 
@@ -78,7 +74,7 @@
                 </div>
 
                 <div>
-                    <div class="dashboard-card-value">0</div>
+                    <div class="dashboard-card-value">@Model.CheckedInPatientCount</div>
                     <div class="dashboard-card-label">
                         Patients Checked In
                     </div>
@@ -178,10 +174,23 @@
                                         <td>
                                             <select class="form-select form-select-sm appointment-status-select"
                                                     data-appointment-uid="@appointment.AppointmentUid"
+                                                    data-row-version="@appointment.RowVersion"
                                                     aria-label="Appointment status for @appointment.PatientDisplayName">
-                                                @foreach (var status in appointmentStatuses)
+                                                @foreach (var status in Enum.GetValues<AppointmentStatus>())
                                                 {
-                                                    <option value="@status" selected="@(status == appointment.Status)">@status</option>
+                                                    var storedStatus = AppointmentStatusCatalog.ToStoredValue(status);
+                                                    var isCurrent = string.Equals(
+                                                        storedStatus,
+                                                        appointment.Status,
+                                                        StringComparison.OrdinalIgnoreCase);
+                                                    var isAllowedNext = appointment.NextStatuses.Contains(
+                                                        storedStatus,
+                                                        StringComparer.OrdinalIgnoreCase);
+                                                    <option value="@storedStatus"
+                                                            selected="@isCurrent"
+                                                            disabled="@(!isCurrent && !isAllowedNext)">
+                                                        @AppointmentStatusCatalog.GetLabel(status)
+                                                    </option>
                                                 }
                                             </select>
                                         </td>
@@ -382,6 +391,8 @@
                         const formData = new FormData();
                         formData.append('AppointmentUid', dropdown.dataset.appointmentUid);
                         formData.append('Status', dropdown.value);
+                        formData.append('ExpectedStatus', previousStatus);
+                        formData.append('RowVersion', dropdown.dataset.rowVersion);
 
                         const response = await fetch(updateStatusUrl, {
                             method: 'POST',
@@ -403,6 +414,7 @@
                         dropdown.value = result.status;
                         dropdown.dataset.previousStatus = result.status;
                         showMessage(result.message || 'Appointment status updated.', 'success');
+                        window.location.reload();
                     } catch (error) {
                         console.error('Appointment status update failed.', error);
                         dropdown.value = previousStatus;
