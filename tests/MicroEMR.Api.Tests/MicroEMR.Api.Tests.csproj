@@ -16,4 +16,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\MicroEMR.Api\MicroEMR.Api.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\db\**\*.sql"
+             Link="database\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\db\**\*.json"
+             Link="database\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

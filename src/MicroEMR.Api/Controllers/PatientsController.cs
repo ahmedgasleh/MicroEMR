@@ -16,8 +16,7 @@ namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Route("api/patients")]
-//[Authorize]
-[AllowAnonymous] // For development only. Remove this attribute in production.
+[Authorize]
 public sealed class PatientsController : ControllerBase
 {
     private readonly IPatientService _patientService;

@@ -8,8 +8,7 @@ using MicroEMR.Application.PatientMedications;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-// [Authorize]
-[AllowAnonymous] // For development only. Remove this attribute when API token validation is enabled consistently.
+[Authorize]
 public sealed class PatientMedicationsController : ControllerBase
 {
     private readonly IPatientMedicationService _medicationService;

@@ -76,41 +76,6 @@
                         <span class="sidebar-text">Patients</span>
                     </a>
                 </li>
-
-                <li class="sidebar-menu-item">
-                    <a asp-controller="PatientChart"
-                       asp-action="Index"
-                       class="sidebar-link"
-                       data-bs-toggle="tooltip"
-                       data-bs-placement="right"
-                       data-bs-title="Patient Charts">
-
-                        <span class="sidebar-icon">
-                            <i class="bi bi-clipboard2-pulse-fill"></i>
-                        </span>
-
-                        <span class="sidebar-text">Patient Charts</span>
-                    </a>
-                </li>
-            }
-
-            @if (User.IsInRole(AppRoles.Physician))
-            {
-                <li class="sidebar-menu-item">
-                    <a asp-controller="Documents"
-                       asp-action="Index"
-                       class="sidebar-link"
-                       data-bs-toggle="tooltip"
-                       data-bs-placement="right"
-                       data-bs-title="Documents">
-
-                        <span class="sidebar-icon">
-                            <i class="bi bi-file-earmark-medical-fill"></i>
-                        </span>
-
-                        <span class="sidebar-text">Documents</span>
-                    </a>
-                </li>
             }
 
             @if (User.Identity?.IsAuthenticated == true)

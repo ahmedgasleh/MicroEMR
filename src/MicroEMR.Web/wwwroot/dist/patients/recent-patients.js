@@ -1,10 +1,21 @@
 "use strict";
-const storageKey = "microemr.recentPatients.v1";
+const legacyStorageKey = "microemr.recentPatients.v1";
+const storageKeyPrefix = "microemr.recentPatients.v2";
 const maximumStoredPatients = 10;
 const maximumDisplayedPatients = 5;
-// MVP local recent-patient cache. Replace with server-side per-user recent patients for production.
+function getStorageKey() {
+    const tenantUid = document
+        .querySelector('meta[name="microemr-tenant-id"]')
+        ?.content.trim()
+        .toLowerCase();
+    return tenantUid ? `${storageKeyPrefix}.${tenantUid}` : null;
+}
+// Browser-local convenience cache. It must always be scoped to the signed tenant claim.
 function readRecentPatients() {
     try {
+        const storageKey = getStorageKey();
+        if (!storageKey)
+            return [];
         const value = window.localStorage.getItem(storageKey);
         if (!value)
             return [];
@@ -45,10 +56,21 @@ function recordCurrentPatient() {
         .filter(patient => patient.patientUid !== patientUid);
     recentPatients.unshift(current);
     try {
+        const storageKey = getStorageKey();
+        if (!storageKey)
+            return;
         window.localStorage.setItem(storageKey, JSON.stringify(recentPatients.slice(0, maximumStoredPatients)));
     }
     catch {
         // Patient navigation must continue when storage is disabled or full.
+    }
+}
+function removeLegacyUnscopedCache() {
+    try {
+        window.localStorage.removeItem(legacyStorageKey);
+    }
+    catch {
+        // Patient navigation must continue when storage is disabled.
     }
 }
 function formatDateOfBirth(value) {
@@ -110,6 +132,7 @@ function renderRecentPatients() {
         container.append(link);
     });
 }
+removeLegacyUnscopedCache();
 recordCurrentPatient();
 renderRecentPatients();
 //# sourceMappingURL=recent-patients.js.map

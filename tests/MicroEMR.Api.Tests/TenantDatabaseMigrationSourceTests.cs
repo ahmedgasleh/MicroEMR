@@ -55,8 +55,7 @@ public sealed class TenantDatabaseMigrationSourceTests : IDisposable
     [Fact]
     public async Task CanonicalManifestLoadsAndEveryScriptHasValidBatches()
     {
-        var repositoryDb = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "db"));
+        var repositoryDb = Path.Combine(AppContext.BaseDirectory, "database");
         var source = new FileTenantDatabaseMigrationSource(
             new ConfigurationBuilder().AddInMemoryCollection(
                 new Dictionary<string, string?>
