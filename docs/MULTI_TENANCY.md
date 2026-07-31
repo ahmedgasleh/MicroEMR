@@ -1,5 +1,74 @@
 # MicroEMR multi-tenancy
 
+## Step 10: internal platform administration
+
+`MicroEMR.DatabaseTool` is the internal administration surface. No platform
+administration endpoints or pages were added to Web or API. Enable an audited
+local execution deliberately with `PlatformAdministration:Enabled=true` and set
+`PlatformAdministration:ActorId` through user secrets or environment variables.
+Neither value is accepted as a command argument. Production operators should
+restrict executable and configuration access to the platform operations group.
+
+Global Identity roles `PlatformAdministrator` and `PlatformOperator` describe
+the platform authorization boundary for future authenticated surfaces. Tenant
+roles (`Physician`, `Nurse`, `MedicalAssistant`, `Scheduler`, and
+`ClinicAdministrator`) authorize activity only inside one tenant. A tenant role
+never satisfies platform authorization, and a platform role never creates a
+membership or grants clinical access. The local CLI uses its explicit trusted
+execution mode instead of an HTTP principal and never accepts a role name as
+proof of authorization.
+
+Apply `db/platform/006_platform_administration.sql` explicitly before using the
+commands. Configure `ConnectionStrings:PlatformDatabase`; configure
+`ConnectionStrings:AuthDatabase` only for membership creation. The latter is
+used solely to confirm the supplied ID exists in `AspNetUsers`; there is no
+cross-database foreign key and Identity records are not copied. Membership
+creation fails closed when this lookup is unavailable. Clinical database
+secrets are needed only by `tenant provision`.
+
+Example local onboarding (PowerShell line wrapping omitted):
+
+```powershell
+dotnet run --project src/MicroEMR.DatabaseTool -- tenant create --tenant-key admin-tool-test --display-name "Admin Tool Test" --time-zone America/Toronto
+dotnet run --project src/MicroEMR.DatabaseTool -- tenant assign-database --tenant-key admin-tool-test --database-server-key local-sql --database-name MicroEMR_Tenant_AdminToolTest --secret-reference development:MicroEMR_Tenant_AdminToolTest
+dotnet run --project src/MicroEMR.DatabaseTool -- tenant provision --tenant-key admin-tool-test
+dotnet run --project src/MicroEMR.DatabaseTool -- tenant activate --tenant-key admin-tool-test --confirm admin-tool-test
+dotnet run --project src/MicroEMR.DatabaseTool -- membership add --user-id ID --tenant-key admin-tool-test --default
+dotnet run --project src/MicroEMR.DatabaseTool -- tenant-role add --user-id ID --tenant-key admin-tool-test --role ClinicAdministrator
+```
+
+Read-only commands are `tenant list`, `tenant show --tenant-key KEY`,
+`tenant members --tenant-key KEY`, `membership list --user-id ID`, and
+`tenant-role list --user-id ID --tenant-key KEY`. Lifecycle commands are
+`tenant suspend|activate|archive`; membership commands are
+`add|activate|suspend|revoke|set-default|clear-default|list`; role commands are
+`add|remove|list`. Suspension, revocation, role removal, and tenant lifecycle
+changes require `--confirm TENANT-KEY` where high impact. Commands do not prompt,
+so automation remains deterministic and retryable.
+
+Tenant creation records only `Provisioning` metadata. Assignment is a separate
+explicit step and cannot silently overwrite an active assignment. Activation
+requires an active assignment with a schema version. Provisioning remains the
+existing explicit migration operation and never runs on application startup.
+Suspended tenants and memberships fail existing per-request API revalidation.
+Archiving never drops a database or deletes clinical data.
+
+Platform changes write whitelisted, metadata-only audit events. Details contain
+status or tenant-role names, never request serialization, secret references,
+credentials, tokens, connection strings, patient data, or clinical counts.
+Unique constraints and serializable lock patterns protect tenant keys, composite
+memberships, roles, and active defaults; row-version columns support future
+optimistic-concurrency tokens. SQL errors are translated to safe CLI messages;
+`--verbose` is for local developer diagnostics only.
+
+Safe cleanup is `tenant archive --tenant-key KEY --confirm KEY`. This retains all
+metadata and the clinical database. Any later database removal must be a separate
+approved operation after independently verifying the exact non-production name.
+Known limitations: this release has no remote authenticated administration API,
+no support impersonation, and no database creation. Failed audit events caused
+inside rolled-back SQL transactions cannot be retained reliably without an
+independent audit sink; failures are still logged without secret content.
+
 ## Step 09: secure tenant selection
 
 The Auth server now presents `GET/POST /Account/SelectTenant` when the existing

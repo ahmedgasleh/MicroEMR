@@ -26,6 +26,7 @@ using MicroEMR.Infrastructure.PatientTasks;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Infrastructure.Tenancy;
 using MicroEMR.Infrastructure.Provisioning;
+using MicroEMR.Application.PlatformAdministration;
 
 namespace MicroEMR.Infrastructure;
 
@@ -39,6 +40,9 @@ public static class DependencyInjection
         services.AddScoped<
             IUserTenantMembershipRepository,
             SqlUserTenantMembershipRepository>();
+        services.AddScoped<IPlatformTenantAdministrationService, SqlPlatformTenantAdministrationService>();
+        services.AddScoped<IPlatformMembershipAdministrationService, SqlPlatformMembershipAdministrationService>();
+        services.AddScoped<IIdentityUserLookup, SqlIdentityUserLookup>();
 
         return services;
     }

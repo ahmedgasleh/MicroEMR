@@ -20,6 +20,14 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 1. `001_create_platform_database.sql`
 2. `002_platform_stored_procedures.sql`
 3. Optional: `003_seed_local_development.sql`
+4. `004_make_membership_keys_nonclustered.sql` (existing installations only)
+5. Optional local seed: `005_seed_local_user_membership.sql`
+6. `006_platform_administration.sql`
+
+Script 006 adds internal administration procedures, platform audit events,
+optimistic row versions, and a filtered unique index that permits at most one
+active default membership per user. Apply it explicitly; applications do not
+run platform schema changes at startup.
 
 If the platform tables were created before the membership primary keys were
 changed to nonclustered indexes, run `004_make_membership_keys_nonclustered.sql`
