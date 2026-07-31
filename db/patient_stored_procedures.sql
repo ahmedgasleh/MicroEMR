@@ -8,6 +8,106 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.Patient', 'MiddleName') IS NULL
+    ALTER TABLE dbo.Patient ADD MiddleName NVARCHAR(100) NULL;
+IF COL_LENGTH('dbo.Patient', 'PreferredName') IS NULL
+    ALTER TABLE dbo.Patient ADD PreferredName NVARCHAR(100) NULL;
+IF COL_LENGTH('dbo.Patient', 'SexAtBirth') IS NULL
+BEGIN
+    ALTER TABLE dbo.Patient ADD SexAtBirth NVARCHAR(20) NULL;
+    IF COL_LENGTH('dbo.Patient', 'Sex') IS NOT NULL
+        EXEC(N'UPDATE dbo.Patient SET SexAtBirth = Sex WHERE SexAtBirth IS NULL;');
+END;
+IF COL_LENGTH('dbo.Patient', 'GenderIdentity') IS NULL
+    ALTER TABLE dbo.Patient ADD GenderIdentity NVARCHAR(50) NULL;
+IF COL_LENGTH('dbo.Patient', 'AlternatePhoneNumber') IS NULL
+    ALTER TABLE dbo.Patient ADD AlternatePhoneNumber NVARCHAR(30) NULL;
+IF COL_LENGTH('dbo.Patient', 'CountryCode') IS NULL
+    ALTER TABLE dbo.Patient ADD CountryCode CHAR(2) NOT NULL
+        CONSTRAINT DF_Patient_CountryCode DEFAULT 'CA' WITH VALUES;
+IF COL_LENGTH('dbo.Patient', 'RowVersion') IS NULL
+    ALTER TABLE dbo.Patient ADD RowVersion ROWVERSION;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.Patient_GetByUid
+    @PatientUid UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        PatientUid, ChartNumber, HealthCardNumber, HealthCardVersion,
+        FirstName, MiddleName, LastName, DateOfBirth, SexAtBirth,
+        GenderIdentity, PreferredName, PhoneNumber, AlternatePhoneNumber,
+        Email, AddressLine1, AddressLine2, City, Province, PostalCode,
+        CountryCode, IsActive, CreatedAt, UpdatedAt, RowVersion
+    FROM dbo.Patient
+    WHERE PatientUid = @PatientUid
+      AND IsDeleted = CONVERT(BIT, 0);
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.Patient_Create
+    @HealthCardNumber NVARCHAR(50) = NULL,
+    @HealthCardVersion NVARCHAR(10) = NULL,
+    @FirstName NVARCHAR(100),
+    @MiddleName NVARCHAR(100) = NULL,
+    @LastName NVARCHAR(100),
+    @DateOfBirth DATE,
+    @SexAtBirth NVARCHAR(20) = NULL,
+    @GenderIdentity NVARCHAR(50) = NULL,
+    @PreferredName NVARCHAR(100) = NULL,
+    @PhoneNumber NVARCHAR(30) = NULL,
+    @AlternatePhoneNumber NVARCHAR(30) = NULL,
+    @Email NVARCHAR(255) = NULL,
+    @AddressLine1 NVARCHAR(255) = NULL,
+    @AddressLine2 NVARCHAR(255) = NULL,
+    @City NVARCHAR(100) = NULL,
+    @Province NVARCHAR(50) = NULL,
+    @PostalCode NVARCHAR(20) = NULL,
+    @CountryCode CHAR(2) = 'CA',
+    @CreatedBy BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NULLIF(LTRIM(RTRIM(@FirstName)), N'') IS NULL
+       OR NULLIF(LTRIM(RTRIM(@LastName)), N'') IS NULL
+        THROW 51022, 'Patient first and last names are required.', 1;
+
+    DECLARE @PatientUid UNIQUEIDENTIFIER = NEWID();
+    DECLARE @ChartNumber NVARCHAR(50) =
+        N'P-' + UPPER(LEFT(REPLACE(CONVERT(NVARCHAR(36), @PatientUid), N'-', N''), 16));
+
+    INSERT dbo.Patient
+    (
+        PatientUid, ChartNumber, HealthCardNumber, HealthCardVersion,
+        FirstName, MiddleName, LastName, DateOfBirth, SexAtBirth,
+        GenderIdentity, PreferredName, PhoneNumber, AlternatePhoneNumber,
+        Email, AddressLine1, AddressLine2, City, Province, PostalCode,
+        CountryCode, IsActive, IsDeleted, CreatedAt, CreatedBy
+    )
+    VALUES
+    (
+        @PatientUid, @ChartNumber, NULLIF(LTRIM(RTRIM(@HealthCardNumber)), N''),
+        NULLIF(LTRIM(RTRIM(@HealthCardVersion)), N''), LTRIM(RTRIM(@FirstName)),
+        NULLIF(LTRIM(RTRIM(@MiddleName)), N''), LTRIM(RTRIM(@LastName)),
+        @DateOfBirth, NULLIF(LTRIM(RTRIM(@SexAtBirth)), N''),
+        NULLIF(LTRIM(RTRIM(@GenderIdentity)), N''),
+        NULLIF(LTRIM(RTRIM(@PreferredName)), N''),
+        NULLIF(LTRIM(RTRIM(@PhoneNumber)), N''),
+        NULLIF(LTRIM(RTRIM(@AlternatePhoneNumber)), N''),
+        NULLIF(LTRIM(RTRIM(@Email)), N''), NULLIF(LTRIM(RTRIM(@AddressLine1)), N''),
+        NULLIF(LTRIM(RTRIM(@AddressLine2)), N''), NULLIF(LTRIM(RTRIM(@City)), N''),
+        NULLIF(LTRIM(RTRIM(@Province)), N''), NULLIF(LTRIM(RTRIM(@PostalCode)), N''),
+        COALESCE(NULLIF(LTRIM(RTRIM(@CountryCode)), ''), 'CA'),
+        CONVERT(BIT, 1), CONVERT(BIT, 0), SYSUTCDATETIME(), @CreatedBy
+    );
+
+    EXEC dbo.Patient_GetByUid @PatientUid = @PatientUid;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.Patient_UpdateDemographics
     @PatientUid UNIQUEIDENTIFIER,
     @FirstName NVARCHAR(100),

@@ -3,22 +3,21 @@ using MicroEMR.Application.Scheduling.Contracts;
 using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.Scheduling.Repositories;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 
 namespace MicroEMR.Infrastructure.Scheduling;
 
 public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<SchedulingAppointmentRepository> _logger;
 
     public SchedulingAppointmentRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<SchedulingAppointmentRepository> logger)
     {
-        _connectionString = configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException("Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
         _logger = logger;
     }
 
@@ -27,7 +26,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         long? createdBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.ScheduleAppointment_Create", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -43,7 +42,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         AddNullableString(command, "@Notes", 1000, request.Notes);
         command.Parameters.AddWithValue("@CreatedBy", (object?)createdBy ?? DBNull.Value);
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {
@@ -93,7 +92,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         long? cancelledBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.ScheduleAppointment_Cancel", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -105,7 +104,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             Value = (object?)cancelledBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -139,7 +138,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         long? modifiedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.ScheduleAppointment_Update", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -160,7 +159,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             Value = (object?)modifiedBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -221,7 +220,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         long? modifiedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.ScheduleAppointment_Reschedule", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -239,7 +238,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             Value = (object?)modifiedBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -279,7 +278,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.ScheduleAppointment_UpdateStatus", connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -291,7 +290,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             Value = (object?)updatedBy ?? DBNull.Value
         });
 
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -355,13 +354,13 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         Action<SqlCommand> addParameters,
         CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(procedureName, connection)
         {
             CommandType = CommandType.StoredProcedure
         };
         addParameters(command);
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return null;

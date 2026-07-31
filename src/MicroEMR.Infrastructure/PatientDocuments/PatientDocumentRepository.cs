@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
@@ -11,17 +11,14 @@ namespace MicroEMR.Infrastructure.PatientDocuments;
 public sealed class PatientDocumentRepository
     : IPatientDocumentRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<PatientDocumentRepository> _logger;
 
     public PatientDocumentRepository(
-        IConfiguration configuration,
+        ITenantSqlConnectionFactory connectionFactory,
         ILogger<PatientDocumentRepository> logger)
     {
-        _connectionString =
-            configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException(
-                "Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
 
         _logger = logger;
     }
@@ -36,7 +33,7 @@ public sealed class PatientDocumentRepository
             new List<PatientDocumentListItemResponse>();
 
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -54,7 +51,7 @@ public sealed class PatientDocumentRepository
                 Value = patientUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -72,7 +69,7 @@ public sealed class PatientDocumentRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -90,7 +87,7 @@ public sealed class PatientDocumentRepository
                 Value = documentUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -112,7 +109,7 @@ public sealed class PatientDocumentRepository
             new List<DocumentTemplateListItemResponse>();
 
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -122,7 +119,7 @@ public sealed class PatientDocumentRepository
                 CommandType = CommandType.StoredProcedure
             };
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -141,7 +138,7 @@ public sealed class PatientDocumentRepository
             CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -159,7 +156,7 @@ public sealed class PatientDocumentRepository
                 Value = templateUid
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -176,11 +173,11 @@ public sealed class PatientDocumentRepository
         string statusFilter, CancellationToken cancellationToken = default)
     {
         var templates = new List<DocumentTemplateDetailsResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand("dbo.DocumentTemplate_GetAll", connection)
         { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@StatusFilter", SqlDbType.NVarChar, 50) { Value = statusFilter });
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) templates.Add(MapTemplateDetails(reader));
         return templates;
@@ -205,7 +202,7 @@ public sealed class PatientDocumentRepository
         string procedure, Guid? templateUid, string? name, string? type, string? content,
         bool? isActive, long? userId, CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(procedure, connection) { CommandType = CommandType.StoredProcedure };
         if (templateUid.HasValue) command.Parameters.Add(new SqlParameter("@TemplateUid", SqlDbType.UniqueIdentifier) { Value = templateUid.Value });
         if (name is not null) AddRequiredString(command, "@TemplateName", SqlDbType.NVarChar, 200, name);
@@ -214,7 +211,7 @@ public sealed class PatientDocumentRepository
         if (isActive.HasValue) command.Parameters.Add(new SqlParameter("@IsActive", SqlDbType.Bit) { Value = isActive.Value });
         command.Parameters.Add(new SqlParameter(procedure.EndsWith("Create", StringComparison.Ordinal) ? "@CreatedBy" : "@UpdatedBy", SqlDbType.BigInt)
         { Value = (object?)userId ?? DBNull.Value });
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? MapTemplateDetails(reader) : null;
     }
@@ -226,7 +223,7 @@ public sealed class PatientDocumentRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection =
-            new SqlConnection(_connectionString);
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
 
         await using var command =
             new SqlCommand(
@@ -285,7 +282,7 @@ public sealed class PatientDocumentRepository
                     : DBNull.Value
             });
 
-        await connection.OpenAsync(cancellationToken);
+
 
         try
         {

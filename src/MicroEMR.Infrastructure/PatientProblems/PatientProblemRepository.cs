@@ -1,6 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientProblems.Contracts;
 using MicroEMR.Application.PatientProblems.Repositories;
@@ -10,24 +10,23 @@ namespace MicroEMR.Infrastructure.PatientProblems;
 
 public sealed class PatientProblemRepository : IPatientProblemRepository
 {
-    private readonly string _connectionString;
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<PatientProblemRepository> _logger;
 
-    public PatientProblemRepository(IConfiguration configuration, ILogger<PatientProblemRepository> logger)
+    public PatientProblemRepository(ITenantSqlConnectionFactory connectionFactory, ILogger<PatientProblemRepository> logger)
     {
-        _connectionString = configuration.GetConnectionString("MicroEmrDatabase")
-            ?? throw new InvalidOperationException("Connection string 'MicroEmrDatabase' was not found.");
+        _connectionFactory = connectionFactory;
         _logger = logger;
     }
 
     public async Task<IReadOnlyList<PatientProblemResponse>> GetByPatientUidAsync(Guid patientUid, string statusFilter, CancellationToken cancellationToken = default)
     {
         var results = new List<PatientProblemResponse>();
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, "dbo.PatientProblem_GetByPatientUid");
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         command.Parameters.Add("@StatusFilter", SqlDbType.NVarChar, 50).Value = statusFilter;
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) results.Add(Map(reader));
         return results;
@@ -35,11 +34,11 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
 
     public async Task<PatientProblemResponse?> GetByUidAsync(Guid patientUid, Guid patientProblemUid, CancellationToken cancellationToken = default)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, "dbo.PatientProblem_GetByUid");
         command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
         command.Parameters.Add("@PatientProblemUid", SqlDbType.UniqueIdentifier).Value = patientProblemUid;
-        await connection.OpenAsync(cancellationToken);
+
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
     }
@@ -80,10 +79,10 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
 
     private async Task<PatientProblemResponse?> ExecuteOptionalAsync(string procedure, Action<SqlCommand> configure, Guid patientUid, CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(_connectionString);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, procedure);
         configure(command);
-        await connection.OpenAsync(cancellationToken);
+
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);

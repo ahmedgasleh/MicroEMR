@@ -23,14 +23,34 @@ using MicroEMR.Application.PatientResults;
 using MicroEMR.Infrastructure.PatientResults;
 using MicroEMR.Application.PatientTasks;
 using MicroEMR.Infrastructure.PatientTasks;
+using MicroEMR.Application.Tenancy;
+using MicroEMR.Infrastructure.Tenancy;
+using MicroEMR.Infrastructure.Provisioning;
+using MicroEMR.Application.PlatformAdministration;
 
 namespace MicroEMR.Infrastructure;
 
 public static class DependencyInjection
 {
+    public static IServiceCollection AddMicroEmrPlatformInfrastructure(
+        this IServiceCollection services)
+    {
+        services.AddScoped<ITenantCatalog, SqlTenantCatalog>();
+        services.AddScoped<ITenantDatabaseResolver, SqlTenantDatabaseResolver>();
+        services.AddScoped<
+            IUserTenantMembershipRepository,
+            SqlUserTenantMembershipRepository>();
+        services.AddScoped<IPlatformTenantAdministrationService, SqlPlatformTenantAdministrationService>();
+        services.AddScoped<IPlatformMembershipAdministrationService, SqlPlatformMembershipAdministrationService>();
+        services.AddScoped<IIdentityUserLookup, SqlIdentityUserLookup>();
+
+        return services;
+    }
+
     public static IServiceCollection AddMicroEmrInfrastructure(
         this IServiceCollection services)
     {
+        services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IEncounterSoapTemplateRepository, EncounterSoapTemplateRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
@@ -44,7 +64,19 @@ public static class DependencyInjection
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();
+            services.AddMicroEmrPlatformInfrastructure();
+            services.AddMicroEmrTenantProvisioning();
 
             return services;
         }
+
+    public static IServiceCollection AddMicroEmrTenantProvisioning(
+        this IServiceCollection services)
+    {
+        services.AddScoped<ITenantDatabaseSecretProvider, ConfigurationTenantDatabaseSecretProvider>();
+        services.AddScoped<ITenantDatabaseMigrationSource, FileTenantDatabaseMigrationSource>();
+        services.AddScoped<ITenantProvisioningStatusRepository, SqlTenantProvisioningStatusRepository>();
+        services.AddScoped<ITenantDatabaseMigrationRunner, TenantDatabaseMigrationRunner>();
+        return services;
+    }
 }

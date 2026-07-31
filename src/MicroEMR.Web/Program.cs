@@ -142,6 +142,36 @@ builder.Services
             context.HandleResponse();
             return Task.CompletedTask;
         };
+        options.Events.OnRemoteFailure = async context =>
+        {
+            var error = context.Request.Query["error"].FirstOrDefault();
+            var description =
+                context.Request.Query["error_description"].FirstOrDefault();
+
+            if (context.Request.HasFormContentType)
+            {
+                var form = await context.Request.ReadFormAsync(
+                    context.HttpContext.RequestAborted);
+                error ??= form["error"].FirstOrDefault();
+                description ??= form["error_description"].FirstOrDefault();
+            }
+
+            if (string.Equals(error, "access_denied", StringComparison.Ordinal))
+            {
+                var reason = description switch
+                {
+                    "Your account is not assigned to an active clinic." =>
+                        "no-active-clinic",
+                    "Your account is assigned to multiple clinics and requires clinic selection." =>
+                        "clinic-selection-required",
+                    _ => "access-denied"
+                };
+
+                context.Response.Redirect(
+                    $"/Account/AccessDenied?reason={reason}");
+                context.HandleResponse();
+            }
+        };
     });
 
 builder.Services.AddAuthorization();

@@ -1,21 +1,21 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using MicroEMR.Infrastructure.Tenancy;
 using MicroEMR.Application.EncounterSoapTemplates;
 
 namespace MicroEMR.Infrastructure.EncounterSoapTemplates;
 
 public sealed class EncounterSoapTemplateRepository : IEncounterSoapTemplateRepository
 {
-    private readonly string _connectionString;
-    public EncounterSoapTemplateRepository(IConfiguration configuration) => _connectionString = configuration.GetConnectionString("MicroEmrDatabase") ?? throw new InvalidOperationException("Connection string 'MicroEmrDatabase' was not found.");
+    private readonly ITenantSqlConnectionFactory _connectionFactory;
+    public EncounterSoapTemplateRepository(ITenantSqlConnectionFactory connectionFactory) => _connectionFactory = connectionFactory;
 
     public async Task<IReadOnlyList<EncounterSoapTemplateResponse>> GetAllAsync(string statusFilter, CancellationToken cancellationToken=default)
     {
-        var list=new List<EncounterSoapTemplateResponse>(); await using var connection=new SqlConnection(_connectionString);
+        var list=new List<EncounterSoapTemplateResponse>(); await using var connection=await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command=new SqlCommand("dbo.EncounterSoapTemplate_GetAll",connection){CommandType=CommandType.StoredProcedure};
         command.Parameters.Add(new SqlParameter("@StatusFilter",SqlDbType.NVarChar,50){Value=Normalize(statusFilter)});
-        await connection.OpenAsync(cancellationToken); await using var reader=await command.ExecuteReaderAsync(cancellationToken);
+         await using var reader=await command.ExecuteReaderAsync(cancellationToken);
         while(await reader.ReadAsync(cancellationToken))list.Add(Map(reader)); return list;
     }
     public async Task<EncounterSoapTemplateResponse?> GetByUidAsync(Guid uid,CancellationToken cancellationToken=default)=>await ExecuteAsync("dbo.EncounterSoapTemplate_GetByUid",uid,null,null,null,cancellationToken);
@@ -24,12 +24,12 @@ public sealed class EncounterSoapTemplateRepository : IEncounterSoapTemplateRepo
     public async Task<EncounterSoapTemplateResponse?> SetActiveAsync(Guid uid,bool isActive,long? userId,CancellationToken cancellationToken=default)=>await ExecuteAsync("dbo.EncounterSoapTemplate_SetActive",uid,null,isActive,userId,cancellationToken);
     private async Task<EncounterSoapTemplateResponse?> ExecuteAsync(string procedure,Guid? uid,SaveEncounterSoapTemplateRequest? request,bool? active,long? userId,CancellationToken token)
     {
-        await using var connection=new SqlConnection(_connectionString); await using var command=new SqlCommand(procedure,connection){CommandType=CommandType.StoredProcedure};
+        await using var connection=await _connectionFactory.OpenConnectionAsync(token); await using var command=new SqlCommand(procedure,connection){CommandType=CommandType.StoredProcedure};
         if(uid.HasValue)command.Parameters.Add(new SqlParameter("@EncounterSoapTemplateUid",SqlDbType.UniqueIdentifier){Value=uid.Value});
         if(request is not null){Add(command,"@TemplateName",200,request.TemplateName);Add(command,"@EncounterType",100,request.EncounterType);Add(command,"@SubjectiveTemplate",-1,request.SubjectiveTemplate);Add(command,"@ObjectiveTemplate",-1,request.ObjectiveTemplate);Add(command,"@AssessmentTemplate",-1,request.AssessmentTemplate);Add(command,"@PlanTemplate",-1,request.PlanTemplate);}
         if(active.HasValue)command.Parameters.Add(new SqlParameter("@IsActive",SqlDbType.Bit){Value=active.Value});
         if(request is not null||active.HasValue)command.Parameters.Add(new SqlParameter(procedure.EndsWith("Create",StringComparison.Ordinal)?"@CreatedBy":"@UpdatedBy",SqlDbType.BigInt){Value=(object?)userId??DBNull.Value});
-        await connection.OpenAsync(token);await using var reader=await command.ExecuteReaderAsync(token);return await reader.ReadAsync(token)?Map(reader):null;
+        await using var reader=await command.ExecuteReaderAsync(token);return await reader.ReadAsync(token)?Map(reader):null;
     }
     private static void Add(SqlCommand c,string n,int size,string? value)=>c.Parameters.Add(new SqlParameter(n,SqlDbType.NVarChar,size){Value=string.IsNullOrWhiteSpace(value)?DBNull.Value:value.Trim()});
     private static string Normalize(string? x)=>x?.ToLowerInvariant() switch{"inactive"=>"Inactive","all"=>"All",_=>"Active"};

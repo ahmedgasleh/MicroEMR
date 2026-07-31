@@ -2,12 +2,22 @@ using MicroEMR.Auth.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
+using MicroEMR.Auth.Services.Tenancy;
+using MicroEMR.Infrastructure;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddMicroEmrPlatformInfrastructure();
+builder.Services.AddScoped<
+    IUserTenantMembershipService,
+    UserTenantMembershipService>();
+builder.Services.AddScoped<IUserTenantResolver, UserTenantResolver>();
+builder.Services.AddScoped<ITenantClaimEnricher, TenantClaimEnricher>();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSingleton<IPendingTenantSelectionStore, DistributedPendingTenantSelectionStore>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
