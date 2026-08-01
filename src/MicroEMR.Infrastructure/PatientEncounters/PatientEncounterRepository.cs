@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Repositories;
 using MicroEMR.Application.PatientEncounters;
+using MicroEMR.Application.Scheduling;
 
 namespace MicroEMR.Infrastructure.PatientEncounters;
 
@@ -411,6 +412,8 @@ public sealed class PatientEncounterRepository
         Guid patientUid,
         Guid encounterUid,
         long? signedBy,
+        AppointmentStatus expectedAppointmentStatus,
+        AppointmentStatus completedAppointmentStatus,
         CancellationToken cancellationToken = default)
     {
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
@@ -436,8 +439,16 @@ public sealed class PatientEncounterRepository
         {
             Value = (object?)signedBy ?? DBNull.Value
         });
-
-
+        command.Parameters.Add(new SqlParameter(
+            "@ExpectedAppointmentStatus", SqlDbType.NVarChar, 30)
+        {
+            Value = AppointmentStatusMapper.ToStorageValue(expectedAppointmentStatus)
+        });
+        command.Parameters.Add(new SqlParameter(
+            "@CompletedAppointmentStatus", SqlDbType.NVarChar, 30)
+        {
+            Value = AppointmentStatusMapper.ToStorageValue(completedAppointmentStatus)
+        });
 
         try
         {
@@ -452,6 +463,18 @@ public sealed class PatientEncounterRepository
         {
             throw new EncounterCannotBeSignedException(
                 "The encounter cannot be signed in its current status.",
+                exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51085)
+        {
+            throw new LinkedAppointmentCannotBeCompletedException(
+                "The linked appointment cannot be completed in its current status.",
+                exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51086)
+        {
+            throw new LinkedAppointmentNotFoundException(
+                "The linked appointment was not found.",
                 exception);
         }
         catch (SqlException exception)
