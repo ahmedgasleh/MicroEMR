@@ -51,6 +51,8 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
         foreach (var t in await tenants.GetTenantsAsync()) Console.WriteLine($"{t.TenantKey}\t{t.DisplayName}\t{t.TenantStatus}\t{t.DatabaseStatus ?? "Unassigned"}\t{t.CurrentSchemaVersion ?? "-"}");
         return 0;
     }
+    if (group == "tenant" && action == "migration-status")
+        return await MigrationStatusAsync(options, tenants, services);
     if (group == "tenant" && action == "show") { PrintTenant(await RequiredTenant(tenants, Required(options, "tenant-key"))); return 0; }
     if (group == "tenant" && action == "create")
     {
@@ -86,7 +88,7 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
 static Dictionary<string, string> ParseOptions(IEnumerable<string> values)
 {
     var result = new Dictionary<string, string>(StringComparer.Ordinal); var input = values.Where(x => x != "--verbose").ToArray();
-    for (var i = 0; i < input.Length; i++) { if (!input[i].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Unknown argument: {input[i]}"); var key = input[i][2..]; if (key == "default") result[key] = "true"; else { if (++i >= input.Length || input[i].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Option --{key} requires a value."); result[key] = input[i]; } }
+    for (var i = 0; i < input.Length; i++) { if (!input[i].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Unknown argument: {input[i]}"); var key = input[i][2..]; if (key is "default" or "all") result[key] = "true"; else { if (++i >= input.Length || input[i].StartsWith("--", StringComparison.Ordinal)) throw new ArgumentException($"Option --{key} requires a value."); result[key] = input[i]; } }
     return result;
 }
 static string Required(Dictionary<string, string> options, string key) => options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException($"Required option --{key} was not supplied.");
@@ -95,6 +97,76 @@ static async Task<PlatformTenantDetails> RequiredTenant(IPlatformTenantAdministr
 static void PrintTenant(PlatformTenantDetails t) { Console.WriteLine($"TenantUid: {t.TenantUid}\nTenantKey: {t.TenantKey}\nDisplayName: {t.DisplayName}\nTenantStatus: {t.TenantStatus}\nTimeZone: {t.DefaultTimeZoneId}\nDatabaseServerKey: {t.DatabaseServerKey ?? "-"}\nDatabaseName: {t.DatabaseName ?? "-"}\nDatabaseStatus: {t.DatabaseStatus ?? "Unassigned"}\nSchemaVersion: {t.CurrentSchemaVersion ?? "-"}\nLastMigrationAt: {t.LastMigrationAt?.ToString("O") ?? "-"}"); }
 static void PrintMemberships(IEnumerable<PlatformMembershipInfo> rows) { Console.WriteLine("UserId\tTenantKey\tStatus\tDefault\tRoles"); foreach (var x in rows) Console.WriteLine($"{x.UserId}\t{x.TenantKey}\t{x.MembershipStatus}\t{x.IsDefaultTenant}\t{string.Join(',', x.Roles)}"); }
 static async Task<int> ProvisionAsync(string tenantKey, IServiceProvider services) { ArgumentException.ThrowIfNullOrWhiteSpace(tenantKey); var catalog = services.GetRequiredService<ITenantCatalog>(); var resolver = services.GetRequiredService<ITenantDatabaseResolver>(); var runner = services.GetRequiredService<ITenantDatabaseMigrationRunner>(); var tenant = await catalog.GetByKeyAsync(tenantKey) ?? throw new InvalidOperationException("The requested tenant was not found."); var assignment = await resolver.ResolveAsync(tenant.TenantUid) ?? throw new InvalidOperationException("The requested tenant has no database assignment."); var result = await runner.ProvisionAsync(new(tenant.TenantUid, tenant.TenantKey, assignment.DatabaseServerKey, assignment.DatabaseName, assignment.SecretReference)); Console.WriteLine($"Provisioning result: {result.Status}; schema version: {result.CurrentSchemaVersion}; applied migrations: {result.AppliedMigrations.Count}."); return 0; }
-static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|suspend|activate|archive|members; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
+static async Task<int> MigrationStatusAsync(Dictionary<string, string> options, IPlatformTenantAdministrationService tenants, IServiceProvider services)
+{
+    var all = options.ContainsKey("all");
+    var hasKey = options.TryGetValue("tenant-key", out var tenantKey);
+    if (all == hasKey) throw new ArgumentException("Supply exactly one of --tenant-key or --all.");
+
+    IReadOnlyList<PlatformTenantDetails> targets;
+    if (all)
+    {
+        var active = (await tenants.GetTenantsAsync())
+            .Where(x => string.Equals(x.TenantStatus, "Active", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var details = new List<PlatformTenantDetails>(active.Length);
+        foreach (var tenant in active)
+            details.Add(await tenants.GetTenantAsync(tenant.TenantUid)
+                ?? throw new InvalidOperationException($"Tenant '{tenant.TenantKey}' could not be loaded."));
+        targets = details;
+    }
+    else targets = [await RequiredTenant(tenants, tenantKey!)];
+
+    var resolver = services.GetRequiredService<ITenantDatabaseResolver>();
+    var statusService = services.GetRequiredService<ITenantMigrationStatusService>();
+    var allCurrent = true;
+    foreach (var tenant in targets)
+    {
+        var assignment = await resolver.ResolveAsync(tenant.TenantUid);
+        TenantMigrationStatusReport report;
+        if (assignment is null)
+        {
+            var request = new TenantMigrationStatusRequest(tenant.TenantUid, tenant.TenantKey, "-", "-", "-",
+                tenant.DatabaseStatus ?? "Unassigned", tenant.CurrentSchemaVersion, tenant.LastMigrationAt);
+            report = new(request, 0, false, false, [], [], [], [], null, tenant.CurrentSchemaVersion, false,
+                "The tenant has no database assignment.");
+        }
+        else
+        {
+            var request = new TenantMigrationStatusRequest(
+                tenant.TenantUid, tenant.TenantKey, assignment.DatabaseServerKey, assignment.DatabaseName,
+                assignment.SecretReference, assignment.DatabaseStatus, tenant.CurrentSchemaVersion, tenant.LastMigrationAt);
+            report = await statusService.InspectAsync(request);
+        }
+        PrintMigrationStatus(report);
+        allCurrent &= report.IsCurrent;
+    }
+    return allCurrent ? 0 : 3;
+}
+static void PrintMigrationStatus(TenantMigrationStatusReport report)
+{
+    Console.WriteLine($"Tenant: {report.Tenant.TenantKey}");
+    Console.WriteLine($"Tenant UID: {report.Tenant.TenantUid}");
+    Console.WriteLine($"Database status: {report.Tenant.DatabaseStatus}");
+    Console.WriteLine($"Database identity: {(report.DatabaseIdentityValid ? "Valid" : "Invalid or unavailable")}");
+    Console.WriteLine($"Manifest migrations: {report.ManifestMigrationCount}");
+    Console.WriteLine($"Applied migrations: {report.MatchingMigrationIds.Count + report.UnexpectedMigrationIds.Count + report.HashMismatches.Count}");
+    Console.WriteLine($"Current schema version: {report.CurrentSchemaVersion ?? "-"}");
+    Console.WriteLine($"Current: {(report.IsCurrent ? "YES" : "NO")}");
+    PrintItems("Missing", report.MissingMigrationIds);
+    PrintItems("Unexpected applied", report.UnexpectedMigrationIds);
+    PrintItems("Hash mismatches", report.HashMismatches.Select(x => x.MigrationId));
+    Console.WriteLine($"Latest applied: {report.LatestAppliedMigration?.MigrationId ?? "none"}");
+    Console.WriteLine($"Last migration failure: {report.LastFailure}");
+    if (report.InspectionError is not null) Console.WriteLine($"Inspection error: {report.InspectionError}");
+    Console.WriteLine();
+}
+static void PrintItems(string heading, IEnumerable<string> items)
+{
+    var values = items.ToArray();
+    Console.WriteLine($"{heading}: {(values.Length == 0 ? "none" : string.Empty)}");
+    foreach (var value in values) Console.WriteLine($"  {value}");
+}
+static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|suspend|activate|archive|members; tenant migration-status --tenant-key KEY|--all; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
 
 public partial class Program;
