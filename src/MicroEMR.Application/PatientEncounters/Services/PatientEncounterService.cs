@@ -139,10 +139,16 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (encounterUid == Guid.Empty)
             throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
 
+        _appointmentStatusTransitionService.EnsureCanTransition(
+            AppointmentStatus.Seen,
+            AppointmentStatus.Completed);
+
         return _repository.SignAsync(
             patientUid,
             encounterUid,
             signedBy,
+            AppointmentStatus.Seen,
+            AppointmentStatus.Completed,
             cancellationToken);
     }
 

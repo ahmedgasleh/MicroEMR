@@ -344,6 +344,24 @@ public sealed class PatientEncountersController : ControllerBase
                 message = "Encounter cannot be signed."
             });
         }
+        catch (LinkedAppointmentCannotBeCompletedException)
+        {
+            return Conflict(new
+            {
+                message = "The linked appointment is no longer in a state that can be completed."
+            });
+        }
+        catch (LinkedAppointmentNotFoundException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Encounter {EncounterUid} references a missing appointment.",
+                encounterUid);
+            return Conflict(new
+            {
+                message = "The linked appointment could not be found."
+            });
+        }
     }
 
     private long? GetAuthenticatedUserId()

@@ -1,4 +1,5 @@
 using MicroEMR.Application.PatientEncounters.Contracts;
+using MicroEMR.Application.Scheduling;
 
 namespace MicroEMR.Application.PatientEncounters.Repositories;
 
@@ -55,6 +56,8 @@ public interface IPatientEncounterRepository
         Guid patientUid,
         Guid encounterUid,
         long? signedBy,
+        AppointmentStatus expectedAppointmentStatus,
+        AppointmentStatus completedAppointmentStatus,
         CancellationToken cancellationToken = default);
 
     Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
