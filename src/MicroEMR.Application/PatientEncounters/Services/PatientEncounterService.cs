@@ -1,16 +1,25 @@
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Repositories;
+using MicroEMR.Application.Scheduling;
+using MicroEMR.Application.Scheduling.Repositories;
+using MicroEMR.Application.Scheduling.Services;
 
 namespace MicroEMR.Application.PatientEncounters.Services;
 
 public sealed class PatientEncounterService : IPatientEncounterService
 {
     private readonly IPatientEncounterRepository _repository;
+    private readonly ISchedulingAppointmentRepository _schedulingAppointmentRepository;
+    private readonly IAppointmentStatusTransitionService _appointmentStatusTransitionService;
 
     public PatientEncounterService(
-        IPatientEncounterRepository repository)
+        IPatientEncounterRepository repository,
+        ISchedulingAppointmentRepository schedulingAppointmentRepository,
+        IAppointmentStatusTransitionService appointmentStatusTransitionService)
     {
         _repository = repository;
+        _schedulingAppointmentRepository = schedulingAppointmentRepository;
+        _appointmentStatusTransitionService = appointmentStatusTransitionService;
     }
 
     public Task<IReadOnlyList<PatientEncounterListItemResponse>>
@@ -137,7 +146,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
             cancellationToken);
     }
 
-    public Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
+    public async Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,
         CancellationToken cancellationToken = default)
@@ -145,7 +154,33 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (appointmentUid == Guid.Empty)
             throw new ArgumentException("Appointment identifier is required.", nameof(appointmentUid));
 
-        return _repository.StartFromAppointmentAsync(
+        var appointmentStatus = await _schedulingAppointmentRepository.GetStatusAsync(
+            appointmentUid,
+            cancellationToken);
+        if (appointmentStatus is null)
+            return null;
+
+        switch (appointmentStatus.Value)
+        {
+            case AppointmentStatus.Cancelled:
+                throw new AppointmentCancelledException(
+                    "Cancelled appointments cannot start encounters.");
+            case AppointmentStatus.NoShow:
+                throw new AppointmentNoShowException(
+                    "No-show appointments cannot start encounters.");
+            case AppointmentStatus.Completed:
+                throw new AppointmentCompletedException(
+                    "Completed appointments cannot start new encounters.");
+            case AppointmentStatus.Seen:
+                break;
+            default:
+                _appointmentStatusTransitionService.EnsureCanTransition(
+                    appointmentStatus.Value,
+                    AppointmentStatus.Seen);
+                break;
+        }
+
+        return await _repository.StartFromAppointmentAsync(
             appointmentUid, createdBy, cancellationToken);
     }
 

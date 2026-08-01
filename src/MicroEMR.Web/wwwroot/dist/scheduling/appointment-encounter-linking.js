@@ -13,7 +13,9 @@ function encounterUrl(patientUid, encounterUid) {
 function render(details) {
     current = details;
     const linked = Boolean(details.linkedEncounterUid);
-    startButton?.classList.toggle("d-none", linked);
+    const status = details.status.toLowerCase();
+    const canStart = ["scheduled", "arrived", "checkedin", "roomed"].includes(status);
+    startButton?.classList.toggle("d-none", linked || !canStart);
     openButton?.classList.toggle("d-none", !linked);
     statusBadge?.classList.toggle("d-none", !linked);
     if (linked && openButton && details.linkedEncounterUid) {

@@ -280,6 +280,24 @@ public sealed class SchedulingController : ControllerBase
                 message = "Completed appointments cannot start a new encounter."
             });
         }
+        catch (AppointmentNoShowException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_no_show",
+                message = "An encounter cannot be started for a no-show appointment."
+            });
+        }
+        catch (Exception exception) when (
+            exception is AppointmentCannotStartEncounterException
+                or AppointmentStatusTransitionException)
+        {
+            return Conflict(new
+            {
+                code = "invalid_appointment_status_transition",
+                message = "An encounter cannot be started from the appointment's current status."
+            });
+        }
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/status")]
