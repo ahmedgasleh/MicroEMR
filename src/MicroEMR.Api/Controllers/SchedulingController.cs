@@ -321,6 +321,44 @@ public sealed class SchedulingController : ControllerBase
         }
     }
 
+    [HttpPost("appointments/{appointmentUid:guid}/arrive")]
+    [ProducesResponseType(typeof(UpdateAppointmentStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<UpdateAppointmentStatusResponse>> MarkAppointmentArrived(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { message = "Appointment identifier is required." });
+
+        try
+        {
+            var result = await _schedulingAppointmentService.MarkArrivedAsync(
+                appointmentUid,
+                GetAuthenticatedUserId(),
+                cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (AppointmentStatusTransitionException)
+        {
+            return Conflict(new
+            {
+                code = "invalid_appointment_status_transition",
+                message = "The appointment cannot be marked Arrived from its current status."
+            });
+        }
+        catch (AppointmentStatusConcurrencyException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_status_conflict",
+                message = "This appointment was updated by another user. Refresh and try again."
+            });
+        }
+    }
+
     [HttpPut("appointments/{appointmentUid:guid}")]
     [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

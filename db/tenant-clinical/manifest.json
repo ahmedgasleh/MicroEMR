@@ -12,5 +12,6 @@
   { "migrationId": "0010-results", "schemaVersion": "1.0.0", "script": "patient_result_stored_procedures.sql" },
   { "migrationId": "0011-tasks", "schemaVersion": "1.0.0", "script": "patient_task_stored_procedures.sql" },
   { "migrationId": "0012-encounter-soap-templates", "schemaVersion": "1.0.0", "script": "encounter_soap_template_stored_procedures.sql" },
-  { "migrationId": "0013-scheduling", "schemaVersion": "1.0.0", "script": "scheduling_stored_procedures.sql" }
+  { "migrationId": "0013-scheduling", "schemaVersion": "1.0.0", "script": "scheduling_stored_procedures.sql" },
+  { "migrationId": "0014-scheduling-mark-arrived", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0014-scheduling-mark-arrived.sql" }
 ]
