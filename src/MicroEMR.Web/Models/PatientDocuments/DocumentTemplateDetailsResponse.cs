@@ -20,4 +20,6 @@ public sealed class DocumentTemplateDetailsResponse
     public long? UpdatedBy { get; set; }
     public string? UpdatedByDisplayName { get; set; }
     public string? RowVersion { get; set; }
+    public Guid? TemplateVersionUid { get; set; }
+    public int? CurrentVersion { get; set; }
 }

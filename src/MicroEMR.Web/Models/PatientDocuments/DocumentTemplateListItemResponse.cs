@@ -11,4 +11,6 @@ public sealed class DocumentTemplateListItemResponse
     public string? Description { get; set; }
 
     public bool IsActive { get; set; }
+    public Guid? TemplateVersionUid { get; set; }
+    public int? CurrentVersion { get; set; }
 }

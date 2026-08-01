@@ -26,12 +26,16 @@
     else
     {
         <div class="table-responsive"><table class="table table-hover align-middle">
-            <thead><tr><th>Template Name</th><th>Document Type</th><th>Status</th><th>Updated At</th><th class="text-end">Actions</th></tr></thead>
+            <thead><tr><th>Template Name</th><th>Document Type</th><th>Version</th><th>Status</th><th>Updated At</th><th class="text-end">Actions</th></tr></thead>
             <tbody>@foreach(var item in Model.Templates){<tr>
-                <td class="fw-semibold">@item.TemplateName</td><td>@item.DocumentType</td>
+                <td class="fw-semibold">@item.TemplateName</td><td>@item.DocumentType</td><td>@(item.CurrentVersion.HasValue ? $"v{item.CurrentVersion}" : "—")</td>
                 <td><span class="badge @(item.IsActive ? "text-bg-success" : "text-bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span></td>
                 <td>@((item.UpdatedAt ?? item.CreatedAt).ToLocalTime().ToString("MMM d, yyyy h:mm tt"))</td>
-                <td class="text-end"><button class="btn btn-sm btn-outline-primary edit-template" data-template-uid="@item.TemplateUid">Edit</button>
+                <td class="text-end"><button class="btn btn-sm btn-outline-primary edit-template" data-template-uid="@item.TemplateUid">Edit Details</button>
+                    @if (item.CurrentVersion.HasValue)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary versions-template" data-template-uid="@item.TemplateUid" data-template-name="@item.TemplateName">Versions</button>
+                    }
                     <button class="btn btn-sm @(item.IsActive ? "btn-outline-danger" : "btn-outline-success") toggle-template" data-template-uid="@item.TemplateUid" data-is-active="@(!item.IsActive).ToString().ToLowerInvariant()">@(item.IsActive ? "Deactivate" : "Reactivate")</button></td>
             </tr>}</tbody>
         </table></div>
@@ -47,6 +51,21 @@
         <div><label class="form-label" for="TemplateContent">Template Content</label><textarea class="form-control" name="TemplateContent" id="TemplateContent" rows="12"></textarea></div>
     </form><div id="templateModalMessage" class="alert alert-danger d-none mt-3"></div></div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveTemplateButton">Save Template</button></div>
+</div></div></div>
+
+<div class="modal fade" id="templateVersionsModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title fs-5" id="templateVersionsTitle">Template Versions</h2><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+        <div id="templateVersionsMessage" class="alert d-none" role="alert"></div>
+        <div class="d-flex justify-content-end mb-3"><button class="btn btn-primary btn-sm" id="createTemplateDraftButton">Create New Draft</button></div>
+        <div id="templateVersionsList"></div>
+        <form id="templateDraftForm" class="d-none mt-3">
+            <input type="hidden" name="TemplateUid" /><input type="hidden" name="TemplateVersionUid" /><input type="hidden" name="RowVersion" />
+            <label class="form-label" for="DraftTemplateContent">Draft Content</label>
+            <textarea class="form-control" id="DraftTemplateContent" name="TemplateContent" rows="12"></textarea>
+            <div class="mt-3 d-flex gap-2"><button type="button" class="btn btn-primary" id="saveTemplateDraftButton">Save Draft</button><button type="button" class="btn btn-success" id="publishTemplateDraftButton">Publish Draft</button></div>
+        </form>
+    </div>
 </div></div></div>
 
 <script type="application/json" id="documentTemplateData">@Html.Raw(JsonSerializer.Serialize(Model.Templates, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }))</script>
