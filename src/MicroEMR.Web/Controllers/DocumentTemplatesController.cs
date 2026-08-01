@@ -28,7 +28,7 @@ public sealed class DocumentTemplatesController : Controller
                 TemplateUid=x.TemplateUid, TemplateName=x.TemplateName, DocumentType=x.DocumentType,
                 TemplateContent=x.TemplateContent, IsActive=x.IsActive, CreatedAt=x.CreatedAt,
                 CreatedByDisplayName=x.CreatedByDisplayName, UpdatedAt=x.UpdatedAt,
-                UpdatedByDisplayName=x.UpdatedByDisplayName
+                UpdatedByDisplayName=x.UpdatedByDisplayName, CurrentVersion=x.CurrentVersion
             }).ToArray()
         });
     }
@@ -68,6 +68,50 @@ public sealed class DocumentTemplatesController : Controller
             return result is null ? NotFound(new { success=false, message="Template was not found." }) : Json(new { success=true, message=model.IsActive ? "Document template reactivated." : "Document template deactivated." });
         }
         catch (Exception exception) { return Failure(exception, "change status for"); }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Versions(Guid templateUid, CancellationToken cancellationToken)
+    {
+        if (templateUid == Guid.Empty) return BadRequest();
+        return Json(await _client.GetDocumentTemplateVersionsAsync(templateUid, cancellationToken));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateDraft(Guid templateUid, CancellationToken cancellationToken)
+    {
+        if (templateUid == Guid.Empty) return BadRequest(new { success=false, message="Template identifier is required." });
+        try
+        {
+            var version = await _client.CreateDocumentTemplateDraftAsync(templateUid, cancellationToken);
+            return version is null ? NotFound() : Json(new { success=true, version });
+        }
+        catch (Exception exception) { return Failure(exception, "create a draft version for"); }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDraft(UpdateDocumentTemplateVersionViewModel model, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationJson();
+        try
+        {
+            var version = await _client.UpdateDocumentTemplateDraftAsync(model.TemplateUid, model.TemplateVersionUid,
+                new UpdateDocumentTemplateVersionRequest { TemplateContent=model.TemplateContent, RowVersion=model.RowVersion }, cancellationToken);
+            return version is null ? NotFound() : Json(new { success=true, version });
+        }
+        catch (Exception exception) { return Failure(exception, "update a draft version for"); }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Publish(ChangeDocumentTemplateVersionStatusViewModel model, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationJson();
+        try
+        {
+            var version = await _client.PublishDocumentTemplateVersionAsync(model.TemplateUid, model.TemplateVersionUid, model.RowVersion, cancellationToken);
+            return version is null ? NotFound() : Json(new { success=true, version });
+        }
+        catch (Exception exception) { return Failure(exception, "publish a version for"); }
     }
 
     private IActionResult Failure(Exception exception, string action)

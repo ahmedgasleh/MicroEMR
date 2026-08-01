@@ -19,6 +19,22 @@ public sealed class DocumentTemplateViewModel
     public string? CreatedByDisplayName { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedByDisplayName { get; set; }
+    public int? CurrentVersion { get; set; }
+}
+
+public sealed class UpdateDocumentTemplateVersionViewModel
+{
+    [Required] public Guid TemplateUid { get; set; }
+    [Required] public Guid TemplateVersionUid { get; set; }
+    public string TemplateContent { get; set; } = string.Empty;
+    [Required] public string RowVersion { get; set; } = string.Empty;
+}
+
+public sealed class ChangeDocumentTemplateVersionStatusViewModel
+{
+    [Required] public Guid TemplateUid { get; set; }
+    [Required] public Guid TemplateVersionUid { get; set; }
+    [Required] public string RowVersion { get; set; } = string.Empty;
 }
 
 public class CreateDocumentTemplateViewModel

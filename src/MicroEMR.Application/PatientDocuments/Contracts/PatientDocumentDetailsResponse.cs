@@ -7,6 +7,7 @@ public sealed class PatientDocumentDetailsResponse
     public Guid PatientUid { get; set; }
 
     public Guid? TemplateUid { get; set; }
+    public Guid? TemplateVersionUid { get; set; }
 
     public string DocumentType { get; set; } = string.Empty;
 

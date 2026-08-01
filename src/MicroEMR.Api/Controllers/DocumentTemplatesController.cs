@@ -4,6 +4,7 @@ using System.Security.Claims;
 
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Services;
+using MicroEMR.Application.PatientDocuments;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -74,8 +75,15 @@ public sealed class DocumentTemplatesController : ControllerBase
         Guid templateUid, [FromBody] UpdateDocumentTemplateRequest request, CancellationToken cancellationToken)
     {
         if (templateUid == Guid.Empty || !ModelState.IsValid) return ValidationProblem(ModelState);
-        var template = await _documentService.UpdateTemplateAsync(templateUid, request, GetAuthenticatedUserId(), cancellationToken);
-        return template is null ? NotFound() : Ok(template);
+        try
+        {
+            var template = await _documentService.UpdateTemplateAsync(templateUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return template is null ? NotFound() : Ok(template);
+        }
+        catch (DocumentTemplateVersionConflictException)
+        {
+            return Conflict(new { message = "Published template content cannot be edited in place. Create a new draft version instead." });
+        }
     }
 
     [Authorize]

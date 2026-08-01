@@ -4,6 +4,7 @@ using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
+using MicroEMR.Application.PatientDocuments;
 
 
 namespace MicroEMR.Infrastructure.PatientDocuments;
@@ -212,8 +213,16 @@ public sealed class PatientDocumentRepository
         command.Parameters.Add(new SqlParameter(procedure.EndsWith("Create", StringComparison.Ordinal) ? "@CreatedBy" : "@UpdatedBy", SqlDbType.BigInt)
         { Value = (object?)userId ?? DBNull.Value });
 
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        return await reader.ReadAsync(cancellationToken) ? MapTemplateDetails(reader) : null;
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapTemplateDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51031)
+        {
+            throw new DocumentTemplateVersionConflictException(
+                "Published template content cannot be edited in place. Create a new draft version instead.", exception);
+        }
     }
 
     public async Task<PatientDocumentDetailsResponse> CreateAsync(
@@ -328,6 +337,9 @@ public sealed class PatientDocumentRepository
                     reader,
                     "TemplateUid"),
 
+            TemplateVersionUid =
+                GetOptionalGuid(reader, "TemplateVersionUid"),
+
             DocumentType =
                 reader.GetString(
                     reader.GetOrdinal("DocumentType")),
@@ -378,6 +390,9 @@ public sealed class PatientDocumentRepository
                 GetNullableGuid(
                     reader,
                     "TemplateUid"),
+
+            TemplateVersionUid =
+                GetOptionalGuid(reader, "TemplateVersionUid"),
 
             DocumentType =
                 reader.GetString(
@@ -446,7 +461,10 @@ public sealed class PatientDocumentRepository
 
             IsActive =
                 reader.GetBoolean(
-                    reader.GetOrdinal("IsActive"))
+                    reader.GetOrdinal("IsActive")),
+
+            TemplateVersionUid = GetOptionalGuid(reader, "TemplateVersionUid"),
+            CurrentVersion = GetOptionalInt32(reader, "CurrentVersion")
         };
     }
 
@@ -487,7 +505,9 @@ public sealed class PatientDocumentRepository
             UpdatedAt = GetOptionalDateTime(reader, "UpdatedAt"),
             UpdatedBy = GetOptionalInt64(reader, "UpdatedBy"),
             UpdatedByDisplayName = GetOptionalString(reader, "UpdatedByDisplayName"),
-            RowVersion = GetOptionalRowVersion(reader, "RowVersion")
+            RowVersion = GetOptionalRowVersion(reader, "RowVersion"),
+            TemplateVersionUid = GetOptionalGuid(reader, "TemplateVersionUid"),
+            CurrentVersion = GetOptionalInt32(reader, "CurrentVersion")
         };
     }
 
@@ -508,6 +528,18 @@ public sealed class PatientDocumentRepository
     {
         var ordinal = FindOrdinal(reader, columnName);
         return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
+    }
+
+    private static Guid? GetOptionalGuid(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal);
+    }
+
+    private static int? GetOptionalInt32(SqlDataReader reader, string columnName)
+    {
+        var ordinal = FindOrdinal(reader, columnName);
+        return ordinal < 0 || reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
     }
 
     private static DateTime? GetOptionalDateTime(SqlDataReader reader, string columnName)

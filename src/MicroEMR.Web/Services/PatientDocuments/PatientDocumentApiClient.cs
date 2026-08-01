@@ -153,6 +153,49 @@ public sealed class PatientDocumentApiClient
         SendTemplateMutationAsync(HttpMethod.Post, $"api/document-templates/{templateUid}/set-active",
             new SetDocumentTemplateActiveRequest { IsActive = isActive }, cancellationToken);
 
+    public async Task<IReadOnlyList<DocumentTemplateVersionResponse>> GetDocumentTemplateVersionsAsync(
+        Guid templateUid, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/document-templates/{templateUid}/versions");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<DocumentTemplateVersionResponse>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
+    public Task<DocumentTemplateVersionResponse?> CreateDocumentTemplateDraftAsync(
+        Guid templateUid, CancellationToken cancellationToken = default) =>
+        SendVersionMutationAsync(HttpMethod.Post,
+            $"api/document-templates/{templateUid}/versions/draft", null, cancellationToken);
+
+    public Task<DocumentTemplateVersionResponse?> UpdateDocumentTemplateDraftAsync(
+        Guid templateUid, Guid versionUid, UpdateDocumentTemplateVersionRequest request,
+        CancellationToken cancellationToken = default) =>
+        SendVersionMutationAsync(HttpMethod.Put,
+            $"api/document-templates/{templateUid}/versions/{versionUid}", request, cancellationToken);
+
+    public Task<DocumentTemplateVersionResponse?> PublishDocumentTemplateVersionAsync(
+        Guid templateUid, Guid versionUid, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        SendVersionMutationAsync(HttpMethod.Post,
+            $"api/document-templates/{templateUid}/versions/{versionUid}/publish",
+            new ChangeDocumentTemplateVersionStatusRequest { RowVersion = rowVersion }, cancellationToken);
+
+    private async Task<DocumentTemplateVersionResponse?> SendVersionMutationAsync(
+        HttpMethod method, string uri, object? body, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, uri);
+        if (body is not null) request.Content = JsonContent.Create(body);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<DocumentTemplateVersionResponse>(
+            cancellationToken: cancellationToken);
+    }
+
     private async Task<DocumentTemplateDetailsResponse?> SendTemplateMutationAsync(
         HttpMethod method, string uri, object body, CancellationToken cancellationToken)
     {

@@ -15,5 +15,6 @@
   { "migrationId": "0013-scheduling", "schemaVersion": "1.0.0", "script": "scheduling_stored_procedures.sql" },
   { "migrationId": "0014-scheduling-mark-arrived", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0014-scheduling-mark-arrived.sql" },
   { "migrationId": "0015-start-encounter-status", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0015-start-encounter-status.sql" },
-  { "migrationId": "0016-complete-appointment-after-sign", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0016-complete-appointment-after-sign.sql" }
+  { "migrationId": "0016-complete-appointment-after-sign", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0016-complete-appointment-after-sign.sql" },
+  { "migrationId": "0017-document-template-versioning", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0017-document-template-versioning.sql" }
 ]

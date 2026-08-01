@@ -25,6 +25,10 @@ public interface IPatientDocumentApiClient
     Task<DocumentTemplateDetailsResponse?> CreateDocumentTemplateAsync(SaveDocumentTemplateRequest request, CancellationToken cancellationToken = default);
     Task<DocumentTemplateDetailsResponse?> UpdateDocumentTemplateAsync(Guid templateUid, SaveDocumentTemplateRequest request, CancellationToken cancellationToken = default);
     Task<DocumentTemplateDetailsResponse?> SetDocumentTemplateActiveAsync(Guid templateUid, bool isActive, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DocumentTemplateVersionResponse>> GetDocumentTemplateVersionsAsync(Guid templateUid, CancellationToken cancellationToken = default);
+    Task<DocumentTemplateVersionResponse?> CreateDocumentTemplateDraftAsync(Guid templateUid, CancellationToken cancellationToken = default);
+    Task<DocumentTemplateVersionResponse?> UpdateDocumentTemplateDraftAsync(Guid templateUid, Guid versionUid, UpdateDocumentTemplateVersionRequest request, CancellationToken cancellationToken = default);
+    Task<DocumentTemplateVersionResponse?> PublishDocumentTemplateVersionAsync(Guid templateUid, Guid versionUid, string rowVersion, CancellationToken cancellationToken = default);
 
     Task<PatientDocumentDetailsResponse> CreateAsync(
         Guid patientUid,

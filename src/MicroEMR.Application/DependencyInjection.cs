@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientService, PatientService>();
         services.AddScoped<IPatientAllergyService, PatientAllergyService>();
         services.AddScoped<IPatientDocumentService, PatientDocumentService>();
+        services.AddScoped<IDocumentTemplateVersionService, DocumentTemplateVersionService>();
         services.AddScoped<IPatientEncounterService, PatientEncounterService>();
         services.AddScoped<IPatientMedicationService, PatientMedicationService>();
         services.AddScoped<IPatientProblemService, PatientProblemService>();
