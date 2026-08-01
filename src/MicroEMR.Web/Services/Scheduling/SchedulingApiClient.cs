@@ -340,12 +340,12 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            var isCompleted = false;
+            var code = "invalid_appointment_status_transition";
             try
             {
                 using var document = JsonDocument.Parse(responseBody);
-                isCompleted = document.RootElement.TryGetProperty("code", out var code)
-                    && code.GetString() == "appointment_completed";
+                if (document.RootElement.TryGetProperty("code", out var codeProperty))
+                    code = codeProperty.GetString() ?? code;
             }
             catch (JsonException)
             {
@@ -355,7 +355,7 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
             _logger.LogWarning(
                 "MicroEMR API rejected encounter start with status {StatusCode}.",
                 (int)response.StatusCode);
-            throw new StartEncounterConflictException(isCompleted);
+            throw new StartEncounterConflictException(code);
         }
 
         await EnsureSuccessAsync(response, cancellationToken);

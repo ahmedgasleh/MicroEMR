@@ -510,9 +510,7 @@ public sealed class SchedulingController : Controller
             return Conflict(new
             {
                 success = false,
-                message = exception.IsCompleted
-                    ? "Completed appointments cannot start a new encounter."
-                    : "Cancelled appointments cannot start encounters."
+                message = exception.Message
             });
         }
         catch (Exception exception)

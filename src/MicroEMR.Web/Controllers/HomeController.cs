@@ -178,9 +178,7 @@ public class HomeController : Controller
         }
         catch (StartEncounterConflictException exception)
         {
-            TempData["ErrorMessage"] = exception.IsCompleted
-                ? "Completed appointments cannot start a new encounter."
-                : "Cancelled appointments cannot start encounters.";
+            TempData["ErrorMessage"] = exception.Message;
             return RedirectToAction(nameof(Index));
         }
         catch (Exception exception)

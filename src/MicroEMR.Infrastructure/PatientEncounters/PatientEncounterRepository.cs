@@ -514,6 +514,16 @@ public sealed class PatientEncounterRepository
             throw new AppointmentCompletedException(
                 "Completed appointments cannot start new encounters.", exception);
         }
+        catch (SqlException exception) when (exception.Number == 51083)
+        {
+            throw new AppointmentNoShowException(
+                "No-show appointments cannot start encounters.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51084)
+        {
+            throw new AppointmentCannotStartEncounterException(
+                "The appointment cannot start an encounter from its current status.", exception);
+        }
         catch (SqlException exception)
         {
             _logger.LogError(exception, "Failed to start an encounter from an appointment.");

@@ -9,6 +9,7 @@ public sealed class AppointmentStatusTransitionService : IAppointmentStatusTrans
             {
                 AppointmentStatus.Confirmed,
                 AppointmentStatus.Arrived,
+                AppointmentStatus.Seen,
                 AppointmentStatus.Cancelled,
                 AppointmentStatus.NoShow
             },
@@ -23,6 +24,7 @@ public sealed class AppointmentStatusTransitionService : IAppointmentStatusTrans
             {
                 AppointmentStatus.CheckedIn,
                 AppointmentStatus.Roomed,
+                AppointmentStatus.Seen,
                 AppointmentStatus.Cancelled
             },
             [AppointmentStatus.CheckedIn] = new HashSet<AppointmentStatus>
