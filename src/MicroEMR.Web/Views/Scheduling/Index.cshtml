@@ -445,6 +445,9 @@
                 <button type="button" class="btn btn-primary d-none" id="editAppointmentButton">
                     Edit Appointment
                 </button>
+                <button type="button" class="btn btn-outline-success d-none" id="markAppointmentArrivedButton">
+                    Mark Arrived
+                </button>
                 <span id="linkedEncounterStatusBadge" class="badge text-bg-secondary d-none"></span>
                 <button type="button" class="btn btn-success d-none" id="startAppointmentEncounterButton">
                     Start Encounter
@@ -1235,6 +1238,7 @@ else
         const openChartButton = document.getElementById("openPatientChartButton");
         const cancelAppointmentButton = document.getElementById("cancelAppointmentButton");
         const editAppointmentButton = document.getElementById("editAppointmentButton");
+        const markAppointmentArrivedButton = document.getElementById("markAppointmentArrivedButton");
         const viewAppointmentHistoryButton = document.getElementById("viewAppointmentHistoryButton");
         const appointmentHistoryContainer = document.getElementById("appointmentHistoryContainer");
         const appointmentHistoryLoading = document.getElementById("appointmentHistoryLoading");
@@ -1254,9 +1258,11 @@ else
         const cancelAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("CancelAppointment", "Scheduling"), jsonOptions));
         const updateAppointmentUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("UpdateAppointment", "Scheduling"), jsonOptions));
         const appointmentHistoryUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("AppointmentHistory", "Scheduling"), jsonOptions));
+        const markAppointmentArrivedUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("MarkAppointmentArrived", "Scheduling"), jsonOptions));
         const patientChartBaseUrl = @Html.Raw(JsonSerializer.Serialize(Url.Action("Details", "Patients"), jsonOptions));
         let currentAppointmentUid = null;
         let currentAppointmentDetails = null;
+        let markArrivedInProgress = false;
 
         const showSchedulingActionMessage = (message, type) => {
             schedulingActionMessage.className = `alert alert-${type}`;
@@ -1279,6 +1285,8 @@ else
             document.getElementById("linkedEncounterStatusBadge").classList.add("d-none");
             cancelAppointmentButton.classList.add("d-none");
             editAppointmentButton.classList.add("d-none");
+            markAppointmentArrivedButton.classList.add("d-none");
+            markAppointmentArrivedButton.disabled = false;
             viewAppointmentHistoryButton.classList.add("d-none");
             appointmentHistoryContainer.classList.add("d-none");
             appointmentHistoryList.replaceChildren();
@@ -1321,6 +1329,9 @@ else
                 editAppointmentButton.classList.toggle(
                     "d-none",
                     String(details.status).toLowerCase() === "cancelled");
+                markAppointmentArrivedButton.classList.toggle(
+                    "d-none",
+                    String(details.status).toLowerCase() !== "scheduled");
                 viewAppointmentHistoryButton.classList.remove("d-none");
                 window.appointmentEncounterLinking?.render(details);
                 detailsContent.classList.remove("d-none");
@@ -1332,6 +1343,46 @@ else
                 detailsLoading.classList.add("d-none");
             }
         };
+
+        markAppointmentArrivedButton.addEventListener("click", async () => {
+            if (!currentAppointmentUid || markArrivedInProgress) return;
+
+            const appointmentUid = currentAppointmentUid;
+            markArrivedInProgress = true;
+            markAppointmentArrivedButton.disabled = true;
+            detailsError.classList.add("d-none");
+
+            try {
+                const formData = new FormData();
+                const token = document.querySelector(
+                    '#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+                formData.append("appointmentUid", appointmentUid);
+                formData.append("__RequestVerificationToken", token);
+                const response = await fetch(markAppointmentArrivedUrl, {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "The appointment could not be marked Arrived.");
+                }
+
+                await openAppointmentDetails(appointmentUid);
+                await refreshCalendar();
+                showSchedulingActionMessage(result.message || "Appointment marked Arrived.", "success");
+            } catch (error) {
+                const message = error instanceof Error
+                    ? error.message
+                    : "The appointment could not be marked Arrived.";
+                await openAppointmentDetails(appointmentUid);
+                detailsError.textContent = message;
+                detailsError.classList.remove("d-none");
+            } finally {
+                markArrivedInProgress = false;
+                markAppointmentArrivedButton.disabled =
+                    String(currentAppointmentDetails?.status).toLowerCase() !== "scheduled";
+            }
+        });
 
         const formatHistoryDate = value => value
             ? new Intl.DateTimeFormat(undefined, {
