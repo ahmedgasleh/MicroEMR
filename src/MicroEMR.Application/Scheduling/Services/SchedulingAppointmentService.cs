@@ -11,10 +11,14 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
             "Scheduled", "Arrived", "Roomed", "Seen", "Completed"
         };
     private readonly ISchedulingAppointmentRepository _repository;
+    private readonly IAppointmentStatusTransitionService _statusTransitionService;
 
-    public SchedulingAppointmentService(ISchedulingAppointmentRepository repository)
+    public SchedulingAppointmentService(
+        ISchedulingAppointmentRepository repository,
+        IAppointmentStatusTransitionService statusTransitionService)
     {
         _repository = repository;
+        _statusTransitionService = statusTransitionService;
     }
 
     public Task<ScheduleAppointmentListItemResponse> CreateAsync(
@@ -94,6 +98,36 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
         request.Status = AllowedStatuses.Single(status =>
             string.Equals(status, request.Status, StringComparison.OrdinalIgnoreCase));
         return _repository.UpdateStatusAsync(appointmentUid, request, updatedBy, cancellationToken);
+    }
+
+    public async Task<UpdateAppointmentStatusResponse?> MarkArrivedAsync(
+        Guid appointmentUid,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        if (appointmentUid == Guid.Empty)
+            throw new ArgumentException("Appointment identifier is required.", nameof(appointmentUid));
+
+        var currentStatus = await _repository.GetStatusAsync(appointmentUid, cancellationToken);
+        if (currentStatus is null)
+            return null;
+
+        if (currentStatus.Value != AppointmentStatus.Scheduled)
+        {
+            throw new AppointmentStatusTransitionException(
+                currentStatus.Value,
+                AppointmentStatus.Arrived);
+        }
+
+        _statusTransitionService.EnsureCanTransition(
+            currentStatus.Value,
+            AppointmentStatus.Arrived);
+
+        return await _repository.MarkArrivedAsync(
+            appointmentUid,
+            currentStatus.Value,
+            updatedBy,
+            cancellationToken);
     }
 
     public Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(

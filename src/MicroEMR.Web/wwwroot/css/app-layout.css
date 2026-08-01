@@ -677,7 +677,7 @@ body:not(.sidebar-collapsed) .tooltip {
 }
 
 .content-panel {
-    min-height: 360px;
+    min-height: 160px;
     padding: 22px;
 }
 
@@ -739,7 +739,7 @@ body:not(.sidebar-collapsed) .tooltip {
 
 .quick-action-list {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 8px;
     margin-top: 16px;
 }

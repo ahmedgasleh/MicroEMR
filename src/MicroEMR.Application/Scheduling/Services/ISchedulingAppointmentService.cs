@@ -33,6 +33,11 @@ public interface ISchedulingAppointmentService
         long? updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<UpdateAppointmentStatusResponse?> MarkArrivedAsync(
+        Guid appointmentUid,
+        long? updatedBy,
+        CancellationToken cancellationToken = default);
+
     Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
         CreateSchedulingBlockedTimeRequest request,
         long? createdBy,

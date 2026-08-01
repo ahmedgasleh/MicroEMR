@@ -320,6 +320,77 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         }
     }
 
+    public async Task<AppointmentStatus?> GetStatusAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.ScheduleAppointment_GetByUid", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter("@AppointmentUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = appointmentUid
+        });
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            return null;
+
+        return AppointmentStatusMapper.Parse(reader.GetString(reader.GetOrdinal("Status")));
+    }
+
+    public async Task<UpdateAppointmentStatusResponse?> MarkArrivedAsync(
+        Guid appointmentUid,
+        AppointmentStatus expectedStatus,
+        long? updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.ScheduleAppointment_MarkArrived", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add(new SqlParameter("@AppointmentUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = appointmentUid
+        });
+        command.Parameters.Add(new SqlParameter("@ExpectedStatus", SqlDbType.NVarChar, 30)
+        {
+            Value = AppointmentStatusMapper.ToStorageValue(expectedStatus)
+        });
+        command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
+        {
+            Value = (object?)updatedBy ?? DBNull.Value
+        });
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                return null;
+
+            return new UpdateAppointmentStatusResponse
+            {
+                AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                Status = reader.GetString(reader.GetOrdinal("AppointmentStatus")),
+                UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt")
+            };
+        }
+        catch (SqlException exception) when (exception.Number == 51082)
+        {
+            throw new AppointmentStatusConcurrencyException(
+                "The appointment status changed before it could be marked Arrived.",
+                exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to mark a scheduling appointment as Arrived.");
+            throw;
+        }
+    }
+
     public Task<SchedulingBlockedTimeResponse?> CreateBlockedTimeAsync(
         CreateSchedulingBlockedTimeRequest request,
         long? createdBy,
