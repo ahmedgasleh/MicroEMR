@@ -78,6 +78,8 @@ public static class DependencyInjection
         services.AddScoped<ITenantDatabaseMigrationSource, FileTenantDatabaseMigrationSource>();
         services.AddScoped<ITenantProvisioningStatusRepository, SqlTenantProvisioningStatusRepository>();
         services.AddScoped<ITenantDatabaseMigrationRunner, TenantDatabaseMigrationRunner>();
+        services.AddScoped<ITenantMigrationStatusReader, SqlTenantMigrationStatusReader>();
+        services.AddScoped<ITenantMigrationStatusService, TenantMigrationStatusService>();
         return services;
     }
 }
