@@ -365,6 +365,46 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
                    "The API started the encounter but returned no encounter data.");
     }
 
+    public async Task<UpdateAppointmentStatusResponse?> MarkAppointmentArrivedAsync(
+        Guid appointmentUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"api/scheduling/appointments/{appointmentUid}/arrive");
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var isConcurrencyConflict = false;
+            try
+            {
+                using var document = JsonDocument.Parse(responseBody);
+                isConcurrencyConflict = document.RootElement.TryGetProperty("code", out var code)
+                    && code.GetString() == "appointment_status_conflict";
+            }
+            catch (JsonException)
+            {
+                // Preserve a safe conflict response if the API body is malformed.
+            }
+
+            _logger.LogWarning(
+                "MicroEMR API rejected the Mark Arrived operation with status {StatusCode}.",
+                (int)response.StatusCode);
+            throw new AppointmentArrivedConflictException(isConcurrencyConflict);
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<UpdateAppointmentStatusResponse>(
+                   cancellationToken: cancellationToken)
+               ?? throw new InvalidOperationException(
+                   "The API marked the appointment Arrived but returned no status data.");
+    }
+
     public async Task<IReadOnlyList<SchedulingBlockedTimeResponse>> GetBlockedTimesAsync(
         DateTime startDateTimeUtc,
         DateTime endDateTimeUtc,

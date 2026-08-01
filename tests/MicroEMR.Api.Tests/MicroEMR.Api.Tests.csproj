@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MicroEMR.Api\MicroEMR.Api.csproj" />
+    <ProjectReference Include="..\..\src\MicroEMR.Web\MicroEMR.Web.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\db\**\*.sql"

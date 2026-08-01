@@ -452,6 +452,42 @@ public sealed class SchedulingController : Controller
         }
     }
 
+    [HttpPost("MarkAppointmentArrived")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkAppointmentArrived(
+        Guid appointmentUid,
+        CancellationToken cancellationToken)
+    {
+        if (appointmentUid == Guid.Empty)
+            return BadRequest(new { success = false, message = "Appointment identifier is required." });
+
+        try
+        {
+            var result = await _schedulingApiClient.MarkAppointmentArrivedAsync(
+                appointmentUid,
+                cancellationToken);
+            return result is null
+                ? NotFound(new { success = false, message = "Appointment was not found." })
+                : Json(new { success = true, message = "Appointment marked Arrived.", appointment = result });
+        }
+        catch (AppointmentArrivedConflictException exception)
+        {
+            return Conflict(new
+            {
+                success = false,
+                message = exception.IsConcurrencyConflict
+                    ? "This appointment was updated by another user. Refresh and try again."
+                    : "This appointment can no longer be marked Arrived."
+            });
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to mark a scheduling appointment Arrived.");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { success = false, message = "The appointment could not be marked Arrived." });
+        }
+    }
+
     [HttpPost("StartEncounter")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> StartEncounter(
