@@ -75,14 +75,8 @@ public sealed class SchedulingController : ControllerBase
         }
     }
 
-    private long? GetAuthenticatedUserId()
-    {
-        var value = User.FindFirstValue("user_id")
-            ?? User.FindFirstValue("userid")
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub");
-        return long.TryParse(value, out var userId) ? userId : null;
-    }
+    private long GetAuthenticatedUserId() =>
+        ClinicalUserActorContext.GetRequired(HttpContext);
 
     [HttpGet("resources")]
     [ProducesResponseType(

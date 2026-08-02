@@ -32,5 +32,5 @@ public sealed class PatientVitalsController(IPatientVitalService service, ILogge
         try { var result=await service.UpdateAsync(patientUid,patientVitalUid,request,UserId(),cancellationToken); return result is null?NotFound():Ok(result); }
         catch(Exception ex){logger.LogError(ex,"Failed to update patient vitals.");return Problem("Vitals could not be saved.");}
     }
-    private long? UserId(){var value=User.FindFirstValue("user_id")??User.FindFirstValue(ClaimTypes.NameIdentifier)??User.FindFirstValue("sub");return long.TryParse(value,out var id)?id:null;}
+    private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);
 }

@@ -96,9 +96,6 @@ public sealed class DocumentTemplatesController : ControllerBase
         return template is null ? NotFound() : Ok(template);
     }
 
-    private long? GetAuthenticatedUserId()
-    {
-        var value = User.FindFirstValue("user_id") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return long.TryParse(value, out var userId) ? userId : null;
-    }
+    private long GetAuthenticatedUserId() =>
+        ClinicalUserActorContext.GetRequired(HttpContext);
 }

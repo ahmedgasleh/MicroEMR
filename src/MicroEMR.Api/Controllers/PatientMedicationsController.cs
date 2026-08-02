@@ -182,18 +182,8 @@ public sealed class PatientMedicationsController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    private long? GetAuthenticatedUserId()
-    {
-        var userIdValue =
-            User.FindFirstValue("user_id")
-            ?? User.FindFirstValue("userid")
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub");
-
-        return long.TryParse(userIdValue, out var userId)
-            ? userId
-            : null;
-    }
+    private long GetAuthenticatedUserId() =>
+        ClinicalUserActorContext.GetRequired(HttpContext);
 
     private string? GetAuthenticatedDisplayName()
     {

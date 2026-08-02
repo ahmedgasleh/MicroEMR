@@ -75,9 +75,5 @@ public sealed class PatientProblemsController(IPatientProblemService service, IL
     }
 
     private static bool IsValidStatus(string? status) => new[] { "Active", "Resolved", "All" }.Contains(status?.Trim(), StringComparer.OrdinalIgnoreCase);
-    private long? UserId()
-    {
-        var value = User.FindFirstValue("user_id") ?? User.FindFirstValue("userid") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return long.TryParse(value, out var id) ? id : null;
-    }
+    private long UserId() => ClinicalUserActorContext.GetRequired(HttpContext);
 }

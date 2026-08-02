@@ -17,5 +17,5 @@ public sealed class EncounterSoapTemplatesController : ControllerBase
     [HttpPut("{uid:guid}")] public async Task<IActionResult> Update(Guid uid,UpdateEncounterSoapTemplateRequest request,CancellationToken token)=>uid==Guid.Empty?BadRequest():await Mutate(()=>_repository.UpdateAsync(uid,request,UserId(),token));
     [HttpPost("{uid:guid}/set-active")] public async Task<IActionResult> SetActive(Guid uid,SetEncounterSoapTemplateActiveRequest request,CancellationToken token)=>uid==Guid.Empty?BadRequest():await Mutate(()=>_repository.SetActiveAsync(uid,request.IsActive,UserId(),token));
     private async Task<IActionResult> Mutate(Func<Task<EncounterSoapTemplateResponse?>> action,bool created=false){try{var x=await action();return x is null?NotFound():created?CreatedAtAction(nameof(Get),new{uid=x.EncounterSoapTemplateUid},x):Ok(x);}catch(Exception ex){_logger.LogError(ex,"Encounter SOAP template operation failed.");return StatusCode(500,new{message="The template operation could not be completed."});}}
-    private long? UserId(){var v=User.FindFirstValue("user_id")??User.FindFirstValue(ClaimTypes.NameIdentifier)??User.FindFirstValue("sub");return long.TryParse(v,out var id)?id:null;}
+    private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);
 }

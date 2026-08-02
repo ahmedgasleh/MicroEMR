@@ -162,6 +162,9 @@ public sealed class AppointmentArrivedTransitionTests
                     "Test"))
             }
         };
+        MicroEMR.Api.ClinicalUsers.ClinicalUserActorContext.Set(
+            controller.HttpContext,
+            42);
         return controller;
     }
 
