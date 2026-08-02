@@ -5,6 +5,9 @@ using MicroEMR.Application.PlatformAdministration;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Infrastructure;
 using MicroEMR.Infrastructure.Provisioning;
+using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Infrastructure.ClinicalUsers;
+using MicroEMR.Infrastructure.Tenancy;
 
 var configuration = new ConfigurationBuilder().AddEnvironmentVariables().AddUserSecrets<Program>()
     .AddInMemoryCollection(new Dictionary<string, string?> { ["TenantProvisioning:SqlAssetsPath"] = Path.Combine(AppContext.BaseDirectory, "database") }).Build();
@@ -24,6 +27,12 @@ var services = new ServiceCollection().AddSingleton<IConfiguration>(configuratio
 services.AddLogging(builder => builder.AddSimpleConsole(o => { o.SingleLine = true; o.TimestampFormat = "HH:mm:ss "; }));
 services.AddMicroEmrPlatformInfrastructure();
 services.AddMicroEmrTenantProvisioning();
+services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
+services.AddScoped<ITenantContext>(serviceProvider =>
+    serviceProvider.GetRequiredService<ITenantContextAccessor>().Current
+    ?? throw new InvalidOperationException("Tenant context has not been established."));
+services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
+services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();
 await using var provider = services.BuildServiceProvider();
 await using var scope = provider.CreateAsyncScope();
 
@@ -76,6 +85,8 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
         Console.WriteLine("Tenant status updated."); return 0;
     }
     if (group == "tenant" && action == "provision") return await ProvisionAsync(Required(options, "tenant-key"), services);
+    if (group == "tenant" && action == "user-map-auth-subject")
+        return await MapClinicalUserAsync(options, tenants, services);
     if (group == "provision-tenant-database" && action == "--tenant-key") return await ProvisionAsync(args.ElementAtOrDefault(2) ?? "", services);
     if (group == "membership" && action == "list") { PrintMemberships(await memberships.GetMembershipsAsync(Required(options, "user-id"))); return 0; }
     if (group == "tenant" && action == "members") { var t = await RequiredTenant(tenants, Required(options, "tenant-key")); PrintMemberships(await memberships.GetTenantMembershipsAsync(t.TenantUid)); return 0; }
@@ -99,6 +110,42 @@ static async Task<PlatformTenantDetails> RequiredTenant(IPlatformTenantAdministr
 static void PrintTenant(PlatformTenantDetails t) { Console.WriteLine($"TenantUid: {t.TenantUid}\nTenantKey: {t.TenantKey}\nDisplayName: {t.DisplayName}\nTenantStatus: {t.TenantStatus}\nTimeZone: {t.DefaultTimeZoneId}\nDatabaseServerKey: {t.DatabaseServerKey ?? "-"}\nDatabaseName: {t.DatabaseName ?? "-"}\nDatabaseStatus: {t.DatabaseStatus ?? "Unassigned"}\nSchemaVersion: {t.CurrentSchemaVersion ?? "-"}\nLastMigrationAt: {t.LastMigrationAt?.ToString("O") ?? "-"}"); }
 static void PrintMemberships(IEnumerable<PlatformMembershipInfo> rows) { Console.WriteLine("UserId\tTenantKey\tStatus\tDefault\tRoles"); foreach (var x in rows) Console.WriteLine($"{x.UserId}\t{x.TenantKey}\t{x.MembershipStatus}\t{x.IsDefaultTenant}\t{string.Join(',', x.Roles)}"); }
 static async Task<int> ProvisionAsync(string tenantKey, IServiceProvider services) { ArgumentException.ThrowIfNullOrWhiteSpace(tenantKey); var catalog = services.GetRequiredService<ITenantCatalog>(); var resolver = services.GetRequiredService<ITenantDatabaseResolver>(); var runner = services.GetRequiredService<ITenantDatabaseMigrationRunner>(); var tenant = await catalog.GetByKeyAsync(tenantKey) ?? throw new InvalidOperationException("The requested tenant was not found."); var assignment = await resolver.ResolveAsync(tenant.TenantUid) ?? throw new InvalidOperationException("The requested tenant has no database assignment."); var result = await runner.ProvisionAsync(new(tenant.TenantUid, tenant.TenantKey, assignment.DatabaseServerKey, assignment.DatabaseName, assignment.SecretReference)); Console.WriteLine($"Provisioning result: {result.Status}; schema version: {result.CurrentSchemaVersion}; applied migrations: {result.AppliedMigrations.Count}."); return 0; }
+static async Task<int> MapClinicalUserAsync(
+    Dictionary<string, string> options,
+    IPlatformTenantAdministrationService tenants,
+    IServiceProvider services)
+{
+    var tenantKey = Required(options, "tenant-key");
+    Confirm(options, tenantKey);
+    var tenant = await RequiredTenant(tenants, tenantKey);
+    var rawClinicalUserId = Required(options, "clinical-user-id");
+    if (!long.TryParse(rawClinicalUserId, out var clinicalUserId) || clinicalUserId <= 0)
+        throw new ArgumentException("--clinical-user-id must be a positive integer.");
+    var authSubject = Required(options, "auth-subject");
+
+    var identityLookup = services.GetRequiredService<IIdentityUserLookup>();
+    if (!identityLookup.IsAvailable)
+        throw new InvalidOperationException("Auth user validation is not configured.");
+    if (!await identityLookup.ExistsAsync(authSubject))
+        throw new InvalidOperationException("The Auth subject does not identify an existing Auth user.");
+
+    var contextAccessor = services.GetRequiredService<ITenantContextAccessor>();
+    contextAccessor.SetTenant(new TenantContext(tenant.TenantUid, tenant.TenantKey, tenant.DisplayName));
+    try
+    {
+        var mapped = await services.GetRequiredService<IClinicalUserRepository>()
+            .SetAuthSubjectIdAsync(clinicalUserId, authSubject);
+        Console.WriteLine($"Tenant: {tenant.TenantKey}");
+        Console.WriteLine($"Clinical UserId: {mapped.UserId}");
+        Console.WriteLine($"Clinical UserUid: {mapped.UserUid}");
+        Console.WriteLine($"Auth subject mapped: {mapped.AuthSubjectId}");
+        return 0;
+    }
+    finally
+    {
+        contextAccessor.Clear();
+    }
+}
 static async Task<int> MigrationStatusAsync(Dictionary<string, string> options, IPlatformTenantAdministrationService tenants, IServiceProvider services)
 {
     var all = options.ContainsKey("all");
@@ -211,6 +258,6 @@ static void PrintItems(string heading, IEnumerable<string> items)
     Console.WriteLine($"{heading}: {(values.Length == 0 ? "none" : string.Empty)}");
     foreach (var value in values) Console.WriteLine($"  {value}");
 }
-static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|suspend|activate|archive|members; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
+static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|user-map-auth-subject|suspend|activate|archive|members; tenant user-map-auth-subject --tenant-key KEY --clinical-user-id ID --auth-subject SUBJECT --confirm KEY; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
 
 public partial class Program;
