@@ -10,4 +10,11 @@ public interface IClinicalUserRepository
         long userId,
         string authSubjectId,
         CancellationToken cancellationToken = default);
+
+    Task<ClinicalUser> ProvisionAsync(
+        string authSubjectId,
+        string username,
+        string displayName,
+        string? email,
+        CancellationToken cancellationToken = default);
 }
