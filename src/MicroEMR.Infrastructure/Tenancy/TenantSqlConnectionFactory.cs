@@ -111,7 +111,7 @@ public sealed class TenantSqlConnectionFactory : ITenantSqlConnectionFactory
             throw new TenantDatabaseConnectionException("The tenant database assignment is incomplete.");
     }
 
-    internal static SqlConnectionStringBuilder ValidateConnectionString(
+    public static SqlConnectionStringBuilder ValidateConnectionString(
         string connectionString,
         string assignedDatabaseName)
     {

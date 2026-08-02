@@ -53,6 +53,8 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
     }
     if (group == "tenant" && action == "migration-status")
         return await MigrationStatusAsync(options, tenants, services);
+    if (group == "tenant" && action == "connection-diagnose")
+        return await ConnectionDiagnoseAsync(Required(options, "tenant-key"), tenants, services);
     if (group == "tenant" && action == "show") { PrintTenant(await RequiredTenant(tenants, Required(options, "tenant-key"))); return 0; }
     if (group == "tenant" && action == "create")
     {
@@ -143,6 +145,48 @@ static async Task<int> MigrationStatusAsync(Dictionary<string, string> options, 
     }
     return allCurrent ? 0 : 3;
 }
+static async Task<int> ConnectionDiagnoseAsync(string tenantKey, IPlatformTenantAdministrationService tenants, IServiceProvider services)
+{
+    var tenant = await RequiredTenant(tenants, tenantKey);
+    var assignment = await services.GetRequiredService<ITenantDatabaseResolver>().ResolveAsync(tenant.TenantUid)
+        ?? throw new InvalidOperationException("The requested tenant has no database assignment.");
+    var secret = await services.GetRequiredService<MicroEMR.Infrastructure.Tenancy.ITenantDatabaseSecretProvider>()
+        .ResolveAsync(assignment.SecretReference);
+    var result = await TenantConnectionDiagnostics.DiagnoseAsync(
+        secret.ConnectionString, assignment.DatabaseName,
+        "ConfigurationTenantDatabaseSecretProvider (environment variables/user secrets)");
+    PrintConnectionDiagnostic(tenant, result);
+    return result.ConnectionOpened && result.SchemaMigrationAccessible ? 0 : 4;
+}
+static void PrintConnectionDiagnostic(PlatformTenantDetails tenant, TenantConnectionDiagnosticResult result)
+{
+    var p = result.Properties;
+    Console.WriteLine($"Tenant: {tenant.TenantKey}");
+    Console.WriteLine($"Database status: {tenant.DatabaseStatus ?? "Unassigned"}");
+    Console.WriteLine($"Server: {p.Server}");
+    Console.WriteLine($"Database: {p.Database}");
+    Console.WriteLine($"Authentication mode: {p.AuthenticationMode}");
+    Console.WriteLine($"Integrated security: {p.IntegratedSecurity}");
+    Console.WriteLine($"User ID configured: {p.UserIdConfigured}");
+    Console.WriteLine($"Encrypt: {p.Encrypt}");
+    Console.WriteLine($"TrustServerCertificate: {p.TrustServerCertificate}");
+    Console.WriteLine($"Connection timeout: {p.ConnectionTimeout}");
+    Console.WriteLine($"HostNameInCertificate: {p.HostNameInCertificate ?? "not set"}");
+    Console.WriteLine($"Secret source: {p.SecretSource}");
+    Console.WriteLine($"Windows identity: {result.WindowsIdentity}");
+    Console.WriteLine($".NET runtime: {result.RuntimeVersion}");
+    Console.WriteLine($"Microsoft.Data.SqlClient: {result.SqlClientVersion}");
+    Console.WriteLine($"Connection opened: {result.ConnectionOpened}");
+    Console.WriteLine($"TLS succeeded: {result.TlsSucceeded}");
+    Console.WriteLine($"Authentication succeeded: {result.AuthenticationSucceeded}");
+    Console.WriteLine($"SchemaMigration accessible: {result.SchemaMigrationAccessible}");
+    Console.WriteLine($"Failure stage: {result.FailureStage}");
+    if (result.SqlServerVersion is not null) Console.WriteLine($"SQL Server version: {result.SqlServerVersion}");
+    if (result.AuthenticationScheme is not null) Console.WriteLine($"Authentication scheme: {result.AuthenticationScheme}");
+    if (result.ExceptionType is not null) Console.WriteLine($"Exception type: {result.ExceptionType}");
+    if (result.SqlErrorNumber is not null) Console.WriteLine($"SQL error number: {result.SqlErrorNumber}");
+    if (result.SafeErrorMessage is not null) Console.WriteLine($"Error: {result.SafeErrorMessage}");
+}
 static void PrintMigrationStatus(TenantMigrationStatusReport report)
 {
     Console.WriteLine($"Tenant: {report.Tenant.TenantKey}");
@@ -167,6 +211,6 @@ static void PrintItems(string heading, IEnumerable<string> items)
     Console.WriteLine($"{heading}: {(values.Length == 0 ? "none" : string.Empty)}");
     foreach (var value in values) Console.WriteLine($"  {value}");
 }
-static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|suspend|activate|archive|members; tenant migration-status --tenant-key KEY|--all; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
+static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|suspend|activate|archive|members; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
 
 public partial class Program;
