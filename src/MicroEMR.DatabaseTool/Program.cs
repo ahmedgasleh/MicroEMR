@@ -9,7 +9,11 @@ using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Infrastructure.ClinicalUsers;
 using MicroEMR.Infrastructure.Tenancy;
 
-var configuration = new ConfigurationBuilder().AddEnvironmentVariables().AddUserSecrets<Program>()
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "src", "MicroEMR.Auth", "appsettings.json"), optional: true)
+    .AddEnvironmentVariables()
+    .AddUserSecrets(userSecretsId: "MicroEMR.Auth-local-development")
+    .AddUserSecrets<Program>()
     .AddInMemoryCollection(new Dictionary<string, string?> { ["TenantProvisioning:SqlAssetsPath"] = Path.Combine(AppContext.BaseDirectory, "database") }).Build();
 
 if (!configuration.GetValue<bool>("PlatformAdministration:Enabled"))
@@ -87,6 +91,8 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
     if (group == "tenant" && action == "provision") return await ProvisionAsync(Required(options, "tenant-key"), services);
     if (group == "tenant" && action == "user-map-auth-subject")
         return await MapClinicalUserAsync(options, tenants, services);
+    if (group == "tenant" && action == "user-provision")
+        return await ProvisionClinicalUserAsync(options, tenants, services);
     if (group == "provision-tenant-database" && action == "--tenant-key") return await ProvisionAsync(args.ElementAtOrDefault(2) ?? "", services);
     if (group == "membership" && action == "list") { PrintMemberships(await memberships.GetMembershipsAsync(Required(options, "user-id"))); return 0; }
     if (group == "tenant" && action == "members") { var t = await RequiredTenant(tenants, Required(options, "tenant-key")); PrintMemberships(await memberships.GetTenantMembershipsAsync(t.TenantUid)); return 0; }
@@ -139,6 +145,52 @@ static async Task<int> MapClinicalUserAsync(
         Console.WriteLine($"Clinical UserId: {mapped.UserId}");
         Console.WriteLine($"Clinical UserUid: {mapped.UserUid}");
         Console.WriteLine($"Auth subject mapped: {mapped.AuthSubjectId}");
+        return 0;
+    }
+    finally
+    {
+        contextAccessor.Clear();
+    }
+}
+static async Task<int> ProvisionClinicalUserAsync(
+    Dictionary<string, string> options,
+    IPlatformTenantAdministrationService tenants,
+    IServiceProvider services)
+{
+    var tenantKey = Required(options, "tenant-key");
+    Confirm(options, tenantKey);
+    var tenant = await RequiredTenant(tenants, tenantKey);
+    if (!string.Equals(tenant.TenantStatus, "Active", StringComparison.Ordinal))
+        throw new InvalidOperationException("The target tenant is not active.");
+
+    var authSubject = Required(options, "auth-subject");
+    var profile = await services.GetRequiredService<IIdentityUserProfileLookup>()
+        .GetByIdAsync(authSubject)
+        ?? throw new InvalidOperationException("The Auth subject does not identify an existing Auth user.");
+    if (!profile.IsActive)
+        throw new InvalidOperationException("The Auth user is not active.");
+    if (!string.Equals(profile.UserId, authSubject, StringComparison.Ordinal))
+        throw new InvalidOperationException("The Auth user identity did not match the requested subject.");
+
+    var membership = await services.GetRequiredService<IUserTenantMembershipRepository>()
+        .GetMembershipAsync(authSubject, tenant.TenantUid)
+        ?? throw new InvalidOperationException("The Auth user does not have an active membership in the target tenant.");
+    if (!string.Equals(membership.UserId, authSubject, StringComparison.Ordinal)
+        || membership.TenantUid != tenant.TenantUid
+        || !string.Equals(membership.MembershipStatus, "Active", StringComparison.Ordinal))
+        throw new InvalidOperationException("The Auth user's tenant membership is invalid.");
+
+    var contextAccessor = services.GetRequiredService<ITenantContextAccessor>();
+    contextAccessor.SetTenant(new TenantContext(tenant.TenantUid, tenant.TenantKey, tenant.DisplayName));
+    try
+    {
+        var clinicalUser = await services.GetRequiredService<IClinicalUserRepository>()
+            .ProvisionAsync(authSubject, profile.Username, profile.DisplayName, profile.Email);
+        Console.WriteLine($"Tenant: {tenant.TenantKey}");
+        Console.WriteLine($"Clinical UserId: {clinicalUser.UserId}");
+        Console.WriteLine($"Clinical UserUid: {clinicalUser.UserUid}");
+        Console.WriteLine($"Auth subject provisioned: {clinicalUser.AuthSubjectId}");
+        Console.WriteLine($"Active: {clinicalUser.IsActive}");
         return 0;
     }
     finally
@@ -246,7 +298,8 @@ static void PrintMigrationStatus(TenantMigrationStatusReport report)
     Console.WriteLine($"Current: {(report.IsCurrent ? "YES" : "NO")}");
     PrintItems("Missing", report.MissingMigrationIds);
     PrintItems("Unexpected applied", report.UnexpectedMigrationIds);
-    PrintItems("Hash mismatches", report.HashMismatches.Select(x => x.MigrationId));
+    PrintItems("Hash mismatches", report.HashMismatches.Select(
+        x => $"{x.MigrationId} (expected {x.ExpectedHash}; applied {x.AppliedHash})"));
     Console.WriteLine($"Latest applied: {report.LatestAppliedMigration?.MigrationId ?? "none"}");
     Console.WriteLine($"Last migration failure: {report.LastFailure}");
     if (report.InspectionError is not null) Console.WriteLine($"Inspection error: {report.InspectionError}");
@@ -258,6 +311,6 @@ static void PrintItems(string heading, IEnumerable<string> items)
     Console.WriteLine($"{heading}: {(values.Length == 0 ? "none" : string.Empty)}");
     foreach (var value in values) Console.WriteLine($"  {value}");
 }
-static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|user-map-auth-subject|suspend|activate|archive|members; tenant user-map-auth-subject --tenant-key KEY --clinical-user-id ID --auth-subject SUBJECT --confirm KEY; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
+static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|user-map-auth-subject|user-provision|suspend|activate|archive|members; tenant user-provision --tenant-key KEY --auth-subject SUBJECT --confirm KEY; tenant user-map-auth-subject --tenant-key KEY --clinical-user-id ID --auth-subject SUBJECT --confirm KEY; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
 
 public partial class Program;

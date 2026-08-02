@@ -37,6 +37,29 @@ public sealed class ClinicalUserRepository(
         return Map(reader);
     }
 
+    public async Task<ClinicalUser> ProvisionAsync(
+        string authSubjectId,
+        string username,
+        string displayName,
+        string? email,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateSubject(authSubjectId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.ApplicationUser_Provision");
+        AddSubject(command, authSubjectId);
+        command.Parameters.Add("@Username", SqlDbType.NVarChar, 100).Value = username.Trim();
+        command.Parameters.Add("@DisplayName", SqlDbType.NVarChar, 200).Value = displayName.Trim();
+        command.Parameters.Add("@Email", SqlDbType.NVarChar, 255).Value =
+            string.IsNullOrWhiteSpace(email) ? DBNull.Value : email.Trim();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            throw new InvalidOperationException("Clinical user provisioning returned no active user.");
+        return Map(reader);
+    }
+
     private static SqlCommand CreateCommand(SqlConnection connection, string name) =>
         new(name, connection) { CommandType = CommandType.StoredProcedure };
 

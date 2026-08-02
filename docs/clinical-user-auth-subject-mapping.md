@@ -10,6 +10,26 @@ Username and email are not authoritative mapping keys because they can change.
 clinical database. Existing users therefore remain unmapped until an operator
 proves the identity relationship and establishes it explicitly.
 
+When no clinical user exists, provision one only through the internal command:
+
+```powershell
+dotnet run --project src\MicroEMR.DatabaseTool -- tenant user-provision `
+  --tenant-key TENANT_KEY `
+  --auth-subject EXACT_AUTH_SUBJECT `
+  --confirm TENANT_KEY
+```
+
+The command validates the exact Auth account, active tenant, and active platform
+membership before copying username, display name, and email as profile data.
+Those mutable fields are never used as the identity link. Provisioning is
+idempotent per tenant. A matching username/email on an unmapped legacy user is
+reported as an ambiguity and is never attached automatically.
+
+For local repository development, DatabaseTool reads the Auth project's existing
+configuration and user-secrets sources and accepts the Auth service's
+`ConnectionStrings:AuthServerConnection` name. An explicitly configured
+`ConnectionStrings:AuthDatabase` takes precedence.
+
 Use the internal DatabaseTool command:
 
 ```powershell
@@ -27,5 +47,6 @@ replace a user's existing mapping. Repeating the identical mapping is safe.
 
 Mappings and uniqueness are per tenant database. The same Auth subject may map
 to different clinical `UserId` values in different tenants. New-user creation is
-not currently coupled to clinical-user provisioning, so it cannot safely fill
-this value automatically yet.
+not automatically coupled to tenant membership creation.
+
+Historical audit rows without a provable originating actor remain unchanged.

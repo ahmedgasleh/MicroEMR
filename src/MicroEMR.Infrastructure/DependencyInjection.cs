@@ -45,6 +45,9 @@ public static class DependencyInjection
         services.AddScoped<IPlatformTenantAdministrationService, SqlPlatformTenantAdministrationService>();
         services.AddScoped<IPlatformMembershipAdministrationService, SqlPlatformMembershipAdministrationService>();
         services.AddScoped<IIdentityUserLookup, SqlIdentityUserLookup>();
+        services.AddScoped<IIdentityUserProfileLookup>(serviceProvider =>
+            serviceProvider.GetRequiredService<IIdentityUserLookup>() as IIdentityUserProfileLookup
+            ?? throw new InvalidOperationException("Identity user profile lookup is unavailable."));
 
         return services;
     }
