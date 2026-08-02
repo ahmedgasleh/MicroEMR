@@ -7,6 +7,8 @@ using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Middleware;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Api.HealthChecks;
+using MicroEMR.Api.ClinicalUsers;
+using MicroEMR.Application.ClinicalUsers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +58,8 @@ builder.Services.AddAuthorization(options =>
             new TenantRoleRequirement("ClinicAdministrator")));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
 
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext>(serviceProvider =>
@@ -85,6 +89,7 @@ app.UseAuthentication();
 app.UseMiddleware<TenantDatabaseExceptionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<ClinicalUserActorResolutionMiddleware>();
 
 app.MapHealthChecks("/health/platform");
 app.MapControllers();

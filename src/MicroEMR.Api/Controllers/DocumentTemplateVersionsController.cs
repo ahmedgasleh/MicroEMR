@@ -72,11 +72,5 @@ public sealed class DocumentTemplateVersionsController(
         }
     }
 
-    private long? UserId()
-    {
-        var value = User.FindFirstValue("user_id")
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub");
-        return long.TryParse(value, out var userId) ? userId : null;
-    }
+    private long UserId() => ClinicalUserActorContext.GetRequired(HttpContext);
 }

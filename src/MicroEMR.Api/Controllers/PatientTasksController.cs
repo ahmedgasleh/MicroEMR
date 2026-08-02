@@ -58,20 +58,26 @@ public sealed class PatientTasksController : ControllerBase
             return StatusCode(500, new { message = "The patient task operation could not be completed." });
         }
     }
-    private long? UserId() { var value=User.FindFirstValue("user_id")??User.FindFirstValue(ClaimTypes.NameIdentifier)??User.FindFirstValue("sub"); return long.TryParse(value,out var id)?id:null; }
+    private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);
 }
 
 [ApiController, Authorize, Route("api/patient-tasks")]
 public sealed class PatientTaskDashboardController : ControllerBase
 {
     private readonly IPatientTaskRepository _repository;
-    public PatientTaskDashboardController(IPatientTaskRepository repository) => _repository = repository;
+    private readonly IAuthenticatedClinicalUserAccessor _clinicalUserAccessor;
+    public PatientTaskDashboardController(
+        IPatientTaskRepository repository,
+        IAuthenticatedClinicalUserAccessor clinicalUserAccessor)
+    {
+        _repository = repository;
+        _clinicalUserAccessor = clinicalUserAccessor;
+    }
     [HttpGet("open")]
     public async Task<IActionResult> Open(int maxRows = 10, CancellationToken cancellationToken = default)
     {
         if (maxRows is < 1 or > 50) return BadRequest(new { message = "maxRows must be between 1 and 50." });
-        var value=User.FindFirstValue("user_id")??User.FindFirstValue(ClaimTypes.NameIdentifier)??User.FindFirstValue("sub");
-        long? userId=long.TryParse(value,out var id)?id:null;
+        var userId=await _clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
         return Ok(await _repository.GetOpenForDashboardAsync(userId, maxRows, cancellationToken));
     }
 }
