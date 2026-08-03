@@ -9,10 +9,18 @@ using MicroEMR.Application.Tenancy;
 using MicroEMR.Api.HealthChecks;
 using MicroEMR.Api.ClinicalUsers;
 using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Application.PatientFiles;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddOptions<PatientFileUploadOptions>()
+    .Bind(builder.Configuration.GetSection("PatientFileUpload"))
+    .Validate(x => x.MaxFileSizeBytes > 0 && x.MaxFileSizeBytes <= 26_214_400,
+        "Patient file size must be between 1 byte and 25 MB.")
+    .ValidateOnStart();
+builder.Services.Configure<FormOptions>(x => x.MultipartBodyLengthLimit = 27_262_976);
 builder.Services.AddHealthChecks()
     .AddCheck<PlatformDatabaseHealthCheck>("platform_database");
 
