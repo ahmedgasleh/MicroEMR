@@ -65,7 +65,7 @@ public sealed class TenantDatabaseMigrationSourceTests : IDisposable
 
         var migrations = await source.GetAvailableMigrationsAsync();
 
-        Assert.Equal(23, migrations.Count);
+        Assert.Equal(24, migrations.Count);
         Assert.All(migrations, migration =>
             Assert.NotEmpty(SqlBatchParser.Parse(migration.Script)));
     }
