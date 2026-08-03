@@ -15,6 +15,7 @@
     var timelineActive = Model.ActiveTab == "timeline";
     var alertsActive = Model.ActiveTab == "alerts";
     var tasksActive = Model.ActiveTab == "tasks";
+    var referralsActive = Model.ActiveTab == "referrals";
     var resultsActive = Model.ActiveTab == "results";
 
     
@@ -128,6 +129,7 @@
     <li class="nav-item"><button class="nav-link @(timelineActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#timeline" type="button">Timeline</button></li>
     <li class="nav-item"><button class="nav-link @(alertsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#alerts" type="button">Alerts</button></li>
     <li class="nav-item"><button class="nav-link @(tasksActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks</button></li>
+    <li class="nav-item"><button class="nav-link @(referralsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#referrals" type="button">Referrals</button></li>
     
 
     <li class="nav-item">
@@ -221,6 +223,24 @@
         </div>
         <div class="d-flex justify-content-end mb-3"><label class="visually-hidden" for="patientTaskFilter">Task status</label><select id="patientTaskFilter" class="form-select w-auto"><option>Open</option><option>Completed</option><option>All</option></select></div>
         <div id="patientTaskMessage" class="alert d-none" role="alert"></div><div id="patientTaskList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading tasks...</span></div></div>
+    </div>
+    <div class="tab-pane fade @(referralsActive ? "show active" : null)" id="referrals" role="tabpanel">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+            <div>
+                <h5 class="mb-1">Referrals</h5>
+                <p class="text-body-secondary mb-0">Outgoing referrals recorded for this patient.</p>
+            </div>
+            <button id="addPatientReferral" class="btn btn-primary" type="button">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Add Referral
+            </button>
+        </div>
+        <div id="patientReferralMessage" class="alert d-none" role="alert"></div>
+        <div id="patientReferralList" aria-live="polite">
+            <div class="microemr-loading-state" role="status">
+                <span class="microemr-loading-spinner" aria-hidden="true"></span>
+                <span>Loading referrals...</span>
+            </div>
+        </div>
     </div>
     <div class="tab-pane fade @(demographicsActive ? "show active" : null)"
          id="demographics"
@@ -1016,6 +1036,38 @@
 <div class="modal fade" id="resolveChartAlertModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Resolve Alert</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="resolveChartAlertForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientChartAlertUid"/><label class="form-label">Resolution Reason</label><textarea name="ResolutionReason" maxlength="500" class="form-control" rows="3"></textarea></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="confirmResolveChartAlert" class="btn btn-primary">Resolve</button></div></div></div></div>
 <form id="chartAlertAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <form id="patientTaskAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
+<div class="modal fade" id="patientReferralModal" tabindex="-1" aria-labelledby="patientReferralModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="patientReferralModalTitle">Add Referral</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <div id="patientReferralModalMessage" class="alert alert-danger d-none" role="alert"></div>
+                <form id="patientReferralForm" novalidate>
+                    <input type="hidden" name="PatientUid" value="@patient.PatientUid" />
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6"><label for="referralRecipientName" class="form-label">Recipient Name <span class="text-danger">*</span></label><input id="referralRecipientName" name="RecipientName" class="form-control" maxlength="200" required autocomplete="off" /><div class="invalid-feedback">Recipient name is required.</div></div>
+                        <div class="col-12 col-md-6"><label for="referralOrganization" class="form-label">Organization</label><input id="referralOrganization" name="RecipientOrganization" class="form-control" maxlength="200" autocomplete="organization" /></div>
+                        <div class="col-12 col-md-6"><label for="referralPhone" class="form-label">Phone</label><input id="referralPhone" name="RecipientPhone" type="tel" class="form-control" maxlength="30" autocomplete="tel" /></div>
+                        <div class="col-12 col-md-6"><label for="referralFax" class="form-label">Fax</label><input id="referralFax" name="RecipientFax" type="tel" class="form-control" maxlength="30" /></div>
+                        <div class="col-12"><label for="referralReason" class="form-label">Reason <span class="text-danger">*</span></label><textarea id="referralReason" name="Reason" class="form-control" maxlength="1000" rows="3" required></textarea><div class="invalid-feedback">Referral reason is required.</div></div>
+                        <div class="col-12"><label for="referralClinicalSummary" class="form-label">Clinical Summary</label><textarea id="referralClinicalSummary" name="ClinicalSummary" class="form-control" rows="6"></textarea></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="savePatientReferral" class="btn btn-primary">Save Referral</button></div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="patientReferralDetailsModal" tabindex="-1" aria-labelledby="patientReferralDetailsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="patientReferralDetailsTitle">Referral Details</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body" id="patientReferralDetailsBody"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading referral...</span></div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+        </div>
+    </div>
+</div>
+<form id="patientReferralAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <div class="modal fade" id="patientResultModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Patient Result</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="patientResultForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientResultUid"/><div class="row g-3"><div class="col-md-4"><label class="form-label">Result Type</label><select name="ResultType" class="form-select">@foreach(var x in new[]{"Lab","Imaging","Diagnostic Test","Other"}){<option>@x</option>}</select></div><div class="col-md-8"><label class="form-label">Result Name</label><input name="ResultName" maxlength="200" required class="form-control"/></div><div class="col-md-4"><label class="form-label">Result Date</label><input name="ResultDate" type="datetime-local" required class="form-control"/></div><div class="col-md-4"><label class="form-label">Value</label><input name="ResultValue" maxlength="500" class="form-control"/></div><div class="col-md-4"><label class="form-label">Unit</label><input name="ResultUnit" maxlength="100" class="form-control"/></div><div class="col-12"><label class="form-label">Reference Range</label><input name="ReferenceRange" maxlength="200" class="form-control"/></div><div class="col-12"><label class="form-label">Summary</label><textarea name="ResultSummary" class="form-control" rows="4"></textarea></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="savePatientResult" class="btn btn-primary">Save Result</button></div></div></div></div>
 <div class="modal fade" id="reviewPatientResultModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Mark Result Reviewed</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="reviewPatientResultForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientResultUid"/><label class="form-label">Review Note</label><textarea name="ReviewNote" maxlength="1000" class="form-control" rows="3"></textarea></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="confirmReviewPatientResult" class="btn btn-primary">Mark Reviewed</button></div></div></div></div><form id="patientResultAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <partial name="_SummaryQuickActionModals" model="Model" />
@@ -1245,6 +1297,7 @@
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-chart-alerts.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-tasks.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-referrals.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-results.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/encounter-soap-templates/apply.js" asp-append-version="true"></script>
 <script>
