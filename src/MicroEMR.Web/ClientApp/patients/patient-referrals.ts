@@ -1,0 +1,208 @@
+interface ReferralListItem {
+  referralUid: string;
+  patientUid: string;
+  recipientName: string;
+  recipientOrganization?: string;
+  reason: string;
+  status: string;
+  createdAtUtc: string;
+  sentAtUtc?: string;
+  responseReceivedAtUtc?: string;
+  closedAtUtc?: string;
+  rowVersion: string;
+}
+
+interface ReferralDetails extends ReferralListItem {
+  recipientPhone?: string;
+  recipientFax?: string;
+  clinicalSummary?: string;
+  createdBy: number;
+  updatedAtUtc?: string;
+  updatedBy?: number;
+}
+
+interface ReferralReply {
+  success: boolean;
+  referrals?: ReferralListItem[];
+  referral?: ReferralDetails;
+  message?: string;
+}
+
+declare const bootstrap: {
+  Modal: new (element: Element) => { show(): void; hide(): void };
+};
+
+const banner = document.querySelector<HTMLElement>("#patientChartBanner");
+const patientUid = banner?.dataset.patientUid ?? "";
+const listRoot = document.querySelector<HTMLElement>("#patientReferralList")!;
+const pageMessage = document.querySelector<HTMLElement>("#patientReferralMessage")!;
+const createForm = document.querySelector<HTMLFormElement>("#patientReferralForm")!;
+const saveButton = document.querySelector<HTMLButtonElement>("#savePatientReferral")!;
+const modalMessage = document.querySelector<HTMLElement>("#patientReferralModalMessage")!;
+const detailsBody = document.querySelector<HTMLElement>("#patientReferralDetailsBody")!;
+const token = document.querySelector<HTMLInputElement>(
+  '#patientReferralAntiforgery input[name="__RequestVerificationToken"]')!;
+
+if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMessage && detailsBody && token) {
+  const createModal = new bootstrap.Modal(document.querySelector("#patientReferralModal")!);
+  const detailsModal = new bootstrap.Modal(document.querySelector("#patientReferralDetailsModal")!);
+  let referrals: ReferralListItem[] = [];
+
+  const escapeHtml = (value?: string): string => {
+    const node = document.createElement("div");
+    node.textContent = value ?? "";
+    return node.innerHTML;
+  };
+
+  const formatDate = (value?: string): string =>
+    value ? new Date(value).toLocaleString() : "—";
+
+  const statusLabel = (status: string): string =>
+    status === "ResponseReceived" ? "Response Received" : status;
+
+  const statusClass = (status: string): string => {
+    switch (status) {
+      case "Sent": return "text-bg-primary";
+      case "ResponseReceived": return "text-bg-info";
+      case "Closed": return "text-bg-dark";
+      default: return "text-bg-secondary";
+    }
+  };
+
+  const relevantDate = (referral: ReferralListItem): string => {
+    if (referral.closedAtUtc) return `Closed ${formatDate(referral.closedAtUtc)}`;
+    if (referral.responseReceivedAtUtc) return `Response received ${formatDate(referral.responseReceivedAtUtc)}`;
+    if (referral.sentAtUtc) return `Sent ${formatDate(referral.sentAtUtc)}`;
+    return `Created ${formatDate(referral.createdAtUtc)}`;
+  };
+
+  const showPageMessage = (message: string, style: "danger" | "success"): void => {
+    pageMessage.textContent = message;
+    pageMessage.className = `alert alert-${style}`;
+  };
+
+  const hidePageMessage = (): void => pageMessage.classList.add("d-none");
+
+  const showModalMessage = (message: string): void => {
+    modalMessage.textContent = message;
+    modalMessage.classList.remove("d-none");
+  };
+
+  function renderList(): void {
+    if (!referrals.length) {
+      listRoot.innerHTML = `<div class="microemr-empty-state">
+        <div class="microemr-empty-state__icon"><i class="bi bi-send"></i></div>
+        <div class="microemr-empty-state__title">No referrals recorded.</div>
+        <div class="microemr-empty-state__text">Outgoing referrals added to this chart will appear here.</div>
+        <div class="microemr-empty-state__actions"><button type="button" class="btn btn-primary btn-sm" id="emptyAddPatientReferral">Add Referral</button></div>
+      </div>`;
+      document.querySelector("#emptyAddPatientReferral")?.addEventListener("click", openCreate);
+      return;
+    }
+
+    listRoot.innerHTML = `<div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead><tr><th>Recipient</th><th>Reason</th><th>Status</th><th>Date</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>${referrals.map(referral => `<tr>
+          <td><div class="fw-semibold">${escapeHtml(referral.recipientName)}</div>${referral.recipientOrganization ? `<div class="small text-body-secondary">${escapeHtml(referral.recipientOrganization)}</div>` : ""}</td>
+          <td><div class="text-break">${escapeHtml(referral.reason)}</div></td>
+          <td><span class="badge ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span></td>
+          <td class="small text-body-secondary text-nowrap">${escapeHtml(relevantDate(referral))}</td>
+          <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary referral-details" data-referral-uid="${referral.referralUid}">View</button></td>
+        </tr>`).join("")}</tbody>
+      </table>
+    </div>`;
+
+    listRoot.querySelectorAll<HTMLButtonElement>(".referral-details").forEach(button =>
+      button.addEventListener("click", () => void openDetails(button.dataset.referralUid ?? "")));
+  }
+
+  async function loadReferrals(): Promise<void> {
+    hidePageMessage();
+    listRoot.setAttribute("aria-busy", "true");
+    listRoot.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading referrals...</span></div>`;
+    try {
+      const response = await fetch(`/PatientReferrals/List?patientUid=${encodeURIComponent(patientUid)}`);
+      const result = await response.json() as ReferralReply;
+      if (!response.ok || !result.success)
+        throw new Error(result.message ?? "Referral list could not be loaded.");
+      referrals = result.referrals ?? [];
+      renderList();
+    } catch (error: unknown) {
+      listRoot.replaceChildren();
+      showPageMessage(error instanceof Error ? error.message : "Referral list could not be loaded.", "danger");
+    } finally {
+      listRoot.setAttribute("aria-busy", "false");
+    }
+  }
+
+  function openCreate(): void {
+    createForm.reset();
+    createForm.classList.remove("was-validated");
+    (createForm.elements.namedItem("PatientUid") as HTMLInputElement).value = patientUid;
+    modalMessage.classList.add("d-none");
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Referral";
+    createModal.show();
+  }
+
+  async function saveReferral(): Promise<void> {
+    if (!createForm.checkValidity()) {
+      createForm.classList.add("was-validated");
+      createForm.reportValidity();
+      return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Saving...';
+    modalMessage.classList.add("d-none");
+    try {
+      const body = new FormData(createForm);
+      body.set("__RequestVerificationToken", token.value);
+      const response = await fetch("/PatientReferrals/Create", { method: "POST", body });
+      const result = await response.json() as ReferralReply;
+      if (!response.ok || !result.success)
+        throw new Error(result.message ?? "The referral could not be created.");
+      createModal.hide();
+      await loadReferrals();
+      showPageMessage("Referral created as Draft.", "success");
+    } catch (error: unknown) {
+      showModalMessage(error instanceof Error ? error.message : "The referral could not be created.");
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = "Save Referral";
+    }
+  }
+
+  async function openDetails(referralUid: string): Promise<void> {
+    if (!referralUid) return;
+    detailsBody.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading referral...</span></div>`;
+    detailsModal.show();
+    try {
+      const response = await fetch(`/PatientReferrals/Details?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referralUid)}`);
+      const result = await response.json() as ReferralReply;
+      if (!response.ok || !result.success || !result.referral)
+        throw new Error(result.message ?? "Referral details could not be loaded.");
+      const referral = result.referral;
+      detailsBody.innerHTML = `<div class="row g-3">
+        <div class="col-12 d-flex flex-wrap justify-content-between gap-2"><div><div class="small text-body-secondary">Recipient</div><div class="fw-semibold fs-5">${escapeHtml(referral.recipientName)}</div>${referral.recipientOrganization ? `<div>${escapeHtml(referral.recipientOrganization)}</div>` : ""}</div><span class="badge align-self-start ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Phone</div><div>${escapeHtml(referral.recipientPhone || "—")}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Fax</div><div>${escapeHtml(referral.recipientFax || "—")}</div></div>
+        <div class="col-12"><div class="small text-body-secondary">Reason</div><div class="text-break">${escapeHtml(referral.reason)}</div></div>
+        <div class="col-12"><div class="small text-body-secondary">Clinical Summary</div><div class="text-break" style="white-space: pre-wrap">${escapeHtml(referral.clinicalSummary || "—")}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Created</div><div>${escapeHtml(formatDate(referral.createdAtUtc))}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Sent</div><div>${escapeHtml(formatDate(referral.sentAtUtc))}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Response Received</div><div>${escapeHtml(formatDate(referral.responseReceivedAtUtc))}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Closed</div><div>${escapeHtml(formatDate(referral.closedAtUtc))}</div></div>
+      </div>`;
+    } catch (error: unknown) {
+      detailsBody.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${escapeHtml(error instanceof Error ? error.message : "Referral details could not be loaded.")}</div>`;
+    }
+  }
+
+  document.querySelector("#addPatientReferral")?.addEventListener("click", openCreate);
+  saveButton.addEventListener("click", () => void saveReferral());
+  void loadReferrals();
+}
+
+export {};
