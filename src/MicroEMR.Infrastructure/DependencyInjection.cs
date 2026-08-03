@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();
         services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
         services.AddScoped<IPatientReferralRepository, PatientReferralRepository>();
+        services.AddScoped<IReferralDocumentRepository, ReferralDocumentRepository>();
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
             services.AddScoped<IDocumentTemplateVersionRepository, DocumentTemplateVersionRepository>();
