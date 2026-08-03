@@ -11,6 +11,7 @@ public sealed class ClinicalControllerAuthorizationTests
     [InlineData(typeof(PatientAllergiesController))]
     [InlineData(typeof(PatientMedicationsController))]
     [InlineData(typeof(PatientEncountersController))]
+    [InlineData(typeof(PatientReferralsController))]
     [InlineData(typeof(SchedulingController))]
     public void ClinicalControllersRequireAuthenticatedUsers(Type controllerType)
     {
