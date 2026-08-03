@@ -101,7 +101,8 @@ public sealed class PatientReferralApplicationTests
         var referral = Referral(patientUid, "Specialist");
         var repository = new StubReferralRepository { Referrals = [referral] };
         var patientRepository = new StubPatientRepository(patientUid, otherPatientUid);
-        var service = new PatientReferralService(repository, patientRepository, new StubActorAccessor(1));
+        var service = new PatientReferralService(repository, patientRepository,
+            new StubActorAccessor(1), new ReferralStatusTransitionService());
 
         var matching = await service.GetByUidAsync(patientUid, referral.ReferralUid);
         var wrongPatient = await service.GetByUidAsync(otherPatientUid, referral.ReferralUid);
@@ -138,7 +139,8 @@ public sealed class PatientReferralApplicationTests
         Guid? existingPatientUid,
         StubReferralRepository repository,
         IAuthenticatedClinicalUserAccessor actor) =>
-        new(repository, new StubPatientRepository(existingPatientUid is null ? [] : [existingPatientUid.Value]), actor);
+        new(repository, new StubPatientRepository(existingPatientUid is null ? [] : [existingPatientUid.Value]),
+            actor, new ReferralStatusTransitionService());
 
     private static CreatePatientReferralRequest ValidRequest() => new()
     {
@@ -225,6 +227,41 @@ public sealed class PatientReferralApplicationTests
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy,
                 RowVersion = Convert.ToBase64String(new byte[8])
+            });
+        }
+
+        public Task<PatientReferral?> MarkSentAsync(Guid patientUid, Guid referralUid, string rowVersion,
+            long updatedBy, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, ReferralStatus.Sent, updatedBy);
+
+        public Task<PatientReferral?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid, string rowVersion,
+            long updatedBy, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, ReferralStatus.ResponseReceived, updatedBy);
+
+        public Task<PatientReferral?> CloseAsync(Guid patientUid, Guid referralUid, string rowVersion,
+            long updatedBy, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, ReferralStatus.Closed, updatedBy);
+
+        private Task<PatientReferral?> Transition(Guid patientUid, Guid referralUid,
+            ReferralStatus status, long updatedBy)
+        {
+            var current = Referrals.SingleOrDefault(item =>
+                item.PatientUid == patientUid && item.ReferralUid == referralUid);
+            if (current is null) return Task.FromResult<PatientReferral?>(null);
+            var changedAt = DateTime.UtcNow;
+            return Task.FromResult<PatientReferral?>(new PatientReferral
+            {
+                ReferralUid = current.ReferralUid, PatientUid = current.PatientUid,
+                RecipientName = current.RecipientName, RecipientOrganization = current.RecipientOrganization,
+                RecipientPhone = current.RecipientPhone, RecipientFax = current.RecipientFax,
+                Reason = current.Reason, ClinicalSummary = current.ClinicalSummary, Status = status,
+                CreatedAt = current.CreatedAt, CreatedBy = current.CreatedBy,
+                UpdatedAt = changedAt, UpdatedBy = updatedBy,
+                SentAt = status >= ReferralStatus.Sent ? current.SentAt ?? changedAt : current.SentAt,
+                ResponseReceivedAt = status >= ReferralStatus.ResponseReceived
+                    ? current.ResponseReceivedAt ?? changedAt : current.ResponseReceivedAt,
+                ClosedAt = status == ReferralStatus.Closed ? changedAt : current.ClosedAt,
+                RowVersion = Convert.ToBase64String([0, 0, 0, 0, 0, 0, 0, (byte)status])
             });
         }
     }
@@ -364,5 +401,15 @@ public sealed class PatientReferralApiTests
             LastPatientUid = patientUid;
             return Task.FromResult(CreateResult);
         }
+
+        public Task<PatientReferralDetailsResponse?> MarkSentAsync(Guid patientUid, Guid referralUid,
+            ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult<PatientReferralDetailsResponse?>(DetailsResult);
+        public Task<PatientReferralDetailsResponse?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid,
+            ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult<PatientReferralDetailsResponse?>(DetailsResult);
+        public Task<PatientReferralDetailsResponse?> CloseAsync(Guid patientUid, Guid referralUid,
+            ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult<PatientReferralDetailsResponse?>(DetailsResult);
     }
 }

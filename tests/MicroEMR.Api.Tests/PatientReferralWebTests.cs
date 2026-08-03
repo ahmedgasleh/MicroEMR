@@ -146,6 +146,24 @@ public sealed class PatientReferralWebTests
         Assert.Equal("Bearer test-token", handler.Authorization);
     }
 
+    [Fact]
+    public async Task MarkSentUsesPatientReferralAndRowVersionAndReturnsUpdatedDetails()
+    {
+        var patientUid = Guid.NewGuid();
+        var referralUid = Guid.NewGuid();
+        var client = new StubReferralApiClient { DetailsResult = Details(patientUid) };
+
+        var action = await CreateController(client).MarkSent(new ReferralStatusTransitionViewModel
+        {
+            PatientUid = patientUid, ReferralUid = referralUid, RowVersion = "current-version"
+        });
+
+        Assert.IsType<JsonResult>(action);
+        Assert.Equal(patientUid, client.LastPatientUid);
+        Assert.Equal(referralUid, client.LastReferralUid);
+        Assert.Equal("current-version", client.LastRowVersion);
+    }
+
     private static PatientReferralsController CreateController(IPatientReferralApiClient client) =>
         new(client, NullLogger<PatientReferralsController>.Instance);
 
@@ -189,6 +207,7 @@ public sealed class PatientReferralWebTests
         public Guid? LastPatientUid { get; private set; }
         public Guid? LastReferralUid { get; private set; }
         public CreatePatientReferralViewModel? LastCreateRequest { get; private set; }
+        public string? LastRowVersion { get; private set; }
 
         public Task<IReadOnlyList<PatientReferralListItemViewModel>> GetByPatientUidAsync(
             Guid patientUid, CancellationToken cancellationToken = default)
@@ -212,6 +231,25 @@ public sealed class PatientReferralWebTests
             LastPatientUid = patientUid;
             LastCreateRequest = request;
             return Task.FromResult(CreateResult);
+        }
+
+        public Task<PatientReferralDetailsViewModel?> MarkSentAsync(Guid patientUid, Guid referralUid,
+            string rowVersion, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, rowVersion);
+        public Task<PatientReferralDetailsViewModel?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid,
+            string rowVersion, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, rowVersion);
+        public Task<PatientReferralDetailsViewModel?> CloseAsync(Guid patientUid, Guid referralUid,
+            string rowVersion, CancellationToken cancellationToken = default) =>
+            Transition(patientUid, referralUid, rowVersion);
+
+        private Task<PatientReferralDetailsViewModel?> Transition(
+            Guid patientUid, Guid referralUid, string rowVersion)
+        {
+            LastPatientUid = patientUid;
+            LastReferralUid = referralUid;
+            LastRowVersion = rowVersion;
+            return Task.FromResult(DetailsResult);
         }
     }
 

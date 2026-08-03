@@ -6,7 +6,8 @@ namespace MicroEMR.Application.PatientReferrals;
 public sealed class PatientReferralService(
     IPatientReferralRepository referrals,
     IPatientRepository patients,
-    IAuthenticatedClinicalUserAccessor clinicalUserAccessor) : IPatientReferralService
+    IAuthenticatedClinicalUserAccessor clinicalUserAccessor,
+    IReferralStatusTransitionService transitionService) : IPatientReferralService
 {
     public async Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
@@ -54,6 +55,47 @@ public sealed class PatientReferralService(
             cancellationToken);
 
         return MapDetails(referral);
+    }
+
+    public Task<PatientReferralDetailsResponse?> MarkSentAsync(
+        Guid patientUid, Guid referralUid, ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, ReferralStatus.Sent,
+            referrals.MarkSentAsync, cancellationToken);
+
+    public Task<PatientReferralDetailsResponse?> MarkResponseReceivedAsync(
+        Guid patientUid, Guid referralUid, ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, ReferralStatus.ResponseReceived,
+            referrals.MarkResponseReceivedAsync, cancellationToken);
+
+    public Task<PatientReferralDetailsResponse?> CloseAsync(
+        Guid patientUid, Guid referralUid, ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, ReferralStatus.Closed,
+            referrals.CloseAsync, cancellationToken);
+
+    private async Task<PatientReferralDetailsResponse?> TransitionAsync(
+        Guid patientUid,
+        Guid referralUid,
+        ReferralStatusTransitionRequest request,
+        ReferralStatus targetStatus,
+        Func<Guid, Guid, string, long, CancellationToken, Task<PatientReferral?>> persist,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.RowVersion))
+            throw new ArgumentException("RowVersion is required.", nameof(request));
+
+        await EnsurePatientExistsAsync(patientUid, cancellationToken);
+        var current = await referrals.GetByUidAsync(patientUid, referralUid, cancellationToken);
+        if (current is null) return null;
+
+        transitionService.EnsureCanTransition(current.Status, targetStatus);
+        var actorId = await clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
+        var updated = await persist(
+            patientUid, referralUid, request.RowVersion, actorId, cancellationToken);
+        return updated is null ? null : MapDetails(updated);
     }
 
     private async Task EnsurePatientExistsAsync(Guid patientUid, CancellationToken cancellationToken)

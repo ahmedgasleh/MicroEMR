@@ -101,6 +101,55 @@ public sealed class PatientReferralsController(
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> MarkSent(
+        ReferralStatusTransitionViewModel model, CancellationToken cancellationToken = default) =>
+        TransitionAsync(model, client.MarkSentAsync, "Referral marked as Sent.", cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> MarkResponseReceived(
+        ReferralStatusTransitionViewModel model, CancellationToken cancellationToken = default) =>
+        TransitionAsync(model, client.MarkResponseReceivedAsync,
+            "Referral marked as Response Received.", cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Close(
+        ReferralStatusTransitionViewModel model, CancellationToken cancellationToken = default) =>
+        TransitionAsync(model, client.CloseAsync, "Referral closed.", cancellationToken);
+
+    private async Task<IActionResult> TransitionAsync(
+        ReferralStatusTransitionViewModel model,
+        Func<Guid, Guid, string, CancellationToken, Task<PatientReferralDetailsViewModel?>> transition,
+        string successMessage,
+        CancellationToken cancellationToken)
+    {
+        if (model.PatientUid == Guid.Empty || model.ReferralUid == Guid.Empty ||
+            string.IsNullOrWhiteSpace(model.RowVersion))
+            return BadRequest(new { success = false, message = "The referral request is invalid." });
+        try
+        {
+            var referral = await transition(
+                model.PatientUid, model.ReferralUid, model.RowVersion, cancellationToken);
+            return referral is null
+                ? NotFound(new { success = false, message = "Referral was not found." })
+                : Json(new { success = true, referral, message = successMessage });
+        }
+        catch (HttpRequestException exception)
+        {
+            return ApiFailure(exception, "The referral status could not be changed.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception,
+                "Failed to transition referral {ReferralUid} for patient {PatientUid}.",
+                model.ReferralUid, model.PatientUid);
+            return StatusCode(502, new { success = false, message = "The referral status could not be changed." });
+        }
+    }
+
     private IActionResult ApiFailure(HttpRequestException exception, string fallbackMessage)
     {
         logger.LogWarning(exception, "Referral API request failed with status {StatusCode}.", exception.StatusCode);
@@ -111,6 +160,7 @@ public sealed class PatientReferralsController(
             HttpStatusCode.Unauthorized => Unauthorized(new { success = false, message }),
             HttpStatusCode.Forbidden => StatusCode(403, new { success = false, message }),
             HttpStatusCode.NotFound => NotFound(new { success = false, message }),
+            HttpStatusCode.Conflict => Conflict(new { success = false, message }),
             _ => StatusCode(502, new { success = false, message = fallbackMessage })
         };
     }
