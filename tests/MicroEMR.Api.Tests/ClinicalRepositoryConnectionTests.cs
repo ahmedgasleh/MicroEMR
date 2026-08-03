@@ -9,6 +9,7 @@ using MicroEMR.Infrastructure.PatientResults;
 using MicroEMR.Infrastructure.Patients;
 using MicroEMR.Infrastructure.PatientTasks;
 using MicroEMR.Infrastructure.PatientVitals;
+using MicroEMR.Infrastructure.PatientReferrals;
 using MicroEMR.Infrastructure.Scheduling;
 using MicroEMR.Infrastructure.Tenancy;
 using Xunit;
@@ -32,6 +33,7 @@ public sealed class ClinicalRepositoryConnectionTests
             typeof(PatientResultRepository),
             typeof(PatientTaskRepository),
             typeof(PatientVitalRepository),
+            typeof(PatientReferralRepository),
             typeof(EncounterSoapTemplateRepository),
             typeof(SchedulingReadRepository),
             typeof(SchedulingAppointmentRepository)

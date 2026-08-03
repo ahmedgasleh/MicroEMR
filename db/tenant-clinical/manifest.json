@@ -19,5 +19,6 @@
   { "migrationId": "0017-document-template-versioning", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0017-document-template-versioning.sql" },
   { "migrationId": "0018-clinical-user-auth-subject", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0018-clinical-user-auth-subject.sql" },
   { "migrationId": "0019-clinical-user-provisioning", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0019-clinical-user-provisioning.sql" },
-  { "migrationId": "0020-vitals-stability", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0020-vitals-stability.sql" }
+  { "migrationId": "0020-vitals-stability", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0020-vitals-stability.sql" },
+  { "migrationId": "0021-patient-referrals-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0021-patient-referrals-foundation.sql" }
 ]
