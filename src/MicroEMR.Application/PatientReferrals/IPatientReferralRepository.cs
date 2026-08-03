@@ -16,4 +16,13 @@ public interface IPatientReferralRepository
         CreatePatientReferralRequest request,
         long createdBy,
         CancellationToken cancellationToken = default);
+
+    Task<PatientReferral?> MarkSentAsync(Guid patientUid, Guid referralUid, string rowVersion,
+        long updatedBy, CancellationToken cancellationToken = default);
+
+    Task<PatientReferral?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid, string rowVersion,
+        long updatedBy, CancellationToken cancellationToken = default);
+
+    Task<PatientReferral?> CloseAsync(Guid patientUid, Guid referralUid, string rowVersion,
+        long updatedBy, CancellationToken cancellationToken = default);
 }

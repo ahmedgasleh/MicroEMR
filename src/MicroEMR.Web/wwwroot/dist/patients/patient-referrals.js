@@ -11,6 +11,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     const createModal = new bootstrap.Modal(document.querySelector("#patientReferralModal"));
     const detailsModal = new bootstrap.Modal(document.querySelector("#patientReferralDetailsModal"));
     let referrals = [];
+    let selectedReferral = null;
     const escapeHtml = (value) => {
         const node = document.createElement("div");
         node.textContent = value ?? "";
@@ -136,8 +137,29 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
             const result = await response.json();
             if (!response.ok || !result.success || !result.referral)
                 throw new Error(result.message ?? "Referral details could not be loaded.");
-            const referral = result.referral;
-            detailsBody.innerHTML = `<div class="row g-3">
+            selectedReferral = result.referral;
+            renderDetails(selectedReferral);
+        }
+        catch (error) {
+            selectedReferral = null;
+            detailsBody.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${escapeHtml(error instanceof Error ? error.message : "Referral details could not be loaded.")}</div>`;
+        }
+    }
+    function lifecycleAction(referral) {
+        switch (referral.status) {
+            case "Draft": return { endpoint: "MarkSent", label: "Mark Sent" };
+            case "Sent": return { endpoint: "MarkResponseReceived", label: "Mark Response Received" };
+            case "ResponseReceived": return {
+                endpoint: "Close",
+                label: "Close Referral",
+                confirm: "Close this referral? This action cannot be reversed."
+            };
+            default: return null;
+        }
+    }
+    function renderDetails(referral) {
+        const action = lifecycleAction(referral);
+        detailsBody.innerHTML = `<div class="row g-3">
         <div class="col-12 d-flex flex-wrap justify-content-between gap-2"><div><div class="small text-body-secondary">Recipient</div><div class="fw-semibold fs-5">${escapeHtml(referral.recipientName)}</div>${referral.recipientOrganization ? `<div>${escapeHtml(referral.recipientOrganization)}</div>` : ""}</div><span class="badge align-self-start ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Phone</div><div>${escapeHtml(referral.recipientPhone || "—")}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Fax</div><div>${escapeHtml(referral.recipientFax || "—")}</div></div>
@@ -147,10 +169,47 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Sent</div><div>${escapeHtml(formatDate(referral.sentAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Response Received</div><div>${escapeHtml(formatDate(referral.responseReceivedAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Closed</div><div>${escapeHtml(formatDate(referral.closedAtUtc))}</div></div>
+        ${action ? `<div class="col-12 border-top pt-3"><button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button><div class="alert alert-danger d-none mt-3 mb-0" id="patientReferralActionMessage" role="alert"></div></div>` : ""}
       </div>`;
+        document.querySelector("#patientReferralLifecycleAction")
+            ?.addEventListener("click", event => void transitionReferral(event.currentTarget));
+    }
+    async function transitionReferral(button) {
+        if (!selectedReferral)
+            return;
+        const confirmation = button.dataset.confirm;
+        if (confirmation && !window.confirm(confirmation))
+            return;
+        const message = document.querySelector("#patientReferralActionMessage");
+        button.disabled = true;
+        const originalLabel = button.textContent ?? "Update";
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Updating...';
+        message?.classList.add("d-none");
+        try {
+            const body = new FormData();
+            body.set("PatientUid", patientUid);
+            body.set("ReferralUid", selectedReferral.referralUid);
+            body.set("RowVersion", selectedReferral.rowVersion);
+            body.set("__RequestVerificationToken", token.value);
+            const response = await fetch(`/PatientReferrals/${encodeURIComponent(button.dataset.endpoint ?? "")}`, {
+                method: "POST",
+                body
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success || !result.referral)
+                throw new Error(result.message ?? "The referral status could not be changed.");
+            selectedReferral = result.referral;
+            renderDetails(selectedReferral);
+            await loadReferrals();
+            showPageMessage(result.message ?? "Referral status updated.", "success");
         }
         catch (error) {
-            detailsBody.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${escapeHtml(error instanceof Error ? error.message : "Referral details could not be loaded.")}</div>`;
+            if (message) {
+                message.textContent = error instanceof Error ? error.message : "The referral status could not be changed.";
+                message.classList.remove("d-none");
+            }
+            button.disabled = false;
+            button.textContent = originalLabel;
         }
     }
     document.querySelector("#addPatientReferral")?.addEventListener("click", openCreate);

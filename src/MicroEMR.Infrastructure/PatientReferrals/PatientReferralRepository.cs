@@ -82,6 +82,57 @@ public sealed class PatientReferralRepository(
         }
     }
 
+    public Task<PatientReferral?> MarkSentAsync(
+        Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync("dbo.PatientReferral_MarkSent", patientUid, referralUid, rowVersion, updatedBy, cancellationToken);
+
+    public Task<PatientReferral?> MarkResponseReceivedAsync(
+        Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync("dbo.PatientReferral_MarkResponseReceived", patientUid, referralUid, rowVersion, updatedBy, cancellationToken);
+
+    public Task<PatientReferral?> CloseAsync(
+        Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync("dbo.PatientReferral_Close", patientUid, referralUid, rowVersion, updatedBy, cancellationToken);
+
+    private async Task<PatientReferral?> TransitionAsync(
+        string procedure, Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken)
+    {
+        byte[] expectedRowVersion;
+        try { expectedRowVersion = Convert.FromBase64String(rowVersion); }
+        catch (FormatException exception) { throw new ArgumentException("RowVersion is invalid.", nameof(rowVersion), exception); }
+        if (expectedRowVersion.Length != 8)
+            throw new ArgumentException("RowVersion is invalid.", nameof(rowVersion));
+
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, procedure);
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp, 8).Value = expectedRowVersion;
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51510)
+        {
+            return null;
+        }
+        catch (SqlException exception) when (exception.Number == 51511)
+        {
+            throw new PatientReferralTransitionException(
+                "The referral is no longer in the expected status. Refresh and try again.");
+        }
+        catch (SqlException exception) when (exception.Number == 51512)
+        {
+            throw new PatientReferralConcurrencyException();
+        }
+    }
+
     private static SqlCommand CreateCommand(SqlConnection connection, string procedure) =>
         new(procedure, connection) { CommandType = CommandType.StoredProcedure };
 

@@ -15,4 +15,13 @@ public interface IPatientReferralService
         Guid patientUid,
         CreatePatientReferralRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientReferralDetailsResponse?> MarkSentAsync(Guid patientUid, Guid referralUid,
+        ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
+
+    Task<PatientReferralDetailsResponse?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid,
+        ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
+
+    Task<PatientReferralDetailsResponse?> CloseAsync(Guid patientUid, Guid referralUid,
+        ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
 }

@@ -60,3 +60,12 @@ public sealed class CreatePatientReferralViewModel
 
     public string? ClinicalSummary { get; set; }
 }
+
+public sealed class ReferralStatusTransitionViewModel
+{
+    public Guid PatientUid { get; set; }
+    public Guid ReferralUid { get; set; }
+
+    [Required]
+    public string RowVersion { get; set; } = string.Empty;
+}

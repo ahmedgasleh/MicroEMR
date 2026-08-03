@@ -21,6 +21,13 @@ public interface IPatientReferralApiClient
         Guid patientUid,
         CreatePatientReferralViewModel request,
         CancellationToken cancellationToken = default);
+
+    Task<PatientReferralDetailsViewModel?> MarkSentAsync(Guid patientUid, Guid referralUid,
+        string rowVersion, CancellationToken cancellationToken = default);
+    Task<PatientReferralDetailsViewModel?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid,
+        string rowVersion, CancellationToken cancellationToken = default);
+    Task<PatientReferralDetailsViewModel?> CloseAsync(Guid patientUid, Guid referralUid,
+        string rowVersion, CancellationToken cancellationToken = default);
 }
 
 public sealed class PatientReferralApiClient(
@@ -80,6 +87,35 @@ public sealed class PatientReferralApiClient(
             cancellationToken: cancellationToken);
     }
 
+    public Task<PatientReferralDetailsViewModel?> MarkSentAsync(
+        Guid patientUid, Guid referralUid, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, "send", rowVersion, cancellationToken);
+
+    public Task<PatientReferralDetailsViewModel?> MarkResponseReceivedAsync(
+        Guid patientUid, Guid referralUid, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, "response-received", rowVersion, cancellationToken);
+
+    public Task<PatientReferralDetailsViewModel?> CloseAsync(
+        Guid patientUid, Guid referralUid, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, "close", rowVersion, cancellationToken);
+
+    private async Task<PatientReferralDetailsViewModel?> TransitionAsync(
+        Guid patientUid, Guid referralUid, string action, string rowVersion,
+        CancellationToken cancellationToken)
+    {
+        using var message = await CreateRequestAsync(HttpMethod.Post,
+            $"api/patients/{patientUid}/referrals/{referralUid}/{action}");
+        message.Content = JsonContent.Create(new { rowVersion });
+        using var response = await client.SendAsync(message, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<PatientReferralDetailsViewModel>(
+            cancellationToken: cancellationToken);
+    }
+
     private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string uri)
     {
         var request = new HttpRequestMessage(method, uri);
@@ -102,6 +138,7 @@ public sealed class PatientReferralApiClient(
             HttpStatusCode.Forbidden => "Your account is not provisioned for clinical changes in this clinic.",
             HttpStatusCode.Unauthorized => "Your session is no longer authorized.",
             HttpStatusCode.NotFound => "The patient or referral was not found.",
+            HttpStatusCode.Conflict => "The referral changed or is no longer in the expected status. Refresh and try again.",
             _ => "The referral operation could not be completed."
         };
 

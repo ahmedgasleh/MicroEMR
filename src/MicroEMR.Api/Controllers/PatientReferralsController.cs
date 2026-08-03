@@ -102,4 +102,68 @@ public sealed class PatientReferralsController(
             return Problem("The referral could not be created.");
         }
     }
+
+    [HttpPost("{referralUid:guid}/send")]
+    public Task<ActionResult<PatientReferralDetailsResponse>> MarkSent(
+        Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, service.MarkSentAsync, cancellationToken);
+
+    [HttpPost("{referralUid:guid}/response-received")]
+    public Task<ActionResult<PatientReferralDetailsResponse>> MarkResponseReceived(
+        Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, service.MarkResponseReceivedAsync, cancellationToken);
+
+    [HttpPost("{referralUid:guid}/close")]
+    public Task<ActionResult<PatientReferralDetailsResponse>> Close(
+        Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(patientUid, referralUid, request, service.CloseAsync, cancellationToken);
+
+    private async Task<ActionResult<PatientReferralDetailsResponse>> TransitionAsync(
+        Guid patientUid,
+        Guid referralUid,
+        ReferralStatusTransitionRequest request,
+        Func<Guid, Guid, ReferralStatusTransitionRequest, CancellationToken,
+            Task<PatientReferralDetailsResponse?>> transition,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || referralUid == Guid.Empty) return BadRequest();
+        if (string.IsNullOrWhiteSpace(request.RowVersion))
+        {
+            ModelState.AddModelError(nameof(request.RowVersion), "RowVersion is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        try
+        {
+            var referral = await transition(patientUid, referralUid, request, cancellationToken);
+            return referral is null ? NotFound() : Ok(referral);
+        }
+        catch (PatientReferralPatientNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (PatientReferralConcurrencyException exception)
+        {
+            return Conflict(new { message = exception.Message, code = "referral_concurrency_conflict" });
+        }
+        catch (PatientReferralTransitionException exception)
+        {
+            return Conflict(new { message = exception.Message, code = "invalid_referral_transition" });
+        }
+        catch (ArgumentException exception)
+        {
+            ModelState.AddModelError(string.Empty, exception.Message);
+            return ValidationProblem(ModelState);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception,
+                "Failed to transition referral {ReferralUid} for patient {PatientUid}.",
+                referralUid, patientUid);
+            return Problem("The referral status could not be changed.");
+        }
+    }
 }
