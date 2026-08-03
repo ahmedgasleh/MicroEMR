@@ -4,6 +4,7 @@ using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.PatientVitals.Contracts;
 using MicroEMR.Application.PatientVitals.Repositories;
+using MicroEMR.Application.PatientVitals;
 namespace MicroEMR.Infrastructure.PatientVitals;
 public sealed class PatientVitalRepository(ITenantSqlConnectionFactory connectionFactory, ILogger<PatientVitalRepository> logger) : IPatientVitalRepository
 {
@@ -47,8 +48,14 @@ public sealed class PatientVitalRepository(ITenantSqlConnectionFactory connectio
         AddDecimal(command,"@WeightKg",6,2,request.WeightKg);
         command.Parameters.Add("@Notes",SqlDbType.NVarChar,1000).Value = string.IsNullOrWhiteSpace(request.Notes) ? DBNull.Value : request.Notes.Trim();
         command.Parameters.Add(vitalUid.HasValue ? "@UpdatedBy" : "@CreatedBy",SqlDbType.BigInt).Value = (object?)userId ?? DBNull.Value;
+        if (request is UpdatePatientVitalRequest updateRequest)
+            command.Parameters.Add("@RowVersion", SqlDbType.Timestamp).Value = Convert.FromBase64String(updateRequest.RowVersion);
 
         try { await using var reader=await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken)?Map(reader):null; }
+        catch(SqlException ex) when (ex.Number == 51402)
+        {
+            throw new PatientVitalConcurrencyException("The vital record was changed by another user.", ex);
+        }
         catch(SqlException ex) { logger.LogError(ex,"Failed to save patient vitals."); throw; }
     }
     private static SqlCommand Command(SqlConnection connection,string name)=>new(name,connection){CommandType=CommandType.StoredProcedure};
