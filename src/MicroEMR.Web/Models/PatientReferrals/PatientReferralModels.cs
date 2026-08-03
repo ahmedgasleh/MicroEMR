@@ -69,3 +69,21 @@ public sealed class ReferralStatusTransitionViewModel
     [Required]
     public string RowVersion { get; set; } = string.Empty;
 }
+
+public sealed class ReferralSupportingDocumentViewModel
+{
+    public Guid DocumentUid { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string DocumentType { get; set; } = string.Empty;
+    public string DocumentStatus { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime LinkedAtUtc { get; set; }
+}
+
+public sealed class ReferralDocumentMutationViewModel
+{
+    public Guid PatientUid { get; set; }
+    public Guid ReferralUid { get; set; }
+    public Guid DocumentUid { get; set; }
+    [Required] public string RowVersion { get; set; } = string.Empty;
+}

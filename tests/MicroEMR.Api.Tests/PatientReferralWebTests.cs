@@ -251,6 +251,14 @@ public sealed class PatientReferralWebTests
             LastRowVersion = rowVersion;
             return Task.FromResult(DetailsResult);
         }
+
+        public Task<IReadOnlyList<ReferralSupportingDocumentViewModel>> GetLinkedDocumentsAsync(
+            Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ReferralSupportingDocumentViewModel>>([]);
+        public Task LinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+            string rowVersion, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task UnlinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+            string rowVersion, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class RecordingHandler(PatientReferralDetailsViewModel responseBody) : HttpMessageHandler

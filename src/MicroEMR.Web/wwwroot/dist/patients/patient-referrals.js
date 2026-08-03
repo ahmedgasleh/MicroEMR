@@ -169,10 +169,71 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Sent</div><div>${escapeHtml(formatDate(referral.sentAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Response Received</div><div>${escapeHtml(formatDate(referral.responseReceivedAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Closed</div><div>${escapeHtml(formatDate(referral.closedAtUtc))}</div></div>
+        <div class="col-12 border-top pt-3"><div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h6 class="mb-0">Supporting Documents</h6></div><div id="referralSupportingDocuments"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading supporting documents...</span></div></div></div>
         ${action ? `<div class="col-12 border-top pt-3"><button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button><div class="alert alert-danger d-none mt-3 mb-0" id="patientReferralActionMessage" role="alert"></div></div>` : ""}
       </div>`;
         document.querySelector("#patientReferralLifecycleAction")
             ?.addEventListener("click", event => void transitionReferral(event.currentTarget));
+        void loadSupportingDocuments(referral);
+    }
+    async function loadSupportingDocuments(referral) {
+        const root = document.querySelector("#referralSupportingDocuments");
+        if (!root)
+            return;
+        try {
+            const response = await fetch(`/ReferralSupportingDocuments/List?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}`);
+            const result = await response.json();
+            if (!response.ok || !result.success)
+                throw new Error(result.message ?? "Supporting documents could not be loaded.");
+            const linked = result.linked ?? [];
+            const linkedIds = new Set(linked.map(x => x.documentUid));
+            const available = (result.available ?? []).filter(x => !linkedIds.has(x.documentUid));
+            const linkedMarkup = linked.length ? `<div class="list-group mb-3">${linked.map(document => `<div class="list-group-item"><div class="d-flex flex-column flex-sm-row justify-content-between gap-2"><div><div class="fw-semibold">${escapeHtml(document.title)}</div><div class="small text-body-secondary">${escapeHtml(document.documentType)} · ${escapeHtml(document.documentStatus)} · ${escapeHtml(formatDate(document.createdAtUtc ?? document.createdAt))}</div></div><div class="d-flex gap-2 align-self-sm-center"><a class="btn btn-sm btn-outline-primary" href="/PatientDocuments/Details?documentUid=${encodeURIComponent(document.documentUid)}" target="_blank" rel="noopener">Open</a>${referral.status === "Draft" ? `<button class="btn btn-sm btn-outline-danger unlink-referral-document" data-document-uid="${document.documentUid}">Remove</button>` : ""}</div></div></div>`).join("")}</div>` : `<p class="text-body-secondary mb-3">No supporting documents linked.</p>`;
+            let addMarkup = "";
+            if (referral.status === "Draft") {
+                addMarkup = available.length
+                    ? `<div class="row g-2 align-items-end"><div class="col-12 col-sm"><label class="form-label small" for="availableReferralDocument">Existing patient document</label><select class="form-select form-select-sm" id="availableReferralDocument"><option value="">Select a document</option>${available.map(x => `<option value="${x.documentUid}">${escapeHtml(x.title)} — ${escapeHtml(x.documentType)} (${escapeHtml(x.documentStatus)})</option>`).join("")}</select></div><div class="col-12 col-sm-auto"><button class="btn btn-sm btn-primary w-100" id="linkReferralDocument">Add Supporting Document</button></div></div>`
+                    : `<p class="small text-body-secondary mb-0">${(result.available ?? []).length ? "All available patient documents are already linked." : "No patient documents are available to link."}</p>`;
+            }
+            root.innerHTML = linkedMarkup + addMarkup + `<div class="alert alert-danger d-none mt-2 mb-0" id="referralDocumentMessage"></div>`;
+            root.querySelector("#linkReferralDocument")?.addEventListener("click", event => {
+                const uid = root.querySelector("#availableReferralDocument")?.value ?? "";
+                if (uid)
+                    void mutateSupportingDocument("Link", uid, event.currentTarget);
+            });
+            root.querySelectorAll(".unlink-referral-document").forEach(button => button.addEventListener("click", () => {
+                if (window.confirm("Remove this supporting-document link? The patient document will not be deleted."))
+                    void mutateSupportingDocument("Unlink", button.dataset.documentUid ?? "", button);
+            }));
+        }
+        catch (error) {
+            root.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(error instanceof Error ? error.message : "Supporting documents could not be loaded.")}</div>`;
+        }
+    }
+    async function mutateSupportingDocument(action, documentUid, button) {
+        if (!selectedReferral || !documentUid)
+            return;
+        button.disabled = true;
+        const body = new FormData();
+        body.set("PatientUid", patientUid);
+        body.set("ReferralUid", selectedReferral.referralUid);
+        body.set("DocumentUid", documentUid);
+        body.set("RowVersion", selectedReferral.rowVersion);
+        body.set("__RequestVerificationToken", token.value);
+        try {
+            const response = await fetch(`/ReferralSupportingDocuments/${action}`, { method: "POST", body });
+            const result = await response.json();
+            if (!response.ok || !result.success)
+                throw new Error(result.message ?? "The supporting document could not be changed.");
+            await openDetails(selectedReferral.referralUid);
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "The supporting document could not be changed.";
+            button.disabled = false;
+            if (selectedReferral)
+                await openDetails(selectedReferral.referralUid);
+            showPageMessage(errorMessage, "danger");
+        }
     }
     async function transitionReferral(button) {
         if (!selectedReferral)
