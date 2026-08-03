@@ -31,6 +31,8 @@ using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Infrastructure.ClinicalUsers;
 using MicroEMR.Application.PatientReferrals;
 using MicroEMR.Infrastructure.PatientReferrals;
+using MicroEMR.Application.PatientFiles;
+using MicroEMR.Infrastructure.PatientFiles;
 
 namespace MicroEMR.Infrastructure;
 
@@ -66,6 +68,8 @@ public static class DependencyInjection
         services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
         services.AddScoped<IPatientReferralRepository, PatientReferralRepository>();
         services.AddScoped<IReferralDocumentRepository, ReferralDocumentRepository>();
+        services.AddScoped<IPatientFileRepository, PatientFileRepository>();
+        services.AddSingleton<IPatientFileStorage, LocalPatientFileStorage>();
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
             services.AddScoped<IDocumentTemplateVersionRepository, DocumentTemplateVersionRepository>();

@@ -1,0 +1,21 @@
+using System.Data;
+using Microsoft.Data.SqlClient;
+using MicroEMR.Application.PatientFiles;
+using MicroEMR.Infrastructure.Tenancy;
+
+namespace MicroEMR.Infrastructure.PatientFiles;
+
+public sealed class PatientFileRepository(ITenantSqlConnectionFactory connections) : IPatientFileRepository
+{
+    public async Task<IReadOnlyList<PatientFile>> GetByPatientUidAsync(Guid patientUid, CancellationToken cancellationToken = default)
+    { var x=new List<PatientFile>();await using var c=await connections.OpenConnectionAsync(cancellationToken);await using var q=Cmd(c,"dbo.PatientFile_GetByPatientUid");q.Parameters.Add("@PatientUid",SqlDbType.UniqueIdentifier).Value=patientUid;await using var r=await q.ExecuteReaderAsync(cancellationToken);while(await r.ReadAsync(cancellationToken))x.Add(Map(r));return x; }
+    public async Task<PatientFile?> GetByUidAsync(Guid patientUid,Guid fileUid,CancellationToken cancellationToken=default)
+    {await using var c=await connections.OpenConnectionAsync(cancellationToken);await using var q=Cmd(c,"dbo.PatientFile_GetByUid");q.Parameters.Add("@PatientUid",SqlDbType.UniqueIdentifier).Value=patientUid;q.Parameters.Add("@FileUid",SqlDbType.UniqueIdentifier).Value=fileUid;await using var r=await q.ExecuteReaderAsync(cancellationToken);return await r.ReadAsync(cancellationToken)?Map(r):null;}
+    public async Task<PatientFile> CreateAsync(Guid patientUid,CreatePatientFileMetadata m,long uploadedBy,CancellationToken cancellationToken=default)
+    {await using var c=await connections.OpenConnectionAsync(cancellationToken);await using var q=Cmd(c,"dbo.PatientFile_Create");q.Parameters.Add("@PatientUid",SqlDbType.UniqueIdentifier).Value=patientUid;S(q,"@OriginalFileName",255,m.OriginalFileName);S(q,"@StorageKey",500,m.StorageKey);S(q,"@ContentType",200,m.ContentType);q.Parameters.Add("@FileSizeBytes",SqlDbType.BigInt).Value=m.FileSizeBytes;N(q,"@FileExtension",20,m.FileExtension);N(q,"@Sha256Hash",64,m.Sha256Hash);N(q,"@Description",1000,m.Description);N(q,"@Category",100,m.Category);q.Parameters.Add("@UploadedBy",SqlDbType.BigInt).Value=uploadedBy;await using var r=await q.ExecuteReaderAsync(cancellationToken);if(!await r.ReadAsync(cancellationToken))throw new InvalidOperationException("PatientFile_Create returned no record.");return Map(r);}
+    private static SqlCommand Cmd(SqlConnection c,string n)=>new(n,c){CommandType=CommandType.StoredProcedure};
+    private static void S(SqlCommand c,string n,int z,string v)=>c.Parameters.Add(n,SqlDbType.NVarChar,z).Value=v;
+    private static void N(SqlCommand c,string n,int z,string?v)=>c.Parameters.Add(n,SqlDbType.NVarChar,z).Value=(object?)v??DBNull.Value;
+    private static PatientFile Map(SqlDataReader r)=>new(){FileUid=r.GetGuid(r.GetOrdinal("FileUid")),PatientUid=r.GetGuid(r.GetOrdinal("PatientUid")),OriginalFileName=r.GetString(r.GetOrdinal("OriginalFileName")),StorageKey=r.GetString(r.GetOrdinal("StorageKey")),ContentType=r.GetString(r.GetOrdinal("ContentType")),FileSizeBytes=r.GetInt64(r.GetOrdinal("FileSizeBytes")),FileExtension=Str(r,"FileExtension"),Sha256Hash=Str(r,"Sha256Hash"),Description=Str(r,"Description"),Category=Str(r,"Category"),Status=Enum.Parse<PatientFileStatus>(r.GetString(r.GetOrdinal("Status"))),UploadedAtUtc=r.GetDateTime(r.GetOrdinal("UploadedAt")),UploadedBy=r.GetInt64(r.GetOrdinal("UploadedBy")),UpdatedAtUtc=Date(r,"UpdatedAt"),UpdatedBy=Long(r,"UpdatedBy"),RowVersion=Convert.ToBase64String((byte[])r["RowVersion"])};
+    private static string?Str(SqlDataReader r,string n){var i=r.GetOrdinal(n);return r.IsDBNull(i)?null:r.GetString(i);}private static DateTime?Date(SqlDataReader r,string n){var i=r.GetOrdinal(n);return r.IsDBNull(i)?null:r.GetDateTime(i);}private static long?Long(SqlDataReader r,string n){var i=r.GetOrdinal(n);return r.IsDBNull(i)?null:r.GetInt64(i);}
+}
