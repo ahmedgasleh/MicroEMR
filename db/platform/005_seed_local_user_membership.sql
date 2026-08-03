@@ -15,7 +15,7 @@ INSERT INTO dbo.UserTenantMembership
     CreatedAt
 )
 SELECT
-    N'IDENTITY-USER-ID-HERE',
+    N'56c3a21b-3207-4954-a970-f32f1feb2ac2',
     tenant.TenantUid,
     'Active',
     CONVERT(BIT, 1),
@@ -26,7 +26,7 @@ WHERE tenant.TenantKey = N'local-dev'
     (
         SELECT 1
         FROM dbo.UserTenantMembership AS membership
-        WHERE membership.UserId = N'IDENTITY-USER-ID-HERE'
+        WHERE membership.UserId = N'56c3a21b-3207-4954-a970-f32f1feb2ac2'
             AND membership.TenantUid = tenant.TenantUid
     );
 
@@ -38,14 +38,14 @@ INSERT INTO dbo.UserTenantRole
     CreatedAt
 )
 SELECT
-    N'IDENTITY-USER-ID-HERE',
+    N'56c3a21b-3207-4954-a970-f32f1feb2ac2',
     tenant.TenantUid,
     N'ClinicAdministrator',
     SYSUTCDATETIME()
 FROM dbo.Tenant AS tenant
 INNER JOIN dbo.UserTenantMembership AS membership
     ON membership.TenantUid = tenant.TenantUid
-    AND membership.UserId = N'IDENTITY-USER-ID-HERE'
+    AND membership.UserId = N'56c3a21b-3207-4954-a970-f32f1feb2ac2'
 WHERE tenant.TenantKey = N'local-dev'
     AND NOT EXISTS
     (
@@ -70,6 +70,6 @@ INNER JOIN dbo.Tenant AS tenant
 LEFT JOIN dbo.UserTenantRole AS role
     ON role.UserId = membership.UserId
     AND role.TenantUid = membership.TenantUid
-WHERE membership.UserId = N'IDENTITY-USER-ID-HERE'
+WHERE membership.UserId = N'56c3a21b-3207-4954-a970-f32f1feb2ac2'
     AND tenant.TenantKey = N'local-dev';
 GO
