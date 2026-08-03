@@ -16,6 +16,6 @@ public class CreatePatientVitalViewModel
     [Range(typeof(decimal),"20","260")] public decimal? HeightCm{get;set;} [Range(typeof(decimal),"1","500")] public decimal? WeightKg{get;set;}
     [StringLength(1000)] public string? Notes{get;set;}
 }
-public sealed class UpdatePatientVitalViewModel:CreatePatientVitalViewModel { public Guid PatientVitalUid{get;set;} }
+public sealed class UpdatePatientVitalViewModel:CreatePatientVitalViewModel { public Guid PatientVitalUid{get;set;} [Required] public string RowVersion{get;set;}=string.Empty; }
 public sealed class CreatePatientVitalRequest:CreatePatientVitalViewModel { }
-public sealed class UpdatePatientVitalRequest:CreatePatientVitalViewModel { }
+public sealed class UpdatePatientVitalRequest:CreatePatientVitalViewModel { public string RowVersion{get;set;}=string.Empty; }
