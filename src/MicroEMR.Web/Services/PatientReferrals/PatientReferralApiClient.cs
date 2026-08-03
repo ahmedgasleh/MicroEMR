@@ -28,6 +28,12 @@ public interface IPatientReferralApiClient
         string rowVersion, CancellationToken cancellationToken = default);
     Task<PatientReferralDetailsViewModel?> CloseAsync(Guid patientUid, Guid referralUid,
         string rowVersion, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReferralSupportingDocumentViewModel>> GetLinkedDocumentsAsync(
+        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default);
+    Task LinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+        string rowVersion, CancellationToken cancellationToken = default);
+    Task UnlinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+        string rowVersion, CancellationToken cancellationToken = default);
 }
 
 public sealed class PatientReferralApiClient(
@@ -101,6 +107,35 @@ public sealed class PatientReferralApiClient(
         Guid patientUid, Guid referralUid, string rowVersion,
         CancellationToken cancellationToken = default) =>
         TransitionAsync(patientUid, referralUid, "close", rowVersion, cancellationToken);
+
+    public async Task<IReadOnlyList<ReferralSupportingDocumentViewModel>> GetLinkedDocumentsAsync(
+        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get,
+            $"api/patients/{patientUid}/referrals/{referralUid}/documents");
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<List<ReferralSupportingDocumentViewModel>>(
+            cancellationToken: cancellationToken) ?? [];
+    }
+
+    public Task LinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+        string rowVersion, CancellationToken cancellationToken = default) =>
+        MutateDocumentAsync(HttpMethod.Post, patientUid, referralUid, documentUid, rowVersion, cancellationToken);
+
+    public Task UnlinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
+        string rowVersion, CancellationToken cancellationToken = default) =>
+        MutateDocumentAsync(HttpMethod.Delete, patientUid, referralUid, documentUid, rowVersion, cancellationToken);
+
+    private async Task MutateDocumentAsync(HttpMethod method, Guid patientUid, Guid referralUid,
+        Guid documentUid, string rowVersion, CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(method,
+            $"api/patients/{patientUid}/referrals/{referralUid}/documents/{documentUid}");
+        request.Content = JsonContent.Create(new { rowVersion });
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response);
+    }
 
     private async Task<PatientReferralDetailsViewModel?> TransitionAsync(
         Guid patientUid, Guid referralUid, string action, string rowVersion,
