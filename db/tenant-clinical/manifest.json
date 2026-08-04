@@ -25,5 +25,6 @@
   { "migrationId": "0023-patient-referral-document-linkage", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0023-patient-referral-document-linkage.sql" },
   { "migrationId": "0024-patient-document-create-patient-id", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0024-patient-document-create-patient-id.sql" },
   { "migrationId": "0025-patient-files-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0025-patient-files-foundation.sql" },
-  { "migrationId": "0026-patient-file-lifecycle-security", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0026-patient-file-lifecycle-security.sql" }
+  { "migrationId": "0026-patient-file-lifecycle-security", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0026-patient-file-lifecycle-security.sql" },
+  { "migrationId": "0027-dashboard-unreviewed-results", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0027-dashboard-unreviewed-results.sql" }
 ]
