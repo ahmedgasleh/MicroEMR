@@ -1,0 +1,84 @@
+@model MicroEMR.Web.Models.TenantUserAdministration.TenantUserAdministrationViewModel
+
+@{
+    ViewData["Title"] = "User Administration";
+    ViewData["Subtitle"] = "View users assigned to the active clinic.";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h1 class="h3 mb-1">User Administration</h1>
+            <p class="text-muted mb-0">Tenant membership, roles, and clinical-user provisioning status.</p>
+        </div>
+    </div>
+
+    @if (Model.Users.Count == 0)
+    {
+        <div class="alert alert-info mt-4" role="status">No users are assigned to this clinic.</div>
+    }
+    else
+    {
+        <div class="table-responsive mt-4">
+            <table class="table table-hover align-middle mb-0">
+                <caption class="visually-hidden">Users assigned to the active clinic</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Name / Username</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Membership</th>
+                        <th scope="col">Tenant Roles</th>
+                        <th scope="col">Clinical User</th>
+                        <th scope="col">Clinical User ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@user.DisplayName</div>
+                                <div class="small text-muted">@user.UserName</div>
+                                @if (!user.AuthUserActive)
+                                {
+                                    <span class="badge text-bg-warning mt-1">Auth account inactive</span>
+                                }
+                            </td>
+                            <td>@(user.Email ?? "—")</td>
+                            <td><span class="badge text-bg-light border">@user.MembershipStatus</span></td>
+                            <td>
+                                @if (user.TenantRoles.Count == 0)
+                                {
+                                    <span class="text-muted">No roles</span>
+                                }
+                                else
+                                {
+                                    @foreach (var role in user.TenantRoles)
+                                    {
+                                        <span class="badge text-bg-secondary me-1">@role</span>
+                                    }
+                                }
+                            </td>
+                            <td>
+                                @if (user.ClinicalUserProvisioned)
+                                {
+                                    <span class="badge text-bg-success">Provisioned</span>
+                                    @if (user.ClinicalUserActive == false)
+                                    {
+                                        <span class="badge text-bg-warning ms-1">Inactive</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-light border">Not provisioned</span>
+                                }
+                            </td>
+                            <td>@(user.ClinicalUserId?.ToString() ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
