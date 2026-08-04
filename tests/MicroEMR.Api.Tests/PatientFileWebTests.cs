@@ -57,7 +57,7 @@ public sealed class PatientFileWebTests
             new HttpContextAccessor { HttpContext = Context() });
 
         await client.GetByPatientUidAsync(patientUid);
-        await client.GetByUidAsync(patientUid, fileUid);
+        var details = await client.GetByUidAsync(patientUid, fileUid);
         await using var bytes = new MemoryStream("%PDF-test"u8.ToArray());
         var formFile = new FormFile(bytes, 0, bytes.Length, "ignored-browser-field", "report.pdf") { Headers = new HeaderDictionary(), ContentType = "application/pdf" };
         await client.UploadAsync(patientUid, formFile, "Clinical report", "Reports");
@@ -65,6 +65,8 @@ public sealed class PatientFileWebTests
 
         Assert.Equal($"api/patients/{patientUid}/files", handler.Requests[0].Path);
         Assert.Equal($"api/patients/{patientUid}/files/{fileUid}", handler.Requests[1].Path);
+        Assert.NotNull(details); Assert.Equal("Archived", details.Status); Assert.Null(details.UpdatedAtUtc);
+        Assert.Null(details.UpdatedByDisplayName); Assert.Equal("v", details.RowVersion); Assert.Equal(new string('a',64), details.Sha256Hash);
         Assert.Equal(HttpMethod.Post, handler.Requests[2].Method);
         Assert.Equal($"api/patients/{patientUid}/files/{fileUid}/content", handler.Requests[3].Path);
         var body = handler.Requests[2].Body!;
@@ -89,6 +91,9 @@ public sealed class PatientFileWebTests
         Assert.Contains("data-content-url-root", view);
         Assert.DoesNotContain("data-content-url-template", view);
         Assert.Contains("/${encodeURIComponent(uid)}/content", script);
+        Assert.Contains("data-details-url-root", view);
+        Assert.DoesNotContain("data-details-url-template", view);
+        Assert.Contains("detailsUrl(button.dataset.fileUid!)", script);
         Assert.DoesNotContain("StorageKey", view); Assert.DoesNotContain("StorageKey", script);
         Assert.DoesNotContain(">Archive<", view); Assert.DoesNotContain(">Delete<", view);
         Assert.DoesNotContain("PatientUid\"", view[view.IndexOf("patientFileUploadForm", StringComparison.Ordinal)..view.IndexOf("</form>", view.IndexOf("patientFileUploadForm", StringComparison.Ordinal), StringComparison.Ordinal)]);
@@ -125,6 +130,8 @@ public sealed class PatientFileWebTests
         public Task<IReadOnlyList<PatientFileViewModel>> GetByPatientUidAsync(Guid patientUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PatientFileViewModel?> GetByUidAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, string? description, string? category, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PatientFileViewModel?> ArchiveAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default)=>throw new NotSupportedException();
+        public Task<PatientFileViewModel?> RestoreAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default)=>throw new NotSupportedException();
     }
 
     private sealed class TrackingStream(byte[] bytes) : MemoryStream(bytes)
@@ -147,7 +154,7 @@ public sealed class PatientFileWebTests
         {
             Requests.Add((request.Method, request.RequestUri!.PathAndQuery.TrimStart('/'), request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken), request.Headers.Authorization?.ToString()));
             var isList = request.Method == HttpMethod.Get && request.RequestUri.AbsolutePath.EndsWith("/files", StringComparison.Ordinal);
-            var json = $"{{\"fileUid\":\"{fileUid}\",\"patientUid\":\"{patientUid}\",\"originalFileName\":\"report.pdf\",\"contentType\":\"application/pdf\",\"fileSizeBytes\":9,\"status\":\"Active\",\"uploadedAtUtc\":\"2026-08-04T12:00:00Z\",\"uploadedBy\":1,\"rowVersion\":\"v\"}}";
+            var json = $"{{\"fileUid\":\"{fileUid}\",\"patientUid\":\"{patientUid}\",\"originalFileName\":\"report.pdf\",\"contentType\":\"application/pdf\",\"fileSizeBytes\":9,\"sha256Hash\":\"{new string('a',64)}\",\"status\":\"Archived\",\"uploadedAtUtc\":\"2026-08-04T12:00:00Z\",\"uploadedBy\":1,\"rowVersion\":\"v\"}}";
             if (request.RequestUri.AbsolutePath.EndsWith("/content", StringComparison.Ordinal)) return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("content") };
             return new HttpResponseMessage(request.Method == HttpMethod.Post ? HttpStatusCode.Created : HttpStatusCode.OK) { Content = new StringContent(isList ? $"[{json}]" : json, System.Text.Encoding.UTF8, "application/json") };
         }

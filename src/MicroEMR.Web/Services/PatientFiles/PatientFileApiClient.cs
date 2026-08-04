@@ -50,6 +50,10 @@ public sealed class PatientFileApiClient(HttpClient client, IHttpContextAccessor
         try { await EnsureSuccessAsync(response, cancellationToken); return response; }
         catch { response.Dispose(); throw; }
     }
+    public Task<PatientFileViewModel?> ArchiveAsync(Guid p,Guid f,string v,CancellationToken ct=default)=>TransitionAsync(p,f,"archive",v,ct);
+    public Task<PatientFileViewModel?> RestoreAsync(Guid p,Guid f,string v,CancellationToken ct=default)=>TransitionAsync(p,f,"restore",v,ct);
+    private async Task<PatientFileViewModel?> TransitionAsync(Guid p,Guid f,string action,string v,CancellationToken ct)
+    {using var request=await RequestAsync(HttpMethod.Post,$"api/patients/{p}/files/{f}/{action}");request.Content=JsonContent.Create(new{rowVersion=v});using var response=await client.SendAsync(request,ct);if(response.StatusCode==HttpStatusCode.NotFound)return null;await EnsureSuccessAsync(response,ct);return await response.Content.ReadFromJsonAsync<PatientFileViewModel>(cancellationToken:ct);}
 
     private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, string uri)
     {
@@ -70,6 +74,7 @@ public sealed class PatientFileApiClient(HttpClient client, IHttpContextAccessor
             HttpStatusCode.Unauthorized => "Your session is no longer authorized.",
             HttpStatusCode.Forbidden => "You are not authorized to perform this file operation.",
             HttpStatusCode.NotFound => "The patient or file was not found.",
+            HttpStatusCode.Conflict => "This file was changed by another user. The latest information has been reloaded.",
             _ => "The file operation could not be completed."
         };
         throw new HttpRequestException(message, null, response.StatusCode);

@@ -8,4 +8,6 @@ public interface IPatientFileApiClient
     Task<PatientFileViewModel?> GetByUidAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default);
     Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, string? description, string? category, CancellationToken cancellationToken = default);
     Task<HttpResponseMessage> GetContentAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default);
+    Task<PatientFileViewModel?> ArchiveAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default);
+    Task<PatientFileViewModel?> RestoreAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default);
 }

@@ -43,6 +43,12 @@ public sealed class PatientFilesController(IPatientFileApiClient client, ILogger
         }
         catch (Exception exception) { return Failure(exception, "The file could not be uploaded.", patientUid); }
     }
+    [HttpPost("{fileUid:guid}/archive"),ValidateAntiForgeryToken]
+    public Task<IActionResult>Archive(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken ct)=>Transition(patientUid,fileUid,rowVersion,client.ArchiveAsync,ct);
+    [HttpPost("{fileUid:guid}/restore"),ValidateAntiForgeryToken]
+    public Task<IActionResult>Restore(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken ct)=>Transition(patientUid,fileUid,rowVersion,client.RestoreAsync,ct);
+    private async Task<IActionResult>Transition(Guid p,Guid f,string v,Func<Guid,Guid,string,CancellationToken,Task<PatientFileViewModel?>> action,CancellationToken ct)
+    {if(string.IsNullOrWhiteSpace(v))return BadRequest(new{success=false,message="The file version is required."});try{var file=await action(p,f,v,ct);return file is null?NotFound(new{success=false,message="File was not found."}):Json(new{success=true,file});}catch(Exception e){return Failure(e,"The file status could not be changed.",p,f);}}
 
     [HttpGet("{fileUid:guid}/content")]
     public async Task<IActionResult> Content(Guid patientUid, Guid fileUid, CancellationToken cancellationToken)
@@ -87,7 +93,7 @@ public sealed class PatientFilesController(IPatientFileApiClient client, ILogger
         logger.LogWarning(exception, "Patient file request failed for patient {PatientUid}, file {FileUid}.", patientUid, fileUid);
         if (exception is UnauthorizedAccessException) return Unauthorized(new { success = false, message = "Your session is no longer authorized." });
         if (exception is HttpRequestException http)
-            return StatusCode(http.StatusCode is null ? 502 : (int)http.StatusCode, new { success = false, message = http.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.NotFound ? http.Message : fallback });
+            return StatusCode(http.StatusCode is null ? 502 : (int)http.StatusCode, new { success = false, message = http.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.NotFound or HttpStatusCode.Conflict ? http.Message : fallback });
         return StatusCode(502, new { success = false, message = fallback });
     }
 }
