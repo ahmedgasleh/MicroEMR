@@ -9,6 +9,7 @@ using MicroEMR.Application.Scheduling.Services;
 using Microsoft.Extensions.DependencyInjection;
 using MicroEMR.Application.PatientReferrals;
 using MicroEMR.Application.PatientFiles;
+using MicroEMR.Application.ClinicConfiguration;
 
 namespace MicroEMR.Application;
 
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IReferralStatusTransitionService, ReferralStatusTransitionService>();
         services.AddScoped<IReferralDocumentService, ReferralDocumentService>();
         services.AddScoped<IPatientFileService, PatientFileService>();
+        services.AddScoped<IClinicConfigurationService, ClinicConfigurationService>();
         services.AddScoped<ISchedulingReadService, SchedulingReadService>();
         services.AddScoped<ISchedulingAppointmentService, SchedulingAppointmentService>();
         services.AddScoped<IAppointmentStatusTransitionService, AppointmentStatusTransitionService>();
