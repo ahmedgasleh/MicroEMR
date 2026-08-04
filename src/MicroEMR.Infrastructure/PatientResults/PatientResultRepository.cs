@@ -1,1 +1,76 @@
-using System.Data;using Microsoft.Data.SqlClient;using MicroEMR.Infrastructure.Tenancy;using MicroEMR.Application.PatientResults;namespace MicroEMR.Infrastructure.PatientResults;public sealed class PatientResultRepository:IPatientResultRepository{private readonly ITenantSqlConnectionFactory _connectionFactory;public PatientResultRepository(ITenantSqlConnectionFactory connectionFactory)=>_connectionFactory=connectionFactory;public async Task<IReadOnlyList<PatientResultResponse>>List(Guid p,string s,CancellationToken t=default){var l=new List<PatientResultResponse>();await using var c=await _connectionFactory.OpenConnectionAsync(t);await using var q=C(c,"dbo.PatientResult_GetByPatientUid");P(q,"@PatientUid",SqlDbType.UniqueIdentifier,p);P(q,"@StatusFilter",SqlDbType.NVarChar,s,50);await using var r=await q.ExecuteReaderAsync(t);while(await r.ReadAsync(t))l.Add(M(r));return l;}public Task<PatientResultResponse?>Get(Guid p,Guid u,CancellationToken t=default)=>Run("dbo.PatientResult_GetByUid",p,u,null,null,null,t);public Task<PatientResultResponse?>Create(Guid p,CreatePatientResultRequest x,long?user,CancellationToken t=default)=>Run("dbo.PatientResult_Create",p,null,x,null,user,t);public Task<PatientResultResponse?>Update(Guid p,Guid u,UpdatePatientResultRequest x,long?user,CancellationToken t=default)=>Run("dbo.PatientResult_Update",p,u,x,null,user,t);public Task<PatientResultResponse?>Review(Guid p,Guid u,MarkPatientResultReviewedRequest x,long?user,CancellationToken t=default)=>Run("dbo.PatientResult_MarkReviewed",p,u,null,x,user,t);private async Task<PatientResultResponse?>Run(string sp,Guid p,Guid?u,SavePatientResultRequest?x,MarkPatientResultReviewedRequest?rv,long?user,CancellationToken t){await using var c=await _connectionFactory.OpenConnectionAsync(t);await using var q=C(c,sp);P(q,"@PatientUid",SqlDbType.UniqueIdentifier,p);if(u.HasValue)P(q,"@PatientResultUid",SqlDbType.UniqueIdentifier,u.Value);if(x is not null){P(q,"@ResultType",SqlDbType.NVarChar,x.ResultType,50);P(q,"@ResultName",SqlDbType.NVarChar,x.ResultName,200);P(q,"@ResultDate",SqlDbType.DateTime2,x.ResultDate);P(q,"@ResultSummary",SqlDbType.NVarChar,x.ResultSummary,-1);P(q,"@ResultValue",SqlDbType.NVarChar,x.ResultValue,500);P(q,"@ResultUnit",SqlDbType.NVarChar,x.ResultUnit,100);P(q,"@ReferenceRange",SqlDbType.NVarChar,x.ReferenceRange,200);}if(rv is not null)P(q,"@ReviewNote",SqlDbType.NVarChar,rv.ReviewNote,1000);if(x is not null||rv is not null)P(q,sp.EndsWith("Create")?"@CreatedBy":sp.EndsWith("Reviewed")?"@ReviewedBy":"@UpdatedBy",SqlDbType.BigInt,user);await using var r=await q.ExecuteReaderAsync(t);return await r.ReadAsync(t)?M(r):null;}private static SqlCommand C(SqlConnection c,string s)=>new(s,c){CommandType=CommandType.StoredProcedure};private static void P(SqlCommand q,string n,SqlDbType d,object?v,int z=0)=>q.Parameters.Add(new SqlParameter(n,d,z){Value=v??DBNull.Value});private static PatientResultResponse M(SqlDataReader r)=>new(){PatientResultUid=r.GetGuid(r.GetOrdinal("PatientResultUid")),PatientUid=r.GetGuid(r.GetOrdinal("PatientUid")),ResultType=r.GetString(r.GetOrdinal("ResultType")),ResultName=r.GetString(r.GetOrdinal("ResultName")),ResultDate=r.GetDateTime(r.GetOrdinal("ResultDate")),ResultSummary=S(r,"ResultSummary"),ResultValue=S(r,"ResultValue"),ResultUnit=S(r,"ResultUnit"),ReferenceRange=S(r,"ReferenceRange"),ResultStatus=r.GetString(r.GetOrdinal("ResultStatus")),ReviewedAt=D(r,"ReviewedAt"),ReviewedBy=L(r,"ReviewedBy"),ReviewedByDisplayName=S(r,"ReviewedByDisplayName"),ReviewNote=S(r,"ReviewNote"),CreatedAt=r.GetDateTime(r.GetOrdinal("CreatedAt")),CreatedBy=L(r,"CreatedBy"),CreatedByDisplayName=S(r,"CreatedByDisplayName"),UpdatedAt=D(r,"UpdatedAt"),UpdatedBy=L(r,"UpdatedBy"),UpdatedByDisplayName=S(r,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])r["RowVersion"])};private static string?S(SqlDataReader r,string n){var o=r.GetOrdinal(n);return r.IsDBNull(o)?null:r.GetString(o);}private static long?L(SqlDataReader r,string n){var o=r.GetOrdinal(n);return r.IsDBNull(o)?null:r.GetInt64(o);}private static DateTime?D(SqlDataReader r,string n){var o=r.GetOrdinal(n);return r.IsDBNull(o)?null:r.GetDateTime(o);}}
+using System.Data;
+using Microsoft.Data.SqlClient;
+using MicroEMR.Application.PatientResults;
+using MicroEMR.Infrastructure.Tenancy;
+
+namespace MicroEMR.Infrastructure.PatientResults;
+
+public sealed class PatientResultRepository(ITenantSqlConnectionFactory connectionFactory) : IPatientResultRepository
+{
+    public async Task<int> GetUnreviewedCount(CancellationToken token = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(token);
+        await using var command = Command(connection, "dbo.PatientResult_GetUnreviewedCount");
+        return checked((int)Convert.ToInt64(await command.ExecuteScalarAsync(token)));
+    }
+
+    public async Task<IReadOnlyList<PatientResultResponse>> List(Guid patientUid, string status, CancellationToken token = default)
+    {
+        var results = new List<PatientResultResponse>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(token);
+        await using var command = Command(connection, "dbo.PatientResult_GetByPatientUid");
+        Parameter(command, "@PatientUid", SqlDbType.UniqueIdentifier, patientUid);
+        Parameter(command, "@StatusFilter", SqlDbType.NVarChar, status, 50);
+        await using var reader = await command.ExecuteReaderAsync(token);
+        while (await reader.ReadAsync(token)) results.Add(Map(reader));
+        return results;
+    }
+
+    public Task<PatientResultResponse?> Get(Guid patientUid, Guid uid, CancellationToken token = default) =>
+        Run("dbo.PatientResult_GetByUid", patientUid, uid, null, null, null, token);
+    public Task<PatientResultResponse?> Create(Guid patientUid, CreatePatientResultRequest request, long? user, CancellationToken token = default) =>
+        Run("dbo.PatientResult_Create", patientUid, null, request, null, user, token);
+    public Task<PatientResultResponse?> Update(Guid patientUid, Guid uid, UpdatePatientResultRequest request, long? user, CancellationToken token = default) =>
+        Run("dbo.PatientResult_Update", patientUid, uid, request, null, user, token);
+    public Task<PatientResultResponse?> Review(Guid patientUid, Guid uid, MarkPatientResultReviewedRequest request, long? user, CancellationToken token = default) =>
+        Run("dbo.PatientResult_MarkReviewed", patientUid, uid, null, request, user, token);
+
+    private async Task<PatientResultResponse?> Run(string procedure, Guid patientUid, Guid? uid,
+        SavePatientResultRequest? request, MarkPatientResultReviewedRequest? review, long? user, CancellationToken token)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(token);
+        await using var command = Command(connection, procedure);
+        Parameter(command, "@PatientUid", SqlDbType.UniqueIdentifier, patientUid);
+        if (uid.HasValue) Parameter(command, "@PatientResultUid", SqlDbType.UniqueIdentifier, uid.Value);
+        if (request is not null)
+        {
+            Parameter(command, "@ResultType", SqlDbType.NVarChar, request.ResultType, 50);
+            Parameter(command, "@ResultName", SqlDbType.NVarChar, request.ResultName, 200);
+            Parameter(command, "@ResultDate", SqlDbType.DateTime2, request.ResultDate);
+            Parameter(command, "@ResultSummary", SqlDbType.NVarChar, request.ResultSummary, -1);
+            Parameter(command, "@ResultValue", SqlDbType.NVarChar, request.ResultValue, 500);
+            Parameter(command, "@ResultUnit", SqlDbType.NVarChar, request.ResultUnit, 100);
+            Parameter(command, "@ReferenceRange", SqlDbType.NVarChar, request.ReferenceRange, 200);
+        }
+        if (review is not null) Parameter(command, "@ReviewNote", SqlDbType.NVarChar, review.ReviewNote, 1000);
+        if (request is not null || review is not null)
+            Parameter(command, procedure.EndsWith("Create") ? "@CreatedBy" : procedure.EndsWith("Reviewed") ? "@ReviewedBy" : "@UpdatedBy", SqlDbType.BigInt, user);
+        await using var reader = await command.ExecuteReaderAsync(token);
+        return await reader.ReadAsync(token) ? Map(reader) : null;
+    }
+
+    private static SqlCommand Command(SqlConnection connection, string procedure) => new(procedure, connection) { CommandType = CommandType.StoredProcedure };
+    private static void Parameter(SqlCommand command, string name, SqlDbType type, object? value, int size = 0) =>
+        command.Parameters.Add(new SqlParameter(name, type, size) { Value = value ?? DBNull.Value });
+    private static PatientResultResponse Map(SqlDataReader reader) => new()
+    {
+        PatientResultUid=reader.GetGuid(reader.GetOrdinal("PatientResultUid")),PatientUid=reader.GetGuid(reader.GetOrdinal("PatientUid")),
+        ResultType=reader.GetString(reader.GetOrdinal("ResultType")),ResultName=reader.GetString(reader.GetOrdinal("ResultName")),ResultDate=reader.GetDateTime(reader.GetOrdinal("ResultDate")),
+        ResultSummary=String(reader,"ResultSummary"),ResultValue=String(reader,"ResultValue"),ResultUnit=String(reader,"ResultUnit"),ReferenceRange=String(reader,"ReferenceRange"),
+        ResultStatus=reader.GetString(reader.GetOrdinal("ResultStatus")),ReviewedAt=Date(reader,"ReviewedAt"),ReviewedBy=Long(reader,"ReviewedBy"),ReviewedByDisplayName=String(reader,"ReviewedByDisplayName"),ReviewNote=String(reader,"ReviewNote"),
+        CreatedAt=reader.GetDateTime(reader.GetOrdinal("CreatedAt")),CreatedBy=Long(reader,"CreatedBy"),CreatedByDisplayName=String(reader,"CreatedByDisplayName"),UpdatedAt=Date(reader,"UpdatedAt"),UpdatedBy=Long(reader,"UpdatedBy"),UpdatedByDisplayName=String(reader,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])reader["RowVersion"])
+    };
+    private static string? String(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetString(ordinal);}
+    private static long? Long(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetInt64(ordinal);}
+    private static DateTime? Date(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetDateTime(ordinal);}
+}

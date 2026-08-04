@@ -12,6 +12,8 @@ public sealed class DashboardViewModel
     public bool ScheduleLoadFailed { get; set; }
     public IReadOnlyList<PatientDashboardTaskViewModel> OpenTasks { get; set; } = Array.Empty<PatientDashboardTaskViewModel>();
     public bool TasksLoadFailed { get; set; }
+    public int? UnreviewedResultCount { get; set; }
+    public bool UnreviewedResultsLoadFailed { get; set; }
 }
 
 public sealed class DashboardAppointmentViewModel

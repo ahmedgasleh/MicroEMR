@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Web.Models.Dashboard;
 using MicroEMR.Web.Services.Scheduling;
 using MicroEMR.Web.Services.PatientTasks;
+using MicroEMR.Web.Services.PatientResults;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -18,15 +19,18 @@ public class HomeController : Controller
         };
     private readonly ISchedulingApiClient _schedulingApiClient;
     private readonly IPatientTaskApiClient _patientTaskApiClient;
+    private readonly IPatientResultApiClient _patientResultApiClient;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         ISchedulingApiClient schedulingApiClient,
         IPatientTaskApiClient patientTaskApiClient,
+        IPatientResultApiClient patientResultApiClient,
         ILogger<HomeController> logger)
     {
         _schedulingApiClient = schedulingApiClient;
         _patientTaskApiClient = patientTaskApiClient;
+        _patientResultApiClient = patientResultApiClient;
         _logger = logger;
     }
 
@@ -89,6 +93,9 @@ public class HomeController : Controller
             model.TasksLoadFailed = true;
             _logger.LogError(exception, "Unable to load dashboard open tasks.");
         }
+
+        try { model.UnreviewedResultCount = await _patientResultApiClient.GetUnreviewedCount(cancellationToken); }
+        catch (Exception exception) { model.UnreviewedResultsLoadFailed = true; _logger.LogError(exception,"Unable to load the dashboard unreviewed result count."); }
 
         return View(model);
     }
