@@ -1,0 +1,106 @@
+@model MicroEMR.Web.Models.ClinicConfiguration.ClinicConfigurationViewModel
+
+@{
+    ViewData["Title"] = "Clinic Settings";
+    ViewData["Subtitle"] = "Manage clinic contact information and operational defaults.";
+    Layout = "_AppLayout";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h1 class="h3 mb-1">Clinic Settings</h1>
+            <p class="text-muted mb-0">Manage profile details for the active clinic.</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success mt-3" role="status">@successMessage</div>
+    }
+
+    <form asp-action="Index" method="post" class="mt-4" data-disable-on-submit="true">
+        @Html.AntiForgeryToken()
+        <input asp-for="RowVersion" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+        <section aria-labelledby="clinic-information-heading">
+            <h2 id="clinic-information-heading" class="h5 mb-3">Clinic Information</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label asp-for="ClinicName" class="form-label"></label>
+                    <input asp-for="ClinicName" class="form-control" readonly aria-describedby="clinic-name-help" />
+                    <div id="clinic-name-help" class="form-text">Managed by the tenant platform.</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="LegalName" class="form-label"></label>
+                    <input asp-for="LegalName" class="form-control" autocomplete="organization" />
+                    <span asp-validation-for="LegalName" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" autocomplete="email" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label asp-for="Phone" class="form-label"></label>
+                    <input asp-for="Phone" class="form-control" autocomplete="tel" />
+                    <span asp-validation-for="Phone" class="text-danger"></span>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label asp-for="Fax" class="form-label"></label>
+                    <input asp-for="Fax" class="form-control" />
+                    <span asp-validation-for="Fax" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-4" />
+        <section aria-labelledby="address-heading">
+            <h2 id="address-heading" class="h5 mb-3">Address</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6"><label asp-for="AddressLine1" class="form-label"></label><input asp-for="AddressLine1" class="form-control" autocomplete="address-line1" /><span asp-validation-for="AddressLine1" class="text-danger"></span></div>
+                <div class="col-12 col-md-6"><label asp-for="AddressLine2" class="form-label"></label><input asp-for="AddressLine2" class="form-control" autocomplete="address-line2" /><span asp-validation-for="AddressLine2" class="text-danger"></span></div>
+                <div class="col-12 col-md-4"><label asp-for="City" class="form-label"></label><input asp-for="City" class="form-control" autocomplete="address-level2" /><span asp-validation-for="City" class="text-danger"></span></div>
+                <div class="col-12 col-md-4"><label asp-for="ProvinceState" class="form-label"></label><input asp-for="ProvinceState" class="form-control" autocomplete="address-level1" /><span asp-validation-for="ProvinceState" class="text-danger"></span></div>
+                <div class="col-12 col-md-4"><label asp-for="PostalCode" class="form-label"></label><input asp-for="PostalCode" class="form-control" autocomplete="postal-code" /><span asp-validation-for="PostalCode" class="text-danger"></span></div>
+                <div class="col-12 col-md-6"><label asp-for="Country" class="form-label"></label><input asp-for="Country" class="form-control" autocomplete="country-name" /><span asp-validation-for="Country" class="text-danger"></span></div>
+            </div>
+        </section>
+
+        <hr class="my-4" />
+        <section aria-labelledby="operations-heading">
+            <h2 id="operations-heading" class="h5 mb-3">Operational Settings</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label asp-for="TimeZoneId" class="form-label"></label>
+                    <input asp-for="TimeZoneId" class="form-control" readonly aria-describedby="time-zone-help" />
+                    <div id="time-zone-help" class="form-text">Managed by the tenant platform.</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label asp-for="DefaultAppointmentDurationMinutes" class="form-label"></label>
+                    <input asp-for="DefaultAppointmentDurationMinutes" class="form-control" type="number" min="5" max="240" />
+                    <span asp-validation-for="DefaultAppointmentDurationMinutes" class="text-danger"></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="d-flex justify-content-end mt-4">
+            <button type="submit" class="btn btn-primary" data-submit-button aria-label="Save clinic settings">
+                <i class="bi bi-check-lg me-1" aria-hidden="true"></i> Save
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelector('[data-disable-on-submit]')?.addEventListener('submit', function () {
+            if (!this.checkValidity()) return;
+            const button = this.querySelector('[data-submit-button]');
+            if (button) { button.disabled = true; button.setAttribute('aria-disabled', 'true'); }
+        });
+    </script>
+}
