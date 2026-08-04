@@ -7,6 +7,8 @@
 }
 
 <div class="content-panel">
+    <form id="membershipAntiForgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
+    <div id="membershipActionMessage" class="alert d-none mt-3" role="status" aria-live="polite"></div>
     <div class="content-panel-header">
         <div>
             <h1 class="h3 mb-1">User Administration</h1>
@@ -31,6 +33,7 @@
                         <th scope="col">Tenant Roles</th>
                         <th scope="col">Clinical User</th>
                         <th scope="col">Clinical User ID</th>
+                        <th scope="col" class="text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -46,7 +49,7 @@
                                 }
                             </td>
                             <td>@(user.Email ?? "—")</td>
-                            <td><span class="badge text-bg-light border">@user.MembershipStatus</span></td>
+                            <td><span class="badge text-bg-light border" data-membership-status>@user.MembershipStatus</span></td>
                             <td>
                                 @if (user.TenantRoles.Count == 0)
                                 {
@@ -75,6 +78,24 @@
                                 }
                             </td>
                             <td>@(user.ClinicalUserId?.ToString() ?? "—")</td>
+                            <td class="text-end">
+                                @if (user.IsCurrentUser)
+                                {
+                                    <span class="small text-muted">Current user</span>
+                                }
+                                else if (user.MembershipStatus == "Active")
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-membership-action="deactivate" data-auth-user-id="@user.AuthUserId"
+                                            data-row-version="@user.RowVersion">Deactivate</button>
+                                }
+                                else if (user.MembershipStatus == "Inactive")
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-membership-action="activate" data-auth-user-id="@user.AuthUserId"
+                                            data-row-version="@user.RowVersion">Activate</button>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -82,3 +103,7 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script type="module" src="~/dist/user-administration/membership-status.js" asp-append-version="true"></script>
+}

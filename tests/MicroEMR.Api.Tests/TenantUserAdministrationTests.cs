@@ -110,10 +110,13 @@ public sealed class TenantUserAdministrationTests
             new MembershipService(memberships),
             new IdentityLookup(profiles),
             new ClinicalLookup(clinicalUsers),
+            new LifecycleRepository(),
+            new SubjectAccessor("auth-1"),
             NullLogger<TenantUserAdministrationService>.Instance);
 
     private static PlatformMembershipInfo Membership(string user, Guid tenant, string status, params string[] roles) =>
-        new(user, tenant, tenant == TenantA ? "tenant-a" : "tenant-b", tenant == TenantA ? "Tenant A" : "Tenant B", status, false, roles);
+        new(user, tenant, tenant == TenantA ? "tenant-a" : "tenant-b", tenant == TenantA ? "Tenant A" : "Tenant B", status, false, roles,
+            DateTimeOffset.UtcNow, "AAAAAAAAAAE=");
     private static IdentityUserProfile Profile(string id, string username, string name) =>
         new(id, username, name, $"{username}@example.test", true);
 
@@ -141,6 +144,19 @@ public sealed class TenantUserAdministrationTests
             Task.FromResult(values.SingleOrDefault(x => x.AuthSubjectId == authSubjectId));
         public Task<ClinicalUser> SetAuthSubjectIdAsync(long userId, string authSubjectId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ClinicalUser> ProvisionAsync(string authSubjectId, string username, string displayName, string? email, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
+    private sealed class LifecycleRepository : ITenantMembershipLifecycleRepository
+    {
+        public Task<TenantMembershipLifecycleResult> DeactivateAsync(string authUserId, Guid tenantUid, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new TenantMembershipLifecycleResult("Inactive", DateTimeOffset.UtcNow, "AAAAAAAAAAI="));
+        public Task<TenantMembershipLifecycleResult> ActivateAsync(string authUserId, Guid tenantUid, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new TenantMembershipLifecycleResult("Active", DateTimeOffset.UtcNow, "AAAAAAAAAAI="));
+    }
+
+    private sealed class SubjectAccessor(string subject) : IAuthenticatedSubjectAccessor
+    {
+        public string GetRequiredSubject() => subject;
     }
 
     private sealed class RecordingHandler : HttpMessageHandler

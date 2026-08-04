@@ -35,6 +35,7 @@ using MicroEMR.Application.PatientFiles;
 using MicroEMR.Infrastructure.PatientFiles;
 using MicroEMR.Application.ClinicConfiguration;
 using MicroEMR.Infrastructure.ClinicConfiguration;
+using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Infrastructure;
 
@@ -63,6 +64,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();
+        services.AddScoped<ITenantMembershipLifecycleRepository, SqlTenantMembershipLifecycleRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IEncounterSoapTemplateRepository, EncounterSoapTemplateRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
