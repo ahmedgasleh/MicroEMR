@@ -28,4 +28,34 @@ public sealed class TenantUserAdministrationController(
             return View("Error", new ErrorViewModel { RequestId = HttpContext.TraceIdentifier });
         }
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Deactivate(string authUserId, string rowVersion, CancellationToken cancellationToken) =>
+        ChangeAsync(() => client.DeactivateAsync(authUserId, rowVersion, cancellationToken), cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Activate(string authUserId, string rowVersion, CancellationToken cancellationToken) =>
+        ChangeAsync(() => client.ActivateAsync(authUserId, rowVersion, cancellationToken), cancellationToken);
+
+    private async Task<IActionResult> ChangeAsync(
+        Func<Task<TenantUserAdministrationItemViewModel>> action,
+        CancellationToken cancellationToken)
+    {
+        try { return Json(new { success = true, user = await action() }); }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            logger.LogWarning(exception, "Tenant membership change was rejected.");
+            return Conflict(new { success = false, message = exception.Message,
+                users = await client.GetUsersAsync(cancellationToken) });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.NotFound)
+        { return NotFound(new { success = false, message = exception.Message }); }
+        catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
+        {
+            logger.LogError(exception, "Tenant membership could not be changed.");
+            return StatusCode(502, new { success = false, message = "The membership could not be changed." });
+        }
+    }
 }

@@ -15,11 +15,18 @@ public sealed record TenantUserAdministrationItem(
     IReadOnlyCollection<string> TenantRoles,
     bool ClinicalUserProvisioned,
     long? ClinicalUserId,
-    bool? ClinicalUserActive);
+    bool? ClinicalUserActive,
+    DateTimeOffset? MembershipUpdatedAt,
+    string RowVersion,
+    bool IsCurrentUser);
 
 public interface ITenantUserAdministrationService
 {
     Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
+        CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItem> DeactivateMembershipAsync(string authUserId, string rowVersion,
+        CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItem> ActivateMembershipAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default);
 }
 
@@ -28,11 +35,14 @@ public sealed class TenantUserAdministrationService(
     IPlatformMembershipAdministrationService memberships,
     IIdentityUserProfileLookup identityUsers,
     IClinicalUserRepository clinicalUsers,
+    ITenantMembershipLifecycleRepository lifecycle,
+    IAuthenticatedSubjectAccessor subjectAccessor,
     ILogger<TenantUserAdministrationService> logger) : ITenantUserAdministrationService
 {
     public async Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
         CancellationToken cancellationToken = default)
     {
+        var actorSubject = subjectAccessor.GetRequiredSubject();
         var tenantMemberships = await memberships.GetTenantMembershipsAsync(
             tenantContext.TenantUid, cancellationToken);
         var results = new List<TenantUserAdministrationItem>(tenantMemberships.Count);
@@ -53,12 +63,37 @@ public sealed class TenantUserAdministrationService(
                 membership.Roles.ToArray(),
                 clinical is not null,
                 clinical?.UserId,
-                clinical?.IsActive));
+                clinical?.IsActive,
+                membership.UpdatedAt,
+                membership.RowVersion ?? throw new InvalidDataException("Membership concurrency metadata is unavailable."),
+                string.Equals(identity.UserId, actorSubject, StringComparison.Ordinal)));
         }
 
         logger.LogInformation("Tenant user administration list loaded for tenant {TenantUid}; count {UserCount}.",
             tenantContext.TenantUid, results.Count);
         return results.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.UserName, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public Task<TenantUserAdministrationItem> DeactivateMembershipAsync(string authUserId, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        ChangeMembershipAsync(authUserId, rowVersion, activate: false, cancellationToken);
+
+    public Task<TenantUserAdministrationItem> ActivateMembershipAsync(string authUserId, string rowVersion,
+        CancellationToken cancellationToken = default) =>
+        ChangeMembershipAsync(authUserId, rowVersion, activate: true, cancellationToken);
+
+    private async Task<TenantUserAdministrationItem> ChangeMembershipAsync(string authUserId, string rowVersion,
+        bool activate, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rowVersion);
+        var actor = subjectAccessor.GetRequiredSubject();
+        if (activate)
+            await lifecycle.ActivateAsync(authUserId, tenantContext.TenantUid, rowVersion, actor, cancellationToken);
+        else
+            await lifecycle.DeactivateAsync(authUserId, tenantContext.TenantUid, rowVersion, actor, cancellationToken);
+        return (await GetTenantUsersAsync(cancellationToken)).Single(x =>
+            string.Equals(x.AuthUserId, authUserId, StringComparison.Ordinal));
     }
 }

@@ -11,6 +11,7 @@ using MicroEMR.Api.ClinicalUsers;
 using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Application.PatientFiles;
 using Microsoft.AspNetCore.Http.Features;
+using MicroEMR.Application.TenantUserAdministration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
+builder.Services.AddScoped<IAuthenticatedSubjectAccessor, AuthenticatedSubjectAccessor>();
 
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext>(serviceProvider =>

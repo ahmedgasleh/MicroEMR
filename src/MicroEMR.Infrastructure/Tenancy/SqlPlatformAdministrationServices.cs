@@ -170,9 +170,9 @@ public sealed class SqlPlatformMembershipAdministrationService : IPlatformMember
     }
     private async Task<IReadOnlyList<PlatformMembershipInfo>> QueryAsync(string procedure, string name, object value, CancellationToken token)
     {
-        var builders = new Dictionary<(string, Guid), (string Key, string Name, string Status, bool Default, List<string> Roles)>();
+        var builders = new Dictionary<(string, Guid), (string Key, string Name, string Status, bool Default, List<string> Roles, DateTimeOffset? UpdatedAt, string? RowVersion)>();
         await using var c = new SqlConnection(_connectionString); await using var cmd = new SqlCommand(procedure, c) { CommandType = CommandType.StoredProcedure }; cmd.Parameters.AddWithValue(name, value); await c.OpenAsync(token); await using var r = await cmd.ExecuteReaderAsync(token);
-        while (await r.ReadAsync(token)) { var k = (r.GetString(0), r.GetGuid(1)); if (!builders.TryGetValue(k, out var b)) b = (r.GetString(2), r.GetString(3), r.GetString(4), r.GetBoolean(5), []); if (!r.IsDBNull(6)) b.Roles.Add(r.GetString(6)); builders[k] = b; }
-        return builders.Select(x => new PlatformMembershipInfo(x.Key.Item1, x.Key.Item2, x.Value.Key, x.Value.Name, x.Value.Status, x.Value.Default, x.Value.Roles.Distinct(StringComparer.Ordinal).Order().ToArray())).ToArray();
+        while (await r.ReadAsync(token)) { var k = (r.GetString(0), r.GetGuid(1)); if (!builders.TryGetValue(k, out var b)) b = (r.GetString(2), r.GetString(3), r.GetString(4), r.GetBoolean(5), [], r.IsDBNull(7)?null:new DateTimeOffset(DateTime.SpecifyKind(r.GetDateTime(7),DateTimeKind.Utc)), Convert.ToBase64String((byte[])r[8])); if (!r.IsDBNull(6)) b.Roles.Add(r.GetString(6)); builders[k] = b; }
+        return builders.Select(x => new PlatformMembershipInfo(x.Key.Item1, x.Key.Item2, x.Value.Key, x.Value.Name, x.Value.Status, x.Value.Default, x.Value.Roles.Distinct(StringComparer.Ordinal).Order().ToArray(),x.Value.UpdatedAt,x.Value.RowVersion)).ToArray();
     }
 }

@@ -38,7 +38,8 @@ public sealed record PlatformTenantDetails(Guid TenantUid, string TenantKey, str
     DateTimeOffset? LastMigrationAt, DateTimeOffset? UpdatedAt);
 
 public sealed record PlatformMembershipInfo(string UserId, Guid TenantUid, string TenantKey, string TenantDisplayName,
-    string MembershipStatus, bool IsDefaultTenant, IReadOnlyCollection<string> Roles);
+    string MembershipStatus, bool IsDefaultTenant, IReadOnlyCollection<string> Roles,
+    DateTimeOffset? UpdatedAt = null, string? RowVersion = null);
 
 public interface IPlatformTenantAdministrationService
 {
