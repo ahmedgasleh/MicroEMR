@@ -17,6 +17,7 @@ using MicroEMR.Web.Services.PatientChartAlerts;
 using MicroEMR.Web.Services.PatientResults;
 using MicroEMR.Web.Services.PatientTasks;
 using MicroEMR.Web.Services.PatientReferrals;
+using MicroEMR.Web.Services.PatientFiles;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,7 @@ builder.Services.AddHttpClient<IPatientChartAlertApiClient, PatientChartAlertApi
 builder.Services.AddHttpClient<IPatientResultApiClient, PatientResultApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IPatientTaskApiClient, PatientTaskApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClient>(ConfigureApiClient);
+builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<
     IPatientAllergyApiClient,

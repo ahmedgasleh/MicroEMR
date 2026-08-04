@@ -522,6 +522,7 @@ public sealed class PatientsController : Controller
             "results" => "results",
             "allergies" => "allergies",
             "documents" => "documents",
+            "files" => "files",
             "encounters" => "encounters",
             "medications" => "medications",
             "problems" => "problems",
