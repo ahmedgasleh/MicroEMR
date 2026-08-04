@@ -17,4 +17,10 @@ public sealed class PatientFilesController(IPatientFileService service):Controll
         try{await using var stream=file.OpenReadStream();var x=await service.UploadAsync(patientUid,new(stream,file.FileName,file.ContentType,file.Length,description,category),ct);return CreatedAtAction(nameof(Get),new{patientUid,fileUid=x.FileUid},x);}
         catch(KeyNotFoundException){return NotFound();}catch(ArgumentException e){ModelState.AddModelError("file",e.Message);return ValidationProblem(ModelState);}
     }
+    [HttpPost("{fileUid:guid}/archive")]
+    public Task<ActionResult<PatientFileResponse>>Archive(Guid patientUid,Guid fileUid,PatientFileLifecycleRequest request,CancellationToken ct)=>Transition(patientUid,fileUid,request,(p,f,v,t)=>service.ArchiveAsync(p,f,v,t),ct);
+    [HttpPost("{fileUid:guid}/restore")]
+    public Task<ActionResult<PatientFileResponse>>Restore(Guid patientUid,Guid fileUid,PatientFileLifecycleRequest request,CancellationToken ct)=>Transition(patientUid,fileUid,request,(p,f,v,t)=>service.RestoreAsync(p,f,v,t),ct);
+    private async Task<ActionResult<PatientFileResponse>>Transition(Guid p,Guid f,PatientFileLifecycleRequest r,Func<Guid,Guid,string,CancellationToken,Task<PatientFileResponse>> action,CancellationToken ct)
+    {try{return Ok(await action(p,f,r.RowVersion,ct));}catch(KeyNotFoundException){return NotFound();}catch(PatientFileConcurrencyException){return Conflict(new{message="This file was changed by another user."});}catch(PatientFileInvalidTransitionException){return Conflict(new{message="The requested file status change is no longer available."});}catch(ArgumentException e){ModelState.AddModelError("rowVersion",e.Message);return ValidationProblem(ModelState);}}
 }

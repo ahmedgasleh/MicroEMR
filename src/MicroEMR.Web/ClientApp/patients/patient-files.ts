@@ -2,7 +2,7 @@ type PatientFile = {
     fileUid: string; originalFileName: string; contentType: string; fileSizeBytes: number;
     fileExtension?: string; sha256Hash?: string; description?: string; category?: string;
     status: string; uploadedAtUtc: string; uploadedBy: number; uploadedByDisplayName?: string;
-    updatedAtUtc?: string; updatedByDisplayName?: string;
+    updatedAtUtc?: string; updatedByDisplayName?: string; rowVersion: string;
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -23,8 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const size = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1).replace(".0", "")} KB` : `${(bytes / 1048576).toFixed(1).replace(".0", "")} MB`;
     const type = (contentType: string) => ({ "application/pdf": "PDF", "image/jpeg": "JPEG image", "image/png": "PNG image", "text/plain": "Text" }[contentType.toLowerCase()] ?? "File");
     const date = (value?: string) => value ? new Date(value).toLocaleString() : "—";
-    const url = (template: string, uid: string) => template.replace("__fileUid__", encodeURIComponent(uid));
+    const detailsUrl = (uid: string) => `${root!.dataset.detailsUrlRoot!.replace(/\/$/, "")}/${encodeURIComponent(uid)}`;
     const contentUrl = (uid: string) => `${root!.dataset.contentUrlRoot!.replace(/\/$/, "")}/${encodeURIComponent(uid)}/content`;
+    const lifecycleUrl = (uid: string, action: string) => `${root!.dataset.contentUrlRoot!.replace(/\/$/, "")}/${encodeURIComponent(uid)}/${action}`;
     const showMessage = (text: string, success = false) => { message.textContent = text; message.className = `alert alert-${success ? "success" : "danger"}`; };
 
     async function loadFiles() {
@@ -35,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok || !result.success) throw new Error(result.message || "Files could not be loaded.");
             const files = result.files as PatientFile[];
             if (!files.length) { list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-folder2-open" aria-hidden="true"></i></div><div class="microemr-empty-state__title">No files uploaded for this patient.</div></div>'; return; }
-            list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Filename</th><th>Category</th><th>Type</th><th>Size</th><th>Status</th><th>Uploaded</th><th>Uploaded by</th><th class="text-end">Actions</th></tr></thead><tbody>${files.map(file => `<tr><td class="text-break"><button type="button" class="btn btn-link p-0 text-start file-details" data-file-uid="${file.fileUid}">${escapeHtml(file.originalFileName)}</button></td><td>${escapeHtml(file.category || "—")}</td><td>${escapeHtml(type(file.contentType))}</td><td class="text-nowrap">${size(file.fileSizeBytes)}</td><td><span class="badge text-bg-success">${escapeHtml(file.status)}</span></td><td class="text-nowrap">${escapeHtml(date(file.uploadedAtUtc))}</td><td>${escapeHtml(file.uploadedByDisplayName || file.uploadedBy || "—")}</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary file-details" data-file-uid="${file.fileUid}">Details</button> <a class="btn btn-sm btn-outline-primary" href="${contentUrl(file.fileUid)}">Download</a></td></tr>`).join("")}</tbody></table></div>`;
+            list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Filename</th><th>Category</th><th>Type</th><th>Size</th><th>Status</th><th>Uploaded</th><th>Uploaded by</th><th class="text-end">Actions</th></tr></thead><tbody>${files.map(file => { const archived=file.status.toLowerCase()==="archived"; return `<tr><td class="text-break"><button type="button" class="btn btn-link p-0 text-start file-details" data-file-uid="${file.fileUid}">${escapeHtml(file.originalFileName)}</button></td><td>${escapeHtml(file.category || "—")}</td><td>${escapeHtml(type(file.contentType))}</td><td class="text-nowrap">${size(file.fileSizeBytes)}</td><td><span class="badge ${archived?"text-bg-secondary":"text-bg-success"}">${escapeHtml(file.status)}</span></td><td class="text-nowrap">${escapeHtml(date(file.uploadedAtUtc))}</td><td>${escapeHtml(file.uploadedByDisplayName || file.uploadedBy || "—")}</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary file-details" data-file-uid="${file.fileUid}">Details</button> <a class="btn btn-sm btn-outline-primary" href="${contentUrl(file.fileUid)}">Download</a> <button type="button" class="btn btn-sm ${archived?"btn-outline-success":"btn-outline-warning"} file-lifecycle" data-file-uid="${file.fileUid}" data-row-version="${escapeHtml(file.rowVersion)}" data-action="${archived?"restore":"archive"}">${archived?"Restore":"Archive"}</button></td></tr>`; }).join("")}</tbody></table></div>`;
         } catch (error) { list.innerHTML = ""; showMessage(error instanceof Error ? error.message : "Files could not be loaded."); }
     }
 
@@ -59,10 +60,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     list.addEventListener("click", async event => {
+        const lifecycle=(event.target as HTMLElement).closest<HTMLButtonElement>(".file-lifecycle");
+        if(lifecycle){const action=lifecycle.dataset.action!;if(action==="archive"&&!window.confirm("Archive this patient file? The file will remain available and can be restored."))return;lifecycle.disabled=true;try{const token=form.querySelector<HTMLInputElement>('input[name="__RequestVerificationToken"]')!.value;const body=new URLSearchParams({rowVersion:lifecycle.dataset.rowVersion!});const response=await fetch(lifecycleUrl(lifecycle.dataset.fileUid!,action),{method:"POST",headers:{RequestVerificationToken:token,"Content-Type":"application/x-www-form-urlencoded",Accept:"application/json"},body});const result=await response.json().catch(()=>({}));if(!response.ok||!result.success)throw new Error(result.message||"The file status could not be changed.");await loadFiles();showMessage(`File ${action==="archive"?"archived":"restored"} successfully.`,true);}catch(error){showMessage(error instanceof Error?error.message:"The file status could not be changed.");await loadFiles();}return;}
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".file-details"); if (!button) return;
         const body = document.querySelector<HTMLElement>("#patientFileDetailsBody")!; body.innerHTML = '<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading file details...</span></div>'; detailsModal.show();
         try {
-            const response = await fetch(url(root.dataset.detailsUrlTemplate!, button.dataset.fileUid!), { headers: { Accept: "application/json" } }); const result = await response.json().catch(() => ({}));
+            const response = await fetch(detailsUrl(button.dataset.fileUid!), { headers: { Accept: "application/json" } }); const result = await response.json().catch(() => ({}));
             if (!response.ok || !result.success) throw new Error(result.message || "File details could not be loaded."); const file = result.file as PatientFile;
             const row = (label: string, value: unknown) => `<dt class="col-sm-4">${label}</dt><dd class="col-sm-8 text-break">${escapeHtml(value || "—")}</dd>`;
             body.innerHTML = `<dl class="row mb-0">${row("Original filename", file.originalFileName)}${row("Category", file.category)}${row("Description", file.description)}${row("Content type", file.contentType)}${row("File size", size(file.fileSizeBytes))}${row("Status", file.status)}${row("Uploaded", date(file.uploadedAtUtc))}${row("Uploaded by", file.uploadedByDisplayName || file.uploadedBy)}${file.sha256Hash ? row("SHA-256", file.sha256Hash) : ""}${file.updatedAtUtc ? row("Updated", date(file.updatedAtUtc)) : ""}${file.updatedByDisplayName ? row("Updated by", file.updatedByDisplayName) : ""}</dl>`;

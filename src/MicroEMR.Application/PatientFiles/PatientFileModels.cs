@@ -2,6 +2,9 @@ namespace MicroEMR.Application.PatientFiles;
 
 public enum PatientFileStatus { Active, Archived }
 
+public sealed class PatientFileConcurrencyException : Exception;
+public sealed class PatientFileInvalidTransitionException : Exception;
+
 public sealed class PatientFile
 {
     public Guid FileUid { get; init; }

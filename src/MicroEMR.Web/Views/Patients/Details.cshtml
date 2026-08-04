@@ -508,7 +508,7 @@
         <div id="patientFilesRoot"
              data-patient-uid="@patient.PatientUid"
              data-list-url="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })"
-             data-details-url-template="@Url.Action("Details", "PatientFiles", new { patientUid = patient.PatientUid, fileUid = "__fileUid__" })"
+             data-details-url-root="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })"
              data-upload-url="@Url.Action("Upload", "PatientFiles", new { patientUid = patient.PatientUid })"
              data-content-url-root="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })">
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">

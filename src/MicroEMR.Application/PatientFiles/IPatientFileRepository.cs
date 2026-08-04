@@ -6,6 +6,8 @@ public interface IPatientFileRepository
     Task<PatientFile?> GetByUidAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default);
     Task<PatientFile> CreateAsync(Guid patientUid, CreatePatientFileMetadata metadata,
         long uploadedBy, CancellationToken cancellationToken = default);
+    Task<PatientFile> ArchiveAsync(Guid patientUid,Guid fileUid,string rowVersion,long actor,CancellationToken cancellationToken=default);
+    Task<PatientFile> RestoreAsync(Guid patientUid,Guid fileUid,string rowVersion,long actor,CancellationToken cancellationToken=default);
 }
 
 public interface IPatientFileStorage
