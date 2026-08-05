@@ -34,3 +34,5 @@ public sealed class TenantMembershipLastAdministratorException(string message, E
 public sealed class TenantRoleValidationException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
 public sealed class TenantRoleInactiveMembershipException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
 public sealed class TenantRoleSelfLockoutException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+public sealed class TenantClinicalProvisioningNotEligibleException(string message) : TenantMembershipLifecycleException(message);
+public sealed class TenantClinicalProvisioningIdentityNotFoundException(string message) : TenantMembershipLifecycleException(message);

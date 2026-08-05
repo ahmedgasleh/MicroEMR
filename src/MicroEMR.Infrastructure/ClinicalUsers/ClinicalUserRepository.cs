@@ -54,10 +54,19 @@ public sealed class ClinicalUserRepository(
         command.Parameters.Add("@DisplayName", SqlDbType.NVarChar, 200).Value = displayName.Trim();
         command.Parameters.Add("@Email", SqlDbType.NVarChar, 255).Value =
             string.IsNullOrWhiteSpace(email) ? DBNull.Value : email.Trim();
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken))
-            throw new InvalidOperationException("Clinical user provisioning returned no active user.");
-        return Map(reader);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+                throw new ClinicalUserProvisioningConflictException(
+                    "The clinical identity has an existing inactive or inconsistent mapping that requires manual resolution.");
+            return Map(reader);
+        }
+        catch (SqlException exception) when (exception.Number is 51096 or 51097)
+        {
+            throw new ClinicalUserProvisioningConflictException(
+                "An unmapped clinical user has matching account metadata. Explicit mapping is required.", exception);
+        }
     }
 
     private static SqlCommand CreateCommand(SqlConnection connection, string name) =>

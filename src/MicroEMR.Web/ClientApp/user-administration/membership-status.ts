@@ -1,5 +1,6 @@
 type MembershipUser = { membershipStatus: string; rowVersion: string };
 type ChangeResponse = { success: boolean; message?: string; user?: MembershipUser };
+type ProvisionedUser = MembershipUser & { clinicalUserProvisioned: boolean; clinicalUserId?: number };
 
 const message = document.querySelector<HTMLElement>("#membershipActionMessage");
 const token = document.querySelector<HTMLInputElement>("#membershipAntiForgeryForm input[name='__RequestVerificationToken']")?.value;
@@ -95,4 +96,31 @@ saveRoles?.addEventListener("click", async () => {
         roleModal?.hide(); showMessage("Tenant roles updated.", true);
     } catch { if (roleMessage) { roleMessage.textContent = "The tenant roles could not be changed."; roleMessage.classList.remove("d-none"); } }
     finally { saveRoles.disabled = false; }
+});
+
+document.addEventListener("click", async event => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-provision-clinical-user]");
+    if (!button || !token || !button.dataset.authUserId) return;
+    if (!window.confirm("Provision a clinical user for this tenant member? This creates the tenant-clinical identity required for clinical audit and workflow actions.")) return;
+    button.disabled = true;
+    button.setAttribute("aria-disabled", "true");
+    try {
+        const body = new URLSearchParams({ authUserId: button.dataset.authUserId, __RequestVerificationToken: token });
+        const response = await fetch("/TenantUserAdministration/ProvisionClinicalUser", {
+            method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body
+        });
+        const result = await response.json() as ChangeResponse & { user?: ProvisionedUser };
+        if (!response.ok || !result.user?.clinicalUserProvisioned) {
+            showMessage(result.message ?? "The clinical user could not be provisioned.", false);
+            return;
+        }
+        const row = button.closest("tr");
+        const status = row?.querySelector<HTMLElement>("[data-clinical-user-status]");
+        if (status) status.innerHTML = '<span class="badge text-bg-success">Provisioned</span>';
+        const id = row?.querySelector<HTMLElement>("[data-clinical-user-id]");
+        if (id) id.textContent = result.user.clinicalUserId?.toString() ?? "—";
+        button.remove();
+        showMessage("Clinical user provisioned.", true);
+    } catch { showMessage("The clinical user could not be provisioned.", false); }
+    finally { if (button.isConnected) { button.disabled = false; button.removeAttribute("aria-disabled"); } }
 });

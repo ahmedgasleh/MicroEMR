@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.TenantUserAdministration;
+using MicroEMR.Application.ClinicalUsers;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -30,6 +31,11 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         string authUserId, TenantRoleUpdateRequest request, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.UpdateTenantRolesAsync(authUserId, request.SelectedRoles ?? [], request.RowVersion, cancellationToken));
 
+    [HttpPost("{authUserId}/clinical-user/provision")]
+    public Task<ActionResult<TenantUserAdministrationItem>> ProvisionClinicalUser(
+        string authUserId, CancellationToken cancellationToken) =>
+        ChangeAsync(() => service.ProvisionClinicalUserAsync(authUserId, cancellationToken));
+
     private async Task<ActionResult<TenantUserAdministrationItem>> ChangeAsync(
         Func<Task<TenantUserAdministrationItem>> action)
     {
@@ -43,6 +49,9 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         catch (TenantRoleInactiveMembershipException ex) { return Conflict(new { message = ex.Message }); }
         catch (TenantRoleSelfLockoutException ex) { return Conflict(new { message = ex.Message }); }
         catch (TenantRoleValidationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (TenantClinicalProvisioningIdentityNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (TenantClinicalProvisioningNotEligibleException ex) { return Conflict(new { message = ex.Message }); }
+        catch (ClinicalUserProvisioningConflictException ex) { return Conflict(new { message = ex.Message }); }
     }
 }
 

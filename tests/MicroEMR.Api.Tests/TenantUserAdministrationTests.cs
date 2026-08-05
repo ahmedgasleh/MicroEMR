@@ -138,6 +138,65 @@ public sealed class TenantUserAdministrationTests
         Assert.DoesNotContain("AspNetRoles", sql, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ActiveTenantMemberProvisioningUsesExactSubjectAndIsIdempotent()
+    {
+        var clinical = new ProvisioningClinicalLookup();
+        var membership = Membership("opaque-subject-42", TenantA, "Active", "Nurse");
+        var service = Service([membership], [Profile("opaque-subject-42", "nurse", "Nurse User")], clinical);
+
+        var first = await service.ProvisionClinicalUserAsync("opaque-subject-42");
+        var second = await service.ProvisionClinicalUserAsync("opaque-subject-42");
+
+        Assert.True(first.ClinicalUserProvisioned);
+        Assert.Equal(first.ClinicalUserId, second.ClinicalUserId);
+        Assert.Equal("opaque-subject-42", clinical.Subject);
+        Assert.Equal(1, clinical.CreatedCount);
+        Assert.Equal("Active", second.MembershipStatus);
+        Assert.Equal(["Nurse"], second.TenantRoles);
+    }
+
+    [Theory]
+    [InlineData("Inactive")]
+    [InlineData("Suspended")]
+    public async Task InactiveMembershipCannotBeProvisioned(string status)
+    {
+        var clinical = new ProvisioningClinicalLookup();
+        var service = Service([Membership("auth-2", TenantA, status, "Nurse")],
+            [Profile("auth-2", "nurse", "Nurse")], clinical);
+        await Assert.ThrowsAsync<TenantClinicalProvisioningNotEligibleException>(() =>
+            service.ProvisionClinicalUserAsync("auth-2"));
+        Assert.Equal(0, clinical.CreatedCount);
+    }
+
+    [Fact]
+    public async Task UserOutsideCurrentTenantCannotBeProvisioned()
+    {
+        var clinical = new ProvisioningClinicalLookup();
+        var service = Service([Membership("auth-2", TenantB, "Active", "Nurse")],
+            [Profile("auth-2", "nurse", "Nurse")], clinical);
+        await Assert.ThrowsAsync<TenantMembershipNotFoundException>(() =>
+            service.ProvisionClinicalUserAsync("auth-2"));
+        Assert.Equal(0, clinical.CreatedCount);
+    }
+
+    [Fact]
+    public async Task ProvisioningClientPostsToNarrowRouteWithNoBody()
+    {
+        var handler = new RecordingHandler(new TenantUserAdministrationItem("auth-2", "nurse", "Nurse", null,
+            true, "Active", ["Nurse"], true, 27, true, null, "AAAAAAAAAAE=", false));
+        var services = new ServiceCollection().AddSingleton<IAuthenticationService>(new TestAuthenticationService()).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        var client = new TenantUserAdministrationApiClient(new HttpClient(handler) { BaseAddress = new Uri("https://api.test/") },
+            new HttpContextAccessor { HttpContext = context });
+
+        await client.ProvisionClinicalUserAsync("auth-2");
+
+        Assert.Equal(HttpMethod.Post, handler.Method);
+        Assert.Equal("api/admin/users/auth-2/clinical-user/provision", handler.Uri);
+        Assert.Null(handler.Body);
+    }
+
     private static string RepositoryRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
         "..", "..", "..", "..", ".."));
 
@@ -156,6 +215,15 @@ public sealed class TenantUserAdministrationTests
             new LifecycleRepository(),
             new RoleRepository(),
             new SubjectAccessor("auth-1"),
+            NullLogger<TenantUserAdministrationService>.Instance);
+
+    private static ITenantUserAdministrationService Service(
+        IReadOnlyList<PlatformMembershipInfo> memberships,
+        IReadOnlyList<IdentityUserProfile> profiles,
+        IClinicalUserRepository clinicalUsers) =>
+        new TenantUserAdministrationService(new TenantContext(TenantA, "tenant-a", "Tenant A"),
+            new MembershipService(memberships), new IdentityLookup(profiles), clinicalUsers,
+            new LifecycleRepository(), new RoleRepository(), new SubjectAccessor("auth-1"),
             NullLogger<TenantUserAdministrationService>.Instance);
 
     private static PlatformMembershipInfo Membership(string user, Guid tenant, string status, params string[] roles) =>
@@ -190,6 +258,24 @@ public sealed class TenantUserAdministrationTests
         public Task<ClinicalUser> ProvisionAsync(string authSubjectId, string username, string displayName, string? email, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
+    private sealed class ProvisioningClinicalLookup : IClinicalUserRepository
+    {
+        private ClinicalUser? _user;
+        public int CreatedCount { get; private set; }
+        public string? Subject { get; private set; }
+        public Task<ClinicalUser?> GetByAuthSubjectIdAsync(string authSubjectId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_user?.AuthSubjectId == authSubjectId ? _user : null);
+        public Task<ClinicalUser> SetAuthSubjectIdAsync(long userId, string authSubjectId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+        public Task<ClinicalUser> ProvisionAsync(string authSubjectId, string username, string displayName,
+            string? email, CancellationToken cancellationToken = default)
+        {
+            Subject = authSubjectId;
+            if (_user is null) { CreatedCount++; _user = new ClinicalUser(27, Guid.NewGuid(), username, displayName, true, authSubjectId); }
+            return Task.FromResult(_user);
+        }
+    }
+
     private sealed class LifecycleRepository : ITenantMembershipLifecycleRepository
     {
         public Task<TenantMembershipLifecycleResult> DeactivateAsync(string authUserId, Guid tenantUid, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>
@@ -218,7 +304,7 @@ public sealed class TenantUserAdministrationTests
         public string GetRequiredSubject() => subject;
     }
 
-    private sealed class RecordingHandler : HttpMessageHandler
+    private sealed class RecordingHandler(TenantUserAdministrationItem? responseUser = null) : HttpMessageHandler
     {
         public HttpMethod? Method { get; private set; }
         public string? Uri { get; private set; }
@@ -228,8 +314,10 @@ public sealed class TenantUserAdministrationTests
             Method = request.Method;
             Uri = request.RequestUri!.PathAndQuery.TrimStart('/');
             Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            var json = responseUser is null ? "[]" : System.Text.Json.JsonSerializer.Serialize(responseUser,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
             return new HttpResponseMessage(HttpStatusCode.OK)
-            { Content = new StringContent("[]", Encoding.UTF8, "application/json") };
+            { Content = new StringContent(json, Encoding.UTF8, "application/json") };
         }
     }
 
