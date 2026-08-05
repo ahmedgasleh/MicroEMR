@@ -51,6 +51,8 @@ public static class ClaimsPrincipalExtensions
                 yield break;
             case MicroEmrClaimTypes.TenantRole:
                 yield return OpenIddictConstants.Destinations.AccessToken;
+                if (principal.HasScope(OpenIddictConstants.Scopes.OpenId))
+                    yield return OpenIddictConstants.Destinations.IdentityToken;
                 yield break;
             default:
                 yield return OpenIddictConstants.Destinations.AccessToken;

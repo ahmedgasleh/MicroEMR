@@ -114,7 +114,7 @@ public sealed class TenantClaimEnricherTests
                 new Claim(MicroEmrClaimTypes.TenantId, TenantUid.ToString("D")),
                 principal));
         Assert.Equal(
-            [OpenIddictConstants.Destinations.AccessToken],
+            [OpenIddictConstants.Destinations.AccessToken, OpenIddictConstants.Destinations.IdentityToken],
             ClaimsPrincipalExtensions.GetDestinations(
                 new Claim(MicroEmrClaimTypes.TenantRole, "Physician"),
                 principal));

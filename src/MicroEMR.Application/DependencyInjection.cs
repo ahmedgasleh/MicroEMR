@@ -11,6 +11,7 @@ using MicroEMR.Application.PatientReferrals;
 using MicroEMR.Application.PatientFiles;
 using MicroEMR.Application.ClinicConfiguration;
 using MicroEMR.Application.TenantUserAdministration;
+using MicroEMR.Application.Reporting;
 
 namespace MicroEMR.Application;
 
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<ISchedulingReadService, SchedulingReadService>();
         services.AddScoped<ISchedulingAppointmentService, SchedulingAppointmentService>();
         services.AddScoped<IAppointmentStatusTransitionService, AppointmentStatusTransitionService>();
+        services.AddScoped<IAppointmentStatusReportService, AppointmentStatusReportService>();
 
         return services;
     }
