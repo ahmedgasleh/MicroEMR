@@ -5,7 +5,8 @@
     ViewData["Subtitle"] = "View users assigned to the active clinic.";
     Layout = "_AppLayout";
     var activeAdministrators = Model.Users.Where(x => x.MembershipStatus == "Active" &&
-        x.TenantRoles.Contains("ClinicAdministrator", StringComparer.Ordinal)).ToArray();
+        x.TenantRoles.Contains(MicroEMR.Application.PlatformAdministration.TenantRoleCatalog.ClinicAdministrator,
+            StringComparer.Ordinal)).ToArray();
     var lastActiveAdministratorId = activeAdministrators.Length == 1 ? activeAdministrators[0].AuthUserId : null;
 }
 
@@ -42,8 +43,8 @@
                 <tbody>
                     @foreach (var user in Model.Users)
                     {
-                        <tr>
-                            <td data-tenant-roles>
+                        <tr data-user-row data-auth-user-id="@user.AuthUserId">
+                            <td>
                                 <div class="fw-semibold">@user.DisplayName</div>
                                 <div class="small text-muted">@user.UserName</div>
                                 @if (!user.AuthUserActive)
@@ -53,7 +54,7 @@
                             </td>
                             <td>@(user.Email ?? "—")</td>
                             <td><span class="badge text-bg-light border" data-membership-status>@user.MembershipStatus</span></td>
-                            <td>
+                            <td data-tenant-roles>
                                 @if (user.TenantRoles.Count == 0)
                                 {
                                     <span class="text-muted">No roles</span>
@@ -105,6 +106,10 @@
                                 @if (user.IsCurrentUser)
                                 {
                                     <span class="small text-muted">Current user</span>
+                                }
+                                else if (user.MembershipStatus == "Active" && user.AuthUserId == lastActiveAdministratorId)
+                                {
+                                    <span class="small text-muted">Last active administrator</span>
                                 }
                                 else if (user.MembershipStatus == "Active")
                                 {

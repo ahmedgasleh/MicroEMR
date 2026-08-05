@@ -17,7 +17,12 @@ public sealed class ClinicalUserRepository(
         await using var command = CreateCommand(connection, "dbo.ApplicationUser_GetByAuthSubjectId");
         AddSubject(command, authSubjectId);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+        var result = Map(reader);
+        if (await reader.ReadAsync(cancellationToken))
+            throw new ClinicalUserProvisioningConflictException(
+                "Multiple clinical identities have the same Auth subject. Manual resolution is required.");
+        return result;
     }
 
     public async Task<ClinicalUser> SetAuthSubjectIdAsync(
