@@ -14,6 +14,8 @@ public interface ITenantUserAdministrationApiClient
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel> ActivateAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItemViewModel> UpdateRolesAsync(string authUserId,
+        IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
 }
 
 public sealed class TenantUserAdministrationApiClient(
@@ -54,6 +56,32 @@ public sealed class TenantUserAdministrationApiClient(
     public Task<TenantUserAdministrationItemViewModel> ActivateAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default) =>
         ChangeAsync(authUserId, "activate", rowVersion, cancellationToken);
+
+    public async Task<TenantUserAdministrationItemViewModel> UpdateRolesAsync(string authUserId,
+        IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default)
+    {
+        var context = contextAccessor.HttpContext ?? throw new InvalidOperationException("The authenticated request context is unavailable.");
+        var token = await context.GetTokenAsync("access_token");
+        if (string.IsNullOrWhiteSpace(token)) throw new UnauthorizedAccessException("The API access token is unavailable.");
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"api/admin/users/{Uri.EscapeDataString(authUserId)}/roles");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(new { selectedRoles, rowVersion });
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var message = response.StatusCode switch
+            {
+                HttpStatusCode.BadRequest => "The selected tenant roles are invalid.",
+                HttpStatusCode.NotFound => "The membership was not found in this clinic.",
+                HttpStatusCode.Conflict => "This user's roles were changed by another administrator or the change would remove required administrative access. The latest roles have been reloaded.",
+                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "You are not authorized to change tenant roles.",
+                _ => "The tenant roles could not be changed."
+            };
+            throw new HttpRequestException(message, null, response.StatusCode);
+        }
+        return await response.Content.ReadFromJsonAsync<TenantUserAdministrationItemViewModel>(cancellationToken: cancellationToken)
+            ?? throw new HttpRequestException("The tenant roles could not be changed.");
+    }
 
     private async Task<TenantUserAdministrationItemViewModel> ChangeAsync(string authUserId, string action,
         string rowVersion, CancellationToken cancellationToken)

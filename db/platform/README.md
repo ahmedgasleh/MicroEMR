@@ -23,11 +23,17 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 4. `004_make_membership_keys_nonclustered.sql` (existing installations only)
 5. Optional local seed: `005_seed_local_user_membership.sql`
 6. `006_platform_administration.sql`
+7. `007_membership_activation_lifecycle.sql`
+8. `008_tenant_role_management.sql`
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one
 active default membership per user. Apply it explicitly; applications do not
 run platform schema changes at startup.
+
+Scripts 007 and 008 add tenant-admin membership activation and canonical tenant
+role replacement with RowVersion concurrency, audit logging, and last-active-
+administrator protection. Apply them explicitly in sequence.
 
 If the platform tables were created before the membership primary keys were
 changed to nonclustered indexes, run `004_make_membership_keys_nonclustered.sql`

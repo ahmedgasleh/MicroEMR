@@ -28,6 +28,8 @@ public interface ITenantUserAdministrationService
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItem> ActivateMembershipAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItem> UpdateTenantRolesAsync(string authUserId,
+        IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
 }
 
 public sealed class TenantUserAdministrationService(
@@ -36,6 +38,7 @@ public sealed class TenantUserAdministrationService(
     IIdentityUserProfileLookup identityUsers,
     IClinicalUserRepository clinicalUsers,
     ITenantMembershipLifecycleRepository lifecycle,
+    ITenantRoleManagementRepository roleManagement,
     IAuthenticatedSubjectAccessor subjectAccessor,
     ILogger<TenantUserAdministrationService> logger) : ITenantUserAdministrationService
 {
@@ -82,6 +85,28 @@ public sealed class TenantUserAdministrationService(
     public Task<TenantUserAdministrationItem> ActivateMembershipAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default) =>
         ChangeMembershipAsync(authUserId, rowVersion, activate: true, cancellationToken);
+
+    public async Task<TenantUserAdministrationItem> UpdateTenantRolesAsync(string authUserId,
+        IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rowVersion);
+        ArgumentNullException.ThrowIfNull(selectedRoles);
+        string[] roles;
+        try
+        {
+            roles = selectedRoles.Select(TenantRoleCatalog.Normalize).Distinct(StringComparer.Ordinal)
+                .OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        }
+        catch (ArgumentException ex) { throw new TenantRoleValidationException("One or more tenant roles are not recognized.", ex); }
+        if (roles.Length == 0) throw new TenantRoleValidationException("An active membership must have at least one tenant role.");
+        var actor = subjectAccessor.GetRequiredSubject();
+        await roleManagement.ReplaceRolesAsync(authUserId, tenantContext.TenantUid, roles, rowVersion, actor, cancellationToken);
+        logger.LogInformation("Tenant roles updated for user {TargetUserId} in tenant {TenantUid} by {ActorUserId}.",
+            authUserId, tenantContext.TenantUid, actor);
+        return (await GetTenantUsersAsync(cancellationToken)).Single(x =>
+            string.Equals(x.AuthUserId, authUserId, StringComparison.Ordinal));
+    }
 
     private async Task<TenantUserAdministrationItem> ChangeMembershipAsync(string authUserId, string rowVersion,
         bool activate, CancellationToken cancellationToken)

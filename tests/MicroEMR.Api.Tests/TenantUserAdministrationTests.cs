@@ -98,6 +98,49 @@ public sealed class TenantUserAdministrationTests
         Assert.Null(handler.Body);
     }
 
+    [Fact]
+    public void RoleUpdateContractAcceptsOnlyRolesAndRowVersion()
+    {
+        var properties = typeof(TenantRoleUpdateRequest).GetProperties().Select(x => x.Name).Order().ToArray();
+        Assert.Equal(["RowVersion", "SelectedRoles"], properties);
+    }
+
+    [Fact]
+    public async Task UnknownAndEmptyRoleSetsAreRejectedBeforePersistence()
+    {
+        var repository = new RecordingRoleRepository();
+        var service = new TenantUserAdministrationService(
+            new TenantContext(TenantA, "tenant-a", "Tenant A"),
+            new MembershipService([Membership("auth-2", TenantA, "Active", "Nurse")]),
+            new IdentityLookup([Profile("auth-2", "nurse", "Nurse")]), new ClinicalLookup([]),
+            new LifecycleRepository(), repository, new SubjectAccessor("auth-1"),
+            NullLogger<TenantUserAdministrationService>.Instance);
+
+        await Assert.ThrowsAsync<TenantRoleValidationException>(() =>
+            service.UpdateTenantRolesAsync("auth-2", ["NotARole"], "AAAAAAAAAAE="));
+        await Assert.ThrowsAsync<TenantRoleValidationException>(() =>
+            service.UpdateTenantRolesAsync("auth-2", [], "AAAAAAAAAAE="));
+        Assert.Equal(0, repository.Calls);
+    }
+
+    [Fact]
+    public void RoleProcedureIsAtomicTenantScopedConcurrentAuditedAndAdminSafe()
+    {
+        var sql = File.ReadAllText(Path.Combine(RepositoryRoot(), "db", "platform", "008_tenant_role_management.sql"));
+        Assert.Contains("WITH(UPDLOCK,HOLDLOCK)", sql);
+        Assert.Contains("@CurrentRowVersion<>@ExpectedRowVersion", sql);
+        Assert.Contains("m.TenantUid=@TenantUid", sql);
+        Assert.Contains("m.MembershipStatus='Active'", sql);
+        Assert.Contains("m.UserId<>@UserId", sql);
+        Assert.Contains("@UserId=@ActorUserId", sql);
+        Assert.Contains("TenantRolesReplaced", sql);
+        Assert.Contains("BEGIN TRANSACTION", sql);
+        Assert.DoesNotContain("AspNetRoles", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string RepositoryRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+        "..", "..", "..", "..", ".."));
+
     private static string? Policy(Type type) => Assert.Single(type
         .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()).Policy;
 
@@ -111,6 +154,7 @@ public sealed class TenantUserAdministrationTests
             new IdentityLookup(profiles),
             new ClinicalLookup(clinicalUsers),
             new LifecycleRepository(),
+            new RoleRepository(),
             new SubjectAccessor("auth-1"),
             NullLogger<TenantUserAdministrationService>.Instance);
 
@@ -152,6 +196,21 @@ public sealed class TenantUserAdministrationTests
             Task.FromResult(new TenantMembershipLifecycleResult("Inactive", DateTimeOffset.UtcNow, "AAAAAAAAAAI="));
         public Task<TenantMembershipLifecycleResult> ActivateAsync(string authUserId, Guid tenantUid, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>
             Task.FromResult(new TenantMembershipLifecycleResult("Active", DateTimeOffset.UtcNow, "AAAAAAAAAAI="));
+    }
+
+    private sealed class RoleRepository : ITenantRoleManagementRepository
+    {
+        public Task<TenantRoleUpdateResult> ReplaceRolesAsync(string authUserId, Guid tenantUid,
+            IReadOnlyCollection<string> roles, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new TenantRoleUpdateResult(roles, DateTimeOffset.UtcNow, "AAAAAAAAAAI="));
+    }
+
+    private sealed class RecordingRoleRepository : ITenantRoleManagementRepository
+    {
+        public int Calls { get; private set; }
+        public Task<TenantRoleUpdateResult> ReplaceRolesAsync(string authUserId, Guid tenantUid,
+            IReadOnlyCollection<string> roles, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default)
+        { Calls++; return Task.FromResult(new TenantRoleUpdateResult(roles, DateTimeOffset.UtcNow, "AAAAAAAAAAI=")); }
     }
 
     private sealed class SubjectAccessor(string subject) : IAuthenticatedSubjectAccessor

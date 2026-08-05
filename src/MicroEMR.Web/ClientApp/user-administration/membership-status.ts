@@ -51,3 +51,48 @@ document.addEventListener("click", async event => {
 });
 
 export {};
+
+declare const bootstrap: { Modal: new (element: Element) => { show(): void; hide(): void } };
+const modalElement = document.querySelector("#roleEditorModal");
+const roleModal = modalElement ? new bootstrap.Modal(modalElement) : null;
+const roleMessage = document.querySelector<HTMLElement>("#roleEditorMessage");
+const saveRoles = document.querySelector<HTMLButtonElement>("#saveTenantRoles");
+let roleButton: HTMLButtonElement | null = null;
+
+document.querySelectorAll<HTMLButtonElement>("[data-edit-roles]").forEach(button => button.addEventListener("click", () => {
+    roleButton = button;
+    const roles = new Set((button.dataset.roles ?? "").split("|").filter(Boolean));
+    document.querySelectorAll<HTMLInputElement>("input[name='tenantRole']").forEach(input => {
+        input.checked = roles.has(input.value);
+        input.disabled = (button.dataset.currentUser === "true" || button.dataset.lastActiveAdmin === "true")
+            && input.value === "ClinicAdministrator";
+    });
+    const set = (id: string, value: string) => { const element = document.querySelector<HTMLInputElement | HTMLElement>(id); if (element) "value" in element ? element.value = value : element.textContent = value; };
+    set("#roleEditorAuthUserId", button.dataset.authUserId ?? ""); set("#roleEditorRowVersion", button.dataset.rowVersion ?? "");
+    set("#roleEditorUser", button.dataset.displayName ?? ""); set("#roleEditorStatus", button.dataset.membershipStatus ?? "");
+    document.querySelector("#selfRoleSafety")?.classList.toggle("d-none", button.dataset.currentUser !== "true");
+    document.querySelector("#lastAdminRoleSafety")?.classList.toggle("d-none", button.dataset.lastActiveAdmin !== "true");
+    roleMessage?.classList.add("d-none"); roleModal?.show();
+}));
+
+saveRoles?.addEventListener("click", async () => {
+    if (!roleButton || !token) return;
+    saveRoles.disabled = true; roleMessage?.classList.add("d-none");
+    const selectedRoles = Array.from(document.querySelectorAll<HTMLInputElement>("input[name='tenantRole']:checked")).map(x => x.value);
+    const body = new URLSearchParams({ authUserId: roleButton.dataset.authUserId ?? "", rowVersion: roleButton.dataset.rowVersion ?? "", __RequestVerificationToken: token });
+    selectedRoles.forEach(role => body.append("selectedRoles", role));
+    try {
+        const response = await fetch("/TenantUserAdministration/UpdateRoles", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+        const result = await response.json() as ChangeResponse & { users?: MembershipUser[]; user?: MembershipUser & { tenantRoles: string[] } };
+        if (!response.ok || !result.user) {
+            if (roleMessage) { roleMessage.textContent = result.message ?? "The tenant roles could not be changed."; roleMessage.classList.remove("d-none"); }
+            if (response.status === 409) window.setTimeout(() => window.location.reload(), 1200);
+            return;
+        }
+        roleButton.dataset.roles = result.user.tenantRoles.join("|"); roleButton.dataset.rowVersion = result.user.rowVersion;
+        const cell = roleButton.closest("tr")?.querySelector<HTMLElement>("[data-tenant-roles]");
+        if (cell) cell.innerHTML = result.user.tenantRoles.map(role => `<span class="badge text-bg-secondary me-1">${role}</span>`).join("");
+        roleModal?.hide(); showMessage("Tenant roles updated.", true);
+    } catch { if (roleMessage) { roleMessage.textContent = "The tenant roles could not be changed."; roleMessage.classList.remove("d-none"); } }
+    finally { saveRoles.disabled = false; }
+});

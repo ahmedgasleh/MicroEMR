@@ -25,6 +25,11 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         string authUserId, MembershipRowVersionRequest request, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.ActivateMembershipAsync(authUserId, request.RowVersion, cancellationToken));
 
+    [HttpPut("{authUserId}/roles")]
+    public Task<ActionResult<TenantUserAdministrationItem>> UpdateRoles(
+        string authUserId, TenantRoleUpdateRequest request, CancellationToken cancellationToken) =>
+        ChangeAsync(() => service.UpdateTenantRolesAsync(authUserId, request.SelectedRoles ?? [], request.RowVersion, cancellationToken));
+
     private async Task<ActionResult<TenantUserAdministrationItem>> ChangeAsync(
         Func<Task<TenantUserAdministrationItem>> action)
     {
@@ -35,7 +40,11 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         catch (TenantMembershipSelfDeactivationException ex) { return Conflict(new { message = ex.Message }); }
         catch (TenantMembershipLastAdministratorException ex) { return Conflict(new { message = ex.Message }); }
         catch (TenantMembershipTransitionException ex) { return Conflict(new { message = ex.Message }); }
+        catch (TenantRoleInactiveMembershipException ex) { return Conflict(new { message = ex.Message }); }
+        catch (TenantRoleSelfLockoutException ex) { return Conflict(new { message = ex.Message }); }
+        catch (TenantRoleValidationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 }
 
 public sealed record MembershipRowVersionRequest(string RowVersion);
+public sealed record TenantRoleUpdateRequest(IReadOnlyCollection<string>? SelectedRoles, string RowVersion);

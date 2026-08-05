@@ -4,6 +4,7 @@ using MicroEMR.Web.Authorization;
 using MicroEMR.Web.Models;
 using MicroEMR.Web.Models.TenantUserAdministration;
 using MicroEMR.Web.Services.TenantUserAdministration;
+using MicroEMR.Application.PlatformAdministration;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -20,6 +21,7 @@ public sealed class TenantUserAdministrationController(
             return View(new TenantUserAdministrationViewModel
             {
                 Users = await client.GetUsersAsync(cancellationToken)
+                , CanonicalRoles = TenantRoleCatalog.Allowed.OrderBy(x => x, StringComparer.Ordinal).ToArray()
             });
         }
         catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
@@ -38,6 +40,12 @@ public sealed class TenantUserAdministrationController(
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Activate(string authUserId, string rowVersion, CancellationToken cancellationToken) =>
         ChangeAsync(() => client.ActivateAsync(authUserId, rowVersion, cancellationToken), cancellationToken);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> UpdateRoles(string authUserId, string rowVersion, string[] selectedRoles,
+        CancellationToken cancellationToken) =>
+        ChangeAsync(() => client.UpdateRolesAsync(authUserId, selectedRoles, rowVersion, cancellationToken), cancellationToken);
 
     private async Task<IActionResult> ChangeAsync(
         Func<Task<TenantUserAdministrationItemViewModel>> action,
