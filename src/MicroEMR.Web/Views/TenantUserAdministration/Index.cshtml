@@ -66,7 +66,7 @@
                                     }
                                 }
                             </td>
-                            <td>
+                            <td data-clinical-user-status>
                                 @if (user.ClinicalUserProvisioned)
                                 {
                                     <span class="badge text-bg-success">Provisioned</span>
@@ -80,8 +80,19 @@
                                     <span class="badge text-bg-light border">Not provisioned</span>
                                 }
                             </td>
-                            <td>@(user.ClinicalUserId?.ToString() ?? "—")</td>
+                            <td data-clinical-user-id>@(user.ClinicalUserId?.ToString() ?? "—")</td>
                             <td class="text-end">
+                                @if (!user.ClinicalUserProvisioned && user.MembershipStatus == "Active")
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-success me-1"
+                                            data-provision-clinical-user data-auth-user-id="@user.AuthUserId">
+                                        Provision Clinical User
+                                    </button>
+                                }
+                                else if (!user.ClinicalUserProvisioned)
+                                {
+                                    <span class="small text-muted me-2">Activate the membership before provisioning.</span>
+                                }
                                 @if (user.MembershipStatus == "Active")
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-1"

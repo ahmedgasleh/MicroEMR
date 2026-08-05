@@ -47,6 +47,11 @@ public sealed class TenantUserAdministrationController(
         CancellationToken cancellationToken) =>
         ChangeAsync(() => client.UpdateRolesAsync(authUserId, selectedRoles, rowVersion, cancellationToken), cancellationToken);
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> ProvisionClinicalUser(string authUserId, CancellationToken cancellationToken) =>
+        ChangeAsync(() => client.ProvisionClinicalUserAsync(authUserId, cancellationToken), cancellationToken);
+
     private async Task<IActionResult> ChangeAsync(
         Func<Task<TenantUserAdministrationItemViewModel>> action,
         CancellationToken cancellationToken)

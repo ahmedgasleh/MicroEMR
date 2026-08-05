@@ -30,6 +30,8 @@ public interface ITenantUserAdministrationService
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItem> UpdateTenantRolesAsync(string authUserId,
         IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItem> ProvisionClinicalUserAsync(string authUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class TenantUserAdministrationService(
@@ -106,6 +108,35 @@ public sealed class TenantUserAdministrationService(
             authUserId, tenantContext.TenantUid, actor);
         return (await GetTenantUsersAsync(cancellationToken)).Single(x =>
             string.Equals(x.AuthUserId, authUserId, StringComparison.Ordinal));
+    }
+
+    public async Task<TenantUserAdministrationItem> ProvisionClinicalUserAsync(string authUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);
+        var membership = (await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid, cancellationToken))
+            .SingleOrDefault(x => string.Equals(x.UserId, authUserId, StringComparison.Ordinal));
+        if (membership is null)
+            throw new TenantMembershipNotFoundException("The membership was not found in the active tenant.");
+        if (!string.Equals(membership.MembershipStatus, "Active", StringComparison.Ordinal))
+            throw new TenantClinicalProvisioningNotEligibleException(
+                "Activate the membership before provisioning a clinical user.");
+
+        var identity = await identityUsers.GetByIdAsync(membership.UserId, cancellationToken)
+            ?? throw new TenantClinicalProvisioningIdentityNotFoundException(
+                "The Auth identity for this tenant member is unavailable.");
+        if (!identity.IsActive || !string.Equals(identity.UserId, membership.UserId, StringComparison.Ordinal))
+            throw new TenantClinicalProvisioningNotEligibleException(
+                "The Auth account must be active before provisioning a clinical user.");
+
+        var clinical = await clinicalUsers.ProvisionAsync(identity.UserId, identity.Username,
+            identity.DisplayName, identity.Email, cancellationToken);
+        var actor = subjectAccessor.GetRequiredSubject();
+        logger.LogInformation(
+            "Clinical user {ClinicalUserId} provisioned or resolved for Auth user {TargetUserId} in tenant {TenantUid} by administrator {ActorUserId}.",
+            clinical.UserId, identity.UserId, tenantContext.TenantUid, actor);
+        return (await GetTenantUsersAsync(cancellationToken)).Single(x =>
+            string.Equals(x.AuthUserId, identity.UserId, StringComparison.Ordinal));
     }
 
     private async Task<TenantUserAdministrationItem> ChangeMembershipAsync(string authUserId, string rowVersion,

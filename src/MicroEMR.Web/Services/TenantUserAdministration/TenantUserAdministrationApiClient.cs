@@ -16,6 +16,8 @@ public interface ITenantUserAdministrationApiClient
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel> UpdateRolesAsync(string authUserId,
         IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItemViewModel> ProvisionClinicalUserAsync(string authUserId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class TenantUserAdministrationApiClient(
@@ -81,6 +83,32 @@ public sealed class TenantUserAdministrationApiClient(
         }
         return await response.Content.ReadFromJsonAsync<TenantUserAdministrationItemViewModel>(cancellationToken: cancellationToken)
             ?? throw new HttpRequestException("The tenant roles could not be changed.");
+    }
+
+    public async Task<TenantUserAdministrationItemViewModel> ProvisionClinicalUserAsync(string authUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var context = contextAccessor.HttpContext
+            ?? throw new InvalidOperationException("The authenticated request context is unavailable.");
+        var token = await context.GetTokenAsync("access_token");
+        if (string.IsNullOrWhiteSpace(token)) throw new UnauthorizedAccessException("The API access token is unavailable.");
+        using var request = new HttpRequestMessage(HttpMethod.Post,
+            $"api/admin/users/{Uri.EscapeDataString(authUserId)}/clinical-user/provision");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var message = response.StatusCode switch
+            {
+                HttpStatusCode.NotFound => "The tenant member or Auth identity was not found.",
+                HttpStatusCode.Conflict => "The clinical user could not be provisioned because the membership or existing clinical identity requires attention.",
+                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "You are not authorized to provision clinical users.",
+                _ => "The clinical user could not be provisioned."
+            };
+            throw new HttpRequestException(message, null, response.StatusCode);
+        }
+        return await response.Content.ReadFromJsonAsync<TenantUserAdministrationItemViewModel>(cancellationToken: cancellationToken)
+            ?? throw new HttpRequestException("The clinical user could not be provisioned.");
     }
 
     private async Task<TenantUserAdministrationItemViewModel> ChangeAsync(string authUserId, string action,

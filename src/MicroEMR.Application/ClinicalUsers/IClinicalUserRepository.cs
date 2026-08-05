@@ -18,3 +18,9 @@ public interface IClinicalUserRepository
         string? email,
         CancellationToken cancellationToken = default);
 }
+
+public class ClinicalUserProvisioningException(string message, Exception? innerException = null)
+    : Exception(message, innerException);
+
+public sealed class ClinicalUserProvisioningConflictException(string message, Exception? innerException = null)
+    : ClinicalUserProvisioningException(message, innerException);
