@@ -22,6 +22,7 @@ using MicroEMR.Web.Services.ClinicConfiguration;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.Security;
 using MicroEMR.Web.Services.TenantUserAdministration;
+using MicroEMR.Web.Services.Reporting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +61,7 @@ builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClie
 builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IClinicConfigurationApiClient, ClinicConfigurationApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<ITenantUserAdministrationApiClient, TenantUserAdministrationApiClient>(ConfigureApiClient);
+builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<
     IPatientAllergyApiClient,

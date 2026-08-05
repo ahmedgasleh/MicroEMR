@@ -1,0 +1,54 @@
+@model MicroEMR.Web.Models.Reporting.AppointmentStatusReportViewModel
+@{
+    ViewData["Title"] = "Appointment Status Report";
+    ViewData["Subtitle"] = "Appointment activity by status and date range.";
+    Layout = "_AppLayout";
+    var zone = Model.Report is null ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(Model.Report.TimeZoneId);
+}
+
+<div class="content-panel">
+    <div class="content-panel-header"><div><h1 class="h3 mb-1">Appointment Status Report</h1>
+        <p class="text-muted mb-0">Counts and appointment details for tenant-local scheduled dates.</p></div></div>
+    <form method="get" class="row g-3 align-items-end mt-1">
+        <div class="col-sm-4 col-lg-3"><label for="startDate" class="form-label">Start Date</label>
+            <input id="startDate" name="startDate" type="date" class="form-control" required value="@Model.StartDate.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-sm-4 col-lg-3"><label for="endDate" class="form-label">End Date</label>
+            <input id="endDate" name="endDate" type="date" class="form-control" required value="@Model.EndDate.ToString("yyyy-MM-dd")" /></div>
+        <div class="col-sm-4 col-lg-6"><button type="submit" class="btn btn-primary">Run Report</button>
+            <a asp-action="AppointmentStatusCsv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")"
+               asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary ms-1">Export CSV</a></div>
+    </form>
+    @if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+</div>
+
+@if (Model.Report is not null)
+{
+    <div class="content-panel mt-4">
+        <div class="content-panel-header"><div><h2 class="h5 mb-1">Summary</h2>
+            <p class="text-muted mb-0">Total appointments: @Model.Report.TotalAppointments</p></div></div>
+        <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0"><thead><tr>
+            @foreach (var item in Model.Report.StatusCounts) { <th scope="col">@item.Status</th> }
+            <th scope="col">Total</th></tr></thead><tbody><tr>
+            @foreach (var item in Model.Report.StatusCounts) { <td>@item.Count</td> }
+            <td class="fw-semibold">@Model.Report.TotalAppointments</td></tr></tbody></table></div>
+    </div>
+
+    <div class="content-panel mt-4">
+        <div class="content-panel-header"><div><h2 class="h5 mb-1">Appointments</h2>
+            <p class="text-muted mb-0">Times shown in @Model.Report.TimeZoneId using 24-hour time.</p></div></div>
+        @if (Model.Report.Appointments.Count == 0)
+        { <div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-calendar-x"></i></div>
+            <div class="microemr-empty-state__title">No appointments found for the selected date range.</div></div> }
+        else
+        {
+            <div class="table-responsive mt-3"><table class="table table-hover align-middle mb-0">
+                <thead><tr><th>Date</th><th>Start</th><th>End</th><th>Patient</th><th>Chart Number</th><th>Provider / Resource</th><th>Status</th></tr></thead>
+                <tbody>@foreach (var row in Model.Report.Appointments) {
+                    var start = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.StartAtUtc, DateTimeKind.Utc), zone);
+                    var end = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.EndAtUtc, DateTimeKind.Utc), zone);
+                    <tr><td>@start.ToString("yyyy-MM-dd")</td><td>@start.ToString("HH:mm")</td><td>@end.ToString("HH:mm")</td>
+                        <td>@row.PatientName</td><td>@(row.ChartNumber ?? "—")</td><td>@row.ProviderName</td><td><span class="badge text-bg-secondary">@row.Status</span></td></tr>
+                }</tbody></table></div>
+        }
+    </div>
+}
