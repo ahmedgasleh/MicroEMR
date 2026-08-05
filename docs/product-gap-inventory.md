@@ -5,7 +5,7 @@ Inspected branch: `main`
 Requested branch: `feature/product-gap-inventory` (not present locally; the inventory was therefore performed on `main`)
 
 This is a source-level, read-only product inventory. It traces database assets, stored procedures, repositories, Application services/contracts, API controllers, Web controllers/views, navigation, and tests. It does not claim live end-to-end execution.
-
+The next agreed inventory gap is the Dashboard gap: replace one placeholder zero-value card with an actionable unreviewed results signal and remove/defer unsupported placeholder cards.
 | Area | Classification | Existing capability | Important gap | Recommended action |
 | --- | --- | --- | --- | --- |
 | Referrals | MISSING | A task can be labelled `Referral`; documents and encounters can use referral/consultation labels. | No referral entity or workflow for recipient, reason, supporting information, sent/received dates, status, or reopening. | Build a small outgoing-referral workflow from the patient chart. |

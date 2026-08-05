@@ -65,6 +65,11 @@ public sealed class TenantUserAdministrationController(
         }
         catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.NotFound)
         { return NotFound(new { success = false, message = exception.Message }); }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        { return BadRequest(new { success = false, message = exception.Message }); }
+        catch (HttpRequestException exception) when (exception.StatusCode is
+            System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        { return StatusCode((int)exception.StatusCode.Value, new { success = false, message = exception.Message }); }
         catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
         {
             logger.LogError(exception, "Tenant membership could not be changed.");
