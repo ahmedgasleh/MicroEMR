@@ -4,6 +4,9 @@
     ViewData["Title"] = "User Administration";
     ViewData["Subtitle"] = "View users assigned to the active clinic.";
     Layout = "_AppLayout";
+    var activeAdministrators = Model.Users.Where(x => x.MembershipStatus == "Active" &&
+        x.TenantRoles.Contains("ClinicAdministrator", StringComparer.Ordinal)).ToArray();
+    var lastActiveAdministratorId = activeAdministrators.Length == 1 ? activeAdministrators[0].AuthUserId : null;
 }
 
 <div class="content-panel">
@@ -40,7 +43,7 @@
                     @foreach (var user in Model.Users)
                     {
                         <tr>
-                            <td>
+                            <td data-tenant-roles>
                                 <div class="fw-semibold">@user.DisplayName</div>
                                 <div class="small text-muted">@user.UserName</div>
                                 @if (!user.AuthUserActive)
@@ -79,6 +82,15 @@
                             </td>
                             <td>@(user.ClinicalUserId?.ToString() ?? "—")</td>
                             <td class="text-end">
+                                @if (user.MembershipStatus == "Active")
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                                            data-edit-roles data-auth-user-id="@user.AuthUserId"
+                                            data-display-name="@user.DisplayName" data-membership-status="@user.MembershipStatus"
+                                            data-roles="@string.Join("|", user.TenantRoles)" data-row-version="@user.RowVersion"
+                                            data-current-user="@user.IsCurrentUser.ToString().ToLowerInvariant()"
+                                            data-last-active-admin="@(user.AuthUserId == lastActiveAdministratorId ? "true" : "false")">Edit Roles</button>
+                                }
                                 @if (user.IsCurrentUser)
                                 {
                                     <span class="small text-muted">Current user</span>
@@ -102,6 +114,29 @@
             </table>
         </div>
     }
+</div>
+
+<div class="modal fade" id="roleEditorModal" tabindex="-1" aria-labelledby="roleEditorModalLabel" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="roleEditorModalLabel">Edit Tenant Roles</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <div id="roleEditorMessage" class="alert alert-danger d-none" role="alert"></div>
+            <div class="mb-3"><div class="fw-semibold" id="roleEditorUser"></div>
+                <div class="small text-muted">Membership: <span id="roleEditorStatus"></span></div></div>
+            <input type="hidden" id="roleEditorAuthUserId" /><input type="hidden" id="roleEditorRowVersion" />
+            @foreach (var role in Model.CanonicalRoles)
+            {
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="tenantRole" value="@role" id="role-@role" />
+                    <label class="form-check-label" for="role-@role">@role</label></div>
+            }
+            <p id="selfRoleSafety" class="small text-muted mt-3 d-none">You cannot remove your own clinic administrator role.</p>
+            <p id="lastAdminRoleSafety" class="small text-muted mt-3 d-none">The last active clinic administrator cannot lose that role.</p>
+            <p class="small text-muted mt-3 mb-0">Updated permissions apply on the user's next API request.</p>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="saveTenantRoles">Save</button></div>
+    </div></div>
 </div>
 
 @section Scripts {

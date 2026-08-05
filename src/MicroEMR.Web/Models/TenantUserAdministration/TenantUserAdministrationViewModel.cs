@@ -20,4 +20,5 @@ public sealed class TenantUserAdministrationItemViewModel
 public sealed class TenantUserAdministrationViewModel
 {
     public IReadOnlyList<TenantUserAdministrationItemViewModel> Users { get; init; } = [];
+    public IReadOnlyCollection<string> CanonicalRoles { get; init; } = [];
 }

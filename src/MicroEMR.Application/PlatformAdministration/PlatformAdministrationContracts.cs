@@ -8,9 +8,10 @@ public static class PlatformRoles
 
 public static class TenantRoleCatalog
 {
+    public const string ClinicAdministrator = "ClinicAdministrator";
     public static readonly IReadOnlySet<string> Allowed = new HashSet<string>(StringComparer.Ordinal)
     {
-        "Physician", "Nurse", "MedicalAssistant", "Scheduler", "ClinicAdministrator"
+        "Physician", "Nurse", "MedicalAssistant", "Scheduler", ClinicAdministrator
     };
 
     public static string Normalize(string roleName)

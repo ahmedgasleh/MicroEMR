@@ -11,6 +11,15 @@ public interface ITenantMembershipLifecycleRepository
         string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default);
 }
 
+public sealed record TenantRoleUpdateResult(IReadOnlyCollection<string> Roles, DateTimeOffset UpdatedAt, string RowVersion);
+
+public interface ITenantRoleManagementRepository
+{
+    Task<TenantRoleUpdateResult> ReplaceRolesAsync(string authUserId, Guid tenantUid,
+        IReadOnlyCollection<string> roles, string rowVersion, string actorAuthUserId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IAuthenticatedSubjectAccessor
 {
     string GetRequiredSubject();
@@ -22,3 +31,6 @@ public sealed class TenantMembershipTransitionException(string message, Exceptio
 public sealed class TenantMembershipConcurrencyException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
 public sealed class TenantMembershipSelfDeactivationException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
 public sealed class TenantMembershipLastAdministratorException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+public sealed class TenantRoleValidationException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+public sealed class TenantRoleInactiveMembershipException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+public sealed class TenantRoleSelfLockoutException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
