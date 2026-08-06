@@ -95,15 +95,20 @@
 
             <div class="topbar-right">
 
-                <button type="button"
-                        class="topbar-icon-button"
-                        aria-label="Notifications"
-                        title="Notifications">
+                <a asp-controller="Home"
+                   asp-action="Index"
+                   asp-fragment="openTasksHeading"
+                   id="overdueTaskIndicator"
+                   class="topbar-icon-button d-none"
+                   aria-label="Overdue tasks"
+                   title="Overdue tasks">
 
-                    <i class="bi bi-bell"></i>
+                    <i class="bi bi-bell" aria-hidden="true"></i>
 
-                    <span class="notification-indicator"></span>
-                </button>
+                    <span id="overdueTaskCount"
+                          class="overdue-task-count"
+                          aria-hidden="true"></span>
+                </a>
 
                 <div class="dropdown">
                     <button type="button"
@@ -208,6 +213,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/microemr-modal-focus.js" asp-append-version="true"></script>
+    <script type="module" src="~/dist/overdue-task-indicator.js" asp-append-version="true"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
