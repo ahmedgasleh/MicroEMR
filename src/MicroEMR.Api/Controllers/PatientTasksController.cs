@@ -66,12 +66,18 @@ public sealed class PatientTaskDashboardController : ControllerBase
 {
     private readonly IPatientTaskRepository _repository;
     private readonly IAuthenticatedClinicalUserAccessor _clinicalUserAccessor;
+    private readonly IPatientTaskOverdueService _overdueService;
+    private readonly ILogger<PatientTaskDashboardController> _logger;
     public PatientTaskDashboardController(
         IPatientTaskRepository repository,
-        IAuthenticatedClinicalUserAccessor clinicalUserAccessor)
+        IAuthenticatedClinicalUserAccessor clinicalUserAccessor,
+        IPatientTaskOverdueService overdueService,
+        ILogger<PatientTaskDashboardController> logger)
     {
         _repository = repository;
         _clinicalUserAccessor = clinicalUserAccessor;
+        _overdueService = overdueService;
+        _logger = logger;
     }
     [HttpGet("open")]
     public async Task<IActionResult> Open(int maxRows = 10, CancellationToken cancellationToken = default)
@@ -79,5 +85,23 @@ public sealed class PatientTaskDashboardController : ControllerBase
         if (maxRows is < 1 or > 50) return BadRequest(new { message = "maxRows must be between 1 and 50." });
         var userId=await _clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
         return Ok(await _repository.GetOpenForDashboardAsync(userId, maxRows, cancellationToken));
+    }
+
+    [HttpGet("overdue/count")]
+    public Task<IActionResult> OverdueCount(CancellationToken cancellationToken = default) =>
+        GetOverdueResult(async () => Ok(new { count = await _overdueService.GetOverdueCountAsync(cancellationToken) }));
+
+    [HttpGet("overdue")]
+    public Task<IActionResult> Overdue(CancellationToken cancellationToken = default) =>
+        GetOverdueResult(async () => Ok(await _overdueService.GetOverdueAsync(cancellationToken)));
+
+    private async Task<IActionResult> GetOverdueResult(Func<Task<IActionResult>> action)
+    {
+        try { return await action(); }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Overdue patient task query failed.");
+            return StatusCode(500, new { message = "The overdue task query could not be completed." });
+        }
     }
 }
