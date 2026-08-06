@@ -43,6 +43,27 @@ public sealed class PatientDashboardTaskResponse
     public DateTime CreatedAt { get; set; }
 }
 
+public sealed class OverduePatientTaskItem
+{
+    public Guid PatientTaskUid { get; set; }
+    public Guid PatientUid { get; set; }
+    public string PatientDisplayName { get; set; } = string.Empty;
+    public string? ChartNumber { get; set; }
+    public string TaskTitle { get; set; } = string.Empty;
+    public DateTime DueAt { get; set; }
+    public string TaskStatus { get; set; } = "Open";
+    public string TaskPriority { get; set; } = "Normal";
+    public string? AssignedToDisplayName { get; set; }
+}
+
+public static class PatientTaskOverdueRule
+{
+    public static bool IsOverdue(DateTime? dueAtUtc, string taskStatus, DateTime utcNow) =>
+        dueAtUtc.HasValue &&
+        dueAtUtc.Value < utcNow &&
+        string.Equals(taskStatus, "Open", StringComparison.Ordinal);
+}
+
 public class SavePatientTaskRequest
 {
     [Required, StringLength(200)] public string TaskTitle { get; set; } = string.Empty;

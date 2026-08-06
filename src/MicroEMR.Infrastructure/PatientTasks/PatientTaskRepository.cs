@@ -63,6 +63,39 @@ public sealed class PatientTaskRepository : IPatientTaskRepository
         return items;
     }
 
+    public async Task<int> GetOverdueCountAsync(long assignedTo, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = Command(connection, "dbo.PatientTask_GetOverdueCount");
+        Add(command, "@AssignedTo", SqlDbType.BigInt, assignedTo);
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<OverduePatientTaskItem>> GetOverdueAsync(long assignedTo, CancellationToken cancellationToken = default)
+    {
+        var items = new List<OverduePatientTaskItem>();
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = Command(connection, "dbo.PatientTask_GetOverdue");
+        Add(command, "@AssignedTo", SqlDbType.BigInt, assignedTo);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new OverduePatientTaskItem
+            {
+                PatientTaskUid = reader.GetGuid(reader.GetOrdinal("PatientTaskUid")),
+                PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+                PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
+                ChartNumber = String(reader, "ChartNumber"),
+                TaskTitle = reader.GetString(reader.GetOrdinal("TaskTitle")),
+                DueAt = reader.GetDateTime(reader.GetOrdinal("DueAt")),
+                TaskStatus = reader.GetString(reader.GetOrdinal("TaskStatus")),
+                TaskPriority = reader.GetString(reader.GetOrdinal("TaskPriority")),
+                AssignedToDisplayName = String(reader, "AssignedToDisplayName")
+            });
+        }
+        return items;
+    }
+
     private async Task<PatientTaskResponse?> ExecuteAsync(string procedure, Guid patientUid, Guid? taskUid, SavePatientTaskRequest? save, CompletePatientTaskRequest? complete, long? userId, CancellationToken cancellationToken)
     {
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);

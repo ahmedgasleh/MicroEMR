@@ -9,4 +9,6 @@ public interface IPatientTaskRepository
     Task<PatientTaskResponse?> CompleteAsync(Guid patientUid, Guid patientTaskUid, CompletePatientTaskRequest request, long? userId, CancellationToken cancellationToken = default);
     Task<PatientTaskResponse?> ReopenAsync(Guid patientUid, Guid patientTaskUid, long? userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientDashboardTaskResponse>> GetOpenForDashboardAsync(long? assignedTo, int maxRows, CancellationToken cancellationToken = default);
+    Task<int> GetOverdueCountAsync(long assignedTo, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<OverduePatientTaskItem>> GetOverdueAsync(long assignedTo, CancellationToken cancellationToken = default);
 }
