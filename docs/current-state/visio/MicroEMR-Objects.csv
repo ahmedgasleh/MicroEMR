@@ -1,0 +1,64 @@
+ObjectId,ObjectName,ObjectType,Project,Namespace,Layer,Feature,Responsibility
+O001,Browser/User,Actor,External,,UI,All,Uses Web application
+O002,MicroEMR.Web Host,Application,MicroEMR.Web,MicroEMR.Web,UI,All,MVC Razor OIDC client and typed API clients
+O003,MicroEMR.Auth Host,Application,MicroEMR.Auth,MicroEMR.Auth,Authentication,Authentication,Identity and OpenIddict authorization server
+O004,MicroEMR.Api Host,Application,MicroEMR.Api,MicroEMR.Api,API,All,JWT protected clinical HTTP API
+O005,MicroEMR.Application,Project,MicroEMR.Application,MicroEMR.Application,Application,All,Contracts DTOs and application services
+O006,MicroEMR.Infrastructure,Project,MicroEMR.Infrastructure,MicroEMR.Infrastructure,Infrastructure,All,SQL repositories tenant services and storage
+O007,MicroEMR.Core,Project,MicroEMR.Core,MicroEMR.Core,Domain,All,Tenant and domain primitives
+O008,ApplicationDbContext,DbContext,MicroEMR.Auth,MicroEMR.Auth.Data,Authentication,Authentication,Identity and OpenIddict EF persistence
+O009,AuthorizationController,Controller,MicroEMR.Auth,MicroEMR.Auth.Controllers,Authentication,Authentication,OIDC authorization claims and logout
+O010,AccountController Auth,Controller,MicroEMR.Auth,MicroEMR.Auth.Controllers,Authentication,Tenant Selection,Login and tenant selection UI
+O011,UserTenantResolver,Service,MicroEMR.Auth,MicroEMR.Auth.Services.Tenancy,Authentication,Tenant Selection,Resolve membership or require selection
+O012,TenantClaimEnricher,Service,MicroEMR.Auth,MicroEMR.Auth.Services.Tenancy,Authentication,Tenant Selection,Add claims from validated membership
+O013,PendingTenantSelectionStore,Service,MicroEMR.Auth,MicroEMR.Auth.Services.Tenancy,Authentication,Tenant Selection,Short lived continuation state
+O014,Auth Database,Database,External,,Database,Authentication,Identity and OpenIddict data
+O015,Platform Database,Database,External,,Database,Tenancy,Tenant registry assignments memberships and roles
+O016,Tenant Clinical Database,Database,External,,Database,Clinical,Per tenant clinical data and procedures
+O017,TenantResolutionMiddleware,Middleware,MicroEMR.Api,MicroEMR.Api.Middleware,API,Tenancy,Validate tenant and membership and set context
+O018,TenantContextAccessor,Service,MicroEMR.Application,MicroEMR.Application.Tenancy,Application,Tenancy,Scoped current tenant holder
+O019,AuthenticatedClinicalUserAccessor,Service,MicroEMR.Api,MicroEMR.Api.ClinicalUsers,API,Security,Map token subject to tenant clinical user
+O020,TenantSqlConnectionFactory,Factory,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Tenancy,Infrastructure,Tenancy,Open and identity verify selected tenant database
+O021,SqlTenantCatalog,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Tenancy,Infrastructure,Tenancy,Read tenant registry
+O022,SqlUserTenantMembershipRepository,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Tenancy,Infrastructure,Tenancy,Read active membership and roles
+O023,SqlTenantDatabaseResolver,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Tenancy,Infrastructure,Tenancy,Resolve physical database assignment
+O024,PatientsController Web,Controller,MicroEMR.Web,MicroEMR.Web.Controllers,UI,Patients,Patient pages and forms
+O025,PatientApiClient,API Client,MicroEMR.Web,MicroEMR.Web.Services.Patients,UI,Patients,Calls patient API with bearer token
+O026,PatientsController API,Controller,MicroEMR.Api,MicroEMR.Api.Controllers,API,Patients,Patient endpoints
+O027,PatientService,Service,MicroEMR.Application,MicroEMR.Application.Patients.Services,Application,Patients,Patient orchestration
+O028,PatientRepository,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Patients,Infrastructure,Patients,Execute patient procedures
+O029,Patient Table,Table,Tenant DB,dbo,Database,Patients,Patient demographics
+O030,HomeController,Controller,MicroEMR.Web,MicroEMR.Web.Controllers,UI,Dashboard,Build dashboard
+O031,SchedulingApiClient,API Client,MicroEMR.Web,MicroEMR.Web.Services.Scheduling,UI,Scheduling,Calls scheduling API
+O032,SchedulingController API,Controller,MicroEMR.Api,MicroEMR.Api.Controllers,API,Scheduling,Scheduling endpoints
+O033,SchedulingServices,Service Group,MicroEMR.Application,MicroEMR.Application.Scheduling,Application,Scheduling,Reads mutations and status transitions
+O034,SchedulingRepositories,Repository Group,MicroEMR.Infrastructure,MicroEMR.Infrastructure.Scheduling,Infrastructure,Scheduling,Execute scheduling procedures
+O035,Scheduling Tables,Table Group,Tenant DB,dbo,Database,Scheduling,Resources appointments blocked times and history
+O036,PatientEncountersController API,Controller,MicroEMR.Api,MicroEMR.Api.Controllers,API,Encounters,Encounter endpoints
+O037,PatientEncounterService,Service,MicroEMR.Application,MicroEMR.Application.PatientEncounters.Services,Application,Encounters,Encounter lifecycle
+O038,PatientEncounterRepository,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.PatientEncounters,Infrastructure,Encounters,Execute encounter procedures
+O039,Encounter Tables,Table Group,Tenant DB,dbo,Database,Encounters,Encounters history and addenda
+O040,PatientChartClients,API Client Group,MicroEMR.Web,MicroEMR.Web.Services,UI,Patient Chart,Chart feature HTTP clients
+O041,PatientChartControllers API,Controller Group,MicroEMR.Api,MicroEMR.Api.Controllers,API,Patient Chart,Allergy medication problem vital result task and alert endpoints
+O042,PatientChartServices,Service Group,MicroEMR.Application,MicroEMR.Application,Application,Patient Chart,Clinical chart workflows
+O043,PatientChartRepositories,Repository Group,MicroEMR.Infrastructure,MicroEMR.Infrastructure,Infrastructure,Patient Chart,Execute chart procedures
+O044,PatientChart Tables,Table Group,Tenant DB,dbo,Database,Patient Chart,Allergies medications problems vitals results tasks alerts
+O045,PatientTaskOverdueService,Service,MicroEMR.Application,MicroEMR.Application.PatientTasks,Application,Notifications,Resolve actor and overdue count/list
+O046,OverdueTaskIndicator,TypeScript,MicroEMR.Web,ClientApp,UI,Notifications,Fetch and show overdue count
+O047,DocumentAndFileServices,Service Group,MicroEMR.Application,MicroEMR.Application.PatientDocuments/PatientFiles,Application,Documents,Document template and file workflows
+O048,DocumentAndFileRepositories,Repository Group,MicroEMR.Infrastructure,MicroEMR.Infrastructure.PatientDocuments/PatientFiles,Infrastructure,Documents,SQL metadata and file storage
+O049,DocumentAndFile Tables,Table Group,Tenant DB,dbo,Database,Documents,Templates versions documents content and file metadata
+O050,ReferralServices,Service Group,MicroEMR.Application,MicroEMR.Application.PatientReferrals,Application,Referrals,Referral workflow and document links
+O051,ReferralRepositories,Repository Group,MicroEMR.Infrastructure,MicroEMR.Infrastructure.PatientReferrals,Infrastructure,Referrals,Execute referral procedures
+O052,Referral Tables,Table Group,Tenant DB,dbo,Database,Referrals,Referrals and linked documents
+O053,TenantUserAdministrationService,Service,MicroEMR.Application,MicroEMR.Application.TenantUserAdministration,Application,Administration,Membership roles and clinical provisioning
+O054,ClinicConfigurationService,Service,MicroEMR.Application,MicroEMR.Application.ClinicConfiguration,Application,Clinic Configuration,Clinic profile orchestration
+O055,AppointmentStatusReportService,Service,MicroEMR.Application,MicroEMR.Application.Reporting,Application,Reporting,Appointment status report
+O056,ClinicalUserRepository,Repository,MicroEMR.Infrastructure,MicroEMR.Infrastructure.ClinicalUsers,Infrastructure,Security,Read and provision tenant clinical users
+O057,TenantRoleAuthorizationHandler,Authorization Handler,MicroEMR.Api,MicroEMR.Api.Authorization,API,Authorization,Enforce tenant role requirements
+O058,LocalPatientFileStorage,Storage,MicroEMR.Infrastructure,MicroEMR.Infrastructure.PatientFiles,Infrastructure,Patient Files,Store patient file bytes locally
+O059,TenantDatabaseIdentity,Table,Tenant DB,dbo,Database,Tenancy,Bind database to TenantUid
+O060,AuditLog,Table,Tenant DB,dbo,Database,Audit,Clinical audit events
+O061,TypeScript Patient Modules,TypeScript Group,MicroEMR.Web,ClientApp.patients,UI,Patient Chart,AJAX forms lists and modals
+O062,DatabaseTool,Application,MicroEMR.DatabaseTool,MicroEMR.DatabaseTool,Administration,Provisioning,Tenant migration and diagnostics CLI
+

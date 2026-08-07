@@ -1,0 +1,69 @@
+RelationshipId,FromObjectId,ToObjectId,RelationshipType,Description
+R001,O001,O002,Calls,Browser requests Web UI
+R002,O002,O003,AuthenticatesWith,OIDC authorization code flow with PKCE
+R003,O003,O014,UsesDatabase,Identity and OpenIddict persistence
+R004,O003,O015,UsesDatabase,Tenant memberships and registry
+R005,O009,O011,DependsOn,Resolves tenant membership state
+R006,O009,O012,DependsOn,Enriches issued principal
+R007,O009,O013,DependsOn,Stores and consumes selection continuation
+R008,O010,O013,DependsOn,Validates tenant selection state
+R009,O011,O015,Reads,Reads active memberships
+R010,O002,O004,HTTP,Typed clients send bearer authenticated requests
+R011,O004,O017,DependsOn,Authenticated API pipeline resolves tenant
+R012,O017,O021,Calls,Validates tenant catalog record
+R013,O017,O022,Calls,Validates active membership and reloads roles
+R014,O021,O015,Reads,Reads platform tenant
+R015,O022,O015,Reads,Reads platform membership and roles
+R016,O017,O018,ResolvesTenant,Sets scoped tenant context
+R017,O019,O018,DependsOn,Requires tenant context
+R018,O019,O056,Calls,Maps subject to tenant clinical user
+R019,O056,O020,DependsOn,Uses tenant connection
+R020,O020,O023,Calls,Resolves database assignment
+R021,O023,O015,Reads,Reads TenantDatabase assignment
+R022,O020,O059,Reads,Verifies physical database identity
+R023,O020,O016,UsesDatabase,Opens selected tenant database
+R024,O004,O005,DependsOn,API uses application contracts and services
+R025,O004,O006,DependsOn,API composes infrastructure
+R026,O006,O005,DependsOn,Infrastructure implements application interfaces
+R027,O005,O007,DependsOn,Application references Core
+R028,O006,O007,DependsOn,Infrastructure references Core
+R029,O024,O025,Calls,Web patient controller calls typed client
+R030,O025,O026,HTTP,Calls patient API routes
+R031,O026,O027,Calls,API delegates patient workflow
+R032,O027,O028,DependsOn,Patient service uses repository
+R033,O028,O020,DependsOn,Repository opens tenant connection
+R034,O028,O029,Reads,Patient procedures read patient
+R035,O028,O029,Writes,Patient procedures mutate patient
+R036,O030,O031,Calls,Dashboard loads scheduling
+R037,O031,O032,HTTP,Calls scheduling API
+R038,O032,O033,Calls,Delegates scheduling workflows
+R039,O033,O034,DependsOn,Services use scheduling repositories
+R040,O034,O020,DependsOn,Uses tenant connection factory
+R041,O034,O035,Executes,Executes scheduling procedures
+R042,O032,O037,Calls,Starts linked encounter
+R043,O036,O037,Calls,Encounter API delegates service
+R044,O037,O038,DependsOn,Service uses encounter repository
+R045,O038,O039,Executes,Executes encounter procedures
+R046,O040,O041,HTTP,Chart clients call feature APIs
+R047,O041,O042,Calls,Controllers call chart services where present
+R048,O041,O043,Calls,Some controllers call repositories directly
+R049,O042,O043,DependsOn,Services use repositories
+R050,O043,O020,DependsOn,Repositories use tenant connection
+R051,O043,O044,Executes,Executes chart procedures
+R052,O045,O043,DependsOn,Overdue service uses task repository
+R053,O046,O040,Calls,Indicator calls task Web/API client path
+R054,O047,O048,DependsOn,Document/file services use repositories/storage
+R055,O048,O049,Executes,Executes document and file metadata procedures
+R056,O048,O058,DependsOn,Patient file workflow stores bytes
+R057,O050,O051,DependsOn,Referral services use repositories
+R058,O051,O052,Executes,Executes referral procedures
+R059,O053,O015,Reads,Tenant administration reads platform membership
+R060,O053,O015,Writes,Tenant administration changes membership roles
+R061,O053,O056,Calls,Provisions tenant clinical user
+R062,O054,O020,DependsOn,Clinic configuration uses tenant repository
+R063,O055,O020,DependsOn,Report repository uses tenant connection
+R064,O057,O017,DependsOn,Uses roles refreshed by tenant middleware
+R065,O061,O024,Calls,Patient TypeScript calls Web controllers
+R066,O062,O006,DependsOn,CLI composes infrastructure
+R067,O043,O060,Writes,Audited clinical mutation procedures write audit log
+

@@ -1,0 +1,22 @@
+digraph MicroEMR {
+  rankdir=TB; node [shape=box, style=rounded];
+  Browser -> Web;
+  Web -> Auth [label="OIDC code + PKCE"];
+  Auth -> AuthDB [label="Identity/OpenIddict"];
+  Auth -> PlatformDB [label="memberships/tenant"];
+  Web -> Api [label="HTTP bearer"];
+  Api -> PlatformDB [label="tenant validation"];
+  Api -> Application;
+  Api -> Infrastructure;
+  Application -> Core;
+  Infrastructure -> Application;
+  Infrastructure -> Core;
+  Infrastructure -> TenantDB [label="tenant factory + stored procedures"];
+  TenantDB -> Patients;
+  TenantDB -> Scheduling;
+  TenantDB -> Encounters;
+  TenantDB -> Documents;
+  TenantDB -> TasksResults;
+  TenantDB -> ClinicalAdmin;
+  AuthDB [shape=cylinder]; PlatformDB [shape=cylinder]; TenantDB [shape=cylinder];
+}
