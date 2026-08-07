@@ -158,6 +158,53 @@
             height: 100%;
         }
 
+        .scheduling-day-layout {
+            display: flex;
+            align-items: stretch;
+            gap: .75rem;
+        }
+
+        .scheduling-day-panel {
+            flex: 0 0 14rem;
+            width: 14rem;
+        }
+
+        .scheduling-day-panel .card + .card {
+            margin-top: .75rem;
+        }
+
+        .scheduling-day-panel-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            min-height: 36px;
+            margin-left: auto;
+            margin-bottom: .75rem;
+            padding: 0;
+        }
+
+        .scheduling-day-calendar {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .scheduling-day-layout.is-panel-collapsed .scheduling-day-panel {
+            flex: 0 0 36px;
+            width: 36px;
+            min-width: 36px;
+        }
+
+        .scheduling-day-layout.is-panel-collapsed .scheduling-day-panel-content {
+            display: none;
+        }
+
+        .scheduling-day-layout.is-panel-collapsed .scheduling-day-panel-toggle {
+            width: 36px;
+            margin-left: 0;
+            margin-bottom: 0;
+        }
+
         .scheduling-empty-state {
             padding: 2rem;
             border: 1px dashed var(--bs-border-color);
@@ -253,6 +300,27 @@
             #schedulingMonthView {
                 max-width: 100%;
                 overflow-x: auto;
+            }
+        }
+
+        @@media (max-width: 991.98px) {
+            .scheduling-day-layout {
+                flex-direction: column;
+            }
+
+            .scheduling-day-panel {
+                flex-basis: auto;
+                width: 100%;
+            }
+
+            .scheduling-day-layout.is-panel-collapsed {
+                flex-direction: row;
+            }
+
+            .scheduling-day-layout.is-panel-collapsed .scheduling-day-panel {
+                flex: 0 0 36px;
+                width: 36px;
+                min-width: 36px;
             }
         }
     </style>
@@ -755,8 +823,30 @@
 }
 else
 {
-    <div class="scheduling-calendar-shell">
-        <div id="schedulingCalendar"></div>
+    <div class="scheduling-day-layout" id="schedulingDayLayout">
+        <aside class="scheduling-day-panel" aria-label="Day view side panel">
+            <button type="button" class="btn btn-outline-secondary scheduling-day-panel-toggle"
+                    id="schedulingDayPanelToggle" aria-expanded="true"
+                    aria-controls="schedulingDayPanelContent" aria-label="Collapse panel"
+                    title="Collapse panel">
+                <i class="bi bi-chevron-left" id="schedulingDayPanelToggleIcon" aria-hidden="true"></i>
+            </button>
+            <div class="scheduling-day-panel-content" id="schedulingDayPanelContent">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title h6 mb-0">Card 1</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title h6 mb-0">Card 2</h3>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <div class="scheduling-calendar-shell scheduling-day-calendar">
+            <div id="schedulingCalendar"></div>
+        </div>
     </div>
 }
 </div>
@@ -972,6 +1062,21 @@ else
             });
 
         calendar.init();
+
+        const dayLayout = document.getElementById("schedulingDayLayout");
+        const dayPanelToggle = document.getElementById("schedulingDayPanelToggle");
+        const dayPanelToggleIcon = document.getElementById("schedulingDayPanelToggleIcon");
+
+        dayPanelToggle?.addEventListener("click", () => {
+            const isCollapsed = dayLayout.classList.toggle("is-panel-collapsed");
+            dayPanelToggle.setAttribute("aria-expanded", String(!isCollapsed));
+            const toggleLabel = isCollapsed ? "Expand panel" : "Collapse panel";
+            dayPanelToggle.setAttribute("aria-label", toggleLabel);
+            dayPanelToggle.setAttribute("title", toggleLabel);
+            dayPanelToggleIcon.classList.toggle("bi-chevron-left", !isCollapsed);
+            dayPanelToggleIcon.classList.toggle("bi-chevron-right", isCollapsed);
+            window.requestAnimationFrame(() => calendar.update());
+        });
 
         const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
         const resourcePickerModal = new bootstrap.Modal(document.getElementById("resourcePickerModal"));
