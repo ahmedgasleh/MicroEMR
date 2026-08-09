@@ -3,10 +3,10 @@
 @{
     ViewData["Title"] = "Patients";
     ViewData["Subtitle"] = "Search and manage patient records";
-    Layout = "_AppLayout";
-
     var searchText = ViewBag.SearchText as string;
     DateOnly? dateOfBirth = ViewBag.DateOfBirth;
+    var selectionMode = ViewBag.SelectionMode as string;
+    Layout = selectionMode == "chart" ? "_PatientSearchModalLayout" : "_AppLayout";
 }
 
 <div class="content-panel">
@@ -32,6 +32,10 @@
           asp-action="Search"
           class="row g-3 mt-1"
           data-microemr-search-form>
+        @if (selectionMode == "chart")
+        {
+            <input type="hidden" name="selectionMode" value="chart" />
+        }
 
         <div class="col-12 col-lg-6">
             <label class="form-label">
@@ -72,6 +76,7 @@
                 </button>
 
                 <a asp-action="Search"
+                   asp-route-selectionMode="@selectionMode"
                    class="btn btn-outline-secondary">
                     Clear
                 </a>
@@ -164,6 +169,7 @@
                             <td class="text-end">
                                 <a asp-action="Details"
                                    asp-route-patientUid="@patient.PatientUid"
+                                   target="@(selectionMode == "chart" ? "_top" : null)"
                                    class="btn btn-sm btn-outline-primary">
                                     Open chart
                                 </a>

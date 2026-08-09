@@ -29,6 +29,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ICurrentPatientContext, CurrentPatientContext>();
 
 static void ConfigureApiClient (
     IServiceProvider serviceProvider,

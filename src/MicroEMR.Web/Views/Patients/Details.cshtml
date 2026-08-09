@@ -96,6 +96,10 @@
         </div>
     </div>
     <nav class="patient-chart-banner__badges" aria-label="Patient clinical summary links">
+        <button type="button" class="patient-chart-banner__badge" title="Change patient"
+                aria-label="Change patient" data-bs-toggle="modal" data-bs-target="#patientSearchModal">
+            <i class="bi bi-search" aria-hidden="true"></i> Change patient
+        </button>
         <button type="button" id="patientAlertBadge" class="patient-chart-banner__badge d-none" data-chart-tab-link="alerts">Alerts <span class="badge text-bg-warning" id="patientAlertCount">0</span></button>
         <button type="button" class="patient-chart-banner__badge" data-chart-tab-link="problems">
             Problems <span class="badge text-bg-secondary">@summary.ActiveProblemsTotalCount</span>
@@ -116,6 +120,15 @@
         </button>
     </nav>
 </section>
+
+<div class="modal fade" id="patientSearchModal" tabindex="-1" aria-labelledby="patientSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="patientSearchModalLabel">Change patient</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body p-0"><iframe title="Find patient" class="w-100 border-0" style="min-height:65vh" src="@Url.Action("Search", "Patients", new { selectionMode = "chart" })"></iframe></div>
+        </div>
+    </div>
+</div>
 
 <ul class="nav nav-tabs mb-3 patient-chart-tabs" aria-label="Patient chart sections">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
