@@ -614,7 +614,12 @@ public sealed class SchedulingController : Controller
                     end = FormatDayPilotLocal(
                         appointment.EndDateTimeUtc),
                     resource = appointment.PrimaryResourceUid,
-                    primaryResourceUid = appointment.PrimaryResourceUid
+                    primaryResourceUid = appointment.PrimaryResourceUid,
+                    patientDisplayName = appointment.PatientDisplayName,
+                    appointmentType = appointment.AppointmentType,
+                    status = appointment.Status,
+                    reason = appointment.Reason,
+                    primaryResourceName = appointment.PrimaryResourceName
                 });
 
             return Json(events);

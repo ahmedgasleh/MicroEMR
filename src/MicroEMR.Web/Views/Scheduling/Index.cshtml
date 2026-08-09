@@ -174,6 +174,41 @@
             margin-top: .75rem;
         }
 
+        .scheduling-quick-view-empty {
+            color: var(--bs-secondary-color);
+            font-size: .8rem;
+            line-height: 1.4;
+        }
+
+        .scheduling-quick-view-patient {
+            font-size: .9rem;
+            font-weight: 600;
+        }
+
+        .scheduling-quick-view-label {
+            color: var(--bs-secondary-color);
+            font-size: .65rem;
+            font-weight: 600;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+        }
+
+        .scheduling-quick-view-value {
+            font-size: .78rem;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .scheduling-event-quick-view {
+            border-left: 1px solid rgba(255, 255, 255, .35);
+            opacity: .8;
+        }
+
+        .scheduling-event-quick-view:hover {
+            background: rgba(255, 255, 255, .18);
+            opacity: 1;
+        }
+
         .scheduling-mini-calendar-header {
             display: flex;
             align-items: center;
@@ -931,8 +966,36 @@ else
         <aside class="scheduling-day-panel" aria-label="Day view side panel">
             <div class="scheduling-day-panel-content" id="schedulingDayPanelContent">
                 <div class="card">
-                    <div class="card-body">
-                        <h3 class="card-title h6 mb-0">Card 1</h3>
+                    <div class="card-body p-2">
+                        <h3 class="card-title h6 mb-2">Appointment</h3>
+                        <div class="scheduling-quick-view-empty" id="schedulingQuickViewEmpty">
+                            Select an appointment to view details.
+                        </div>
+                        <div class="d-none" id="schedulingQuickViewContent">
+                            <div class="scheduling-quick-view-patient mb-2" id="schedulingQuickViewPatient"></div>
+                            <div class="mb-2">
+                                <div class="scheduling-quick-view-label">Date and time</div>
+                                <div class="scheduling-quick-view-value" id="schedulingQuickViewDateTime"></div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="scheduling-quick-view-label">Provider / resource</div>
+                                <div class="scheduling-quick-view-value" id="schedulingQuickViewResource"></div>
+                            </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <div class="scheduling-quick-view-label">Type</div>
+                                    <div class="scheduling-quick-view-value" id="schedulingQuickViewType"></div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="scheduling-quick-view-label">Status</div>
+                                    <div class="scheduling-quick-view-value" id="schedulingQuickViewStatus"></div>
+                                </div>
+                            </div>
+                            <div id="schedulingQuickViewReasonGroup">
+                                <div class="scheduling-quick-view-label">Reason</div>
+                                <div class="scheduling-quick-view-value" id="schedulingQuickViewReason"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card">
@@ -999,6 +1062,7 @@ else
         let miniCalendarMonthDate = selectedDate.toDateLocal();
         miniCalendarMonthDate.setDate(1);
         let miniCalendarSelectedKey = null;
+        let selectedAppointment = null;
         let selectedResourceType = "";
         let selectedResourceUids = new Set(
             resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
@@ -1022,6 +1086,12 @@ else
         const miniCalendarGrid = document.getElementById("schedulingMiniCalendarGrid");
         const miniCalendarPrevious = document.getElementById("schedulingMiniCalendarPrevious");
         const miniCalendarNext = document.getElementById("schedulingMiniCalendarNext");
+        const dayLayout = document.getElementById("schedulingDayLayout");
+        const dayPanelToggle = document.getElementById("schedulingDayPanelToggle");
+        const dayPanelToggleIcon = document.getElementById("schedulingDayPanelToggleIcon");
+        const quickViewEmpty = document.getElementById("schedulingQuickViewEmpty");
+        const quickViewContent = document.getElementById("schedulingQuickViewContent");
+        const quickViewReasonGroup = document.getElementById("schedulingQuickViewReasonGroup");
 
         const getMatchingResources = () => resources.filter(resource =>
             (!selectedResourceType || resource.resourceType === selectedResourceType) &&
@@ -1046,6 +1116,58 @@ else
                 : "No selected resources match the selected resource type.";
         };
 
+        const quickViewDate = value => {
+            if (!value) return null;
+            const date = typeof value.toDateLocal === "function"
+                ? value.toDateLocal()
+                : new Date(value);
+            return Number.isFinite(date.getTime()) ? date : null;
+        };
+
+        const setQuickViewText = (id, value, fallback = "Not specified") => {
+            document.getElementById(id).textContent = value || fallback;
+        };
+
+        const renderAppointmentQuickView = appointment => {
+            if (!appointment) return;
+            selectedAppointment = appointment;
+
+            const start = quickViewDate(appointment.startDateTimeLocal || appointment.start);
+            const end = quickViewDate(appointment.endDateTimeLocal || appointment.end);
+            const resourceName = appointment.primaryResourceName
+                || resources.find(resource =>
+                    String(resource.resourceUid).toLowerCase()
+                        === String(appointment.primaryResourceUid || appointment.resource).toLowerCase())?.displayName;
+
+            setQuickViewText("schedulingQuickViewPatient", appointment.patientDisplayName, "Patient");
+            setQuickViewText(
+                "schedulingQuickViewDateTime",
+                start && end
+                    ? `${start.toLocaleDateString()} · ${start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                        + `–${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                    : null);
+            setQuickViewText("schedulingQuickViewResource", resourceName);
+            setQuickViewText("schedulingQuickViewType", appointment.appointmentType);
+            setQuickViewText("schedulingQuickViewStatus", appointment.status);
+
+            const reason = appointment.reason?.trim();
+            quickViewReasonGroup.classList.toggle("d-none", !reason);
+            setQuickViewText("schedulingQuickViewReason", reason);
+            quickViewEmpty.classList.add("d-none");
+            quickViewContent.classList.remove("d-none");
+        };
+
+        const setDayPanelCollapsed = isCollapsed => {
+            dayLayout.classList.toggle("is-panel-collapsed", isCollapsed);
+            dayPanelToggle.setAttribute("aria-expanded", String(!isCollapsed));
+            const toggleLabel = isCollapsed ? "Expand panel" : "Collapse panel";
+            dayPanelToggle.setAttribute("aria-label", toggleLabel);
+            dayPanelToggle.setAttribute("title", toggleLabel);
+            dayPanelToggleIcon.classList.toggle("bi-chevron-left", !isCollapsed);
+            dayPanelToggleIcon.classList.toggle("bi-chevron-right", isCollapsed);
+            window.requestAnimationFrame(() => calendar.update());
+        };
+
         const calendar = new DayPilot.Calendar(
             "schedulingCalendar",
             {
@@ -1059,6 +1181,34 @@ else
                 eventResizeHandling: "Disabled",
                 eventDeleteHandling: "Disabled",
                 timeRangeSelectedHandling: "Enabled",
+                onBeforeEventRender: args => {
+                    if (args.data.eventKind !== "appointment") return;
+                    args.data.areas = [
+                        ...(args.data.areas || []),
+                        {
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: 22,
+                            action: "None",
+                            cssClass: "scheduling-event-quick-view",
+                            html: '<i class="bi bi-chevron-right" aria-hidden="true"></i>',
+                            horizontalAlignment: "center",
+                            verticalAlignment: "center",
+                            cursor: "pointer",
+                            toolTip: "Show appointment quick view",
+                            onClick: areaArgs => {
+                                areaArgs.preventDefault();
+                                areaArgs.originalEvent?.preventDefault();
+                                areaArgs.originalEvent?.stopPropagation();
+                                renderAppointmentQuickView(areaArgs.source.data);
+                                if (dayLayout.classList.contains("is-panel-collapsed")) {
+                                    setDayPanelCollapsed(false);
+                                }
+                            }
+                        }
+                    ];
+                },
                 onEventMoving: args => {
                     const eventKind = args.e?.data?.eventKind || args.e?.data?.EventKind;
                     if (eventKind === "blockedTime") {
@@ -1185,25 +1335,15 @@ else
                         openBlockedTimeDetails(args.e.data);
                         return;
                     }
+                    renderAppointmentQuickView(args.e.data);
                     openAppointmentDetails(args.e.id());
                 }
             });
 
         calendar.init();
 
-        const dayLayout = document.getElementById("schedulingDayLayout");
-        const dayPanelToggle = document.getElementById("schedulingDayPanelToggle");
-        const dayPanelToggleIcon = document.getElementById("schedulingDayPanelToggleIcon");
-
         dayPanelToggle?.addEventListener("click", () => {
-            const isCollapsed = dayLayout.classList.toggle("is-panel-collapsed");
-            dayPanelToggle.setAttribute("aria-expanded", String(!isCollapsed));
-            const toggleLabel = isCollapsed ? "Expand panel" : "Collapse panel";
-            dayPanelToggle.setAttribute("aria-label", toggleLabel);
-            dayPanelToggle.setAttribute("title", toggleLabel);
-            dayPanelToggleIcon.classList.toggle("bi-chevron-left", !isCollapsed);
-            dayPanelToggleIcon.classList.toggle("bi-chevron-right", isCollapsed);
-            window.requestAnimationFrame(() => calendar.update());
+            setDayPanelCollapsed(!dayLayout.classList.contains("is-panel-collapsed"));
         });
 
         const appointmentModal = new bootstrap.Modal(document.getElementById("addAppointmentModal"));
@@ -1538,6 +1678,7 @@ else
                 const details = await response.json();
                 currentAppointmentUid = details.appointmentUid;
                 currentAppointmentDetails = details;
+                renderAppointmentQuickView(details);
                 const start = new Date(details.startDateTimeLocal);
                 const end = new Date(details.endDateTimeLocal);
                 const createdAt = new Date(details.createdAtLocal);
@@ -2322,6 +2463,16 @@ else
 
             try {
                 const events = await loadEvents();
+
+                const selectedAppointmentUid = selectedAppointment?.appointmentUid
+                    || selectedAppointment?.id;
+                const refreshedSelection = selectedAppointmentUid
+                    ? events.find(event => String(event.appointmentUid || event.id)
+                        === String(selectedAppointmentUid))
+                    : null;
+                if (refreshedSelection) {
+                    renderAppointmentQuickView(refreshedSelection);
+                }
 
                 calendar.update({
                     events
