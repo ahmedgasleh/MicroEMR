@@ -29,6 +29,7 @@ public sealed class PatientsController : Controller
     private readonly IPatientProblemApiClient _patientProblemApiClient;
     private readonly IPatientVitalApiClient _patientVitalApiClient;
     private readonly ILogger<PatientsController> _logger;
+    private readonly ICurrentPatientContext _currentPatientContext;
 
     public PatientsController(
         IPatientApiClient patientApiClient,
@@ -38,7 +39,8 @@ public sealed class PatientsController : Controller
         IPatientMedicationApiClient patientMedicationApiClient,
         IPatientProblemApiClient patientProblemApiClient,
         IPatientVitalApiClient patientVitalApiClient,
-        ILogger<PatientsController> logger)
+        ILogger<PatientsController> logger,
+        ICurrentPatientContext currentPatientContext)
     {
         _patientApiClient = patientApiClient;
         _patientAllergyApiClient = patientAllergyApiClient;
@@ -48,6 +50,7 @@ public sealed class PatientsController : Controller
         _patientMedicationApiClient = patientMedicationApiClient;
         _patientProblemApiClient = patientProblemApiClient;
         _patientVitalApiClient = patientVitalApiClient;
+        _currentPatientContext = currentPatientContext;
     }
 
     [HttpGet]
@@ -60,9 +63,14 @@ public sealed class PatientsController : Controller
     public async Task<IActionResult> Search(
         string? searchText,
         DateOnly? dateOfBirth,
+        string? selectionMode,
         int pageNumber = 1,
         CancellationToken cancellationToken = default)
     {
+        ViewBag.SearchText = searchText;
+        ViewBag.DateOfBirth = dateOfBirth;
+        ViewBag.SelectionMode = selectionMode;
+
         try
         {
             var result =
@@ -72,9 +80,6 @@ public sealed class PatientsController : Controller
                     pageNumber,
                     25,
                     cancellationToken);
-
-            ViewBag.SearchText = searchText;
-            ViewBag.DateOfBirth = dateOfBirth;
 
             return View(result);
         }
@@ -129,6 +134,18 @@ public sealed class PatientsController : Controller
                 {
                     patientUid = patient.PatientUid
                 });
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Patient registration was rejected because the authenticated account lacks clinical access.");
+
+            ModelState.AddModelError(
+                string.Empty,
+                "Your account is not provisioned for clinical changes in this clinic. Contact a clinic administrator.");
+
+            return View(model);
         }
         catch (HttpRequestException exception)
         {
@@ -356,6 +373,8 @@ public sealed class PatientsController : Controller
             Vitals = vitals,
             ActiveTab = NormalizePatientChartTab(tab)
         };
+
+        _currentPatientContext.Remember(patientUid);
 
         return View(model);
     }

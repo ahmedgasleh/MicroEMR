@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Patient Chart";
+    ViewData["Subtitle"] = "Open a patient chart";
+    Layout = "_AppLayout";
+}
+
+<section class="patient-chart-banner" aria-labelledby="emptyPatientChartName">
+    <div class="patient-chart-banner__identity">
+        <div>
+            <h2 id="emptyPatientChartName" class="patient-chart-banner__name">No patient selected</h2>
+            <div class="patient-chart-banner__preferred">Find a patient to view their chart.</div>
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+            data-bs-target="#patientSearchModal">
+        <i class="bi bi-search me-1" aria-hidden="true"></i> Find patient
+    </button>
+</section>
+
+<div class="modal fade" id="patientSearchModal" tabindex="-1" aria-labelledby="patientSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="patientSearchModalLabel">Find patient</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe title="Find patient" class="w-100 border-0" style="min-height: 65vh"
+                        src="@Url.Action("Search", "Patients", new { selectionMode = "chart" })"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/patient-chart.css" asp-append-version="true" />
+}
