@@ -77,6 +77,30 @@ public sealed class PatientDocumentApiClient
                 cancellationToken: cancellationToken);
     }
 
+    public async Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
+        Guid documentUid,
+        UpdatePatientDocumentDraftRequest documentRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"api/patient-documents/{documentUid}/draft")
+        {
+            Content = JsonContent.Create(documentRequest)
+        };
+
+        await AddBearerTokenAsync(request);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<PatientDocumentDetailsResponse>(
+            cancellationToken: cancellationToken);
+    }
+
     public async Task<IReadOnlyList<DocumentTemplateListItemResponse>>
         GetActiveTemplatesAsync(
             CancellationToken cancellationToken = default)

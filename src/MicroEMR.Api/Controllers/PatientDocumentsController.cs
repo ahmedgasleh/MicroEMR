@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Services;
+using MicroEMR.Application.PatientDocuments;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -63,6 +64,56 @@ public sealed class PatientDocumentsController : ControllerBase
         }
 
         return Ok(document);
+    }
+
+    [HttpPut("api/patient-documents/{documentUid:guid}/draft")]
+    [ProducesResponseType<PatientDocumentDetailsResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PatientDocumentDetailsResponse>> UpdateDraft(
+        Guid documentUid,
+        [FromBody] UpdatePatientDocumentDraftRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (documentUid == Guid.Empty)
+            return BadRequest();
+
+        request.Title = request.Title?.Trim() ?? string.Empty;
+        request.DocumentType = request.DocumentType?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            ModelState.AddModelError(nameof(request.Title), "Document title is required.");
+        if (string.IsNullOrWhiteSpace(request.DocumentType))
+            ModelState.AddModelError(nameof(request.DocumentType), "Document type is required.");
+        if (!IsValidRowVersion(request.RowVersion))
+            ModelState.AddModelError(nameof(request.RowVersion), "A valid document row version is required.");
+        if (!IsValidRowVersion(request.ContentRowVersion))
+            ModelState.AddModelError(nameof(request.ContentRowVersion), "A valid content row version is required.");
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
+        try
+        {
+            var document = await _documentService.UpdateDraftAsync(
+                documentUid,
+                request,
+                GetAuthenticatedUserId(),
+                cancellationToken);
+
+            return document is null ? NotFound() : Ok(document);
+        }
+        catch (PatientDocumentNotDraftException)
+        {
+            return Conflict(new { message = "Only draft patient documents can be edited." });
+        }
+        catch (PatientDocumentConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "This document was changed by another user. Reload it before saving again."
+            });
+        }
     }
 
     [HttpPost("api/patients/{patientUid:guid}/documents")]
@@ -137,4 +188,19 @@ public sealed class PatientDocumentsController : ControllerBase
 
     private long GetAuthenticatedUserId() =>
         ClinicalUserActorContext.GetRequired(HttpContext);
+
+    private static bool IsValidRowVersion(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        try
+        {
+            return Convert.FromBase64String(value).Length == 8;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 }
