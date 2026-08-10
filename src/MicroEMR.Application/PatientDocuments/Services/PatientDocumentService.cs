@@ -32,6 +32,19 @@ public sealed class PatientDocumentService : IPatientDocumentService
             cancellationToken);
     }
 
+    public Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
+        Guid documentUid,
+        UpdatePatientDocumentDraftRequest request,
+        long updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        return _repository.UpdateDraftAsync(
+            documentUid,
+            request,
+            updatedBy,
+            cancellationToken);
+    }
+
     public Task<IReadOnlyList<DocumentTemplateListItemResponse>>
         GetActiveTemplatesAsync(
             CancellationToken cancellationToken = default)

@@ -13,6 +13,11 @@ public interface IPatientDocumentApiClient
         Guid documentUid,
         CancellationToken cancellationToken = default);
 
+    Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
+        Guid documentUid,
+        UpdatePatientDocumentDraftRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DocumentTemplateListItemResponse>>
         GetActiveTemplatesAsync(
             CancellationToken cancellationToken = default);

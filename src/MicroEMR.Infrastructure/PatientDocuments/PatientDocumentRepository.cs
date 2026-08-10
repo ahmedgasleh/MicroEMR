@@ -101,6 +101,54 @@ public sealed class PatientDocumentRepository
         return MapDetails(reader);
     }
 
+    public async Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
+        Guid documentUid,
+        UpdatePatientDocumentDraftRequest request,
+        long updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection =
+            await _connectionFactory.OpenConnectionAsync(cancellationToken);
+
+        await using var command = new SqlCommand(
+            "dbo.PatientDocument_UpdateDraft",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.Add("@DocumentUid", SqlDbType.UniqueIdentifier).Value = documentUid;
+        AddRequiredString(command, "@DocumentTitle", SqlDbType.NVarChar, 250, request.Title);
+        AddRequiredString(command, "@DocumentType", SqlDbType.NVarChar, 100, request.DocumentType);
+        command.Parameters.Add("@DocumentContent", SqlDbType.NVarChar, -1).Value =
+            (object?)request.Content ?? DBNull.Value;
+        command.Parameters.Add("@ExpectedDocumentRowVersion", SqlDbType.Binary, 8).Value =
+            Convert.FromBase64String(request.RowVersion);
+        command.Parameters.Add("@ExpectedContentRowVersion", SqlDbType.Binary, 8).Value =
+            Convert.FromBase64String(request.ContentRowVersion);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51080)
+        {
+            return null;
+        }
+        catch (SqlException exception) when (exception.Number == 51081)
+        {
+            throw new PatientDocumentNotDraftException(
+                "Only draft patient documents can be edited.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51082)
+        {
+            throw new PatientDocumentConcurrencyException(
+                "The patient document was changed by another user.", exception);
+        }
+    }
+
     public async Task<
         IReadOnlyList<DocumentTemplateListItemResponse>>
         GetActiveTemplatesAsync(
@@ -432,7 +480,10 @@ public sealed class PatientDocumentRepository
                     "UpdatedAt"),
 
             RowVersion =
-                GetNullableRowVersion(reader, "RowVersion")
+                GetNullableRowVersion(reader, "RowVersion"),
+
+            ContentRowVersion =
+                GetNullableRowVersion(reader, "ContentRowVersion")
         };
     }
 

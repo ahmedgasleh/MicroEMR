@@ -26,4 +26,6 @@ public sealed class PatientDocumentDetailsResponse
     public DateTime? UpdatedAt { get; set; }
 
     public string RowVersion { get; set; } = string.Empty;
+
+    public string ContentRowVersion { get; set; } = string.Empty;
 }

@@ -8,6 +8,8 @@ public sealed class PatientDocumentDetailsResponse
 
     public Guid? TemplateUid { get; set; }
 
+    public Guid? TemplateVersionUid { get; set; }
+
     public string DocumentType { get; set; } = string.Empty;
 
     public string Title { get; set; } = string.Empty;
@@ -25,4 +27,6 @@ public sealed class PatientDocumentDetailsResponse
     public DateTime? UpdatedAt { get; set; }
 
     public string RowVersion { get; set; } = string.Empty;
+
+    public string ContentRowVersion { get; set; } = string.Empty;
 }

@@ -174,6 +174,55 @@ public sealed class PatientDocumentsController : Controller
         return View(document);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDraft(
+        Guid documentUid,
+        UpdatePatientDocumentDraftRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (documentUid == Guid.Empty)
+            return BadRequest();
+
+        if (!ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "The draft could not be saved. Review the document fields and try again.";
+            return RedirectToAction(nameof(Details), new { documentUid });
+        }
+
+        try
+        {
+            var document = await _documentApiClient.UpdateDraftAsync(
+                documentUid,
+                request,
+                cancellationToken);
+
+            if (document is null)
+                return NotFound();
+
+            TempData["SuccessMessage"] = "Document draft updated.";
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            _logger.LogWarning(
+                exception,
+                "Draft update conflict for patient document {DocumentUid}.",
+                documentUid);
+            TempData["ErrorMessage"] =
+                "This document changed after you opened it. Reloaded values are shown; review them before editing again.";
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        {
+            _logger.LogWarning(
+                exception,
+                "The document API rejected draft update {DocumentUid}.",
+                documentUid);
+            TempData["ErrorMessage"] = "The draft could not be saved. Review the document fields and try again.";
+        }
+
+        return RedirectToAction(nameof(Details), new { documentUid });
+    }
+
     private async Task<IReadOnlyList<DocumentTemplateListItemResponse>>
         LoadTemplatesAsync(
             CancellationToken cancellationToken)
