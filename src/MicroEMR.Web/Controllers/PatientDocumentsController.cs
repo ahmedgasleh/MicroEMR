@@ -70,13 +70,16 @@ public sealed class PatientDocumentsController : Controller
         {
             // Prototype only: production must enforce template authorization
             // and sanitize document content server-side before persistence.
-            await _documentApiClient.CreateAsync(
+            var created = await _documentApiClient.CreateAsync(
                 model.PatientUid,
                 request,
                 cancellationToken);
 
             TempData["SuccessMessage"] =
                 "Document saved as draft.";
+
+            if (model.TemplateUid.HasValue)
+                return RedirectToAction(nameof(Details), new { documentUid = created.DocumentUid });
 
             return RedirectToAction(
                 "Details",
@@ -142,12 +145,31 @@ public sealed class PatientDocumentsController : Controller
             return NotFound();
         }
 
+        var versions = await _documentApiClient.GetDocumentTemplateVersionsAsync(templateUid, cancellationToken);
+        var published = versions.FirstOrDefault(version => version.IsCurrent &&
+            string.Equals(version.Status, "Published", StringComparison.OrdinalIgnoreCase));
+        var hasSchemaSections = false;
+        if (published is not null && !string.IsNullOrWhiteSpace(published.DefinitionJson))
+        {
+            try
+            {
+                using var definition = JsonDocument.Parse(published.DefinitionJson);
+                hasSchemaSections = definition.RootElement.TryGetProperty("sections", out var sections)
+                    && sections.ValueKind == JsonValueKind.Array && sections.GetArrayLength() > 0;
+            }
+            catch (JsonException) { }
+        }
+        var isStructured = published is not null &&
+            (hasSchemaSections || string.IsNullOrWhiteSpace(published.TemplateContent));
+
         return Json(new
         {
             template.TemplateUid,
             template.TemplateName,
             template.DocumentType,
-            template.TemplateContent
+            template.Category,
+            template.TemplateContent,
+            isStructured
         });
     }
 
@@ -190,8 +212,15 @@ public sealed class PatientDocumentsController : Controller
             return RedirectToAction(nameof(Details), new { documentUid });
         }
 
+        PatientDocumentDetailsResponse? current = null;
         try
         {
+            current = await _documentApiClient.GetByUidAsync(documentUid, cancellationToken);
+            if (current?.IsStructured == true && string.IsNullOrWhiteSpace(request.StructuredDataJson))
+            {
+                TempData["ErrorMessage"] = "The structured form values were not submitted. Reload and try again.";
+                return RedirectToAction(nameof(Details), new { documentUid });
+            }
             var document = await _documentApiClient.UpdateDraftAsync(
                 documentUid,
                 request,
@@ -217,6 +246,12 @@ public sealed class PatientDocumentsController : Controller
                 exception,
                 "The document API rejected draft update {DocumentUid}.",
                 documentUid);
+            if (current?.IsStructured == true)
+            {
+                AddApiValidationErrors(exception.Message, "The draft could not be saved. Review the document fields and try again.");
+                current.StructuredDataJson = request.StructuredDataJson;
+                return View(nameof(Details), current);
+            }
             TempData["ErrorMessage"] = "The draft could not be saved. Review the document fields and try again.";
         }
 

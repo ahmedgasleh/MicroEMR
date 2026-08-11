@@ -122,6 +122,8 @@ public sealed class PatientDocumentRepository
         AddRequiredString(command, "@DocumentType", SqlDbType.NVarChar, 100, request.DocumentType);
         command.Parameters.Add("@DocumentContent", SqlDbType.NVarChar, -1).Value =
             (object?)request.Content ?? DBNull.Value;
+        command.Parameters.Add("@StructuredDataJson", SqlDbType.NVarChar, -1).Value =
+            (object?)request.StructuredDataJson ?? DBNull.Value;
         command.Parameters.Add("@ExpectedDocumentRowVersion", SqlDbType.Binary, 8).Value =
             Convert.FromBase64String(request.RowVersion);
         command.Parameters.Add("@ExpectedContentRowVersion", SqlDbType.Binary, 8).Value =
@@ -204,8 +206,6 @@ public sealed class PatientDocumentRepository
             {
                 Value = templateUid
             });
-
-
 
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
@@ -308,6 +308,11 @@ public sealed class PatientDocumentRepository
                     : DBNull.Value
             });
 
+        command.Parameters.Add(new SqlParameter("@TemplateVersionUid", SqlDbType.UniqueIdentifier)
+        {
+            Value = (object?)request.ResolvedTemplateVersionUid ?? DBNull.Value
+        });
+
         AddRequiredString(
             command,
             "@DocumentType",
@@ -328,6 +333,8 @@ public sealed class PatientDocumentRepository
             SqlDbType.NVarChar,
             -1,
             request.Content);
+
+        AddNullableString(command, "@StructuredDataJson", SqlDbType.NVarChar, -1, request.StructuredDataJson);
 
         command.Parameters.Add(
             new SqlParameter(
@@ -459,6 +466,8 @@ public sealed class PatientDocumentRepository
                     reader,
                     "DocumentContent")
                 ?? string.Empty,
+
+            StructuredDataJson = GetOptionalString(reader, "StructuredDataJson"),
 
             CreatedBy =
                 GetNullableInt64(

@@ -1,4 +1,5 @@
 using MicroEMR.Application.PatientDocuments.Contracts;
+using MicroEMR.Application.Templates.Contracts;
 
 namespace MicroEMR.Application.PatientDocuments.Services;
 
@@ -36,5 +37,6 @@ public interface IPatientDocumentService
         Guid patientUid,
         CreatePatientDocumentRequest request,
         long? createdBy,
+        TemplateAccessContext accessContext,
         CancellationToken cancellationToken = default);
 }

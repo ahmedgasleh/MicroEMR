@@ -11,6 +11,7 @@ public sealed class UpdatePatientDocumentDraftRequest
     public string DocumentType { get; set; } = string.Empty;
 
     public string? Content { get; set; }
+    public string? StructuredDataJson { get; set; }
 
     [Required]
     public string RowVersion { get; set; } = string.Empty;

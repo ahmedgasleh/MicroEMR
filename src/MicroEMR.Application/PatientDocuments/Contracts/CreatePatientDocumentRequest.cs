@@ -6,13 +6,13 @@ public sealed class CreatePatientDocumentRequest
 {
     public Guid? TemplateUid { get; set; }
 
-    [Required]
     [StringLength(100)]
     public string DocumentType { get; set; } = string.Empty;
 
-    [Required]
     [StringLength(250)]
     public string Title { get; set; } = string.Empty;
 
     public string? Content { get; set; }
+    public string? StructuredDataJson { get; set; }
+    public Guid? ResolvedTemplateVersionUid { get; set; }
 }

@@ -5,22 +5,27 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Services;
 using MicroEMR.Application.PatientDocuments;
+using MicroEMR.Application.Templates.Contracts;
+using MicroEMR.Application.Templates.Runtime;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-//[Authorize]
+[Authorize]
 public sealed class PatientDocumentsController : ControllerBase
 {
     private readonly IPatientDocumentService _documentService;
     private readonly ILogger<PatientDocumentsController> _logger;
+    private readonly IAuthorizationService _authorization;
 
     public PatientDocumentsController(
         IPatientDocumentService documentService,
-        ILogger<PatientDocumentsController> logger)
+        ILogger<PatientDocumentsController> logger,
+        IAuthorizationService authorization)
     {
         _documentService = documentService;
         _logger = logger;
+        _authorization = authorization;
     }
 
     [HttpGet("api/patients/{patientUid:guid}/documents")]
@@ -114,6 +119,11 @@ public sealed class PatientDocumentsController : ControllerBase
                 message = "This document was changed by another user. Reload it before saving again."
             });
         }
+        catch (TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
+        }
     }
 
     [HttpPost("api/patients/{patientUid:guid}/documents")]
@@ -127,23 +137,12 @@ public sealed class PatientDocumentsController : ControllerBase
             [FromBody] CreatePatientDocumentRequest request,
             CancellationToken cancellationToken)
     {
-        if (request.TemplateUid.HasValue)
+        if (!request.TemplateUid.HasValue)
         {
-            var template =
-                await _documentService.GetTemplateByUidAsync(
-                    request.TemplateUid.Value,
-                    cancellationToken);
-
-            if (template is null || !template.IsActive)
-            {
-                ModelState.AddModelError(
-                    nameof(request.TemplateUid),
-                    "The selected document template is invalid or inactive.");
-
-                return ValidationProblem(ModelState);
-            }
+            if (string.IsNullOrWhiteSpace(request.Title)) ModelState.AddModelError(nameof(request.Title), "Document title is required.");
+            if (string.IsNullOrWhiteSpace(request.DocumentType)) ModelState.AddModelError(nameof(request.DocumentType), "Document type is required.");
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
         }
-
         var createdBy = GetAuthenticatedUserId();
 
         try
@@ -153,6 +152,7 @@ public sealed class PatientDocumentsController : ControllerBase
                     patientUid,
                     request,
                     createdBy,
+                    await AccessContext(),
                     cancellationToken);
 
             return CreatedAtAction(
@@ -175,6 +175,15 @@ public sealed class PatientDocumentsController : ControllerBase
                 message = exception.Message
             });
         }
+        catch (TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         catch (Exception exception)
         {
             _logger.LogError(
@@ -188,6 +197,10 @@ public sealed class PatientDocumentsController : ControllerBase
 
     private long GetAuthenticatedUserId() =>
         ClinicalUserActorContext.GetRequired(HttpContext);
+
+    private async Task<TemplateAccessContext> AccessContext() => new(GetAuthenticatedUserId(),
+        (await _authorization.AuthorizeAsync(User, null,
+            MicroEMR.Api.Authorization.TenantAuthorizationPolicies.ClinicAdministrator)).Succeeded);
 
     private static bool IsValidRowVersion(string? value)
     {

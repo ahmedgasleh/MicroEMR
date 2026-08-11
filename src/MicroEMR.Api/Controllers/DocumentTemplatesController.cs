@@ -63,7 +63,8 @@ public sealed class DocumentTemplatesController : ControllerBase
         var templates = await _documentService.GetTemplatesAsync(status, cancellationToken);
 
         var context = await AccessContext();
-        return Ok(templates.Where(x => x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId || context.IsClinicAdministrator));
+        return Ok(templates.Where(x => x.TemplateKind == "Document" && x.TemplateVersionUid.HasValue
+            && (x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId || context.IsClinicAdministrator)));
     }
 
     [HttpGet("{templateUid:guid}")]

@@ -40,11 +40,11 @@
  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content"><form asp-controller="PatientDocuments" asp-action="Create" method="post" id="summaryDocumentForm">
   @Html.AntiForgeryToken()<input type="hidden" name="PatientUid" value="@patientUid" /><input type="hidden" name="ReturnTab" value="summary" />
   <div class="modal-header"><h2 class="modal-title fs-5" id="summaryDocumentModalLabel">New Document</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-  <div class="modal-body"><div id="summaryDocumentTemplateError" class="alert alert-danger d-none">Unable to load the selected template. Please try again.</div><div class="row g-3">
+  <div class="modal-body"><div id="summaryDocumentTemplateError" class="alert alert-danger d-none">Unable to load the selected template. Please try again.</div><div id="summaryDocumentStructuredMessage" class="alert alert-info d-none">This template uses a structured clinical form. Click <strong>Save Draft</strong> to create the document and open its sections and fields.</div><div class="row g-3">
    <div class="col-12"><label for="summaryDocumentTemplate" class="form-label">Template</label><select id="summaryDocumentTemplate" name="TemplateUid" class="form-select"><option value="">-- Select a template --</option>@foreach (var template in Model.DocumentTemplates) { <option value="@template.TemplateUid">@template.TemplateName</option> }</select></div>
    <div class="col-12 col-md-4"><label for="summaryDocumentType" class="form-label">Document type</label><input id="summaryDocumentType" name="DocumentType" class="form-control" maxlength="100" required /></div>
    <div class="col-12 col-md-8"><label for="summaryDocumentTitle" class="form-label">Title</label><input id="summaryDocumentTitle" name="Title" class="form-control" maxlength="250" required /></div>
-   <div class="col-12"><label for="summaryDocumentContent" class="form-label">Content</label><textarea id="summaryDocumentContent" name="Content" class="form-control font-monospace" rows="12"></textarea></div>
+   <div class="col-12" id="summaryDocumentContentGroup"><label for="summaryDocumentContent" class="form-label">Content</label><textarea id="summaryDocumentContent" name="Content" class="form-control font-monospace" rows="12"></textarea></div>
   </div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary summary-modal-save">Save Draft</button></div>
  </form></div></div>
 </div>

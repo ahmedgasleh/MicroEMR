@@ -12,6 +12,15 @@ public sealed class DocumentTemplateVersionRepository(
     ITenantSqlConnectionFactory connectionFactory,
     ILogger<DocumentTemplateVersionRepository> logger) : IDocumentTemplateVersionRepository
 {
+    public async Task<DocumentTemplateVersionResponse?> GetByUidAsync(Guid templateVersionUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = Command("dbo.DocumentTemplateVersion_GetByUid", connection);
+        AddUid(command, "@TemplateVersionUid", templateVersionUid);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
+    }
+
     public async Task<IReadOnlyList<DocumentTemplateVersionResponse>> GetByTemplateUidAsync(
         Guid templateUid,
         CancellationToken cancellationToken = default)

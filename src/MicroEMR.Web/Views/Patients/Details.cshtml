@@ -1983,6 +1983,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (saveButton) saveButton.dataset.defaultText = saveButton.textContent;
   modal?.addEventListener("show.bs.modal", event => {
    form.reset();
+   if (form.id === "summaryDocumentForm") {
+    document.getElementById("summaryDocumentStructuredMessage")?.classList.add("d-none");
+    document.getElementById("summaryDocumentContentGroup")?.classList.remove("d-none");
+    const documentContent = document.getElementById("summaryDocumentContent");
+    if (documentContent) documentContent.disabled = false;
+   }
    const trigger = event.relatedTarget;
    const returnTab = form.querySelector('input[name="ReturnTab"]');
    if (returnTab) returnTab.value = trigger?.dataset.returnTab === "summary" ? "summary" : trigger?.dataset.returnTab ?? "summary";
@@ -1996,8 +2002,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
  const documentTemplate = document.getElementById("summaryDocumentTemplate");
  documentTemplate?.addEventListener("change", async () => {
-  const error = document.getElementById("summaryDocumentTemplateError");
+ const error = document.getElementById("summaryDocumentTemplateError");
+  const structuredMessage = document.getElementById("summaryDocumentStructuredMessage");
+  const contentGroup = document.getElementById("summaryDocumentContentGroup");
+  const content = document.getElementById("summaryDocumentContent");
   error?.classList.add("d-none");
+  structuredMessage?.classList.add("d-none");
+  contentGroup?.classList.remove("d-none");
+  if (content) content.disabled = false;
   if (!documentTemplate.value) return;
   documentTemplate.disabled = true;
   try {
@@ -2006,8 +2018,11 @@ document.addEventListener("DOMContentLoaded", () => {
    const response = await fetch(url, { headers: { Accept: "application/json" } });
    if (!response.ok) throw new Error();
    const template = await response.json();
-   document.getElementById("summaryDocumentType").value = template.documentType ?? "";
-   document.getElementById("summaryDocumentContent").value = template.templateContent ?? "";
+   document.getElementById("summaryDocumentType").value = template.category ?? template.documentType ?? "";
+   content.value = template.templateContent ?? "";
+   contentGroup?.classList.toggle("d-none", Boolean(template.isStructured));
+   structuredMessage?.classList.toggle("d-none", !template.isStructured);
+   content.disabled = Boolean(template.isStructured);
    const title = document.getElementById("summaryDocumentTitle");
    if (!title.value.trim()) title.value = template.templateName ?? "";
   } catch { error?.classList.remove("d-none"); }

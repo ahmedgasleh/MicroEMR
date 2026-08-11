@@ -7,6 +7,9 @@ public sealed class DocumentTemplateListItemResponse
     public string TemplateName { get; set; } = string.Empty;
 
     public string DocumentType { get; set; } = string.Empty;
+    public string TemplateKind { get; set; } = "Document";
+    public string? Category { get; set; }
+    public string TemplateScope { get; set; } = "Clinic";
 
     public string? Description { get; set; }
 

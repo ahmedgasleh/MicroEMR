@@ -1,17 +1,20 @@
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
+using MicroEMR.Application.Templates.Contracts;
+using MicroEMR.Application.Templates.Runtime;
+using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Services;
 
 namespace MicroEMR.Application.PatientDocuments.Services;
 
-public sealed class PatientDocumentService : IPatientDocumentService
+public sealed class PatientDocumentService(
+    IPatientDocumentRepository repository,
+    IDocumentTemplateVersionRepository versions,
+    ITemplateDefinitionSerializer definitions,
+    ITemplateInstanceRuntime runtime,
+    ITemplateAuthorizationService authorization) : IPatientDocumentService
 {
-    private readonly IPatientDocumentRepository _repository;
-
-    public PatientDocumentService(
-        IPatientDocumentRepository repository)
-    {
-        _repository = repository;
-    }
+    private readonly IPatientDocumentRepository _repository = repository;
 
     public Task<IReadOnlyList<PatientDocumentListItemResponse>>
         GetByPatientUidAsync(
@@ -23,26 +26,36 @@ public sealed class PatientDocumentService : IPatientDocumentService
             cancellationToken);
     }
 
-    public Task<PatientDocumentDetailsResponse?> GetByUidAsync(
+    public async Task<PatientDocumentDetailsResponse?> GetByUidAsync(
         Guid documentUid,
         CancellationToken cancellationToken = default)
     {
-        return _repository.GetByUidAsync(
-            documentUid,
-            cancellationToken);
+        var document = await _repository.GetByUidAsync(documentUid, cancellationToken);
+        return document is null ? null : await EnrichAsync(document, cancellationToken);
     }
 
-    public Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
+    public async Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
         Guid documentUid,
         UpdatePatientDocumentDraftRequest request,
         long updatedBy,
         CancellationToken cancellationToken = default)
     {
-        return _repository.UpdateDraftAsync(
-            documentUid,
-            request,
-            updatedBy,
-            cancellationToken);
+        var current = await _repository.GetByUidAsync(documentUid, cancellationToken);
+        if (current is null) return null;
+        if (current.StructuredDataJson is not null)
+        {
+            if (!current.TemplateVersionUid.HasValue) throw new InvalidOperationException("The structured document has no template version provenance.");
+            var version = await versions.GetByUidAsync(current.TemplateVersionUid.Value, cancellationToken)
+                ?? throw new InvalidOperationException("The document's template version is unavailable.");
+            var definition = RequireDefinition(version.DefinitionJson);
+            var processed = runtime.Process(definition, request.StructuredDataJson);
+            if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
+            request.StructuredDataJson = processed.Json;
+            request.Content = runtime.RenderSnapshot(definition, processed.Data!);
+        }
+        else request.StructuredDataJson = null;
+        var saved = await _repository.UpdateDraftAsync(documentUid, request, updatedBy, cancellationToken);
+        return saved is null ? null : await EnrichAsync(saved, cancellationToken);
     }
 
     public Task<IReadOnlyList<DocumentTemplateListItemResponse>>
@@ -80,16 +93,61 @@ public sealed class PatientDocumentService : IPatientDocumentService
         _ => "Active"
     };
 
-    public Task<PatientDocumentDetailsResponse> CreateAsync(
+    public async Task<PatientDocumentDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientDocumentRequest request,
         long? createdBy,
+        TemplateAccessContext accessContext,
         CancellationToken cancellationToken = default)
     {
-        return _repository.CreateAsync(
-            patientUid,
-            request,
-            createdBy,
-            cancellationToken);
+        if (request.TemplateUid.HasValue)
+        {
+            var template = await _repository.GetTemplateByUidAsync(request.TemplateUid.Value, cancellationToken)
+                ?? throw new UnauthorizedAccessException("The selected template is unavailable.");
+            if (!template.IsActive || template.TemplateKind != "Document" || !authorization.CanView(template, accessContext))
+                throw new UnauthorizedAccessException("The selected template cannot be used for a patient document.");
+            var version = (await versions.GetByTemplateUidAsync(template.TemplateUid, cancellationToken))
+                .SingleOrDefault(x => x.IsCurrent && x.Status == "Published")
+                ?? throw new InvalidOperationException("The selected template has no active published version.");
+            request.ResolvedTemplateVersionUid = version.TemplateVersionUid;
+            request.DocumentType = string.IsNullOrWhiteSpace(template.Category) ? template.DocumentType : template.Category;
+            if (string.IsNullOrWhiteSpace(request.Title)) request.Title = template.TemplateName;
+            var definition = RequireDefinition(version.DefinitionJson);
+            var isLegacy = (definition.Sections?.Count ?? 0) == 0 && !string.IsNullOrWhiteSpace(version.TemplateContent);
+            if (!isLegacy)
+            {
+                var initial = runtime.CreateInitial(definition);
+                if (!initial.IsValid) throw new TemplateInstanceValidationException(initial.Errors);
+                request.StructuredDataJson = initial.Json;
+                request.Content = runtime.RenderSnapshot(definition, initial.Data!);
+            }
+        }
+        else
+        {
+            request.ResolvedTemplateVersionUid = null;
+            request.StructuredDataJson = null;
+        }
+        var created = await _repository.CreateAsync(patientUid, request, createdBy, cancellationToken);
+        return await EnrichAsync(created, cancellationToken);
+    }
+
+    private async Task<PatientDocumentDetailsResponse> EnrichAsync(PatientDocumentDetailsResponse document, CancellationToken token)
+    {
+        if (document.StructuredDataJson is null || !document.TemplateVersionUid.HasValue) return document;
+        var version = await versions.GetByUidAsync(document.TemplateVersionUid.Value, token)
+            ?? throw new InvalidOperationException("The document's historical template version is unavailable.");
+        document.TemplateDefinition = RequireDefinition(version.DefinitionJson);
+        document.TemplateVersionNumber = version.VersionNumber;
+        if (document.TemplateUid.HasValue)
+            document.TemplateName = (await _repository.GetTemplateByUidAsync(document.TemplateUid.Value, token))?.TemplateName;
+        return document;
+    }
+
+    private Templates.Definitions.TemplateDefinition RequireDefinition(string json)
+    {
+        var result = definitions.Process(json);
+        if (!result.IsValid) throw new TemplateInstanceValidationException(result.Errors
+            .Select(x => new TemplateInstanceValidationError(x.Path, x.Code, x.Message)).ToArray());
+        return result.Definition!;
     }
 }

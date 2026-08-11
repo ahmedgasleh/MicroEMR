@@ -6,6 +6,8 @@ public sealed class DocumentTemplateVersionResponse
     public Guid TemplateUid { get; set; }
     public int VersionNumber { get; set; }
     public string TemplateContent { get; set; } = string.Empty;
+    public int SchemaVersion { get; set; }
+    public string DefinitionJson { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public bool IsCurrent { get; set; }
     public DateTime? PublishedAt { get; set; }

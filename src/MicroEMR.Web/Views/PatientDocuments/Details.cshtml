@@ -5,6 +5,7 @@
     ViewData["Subtitle"] = Model.DocumentType;
     Layout = "_AppLayout";
     var isDraft = string.Equals(Model.Status, "Draft", StringComparison.OrdinalIgnoreCase);
+    var showEditor = !ViewData.ModelState.IsValid || (isDraft && Model.IsStructured);
 }
 
 <div class="content-panel">
@@ -17,7 +18,7 @@
         <div class="d-flex gap-2">
             @if (isDraft)
             {
-                <button type="button" class="btn btn-primary" id="editDocumentButton">
+                <button type="button" class="btn btn-primary @(showEditor ? "d-none" : "")" id="editDocumentButton">
                     <i class="bi bi-pencil me-1"></i>
                     Edit
                 </button>
@@ -42,7 +43,7 @@
         <div class="alert alert-warning mt-3" role="alert">@errorMessage</div>
     }
 
-    <div id="documentReadView" class="row g-4 mt-1">
+    <div id="documentReadView" class="row g-4 mt-1 @(showEditor ? "d-none" : "")">
         <div class="col-12 col-lg-4">
             <div class="border rounded-3 p-3 h-100">
                 <h5 class="mb-3">Document</h5>
@@ -72,6 +73,12 @@
 
                     <dt class="col-sm-5">Created by</dt>
                     <dd class="col-sm-7">@(Model.CreatedByDisplayName ?? "Unknown")</dd>
+
+                    @if (Model.IsStructured)
+                    {
+                        <dt class="col-sm-5">Template</dt>
+                        <dd class="col-sm-7">@(Model.TemplateName ?? "Document template") <span class="text-body-secondary">v@Model.TemplateVersionNumber</span></dd>
+                    }
                 </dl>
             </div>
         </div>
@@ -91,10 +98,16 @@
               asp-route-documentUid="@Model.DocumentUid"
               method="post"
               id="documentEditForm"
-              class="d-none mt-4">
+              data-structured="@Model.IsStructured.ToString().ToLowerInvariant()"
+              class="@(showEditor ? "" : "d-none") mt-4">
             @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
             <input type="hidden" name="RowVersion" value="@Model.RowVersion" />
             <input type="hidden" name="ContentRowVersion" value="@Model.ContentRowVersion" />
+            @if (Model.IsStructured)
+            {
+                <input type="hidden" name="StructuredDataJson" id="StructuredDataJson" value="@Model.StructuredDataJson" />
+            }
 
             <div class="row g-3">
                 <div class="col-12 col-lg-8">
@@ -115,13 +128,17 @@
                            maxlength="100"
                            required />
                 </div>
-                <div class="col-12">
-                    <label for="editDocumentContent" class="form-label">Content</label>
-                    <textarea id="editDocumentContent"
-                              name="Content"
-                              class="form-control font-monospace"
-                              rows="18">@Model.Content</textarea>
-                </div>
+                @if (Model.IsStructured && Model.TemplateDefinition is not null)
+                {
+                    <div class="col-12"><partial name="_TemplateRuntimeForm" model="Model" /></div>
+                }
+                else
+                {
+                    <div class="col-12">
+                        <label for="editDocumentContent" class="form-label">Content</label>
+                        <textarea id="editDocumentContent" name="Content" class="form-control font-monospace" rows="18">@Model.Content</textarea>
+                    </div>
+                }
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
@@ -136,6 +153,10 @@
 </div>
 
 @section Scripts {
+    @if (Model.IsStructured)
+    {
+        <script type="module" src="~/dist/patient-documents/runtime.js" asp-append-version="true"></script>
+    }
     @if (isDraft)
     {
         <script>
