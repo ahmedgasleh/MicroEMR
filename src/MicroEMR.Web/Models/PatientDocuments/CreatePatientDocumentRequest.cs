@@ -15,4 +15,5 @@ public sealed class CreatePatientDocumentRequest
     public string Title { get; set; } = string.Empty;
 
     public string? Content { get; set; }
+    public string? StructuredDataJson { get; set; }
 }

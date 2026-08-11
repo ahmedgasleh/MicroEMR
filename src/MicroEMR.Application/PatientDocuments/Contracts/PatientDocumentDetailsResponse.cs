@@ -1,5 +1,7 @@
 namespace MicroEMR.Application.PatientDocuments.Contracts;
 
+using MicroEMR.Application.Templates.Definitions;
+
 public sealed class PatientDocumentDetailsResponse
 {
     public Guid DocumentUid { get; set; }
@@ -16,6 +18,11 @@ public sealed class PatientDocumentDetailsResponse
     public string Status { get; set; } = string.Empty;
 
     public string Content { get; set; } = string.Empty;
+    public string? StructuredDataJson { get; set; }
+    public bool IsStructured => StructuredDataJson is not null;
+    public TemplateDefinition? TemplateDefinition { get; set; }
+    public string? TemplateName { get; set; }
+    public int? TemplateVersionNumber { get; set; }
 
     public long? CreatedBy { get; set; }
 

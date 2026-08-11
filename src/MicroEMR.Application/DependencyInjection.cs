@@ -16,6 +16,7 @@ using MicroEMR.Application.PatientTasks;
 using MicroEMR.Application.Templates.Serialization;
 using MicroEMR.Application.Templates.Validation;
 using MicroEMR.Application.Templates.Services;
+using MicroEMR.Application.Templates.Runtime;
 
 namespace MicroEMR.Application;
 
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientTaskOverdueService, PatientTaskOverdueService>();
         services.AddSingleton<ITemplateDefinitionValidator, TemplateDefinitionValidator>();
         services.AddSingleton<ITemplateDefinitionSerializer, TemplateDefinitionSerializer>();
+        services.AddSingleton<ITemplateInstanceRuntime, TemplateInstanceRuntime>();
         services.AddSingleton<ITemplateAuthorizationService, TemplateAuthorizationService>();
         services.AddScoped<ITemplateAdministrationService, TemplateAdministrationService>();
 

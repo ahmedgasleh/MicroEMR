@@ -4,6 +4,8 @@ namespace MicroEMR.Application.PatientDocuments.Repositories;
 
 public interface IDocumentTemplateVersionRepository
 {
+    Task<DocumentTemplateVersionResponse?> GetByUidAsync(Guid templateVersionUid, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DocumentTemplateVersionResponse>> GetByTemplateUidAsync(
         Guid templateUid,
         CancellationToken cancellationToken = default);

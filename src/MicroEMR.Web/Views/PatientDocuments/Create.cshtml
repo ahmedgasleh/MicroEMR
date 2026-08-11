@@ -60,7 +60,7 @@
                     @foreach (var template in Model.Templates)
                     {
                         <option value="@template.TemplateUid">
-                            @template.TemplateName
+                            @template.TemplateName — @(template.Category ?? template.DocumentType) (@template.TemplateScope)
                         </option>
                     }
                 </select>
@@ -109,7 +109,7 @@
                           rows="18"></textarea>
 
                 <div class="form-text">
-                    Rich-text editing will be added in a later step.
+                    For schema-driven templates, the clinical form opens after the draft is created. This content editor remains available for legacy documents.
                 </div>
 
                 <span asp-validation-for="Content"
@@ -192,7 +192,7 @@
                     const template = await response.json();
 
                     documentTypeInput.value =
-                        template.documentType ?? "";
+                        template.category ?? template.documentType ?? "";
 
                     contentInput.value =
                         template.templateContent ?? "";

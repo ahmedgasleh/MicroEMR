@@ -103,7 +103,14 @@ function move(items, from, to) { if (to < 0 || to >= items.length)
     return; [items[from], items[to]] = [items[to], items[from]]; }
 function confirmDelete(message, action) { document.querySelector("#deleteMessage").textContent = message; deleteAction = action; deleteModal?.show(); }
 document.querySelector("#confirmDeleteButton")?.addEventListener("click", () => { deleteAction?.(); deleteAction = null; deleteModal?.hide(); render(); });
-async function request(url, body) { const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "RequestVerificationToken": token }, body: JSON.stringify(body) }); const result = await response.json(); return { response, result }; }
+async function request(url, body) { const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json", "X-Requested-With": "XMLHttpRequest", "RequestVerificationToken": token }, body: JSON.stringify(body), redirect: "manual" }); if (response.status === 401 || response.type === "opaqueredirect") {
+    const returnUrl = location.pathname + location.search;
+    location.assign(`/Account/Login?returnUrl=${encodeURIComponent(returnUrl)}`);
+    return await new Promise(() => { });
+} const contentType = response.headers.get("content-type") ?? ""; if (!contentType.includes("application/json")) {
+    showMessage("The server returned an unexpected response. Reload the page and try again.", "danger");
+    throw new Error("Expected a JSON response.");
+} const result = await response.json(); return { response, result }; }
 function payload() { normalize(); return { templateUid: data.template.templateUid, templateVersionUid: version.templateVersionUid, rowVersion: version.rowVersion, templateContent: version.templateContent, definition }; }
 async function validate(showSuccess = true) { const { response, result } = await request("/TemplateAdministration/Validate", payload()); if (!response.ok || !result.isValid) {
     showErrors(result.errors ?? []);

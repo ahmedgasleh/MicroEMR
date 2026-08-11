@@ -32,6 +32,8 @@ public sealed class TemplateAdministrationWebTests
         Assert.Contains("crypto.randomUUID()",script);
         Assert.Contains("s.order=(si+1)*10",script);Assert.Contains("f.order=(fi+1)*10",script);Assert.Contains("o.order=(oi+1)*10",script);
         Assert.Contains("/TemplateAdministration/Validate",script);
+        Assert.Contains("X-Requested-With",script);
+        Assert.Contains("response.status===401",script);
         Assert.Contains("const valid=await validate(false)",script);
         Assert.Contains("/TemplateAdministration/Save",script);Assert.Contains("/TemplateAdministration/Publish",script);
         Assert.Contains("templateContent:version.templateContent",script);

@@ -1,0 +1,77 @@
+@model MicroEMR.Web.Models.PatientDocuments.PatientDocumentDetailsResponse
+@using System.Text.Json
+@using MicroEMR.Application.Templates.Definitions
+@{
+    var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+    if (!string.IsNullOrWhiteSpace(Model.StructuredDataJson))
+    {
+        using var data = JsonDocument.Parse(Model.StructuredDataJson);
+        if (data.RootElement.TryGetProperty("values", out var valueObject))
+            foreach (var item in valueObject.EnumerateObject()) values[item.Name] = item.Value.Clone();
+    }
+    string TextValue(string key) => values.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
+    bool? BoolValue(string key) => values.TryGetValue(key, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.GetBoolean() : null;
+    string NumberValue(string key) => values.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetRawText() : "";
+}
+
+<div class="template-runtime" data-schema-version="@Model.TemplateDefinition!.SchemaVersion">
+@foreach (var schemaSection in Model.TemplateDefinition.Sections!.OrderBy(x => x.Order))
+{
+    <section class="mb-4" data-section-key="@schemaSection.Key">
+        <h5 class="border-bottom pb-2 mb-3">@schemaSection.Title</h5>
+        <div class="row g-3">
+        @foreach (var field in schemaSection.Fields!.OrderBy(x => x.Order))
+        {
+            if (field.Type == TemplateFieldTypes.StaticText)
+            {
+                <div class="col-12"><p class="text-body-secondary mb-0">@field.Content</p></div>
+                continue;
+            }
+            <div class="col-12 @(field.Type == TemplateFieldTypes.TextArea ? "" : "col-lg-6")">
+                @{ var fieldErrors = ViewData.ModelState[$"values.{field.Key}"]?.Errors; }
+                <label class="form-label" for="runtime-@field.Id">@field.Label@if(field.Required){<span class="text-danger"> *</span>}</label>
+                @switch (field.Type)
+                {
+                    case TemplateFieldTypes.Text:
+                        <input id="runtime-@field.Id" class="form-control template-runtime-value" data-field-key="@field.Key" data-field-type="Text" value="@TextValue(field.Key!)" placeholder="@field.Placeholder" @(field.Required ? "required" : null) />
+                        break;
+                    case TemplateFieldTypes.TextArea:
+                        <textarea id="runtime-@field.Id" class="form-control template-runtime-value" data-field-key="@field.Key" data-field-type="TextArea" rows="4" placeholder="@field.Placeholder" @(field.Required ? "required" : null)>@TextValue(field.Key!)</textarea>
+                        break;
+                    case TemplateFieldTypes.Number:
+                        <input id="runtime-@field.Id" type="number" step="any" class="form-control template-runtime-value" data-field-key="@field.Key" data-field-type="Number" value="@NumberValue(field.Key!)" @(field.Required ? "required" : null) />
+                        break;
+                    case TemplateFieldTypes.Date:
+                        <input id="runtime-@field.Id" type="date" class="form-control template-runtime-value" data-field-key="@field.Key" data-field-type="Date" value="@TextValue(field.Key!)" @(field.Required ? "required" : null) />
+                        break;
+                    case TemplateFieldTypes.Boolean:
+                        <select id="runtime-@field.Id" class="form-select template-runtime-value" data-field-key="@field.Key" data-field-type="Boolean" @(field.Required ? "required" : null)>
+                            <option value="">Not answered</option><option value="true" selected="@(BoolValue(field.Key!) == true)">Yes</option><option value="false" selected="@(BoolValue(field.Key!) == false)">No</option>
+                        </select>
+                        break;
+                    case TemplateFieldTypes.Checkbox:
+                        <div class="form-check"><input id="runtime-@field.Id" type="checkbox" class="form-check-input template-runtime-value" data-field-key="@field.Key" data-field-type="Checkbox" checked="@(BoolValue(field.Key!) == true)" /><label class="form-check-label" for="runtime-@field.Id">Yes</label></div>
+                        break;
+                    case TemplateFieldTypes.Select:
+                        <select id="runtime-@field.Id" class="form-select template-runtime-value" data-field-key="@field.Key" data-field-type="Select" @(field.Required ? "required" : null)>
+                            <option value="">Select...</option>@foreach(var option in field.Options!.OrderBy(x=>x.Order)){<option value="@option.Value" selected="@(TextValue(field.Key!) == option.Value)">@option.Label</option>}
+                        </select>
+                        break;
+                    case TemplateFieldTypes.Radio:
+                        foreach(var option in field.Options!.OrderBy(x=>x.Order))
+                        {
+                            <div class="form-check form-check-inline"><input type="radio" class="form-check-input template-runtime-value" name="runtime-@field.Id" id="runtime-@field.Id-@option.Value" data-field-key="@field.Key" data-field-type="Radio" value="@option.Value" checked="@(TextValue(field.Key!) == option.Value)" @(field.Required ? "required" : null) /><label class="form-check-label" for="runtime-@field.Id-@option.Value">@option.Label</label></div>
+                        }
+                        break;
+                }
+                @if (!string.IsNullOrWhiteSpace(field.HelpText)){<div class="form-text">@field.HelpText</div>}
+                @if (fieldErrors?.Count > 0)
+                {
+                    <div class="text-danger small mt-1" data-validation-for="@field.Key">@fieldErrors[0].ErrorMessage</div>
+                }
+            </div>
+        }
+        </div>
+    </section>
+}
+</div>
