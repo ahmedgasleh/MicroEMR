@@ -4,10 +4,10 @@ IF COL_LENGTH('dbo.DocumentTemplate', 'TemplateKind') IS NULL
 GO
 
 IF COL_LENGTH('dbo.DocumentTemplate', 'Category') IS NULL
-BEGIN
     ALTER TABLE dbo.DocumentTemplate ADD Category NVARCHAR(100) NULL;
-    UPDATE dbo.DocumentTemplate SET Category = TemplateType WHERE Category IS NULL;
-END;
+GO
+
+UPDATE dbo.DocumentTemplate SET Category = TemplateType WHERE Category IS NULL;
 GO
 
 IF COL_LENGTH('dbo.DocumentTemplate', 'TemplateScope') IS NULL
@@ -55,12 +55,12 @@ IF COL_LENGTH('dbo.DocumentTemplateVersion', 'DefinitionJson') IS NULL
 GO
 
 IF COL_LENGTH('dbo.DocumentTemplateVersion', 'PublishedBy') IS NULL
-BEGIN
     ALTER TABLE dbo.DocumentTemplateVersion ADD PublishedBy BIGINT NULL;
-    UPDATE dbo.DocumentTemplateVersion
-    SET PublishedBy = COALESCE(UpdatedBy, CreatedBy)
-    WHERE VersionStatus = N'Published' AND PublishedBy IS NULL;
-END;
+GO
+
+UPDATE dbo.DocumentTemplateVersion
+SET PublishedBy = COALESCE(UpdatedBy, CreatedBy)
+WHERE VersionStatus = N'Published' AND PublishedBy IS NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_DocumentTemplateVersion_SchemaVersion')
