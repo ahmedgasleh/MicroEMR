@@ -17,6 +17,7 @@ using MicroEMR.Application.Templates.Serialization;
 using MicroEMR.Application.Templates.Validation;
 using MicroEMR.Application.Templates.Services;
 using MicroEMR.Application.Templates.Runtime;
+using MicroEMR.Application.Templates.Variables;
 
 namespace MicroEMR.Application;
 
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddSingleton<ITemplateDefinitionValidator, TemplateDefinitionValidator>();
         services.AddSingleton<ITemplateDefinitionSerializer, TemplateDefinitionSerializer>();
         services.AddSingleton<ITemplateInstanceRuntime, TemplateInstanceRuntime>();
+        services.AddSingleton<ITemplateVariableResolver, TemplateVariableResolver>();
         services.AddSingleton<ITemplateAuthorizationService, TemplateAuthorizationService>();
         services.AddScoped<ITemplateAdministrationService, TemplateAdministrationService>();
 

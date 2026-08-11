@@ -22,6 +22,10 @@ public sealed class PatientEncountersController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> EncounterTemplates(CancellationToken cancellationToken) =>
+        Json(await _encounterApiClient.GetEncounterTemplatesAsync(cancellationToken));
+
+    [HttpGet]
     public async Task<IActionResult> Details(
         Guid encounterUid,
         CancellationToken cancellationToken)
@@ -348,6 +352,24 @@ public sealed class PatientEncountersController : Controller
         }
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateEncounterStructuredData(
+        Guid patientUid, Guid encounterUid, string structuredDataJson, string rowVersion,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty) return BadRequest();
+        try
+        {
+            var encounter = await _encounterApiClient.UpdateStructuredDataAsync(patientUid, encounterUid,
+                new UpdateEncounterStructuredDataRequest { StructuredDataJson = structuredDataJson, RowVersion = rowVersion }, cancellationToken);
+            return encounter is null ? NotFound() : Json(new { success = true, message = "Encounter draft saved.", encounter });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
+        {
+            return StatusCode((int)exception.StatusCode.Value, new { success = false, message = "Review the template fields and refresh if the encounter changed." });
+        }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SignEncounter(
@@ -418,8 +440,8 @@ public sealed class PatientEncountersController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create(
-        Guid patientUid)
+    public async Task<IActionResult> Create(
+        Guid patientUid, CancellationToken cancellationToken)
     {
         if (patientUid == Guid.Empty)
         {
@@ -429,7 +451,8 @@ public sealed class PatientEncountersController : Controller
         return View(new CreatePatientEncounterViewModel
         {
             PatientUid = patientUid,
-            EncounterDateLocal = DateTime.Now
+            EncounterDateLocal = DateTime.Now,
+            EncounterTemplates = await _encounterApiClient.GetEncounterTemplatesAsync(cancellationToken)
         });
     }
 
@@ -460,6 +483,7 @@ public sealed class PatientEncountersController : Controller
 
         if (!ModelState.IsValid)
         {
+            model.EncounterTemplates = await _encounterApiClient.GetEncounterTemplatesAsync(cancellationToken);
             return View(model);
         }
 
@@ -474,7 +498,8 @@ public sealed class PatientEncountersController : Controller
             ReasonForVisit = model.ReasonForVisit,
             LocationName = model.LocationName,
             ProviderName = model.ProviderName,
-            EncounterSoapTemplateUid = model.EncounterSoapTemplateUid
+            EncounterSoapTemplateUid = model.EncounterSoapTemplateUid,
+            TemplateUid = model.TemplateUid
         };
 
         try

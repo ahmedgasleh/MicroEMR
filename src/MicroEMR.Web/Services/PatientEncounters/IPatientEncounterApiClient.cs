@@ -4,6 +4,7 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 
 public interface IPatientEncounterApiClient
 {
+    Task<IReadOnlyList<EncounterTemplateListItem>> GetEncounterTemplatesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientEncounterListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,
@@ -44,6 +45,10 @@ public interface IPatientEncounterApiClient
         Guid patientUid,
         Guid encounterUid,
         UpdateEncounterSoapNoteRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
+        Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest request,
         CancellationToken cancellationToken = default);
 
     Task<PatientEncounterDetailsResponse?> SignEncounterAsync(

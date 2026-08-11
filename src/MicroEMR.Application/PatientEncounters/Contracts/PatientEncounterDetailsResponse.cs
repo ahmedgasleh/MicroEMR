@@ -1,5 +1,7 @@
 namespace MicroEMR.Application.PatientEncounters.Contracts;
 
+using MicroEMR.Application.Templates.Definitions;
+
 public sealed class PatientEncounterDetailsResponse
 {
     public Guid EncounterUid { get; set; }
@@ -31,6 +33,12 @@ public sealed class PatientEncounterDetailsResponse
     public string? ObjectiveNote { get; set; }
     public string? AssessmentNote { get; set; }
     public string? PlanNote { get; set; }
+    public Guid? TemplateUid { get; set; }
+    public Guid? TemplateVersionUid { get; set; }
+    public int? TemplateVersionNumber { get; set; }
+    public string? TemplateName { get; set; }
+    public string? StructuredDataJson { get; set; }
+    public TemplateDefinition? TemplateDefinition { get; set; }
 
     public DateTime? SignedAt { get; set; }
 

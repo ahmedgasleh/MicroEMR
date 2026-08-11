@@ -52,6 +52,11 @@ public interface IPatientEncounterRepository
         long? updatedBy,
         CancellationToken cancellationToken = default);
 
+    Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
+        Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest request,
+        string? subjective, string? objective, string? assessment, string? plan,
+        long? updatedBy, CancellationToken cancellationToken = default);
+
     Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,

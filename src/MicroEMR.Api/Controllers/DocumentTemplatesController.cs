@@ -67,6 +67,16 @@ public sealed class DocumentTemplatesController : ControllerBase
             && (x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId || context.IsClinicAdministrator)));
     }
 
+    [HttpGet("encounter")]
+    public async Task<IActionResult> GetEncounterTemplates(CancellationToken cancellationToken)
+    {
+        var templates = await _documentService.GetTemplatesAsync("Active", cancellationToken);
+        var context = await AccessContext();
+        return Ok(templates.Where(x => x.TemplateKind == "Encounter" && x.IsActive
+            && x.TemplateVersionUid.HasValue
+            && (x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId)));
+    }
+
     [HttpGet("{templateUid:guid}")]
     [ProducesResponseType<DocumentTemplateDetailsResponse>(
         StatusCodes.Status200OK)]

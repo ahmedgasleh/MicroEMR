@@ -9,6 +9,14 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 public sealed class PatientEncounterApiClient
     : IPatientEncounterApiClient
 {
+    public async Task<IReadOnlyList<EncounterTemplateListItem>> GetEncounterTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/document-templates/encounter");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<EncounterTemplateListItem>>(cancellationToken: cancellationToken) ?? [];
+    }
     private readonly HttpClient _httpClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<PatientEncounterApiClient> _logger;
@@ -209,6 +217,19 @@ public sealed class PatientEncounterApiClient
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<PatientEncounterDetailsResponse>(
             cancellationToken: cancellationToken);
+    }
+
+    public async Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
+        Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest structuredRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put,
+            $"api/patients/{patientUid}/encounters/{encounterUid}/structured-data") { Content = JsonContent.Create(structuredRequest) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientEncounterDetailsResponse>(cancellationToken: cancellationToken);
     }
 
     public async Task<PatientEncounterDetailsResponse?> SignEncounterAsync(

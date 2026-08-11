@@ -221,6 +221,10 @@ public sealed class PatientEncountersController : ControllerBase
                 message = exception.Message
             });
         }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
         catch (Exception exception)
         {
             _logger.LogError(
@@ -308,6 +312,29 @@ public sealed class PatientEncountersController : ControllerBase
         }
     }
 
+    [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/structured-data")]
+    public async Task<ActionResult<PatientEncounterDetailsResponse>> UpdateStructuredData(
+        Guid patientUid, Guid encounterUid, [FromBody] UpdateEncounterStructuredDataRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty) return BadRequest();
+        try
+        {
+            var encounter = await _encounterService.UpdateStructuredDataAsync(
+                patientUid, encounterUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return encounter is null ? NotFound() : Ok(encounter);
+        }
+        catch (MicroEMR.Application.Templates.Runtime.TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
+        }
+        catch (EncounterNoteNotEditableException)
+        {
+            return Conflict(new { message = "The encounter changed or cannot be edited." });
+        }
+    }
+
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -343,6 +370,11 @@ public sealed class PatientEncountersController : ControllerBase
             {
                 message = "Encounter cannot be signed."
             });
+        }
+        catch (MicroEMR.Application.Templates.Runtime.TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
         }
         catch (LinkedAppointmentCannotBeCompletedException)
         {

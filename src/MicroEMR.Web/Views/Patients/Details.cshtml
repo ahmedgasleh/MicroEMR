@@ -1123,7 +1123,8 @@
             <input type="hidden" name="ReturnTab" value="summary" />
             <div class="modal-header"><h2 class="modal-title fs-5" id="createEncounterModalLabel">New Encounter</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body"><div class="row g-3">
-                <div class="col-12"><label for="summaryEncounterSoapTemplateUid" class="form-label">Template</label><select id="summaryEncounterSoapTemplateUid" name="EncounterSoapTemplateUid" class="form-select encounter-soap-template-select"><option value="">No template</option></select></div>
+                <div class="col-12"><label for="summaryEncounterTemplateUid" class="form-label">Schema template</label><select id="summaryEncounterTemplateUid" name="TemplateUid" class="form-select encounter-schema-template-select"><option value="">None / existing encounter workflow</option></select><div class="form-text">Published Encounter templates appear here.</div></div>
+                <div class="col-12"><label for="summaryEncounterSoapTemplateUid" class="form-label">Legacy SOAP template</label><select id="summaryEncounterSoapTemplateUid" name="EncounterSoapTemplateUid" class="form-select encounter-soap-template-select"><option value="">No legacy template</option></select></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterDateLocal" class="form-label">Encounter date/time</label><input id="summaryEncounterDateLocal" name="EncounterDateLocal" type="datetime-local" class="form-control" required /></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterType" class="form-label">Encounter type</label><select id="summaryEncounterType" name="EncounterType" class="form-select" required><option value="">Select</option><option value="Office Visit">Office Visit</option><option value="Phone Visit">Phone Visit</option><option value="Virtual Visit">Virtual Visit</option><option value="Follow-up">Follow-up</option><option value="Consultation">Consultation</option><option value="Procedure">Procedure</option><option value="Other">Other</option></select></div>
                 <div class="col-12 col-lg-6"><label for="summaryEncounterProviderName" class="form-label">Provider</label><input id="summaryEncounterProviderName" name="ProviderName" class="form-control" maxlength="200" autocomplete="off" /></div>
@@ -1209,6 +1210,13 @@
                             <p class="mb-0 text-break" id="encounterDetailsReason"></p>
                         </div>
                         <div class="col-12">
+                            <div id="encounterStructuredTemplate" class="d-none">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <div><div class="text-uppercase small text-muted fw-semibold mb-1">Encounter template</div><h3 id="encounterTemplateName" class="h5 mb-0"></h3></div><span id="encounterTemplateVersion" class="badge rounded-pill text-bg-light border"></span>
+                                </div>
+                                <div id="encounterStructuredFields"></div>
+                            </div>
+                            <div id="encounterLegacySoapEditor">
                             <h3 class="fs-6">SOAP Encounter Note</h3>
                             <div id="applySoapTemplateContainer" class="mb-3 d-none"><label for="applyEncounterSoapTemplate" class="form-label">Apply Template</label><select id="applyEncounterSoapTemplate" class="form-select"><option value="">Select a template</option></select></div>
                             <div class="row g-3">
@@ -1233,6 +1241,7 @@
                                 <label for="encounterLegacyNote" class="form-label fw-semibold">Legacy Note</label>
                                 <textarea id="encounterLegacyNote" class="form-control" rows="5" readonly></textarea>
                                 <div class="form-text">This note is preserved from the previous note format.</div>
+                            </div>
                             </div>
                             <div id="encounterNoteMessage"
                                  class="alert d-none mt-3 mb-0"
@@ -1409,6 +1418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailsUrl = '@Url.Action("EncounterDetails", "PatientEncounters")';
     const encounterHistoryUrl = '@Url.Action("EncounterHistory", "PatientEncounters")';
     const updateSoapNoteUrl = '@Url.Action("UpdateEncounterSoapNote", "PatientEncounters")';
+    const updateStructuredDataUrl = '@Url.Action("UpdateEncounterStructuredData", "PatientEncounters")';
     const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
     const encounterAddendumsUrl = '@Url.Action("EncounterAddendums", "PatientEncounters")';
     const createEncounterAddendumUrl = '@Url.Action("CreateEncounterAddendum", "PatientEncounters")';
@@ -1416,6 +1426,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentPatientUid = null;
     let currentEncounterUid = null;
     let currentEncounterIsEditable = false;
+    let currentStructuredEncounter = null;
     let historyLoaded = false;
 
     const formatDate = value => value
@@ -1454,6 +1465,9 @@ document.addEventListener("DOMContentLoaded", () => {
         soapFields.ObjectiveNote.value = encounter.objectiveNote || "";
         soapFields.AssessmentNote.value = encounter.assessmentNote || "";
         soapFields.PlanNote.value = encounter.planNote || "";
+        currentStructuredEncounter = encounter.templateVersionUid ? encounter : null;
+        renderStructuredEncounter(encounter);
+        saveNoteButton.textContent = currentStructuredEncounter ? "Save Draft" : "Save Note";
         legacyNote.value = encounter.notes || "";
         legacyNoteSection.classList.toggle("d-none", !encounter.notes);
         currentPatientUid = encounter.patientUid;
@@ -1472,6 +1486,37 @@ document.addEventListener("DOMContentLoaded", () => {
         addendumForm.classList.toggle("d-none", !isSigned);
         addendumText.disabled = !isSigned;
         saveAddendumButton.disabled = !isSigned;
+    };
+
+    const renderStructuredEncounter = encounter => {
+        const host = document.getElementById("encounterStructuredTemplate");
+        const legacy = document.getElementById("encounterLegacySoapEditor");
+        const fieldsHost = document.getElementById("encounterStructuredFields");
+        const definition = encounter.templateDefinition;
+        host.classList.toggle("d-none", !definition);
+        legacy.classList.toggle("d-none", !!definition);
+        fieldsHost.replaceChildren();
+        if (!definition) return;
+        document.getElementById("encounterTemplateName").textContent = encounter.templateName || "Encounter template";
+        document.getElementById("encounterTemplateVersion").textContent = `Version ${encounter.templateVersionNumber}`;
+        const values = JSON.parse(encounter.structuredDataJson || '{"values":{}}').values || {};
+        [...definition.sections].sort((a,b)=>a.order-b.order).forEach(section => {
+            const wrapper=document.createElement("section"); wrapper.className="border rounded-3 p-3 p-lg-4 mb-3 bg-body";
+            const heading=document.createElement("h4"); heading.className="h6 border-bottom pb-2 mb-3"; heading.textContent=section.title; wrapper.appendChild(heading);
+            [...section.fields].sort((a,b)=>a.order-b.order).forEach(field => {
+                if(field.type==="StaticText"){const p=document.createElement("p");p.className="text-body-secondary lh-lg mb-3";p.style.whiteSpace="pre-line";p.textContent=field.content||"";wrapper.appendChild(p);return;}
+                const group=document.createElement("div");group.className="mb-3";
+                const label=document.createElement("label");label.className="form-label";label.textContent=field.label+(field.required?" *":"");group.appendChild(label);
+                let input;
+                if(field.type==="TextArea") input=document.createElement("textarea");
+                else if(field.type==="Boolean"){input=document.createElement("select");[{value:"",label:"Not answered"},{value:"true",label:"Yes"},{value:"false",label:"No"}].forEach(option=>{const item=document.createElement("option");item.value=option.value;item.textContent=option.label;input.appendChild(item);});}
+                else if(field.type==="Select"||field.type==="Radio"){input=document.createElement("select");const blank=document.createElement("option");blank.value="";blank.textContent="Select...";input.appendChild(blank);(field.options||[]).sort((a,b)=>a.order-b.order).forEach(option=>{const item=document.createElement("option");item.value=option.value;item.textContent=option.label;input.appendChild(item);});}
+                else {input=document.createElement("input");input.type=field.type==="Number"?"number":field.type==="Date"?"date":field.type==="Checkbox"?"checkbox":"text";}
+                input.className=field.type==="Checkbox"?"form-check-input":"form-control"; input.dataset.fieldKey=field.key; input.dataset.fieldType=field.type;
+                if(field.type==="Checkbox") input.checked=values[field.key]===true; else input.value=field.type==="Boolean"&&values[field.key]!==undefined?String(values[field.key]):values[field.key]??"";
+                input.disabled=String(encounter.status).toLowerCase()!=="open"; if(field.required) input.required=true; group.appendChild(input); wrapper.appendChild(group);
+            }); fieldsHost.appendChild(wrapper);
+        });
     };
 
     const renderAddendums = addendums => {
@@ -1677,14 +1722,26 @@ document.addEventListener("DOMContentLoaded", () => {
             const formData = new FormData();
             formData.append("PatientUid", currentPatientUid);
             formData.append("EncounterUid", currentEncounterUid);
-            formData.append("SubjectiveNote", soapFields.SubjectiveNote.value);
-            formData.append("ObjectiveNote", soapFields.ObjectiveNote.value);
-            formData.append("AssessmentNote", soapFields.AssessmentNote.value);
-            formData.append("PlanNote", soapFields.PlanNote.value);
+            if (currentStructuredEncounter) {
+                const values = {};
+                document.querySelectorAll("#encounterStructuredFields [data-field-key]").forEach(input => {
+                    const type=input.dataset.fieldType;
+                    if(type==="Checkbox") values[input.dataset.fieldKey]=input.checked;
+                    else if(type==="Boolean"&&input.value!=="") values[input.dataset.fieldKey]=input.value==="true";
+                    else if(input.value!=="") values[input.dataset.fieldKey]=type==="Number"?Number(input.value):input.value;
+                });
+                formData.append("StructuredDataJson", JSON.stringify({schemaVersion: currentStructuredEncounter.templateDefinition.schemaVersion, values}));
+                formData.append("RowVersion", currentStructuredEncounter.rowVersion);
+            } else {
+                formData.append("SubjectiveNote", soapFields.SubjectiveNote.value);
+                formData.append("ObjectiveNote", soapFields.ObjectiveNote.value);
+                formData.append("AssessmentNote", soapFields.AssessmentNote.value);
+                formData.append("PlanNote", soapFields.PlanNote.value);
+            }
 
             const token = document.querySelector(
                 '#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-            const response = await fetch(updateSoapNoteUrl, {
+            const response = await fetch(currentStructuredEncounter ? updateStructuredDataUrl : updateSoapNoteUrl, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json",

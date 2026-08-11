@@ -3,6 +3,12 @@ using MicroEMR.Application.PatientEncounters.Repositories;
 using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.Scheduling.Repositories;
 using MicroEMR.Application.Scheduling.Services;
+using MicroEMR.Application.PatientDocuments.Repositories;
+using MicroEMR.Application.Templates.Runtime;
+using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Definitions;
+using MicroEMR.Application.Templates.Variables;
+using MicroEMR.Application.Patients.Services;
 
 namespace MicroEMR.Application.PatientEncounters.Services;
 
@@ -11,6 +17,13 @@ public sealed class PatientEncounterService : IPatientEncounterService
     private readonly IPatientEncounterRepository _repository;
     private readonly ISchedulingAppointmentRepository _schedulingAppointmentRepository;
     private readonly IAppointmentStatusTransitionService _appointmentStatusTransitionService;
+    private readonly IPatientDocumentRepository? _templates;
+    private readonly IDocumentTemplateVersionRepository? _versions;
+    private readonly ITemplateDefinitionSerializer? _definitions;
+    private readonly ITemplateInstanceRuntime? _runtime;
+    private readonly IPatientService? _patients;
+    private readonly ITemplateVariableResolver? _variables;
+    private readonly bool _structuredRuntimeAvailable;
 
     public PatientEncounterService(
         IPatientEncounterRepository repository,
@@ -20,6 +33,29 @@ public sealed class PatientEncounterService : IPatientEncounterService
         _repository = repository;
         _schedulingAppointmentRepository = schedulingAppointmentRepository;
         _appointmentStatusTransitionService = appointmentStatusTransitionService;
+    }
+
+    public PatientEncounterService(
+        IPatientEncounterRepository repository,
+        ISchedulingAppointmentRepository schedulingAppointmentRepository,
+        IAppointmentStatusTransitionService appointmentStatusTransitionService,
+        IPatientDocumentRepository templates,
+        IDocumentTemplateVersionRepository versions,
+        ITemplateDefinitionSerializer definitions,
+        ITemplateInstanceRuntime runtime,
+        IPatientService patients,
+        ITemplateVariableResolver variables)
+    {
+        _repository = repository;
+        _schedulingAppointmentRepository = schedulingAppointmentRepository;
+        _appointmentStatusTransitionService = appointmentStatusTransitionService;
+        _templates = templates;
+        _versions = versions;
+        _definitions = definitions;
+        _runtime = runtime;
+        _patients = patients;
+        _variables = variables;
+        _structuredRuntimeAvailable = true;
     }
 
     public Task<IReadOnlyList<PatientEncounterListItemResponse>>
@@ -32,13 +68,12 @@ public sealed class PatientEncounterService : IPatientEncounterService
             cancellationToken);
     }
 
-    public Task<PatientEncounterDetailsResponse?> GetByUidAsync(
+    public async Task<PatientEncounterDetailsResponse?> GetByUidAsync(
         Guid encounterUid,
         CancellationToken cancellationToken = default)
     {
-        return _repository.GetByUidAsync(
-            encounterUid,
-            cancellationToken);
+        var encounter = await _repository.GetByUidAsync(encounterUid, cancellationToken);
+        return encounter is null ? null : await EnrichAsync(encounter, cancellationToken);
     }
 
     public Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetHistoryAsync(
@@ -79,19 +114,43 @@ public sealed class PatientEncounterService : IPatientEncounterService
             patientUid, encounterUid, request, createdBy, cancellationToken);
     }
 
-    public Task<PatientEncounterDetailsResponse> CreateAsync(
+    public async Task<PatientEncounterDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientEncounterRequest request,
         long? createdBy,
         string? createdByDisplayName,
         CancellationToken cancellationToken = default)
     {
-        return _repository.CreateAsync(
-            patientUid,
-            request,
-            createdBy,
-            createdByDisplayName,
-            cancellationToken);
+        if (request.TemplateUid.HasValue)
+        {
+            if (request.EncounterSoapTemplateUid.HasValue)
+                throw new ArgumentException("Choose either a schema template or a legacy SOAP template.");
+            var template = await _templates!.GetTemplateByUidAsync(request.TemplateUid.Value, cancellationToken)
+                ?? throw new UnauthorizedAccessException("The selected encounter template is unavailable.");
+            if (!template.IsActive || template.TemplateKind != "Encounter"
+                || template.TemplateScope == "Personal" && template.OwnerUserId != createdBy)
+                throw new UnauthorizedAccessException("The selected encounter template cannot be used.");
+            var version = (await _versions!.GetByTemplateUidAsync(template.TemplateUid, cancellationToken))
+                .SingleOrDefault(x => x.IsCurrent && x.Status == "Published")
+                ?? throw new InvalidOperationException("The selected encounter template has no active published version.");
+            var definition = RequireDefinition(version.DefinitionJson);
+            var patient = await _patients!.GetByUidAsync(patientUid, cancellationToken)
+                ?? throw new InvalidOperationException("The patient was not found.");
+            ResolveDefinitionText(definition, new(patient.FullName, patient.DateOfBirth,
+                createdByDisplayName, request.EncounterDateUtc, DateOnly.FromDateTime(DateTime.UtcNow)));
+            var initial = _runtime!.CreateInitial(definition);
+            if (!initial.IsValid) throw new TemplateInstanceValidationException(initial.Errors);
+            request.ResolvedTemplateVersionUid = version.TemplateVersionUid;
+            request.StructuredDataJson = initial.Json;
+            var soap = CreateSoapSnapshots(definition, initial.Data!);
+            request.SubjectiveSnapshot = soap.Subjective;
+            request.ObjectiveSnapshot = soap.Objective;
+            request.AssessmentSnapshot = soap.Assessment;
+            request.PlanSnapshot = soap.Plan;
+        }
+        var created = await _repository.CreateAsync(patientUid, request, createdBy,
+            createdByDisplayName, cancellationToken);
+        return await EnrichAsync(created, cancellationToken);
     }
 
     public Task<PatientEncounterDetailsResponse?> UpdateNoteAsync(
@@ -127,7 +186,28 @@ public sealed class PatientEncounterService : IPatientEncounterService
             patientUid, encounterUid, request, updatedBy, cancellationToken);
     }
 
-    public Task<PatientEncounterDetailsResponse?> SignAsync(
+    public async Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
+        Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest request,
+        long? updatedBy, CancellationToken cancellationToken = default)
+    {
+        ValidateIdentifiers(patientUid, encounterUid);
+        var current = await _repository.GetByUidAsync(encounterUid, cancellationToken);
+        if (current is null || current.PatientUid != patientUid) return null;
+        if (!current.TemplateVersionUid.HasValue)
+            throw new InvalidOperationException("The encounter is not schema-driven.");
+        var version = await _versions!.GetByUidAsync(current.TemplateVersionUid.Value, cancellationToken)
+            ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+        var definition = RequireDefinition(version.DefinitionJson);
+        var processed = _runtime!.Process(definition, request.StructuredDataJson);
+        if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
+        request.StructuredDataJson = processed.Json!;
+        var soap = CreateSoapSnapshots(definition, processed.Data!);
+        var saved = await _repository.UpdateStructuredDataAsync(patientUid, encounterUid, request,
+            soap.Subjective, soap.Objective, soap.Assessment, soap.Plan, updatedBy, cancellationToken);
+        return saved is null ? null : await EnrichAsync(saved, cancellationToken);
+    }
+
+    public async Task<PatientEncounterDetailsResponse?> SignAsync(
         Guid patientUid,
         Guid encounterUid,
         long? signedBy,
@@ -139,17 +219,78 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (encounterUid == Guid.Empty)
             throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
 
+        var current = _structuredRuntimeAvailable
+            ? await _repository.GetByUidAsync(encounterUid, cancellationToken)
+            : null;
+        if (current?.TemplateVersionUid is Guid versionUid)
+        {
+            var version = await _versions!.GetByUidAsync(versionUid, cancellationToken)
+                ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+            var validation = _runtime!.Process(RequireDefinition(version.DefinitionJson), current.StructuredDataJson);
+            if (!validation.IsValid) throw new TemplateInstanceValidationException(validation.Errors);
+        }
         _appointmentStatusTransitionService.EnsureCanTransition(
             AppointmentStatus.Seen,
             AppointmentStatus.Completed);
 
-        return _repository.SignAsync(
+        var signed = await _repository.SignAsync(
             patientUid,
             encounterUid,
             signedBy,
             AppointmentStatus.Seen,
             AppointmentStatus.Completed,
             cancellationToken);
+        return signed is null ? null : await EnrichAsync(signed, cancellationToken);
+    }
+
+    private async Task<PatientEncounterDetailsResponse> EnrichAsync(PatientEncounterDetailsResponse encounter, CancellationToken token)
+    {
+        if (!encounter.TemplateVersionUid.HasValue) return encounter;
+        var version = await _versions!.GetByUidAsync(encounter.TemplateVersionUid.Value, token)
+            ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+        encounter.TemplateDefinition = RequireDefinition(version.DefinitionJson);
+        var patient = await _patients!.GetByUidAsync(encounter.PatientUid, token)
+            ?? throw new InvalidOperationException("The encounter patient is unavailable.");
+        ResolveDefinitionText(encounter.TemplateDefinition, new(patient.FullName, patient.DateOfBirth,
+            encounter.ProviderName ?? encounter.CreatedByDisplayName, encounter.EncounterDateUtc,
+            DateOnly.FromDateTime(DateTime.UtcNow)));
+        encounter.TemplateVersionNumber = version.VersionNumber;
+        if (encounter.TemplateUid.HasValue)
+            encounter.TemplateName = (await _templates!.GetTemplateByUidAsync(encounter.TemplateUid.Value, token))?.TemplateName;
+        return encounter;
+    }
+
+    private TemplateDefinition RequireDefinition(string json)
+    {
+        var result = _definitions!.Process(json);
+        if (!result.IsValid) throw new TemplateInstanceValidationException(result.Errors
+            .Select(x => new TemplateInstanceValidationError(x.Path, x.Code, x.Message)).ToArray());
+        return result.Definition!;
+    }
+
+    private void ResolveDefinitionText(TemplateDefinition definition, TemplateVariableContext context)
+    {
+        foreach (var field in definition.Sections!.SelectMany(x => x.Fields!))
+        {
+            if (field.Type == TemplateFieldTypes.StaticText && field.Content is not null)
+                field.Content = _variables!.Resolve(field.Content, context);
+            if (field.Type is TemplateFieldTypes.Text or TemplateFieldTypes.TextArea && field.DefaultValue is not null)
+                field.DefaultValue = _variables!.Resolve(field.DefaultValue, context);
+        }
+    }
+
+    private (string? Subjective, string? Objective, string? Assessment, string? Plan) CreateSoapSnapshots(
+        TemplateDefinition definition, TemplateInstanceData data)
+    {
+        string? Section(string key)
+        {
+            var section = definition.Sections!.SingleOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase));
+            if (section is null) return null;
+            var subset = new TemplateDefinition { SchemaVersion = definition.SchemaVersion, Sections = [section] };
+            var value = _runtime!.RenderSnapshot(subset, data);
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+        return (Section("subjective"), Section("objective"), Section("assessment"), Section("plan"));
     }
 
     public async Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(

@@ -3,6 +3,17 @@ let definition = data.definition;
 let version = data.version;
 let deleteAction = null;
 let editingOptions = [];
+const recoveryKey = `microemr:template-builder:${version.templateVersionUid}`;
+if (!data.isReadOnly) {
+    try {
+        const recovered = sessionStorage.getItem(recoveryKey);
+        if (recovered)
+            definition = JSON.parse(recovered);
+    }
+    catch {
+        sessionStorage.removeItem(recoveryKey);
+    }
+}
 const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? "";
 const sectionModal = modal("#sectionModal"), fieldModal = modal("#fieldModal"), previewModal = modal("#previewModal"), publishModal = modal("#publishModal"), deleteModal = modal("#deleteModal");
 const sectionForm = document.querySelector("#sectionForm"), fieldForm = document.querySelector("#fieldForm");
@@ -12,7 +23,8 @@ function escapeHtml(value) { const e = document.createElement("div"); e.textCont
 function uid(prefix) { return `${prefix}-${crypto.randomUUID()}`; }
 function keyFrom(value) { const words = value.normalize("NFKD").replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean); if (!words.length)
     return ""; const joined = words[0].toLowerCase() + words.slice(1).map(x => x[0].toUpperCase() + x.slice(1).toLowerCase()).join(""); return /^[a-z]/.test(joined) ? joined : `field${joined}`; }
-function normalize() { definition.sections.forEach((s, si) => { s.order = (si + 1) * 10; s.fields.forEach((f, fi) => { f.order = (fi + 1) * 10; f.options?.forEach((o, oi) => o.order = (oi + 1) * 10); }); }); }
+function normalize() { definition.sections.forEach((s, si) => { s.order = (si + 1) * 10; s.fields.forEach((f, fi) => { f.order = (fi + 1) * 10; f.options?.forEach((o, oi) => o.order = (oi + 1) * 10); }); }); if (!data.isReadOnly)
+    sessionStorage.setItem(recoveryKey, JSON.stringify(definition)); }
 function showMessage(text, kind = "success") { const e = document.querySelector("#builderMessage"); e.textContent = text; e.className = `alert alert-${kind}`; e.scrollIntoView({ behavior: "smooth", block: "center" }); }
 function render() {
     normalize();
@@ -120,7 +132,7 @@ async function validate(showSuccess = true) { const { response, result } = await
     showMessage("Template definition is valid."); render(); return result; }
 function showErrors(errors) { const text = errors.slice(0, 8).map(friendlyError).join("\n"); showMessage(text || "The definition is invalid.", "danger"); }
 function friendlyError(error) { const sectionMatch = /sections\[(\d+)\]/.exec(error.path), fieldMatch = /fields\[(\d+)\]/.exec(error.path); const section = sectionMatch ? definition.sections[Number(sectionMatch[1])] : undefined, field = section && fieldMatch ? section.fields[Number(fieldMatch[1])] : undefined; return `${section?.title ?? "Template"}${field ? ` → ${field.label ?? "Instruction"}` : ""}: ${error.message}`; }
-document.querySelector("#validateButton")?.addEventListener("click", () => void validate());
+document.querySelector("#validateButton")?.addEventListener("click", event => { event.preventDefault(); void validate().catch(() => showMessage("Validation could not be completed. Your unsaved changes are preserved in this browser tab.", "danger")); });
 document.querySelector("#saveDraftButton")?.addEventListener("click", async () => { const valid = await validate(false); if (!valid.isValid)
     return; const { response, result } = await request("/TemplateAdministration/Save", payload()); if (!response.ok || !result.success) {
     showErrors(result.errors ?? []);

@@ -209,7 +209,7 @@ public sealed class PatientEncounterRepository
 
         await using var command =
             new SqlCommand(
-                "dbo.PatientEncounter_Create",
+                request.TemplateUid.HasValue ? "dbo.PatientEncounter_CreateStructured" : "dbo.PatientEncounter_Create",
                 connection)
             {
                 CommandType = CommandType.StoredProcedure
@@ -259,8 +259,19 @@ public sealed class PatientEncounterRepository
             200,
             request.ProviderName);
 
-        command.Parameters.Add(new SqlParameter("@EncounterSoapTemplateUid", SqlDbType.UniqueIdentifier)
-        { Value = (object?)request.EncounterSoapTemplateUid ?? DBNull.Value });
+        if (request.TemplateUid.HasValue)
+        {
+            command.Parameters.Add("@TemplateUid", SqlDbType.UniqueIdentifier).Value = request.TemplateUid.Value;
+            command.Parameters.Add("@TemplateVersionUid", SqlDbType.UniqueIdentifier).Value = request.ResolvedTemplateVersionUid!.Value;
+            AddNullableString(command, "@StructuredDataJson", SqlDbType.NVarChar, -1, request.StructuredDataJson);
+            AddNullableString(command, "@SubjectiveNote", SqlDbType.NVarChar, -1, request.SubjectiveSnapshot);
+            AddNullableString(command, "@ObjectiveNote", SqlDbType.NVarChar, -1, request.ObjectiveSnapshot);
+            AddNullableString(command, "@AssessmentNote", SqlDbType.NVarChar, -1, request.AssessmentSnapshot);
+            AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, request.PlanSnapshot);
+        }
+        else
+            command.Parameters.Add(new SqlParameter("@EncounterSoapTemplateUid", SqlDbType.UniqueIdentifier)
+            { Value = (object?)request.EncounterSoapTemplateUid ?? DBNull.Value });
 
         command.Parameters.Add(
             new SqlParameter(
@@ -405,6 +416,34 @@ public sealed class PatientEncounterRepository
         {
             _logger.LogError(exception, "Failed to update an encounter SOAP note.");
             throw;
+        }
+    }
+
+    public async Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
+        Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest request,
+        string? subjective, string? objective, string? assessment, string? plan,
+        long? updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientEncounter_UpdateStructuredData", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+        command.Parameters.Add("@StructuredDataJson", SqlDbType.NVarChar, -1).Value = request.StructuredDataJson;
+        AddNullableString(command, "@SubjectiveNote", SqlDbType.NVarChar, -1, subjective);
+        AddNullableString(command, "@ObjectiveNote", SqlDbType.NVarChar, -1, objective);
+        AddNullableString(command, "@AssessmentNote", SqlDbType.NVarChar, -1, assessment);
+        AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, plan);
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp).Value = Convert.FromBase64String(request.RowVersion);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = (object?)updatedBy ?? DBNull.Value;
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number is 51071 or 51073)
+        {
+            throw new EncounterNoteNotEditableException("The encounter changed or cannot be edited.", exception);
         }
     }
 
@@ -657,6 +696,9 @@ public sealed class PatientEncounterRepository
             ObjectiveNote = GetOptionalString(reader, "ObjectiveNote"),
             AssessmentNote = GetOptionalString(reader, "AssessmentNote"),
             PlanNote = GetOptionalString(reader, "PlanNote"),
+            TemplateUid = GetOptionalGuid(reader, "TemplateUid"),
+            TemplateVersionUid = GetOptionalGuid(reader, "TemplateVersionUid"),
+            StructuredDataJson = GetOptionalString(reader, "StructuredDataJson"),
 
             SignedAt =
                 GetOptionalDateTime(reader, "SignedAt"),

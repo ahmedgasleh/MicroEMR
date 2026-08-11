@@ -34,5 +34,6 @@
   { "migrationId": "0032-patient-document-draft-editing", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0032-patient-document-draft-editing.sql" },
   { "migrationId": "0033-template-engine-schema-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0033-template-engine-schema-foundation.sql" },
   { "migrationId": "0034-template-administration-api", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0034-template-administration-api.sql" },
-  { "migrationId": "0035-patient-document-structured-data", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0035-patient-document-structured-data.sql" }
+  { "migrationId": "0035-patient-document-structured-data", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0035-patient-document-structured-data.sql" },
+  { "migrationId": "0036-encounter-template-runtime", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0036-encounter-template-runtime.sql" }
 ]
