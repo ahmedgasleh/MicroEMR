@@ -38,7 +38,8 @@ public sealed class DocumentTemplateVersionRepository(
         Guid templateUid,
         long? createdBy,
         CancellationToken cancellationToken = default) =>
-        MutateAsync("dbo.DocumentTemplateVersion_CreateDraft", templateUid, null, null, null, createdBy, cancellationToken);
+        MutateAsync("dbo.DocumentTemplateVersion_CreateDraft", templateUid, null, null, null,
+            null, null, createdBy, cancellationToken);
 
     public Task<DocumentTemplateVersionResponse?> UpdateDraftAsync(
         Guid templateUid,
@@ -47,7 +48,8 @@ public sealed class DocumentTemplateVersionRepository(
         long? updatedBy,
         CancellationToken cancellationToken = default) =>
         MutateAsync("dbo.DocumentTemplateVersion_UpdateDraft", templateUid, templateVersionUid,
-            request.TemplateContent, request.RowVersion, updatedBy, cancellationToken);
+            request.TemplateContent, request.RowVersion, request.SchemaVersion, request.DefinitionJson,
+            updatedBy, cancellationToken);
 
     public Task<DocumentTemplateVersionResponse?> PublishAsync(
         Guid templateUid,
@@ -56,7 +58,7 @@ public sealed class DocumentTemplateVersionRepository(
         long? publishedBy,
         CancellationToken cancellationToken = default) =>
         MutateAsync("dbo.DocumentTemplateVersion_Publish", templateUid, templateVersionUid,
-            null, rowVersion, publishedBy, cancellationToken);
+            null, rowVersion, null, null, publishedBy, cancellationToken);
 
     public Task<DocumentTemplateVersionResponse?> RetireAsync(
         Guid templateUid,
@@ -65,7 +67,7 @@ public sealed class DocumentTemplateVersionRepository(
         long? retiredBy,
         CancellationToken cancellationToken = default) =>
         MutateAsync("dbo.DocumentTemplateVersion_Retire", templateUid, templateVersionUid,
-            null, rowVersion, retiredBy, cancellationToken);
+            null, rowVersion, null, null, retiredBy, cancellationToken);
 
     private async Task<DocumentTemplateVersionResponse?> MutateAsync(
         string procedure,
@@ -73,6 +75,8 @@ public sealed class DocumentTemplateVersionRepository(
         Guid? versionUid,
         string? content,
         string? rowVersion,
+        int? schemaVersion,
+        string? definitionJson,
         long? userId,
         CancellationToken cancellationToken)
     {
@@ -82,6 +86,10 @@ public sealed class DocumentTemplateVersionRepository(
         if (versionUid.HasValue) AddUid(command, "@TemplateVersionUid", versionUid.Value);
         if (content is not null)
             command.Parameters.Add(new SqlParameter("@TemplateContent", SqlDbType.NVarChar, -1) { Value = content });
+        if (schemaVersion.HasValue)
+            command.Parameters.Add(new SqlParameter("@SchemaVersion", SqlDbType.Int) { Value = schemaVersion.Value });
+        if (definitionJson is not null)
+            command.Parameters.Add(new SqlParameter("@DefinitionJson", SqlDbType.NVarChar, -1) { Value = definitionJson });
         if (rowVersion is not null)
             command.Parameters.Add(new SqlParameter("@ExpectedRowVersion", SqlDbType.Timestamp) { Value = Convert.FromBase64String(rowVersion) });
 
@@ -99,7 +107,7 @@ public sealed class DocumentTemplateVersionRepository(
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
         }
-        catch (SqlException exception) when (exception.Number is 2812 or 51031 or 51032 or 51033 or 51034)
+        catch (SqlException exception) when (exception.Number is 2812 or 51031 or 51032 or 51033 or 51034 or 51035)
         {
             throw new DocumentTemplateVersionConflictException(
                 exception.Number == 2812
@@ -126,9 +134,12 @@ public sealed class DocumentTemplateVersionRepository(
         TemplateUid = reader.GetGuid(reader.GetOrdinal("TemplateUid")),
         VersionNumber = reader.GetInt32(reader.GetOrdinal("VersionNumber")),
         TemplateContent = reader.GetString(reader.GetOrdinal("TemplateContent")),
+        SchemaVersion = reader.GetInt32(reader.GetOrdinal("SchemaVersion")),
+        DefinitionJson = reader.GetString(reader.GetOrdinal("DefinitionJson")),
         Status = reader.GetString(reader.GetOrdinal("VersionStatus")),
         IsCurrent = reader.GetBoolean(reader.GetOrdinal("IsCurrent")),
         PublishedAt = OptionalDate(reader, "PublishedAt"),
+        PublishedBy = OptionalLong(reader, "PublishedBy"),
         CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
         CreatedBy = OptionalLong(reader, "CreatedBy"),
         UpdatedAt = OptionalDate(reader, "UpdatedAt"),
