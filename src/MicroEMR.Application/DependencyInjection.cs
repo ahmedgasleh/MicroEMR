@@ -13,6 +13,9 @@ using MicroEMR.Application.ClinicConfiguration;
 using MicroEMR.Application.TenantUserAdministration;
 using MicroEMR.Application.Reporting;
 using MicroEMR.Application.PatientTasks;
+using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Validation;
+using MicroEMR.Application.Templates.Services;
 
 namespace MicroEMR.Application;
 
@@ -40,6 +43,10 @@ public static class DependencyInjection
         services.AddScoped<IAppointmentStatusTransitionService, AppointmentStatusTransitionService>();
         services.AddScoped<IAppointmentStatusReportService, AppointmentStatusReportService>();
         services.AddScoped<IPatientTaskOverdueService, PatientTaskOverdueService>();
+        services.AddSingleton<ITemplateDefinitionValidator, TemplateDefinitionValidator>();
+        services.AddSingleton<ITemplateDefinitionSerializer, TemplateDefinitionSerializer>();
+        services.AddSingleton<ITemplateAuthorizationService, TemplateAuthorizationService>();
+        services.AddScoped<ITemplateAdministrationService, TemplateAdministrationService>();
 
         return services;
     }
