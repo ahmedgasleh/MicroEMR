@@ -6,6 +6,17 @@ public static class ClinicalUserActorContext
 
     public static void Set(HttpContext context, long userId) => context.Items[Key] = userId;
 
+    public static bool TryGet(HttpContext context, out long userId)
+    {
+        if (context.Items.TryGetValue(Key, out var value) && value is long resolved)
+        {
+            userId = resolved;
+            return true;
+        }
+        userId = default;
+        return false;
+    }
+
     public static long GetRequired(HttpContext context) =>
         context.Items.TryGetValue(Key, out var value) && value is long userId
             ? userId

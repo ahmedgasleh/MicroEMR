@@ -2,6 +2,9 @@ using System.Reflection;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
 using MicroEMR.Application.PatientDocuments.Services;
+using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Validation;
+using MicroEMR.Application.Templates;
 using Xunit;
 
 namespace MicroEMR.Api.Tests;
@@ -14,14 +17,30 @@ public sealed class DocumentTemplateVersioningTests
         var templateUid = Guid.NewGuid();
         var response = Version(templateUid, 2, "Draft");
         var repository = Proxy<IDocumentTemplateVersionRepository>((method, arguments) =>
-            method.Name == nameof(IDocumentTemplateVersionRepository.CreateDraftAsync)
-                ? Task.FromResult<DocumentTemplateVersionResponse?>(response)
-                : throw new NotSupportedException(method.Name));
-        var service = new DocumentTemplateVersionService(repository);
+            method.Name switch
+            {
+                nameof(IDocumentTemplateVersionRepository.GetByTemplateUidAsync) => Task.FromResult<IReadOnlyList<DocumentTemplateVersionResponse>>([]),
+                nameof(IDocumentTemplateVersionRepository.CreateDraftAsync) => Task.FromResult<DocumentTemplateVersionResponse?>(response),
+                _ => throw new NotSupportedException(method.Name)
+            });
+        var service = Service(repository);
 
         var result = await service.CreateDraftVersionAsync(templateUid, 42);
 
         Assert.Same(response, result);
+    }
+
+    [Fact]
+    public async Task CreateDraft_ReusesExistingEditableDraft()
+    {
+        var draft=Version(Guid.NewGuid(),3,"Draft");var creates=0;
+        var repository=Proxy<IDocumentTemplateVersionRepository>((method,_)=>method.Name switch
+        {
+            nameof(IDocumentTemplateVersionRepository.GetByTemplateUidAsync)=>Task.FromResult<IReadOnlyList<DocumentTemplateVersionResponse>>([draft]),
+            nameof(IDocumentTemplateVersionRepository.CreateDraftAsync)=>throw new InvalidOperationException($"Created {++creates} drafts."),
+            _=>throw new NotSupportedException(method.Name)
+        });
+        Assert.Same(draft,await Service(repository).CreateDraftVersionAsync(draft.TemplateUid,42));Assert.Equal(0,creates);
     }
 
     [Fact]
@@ -33,7 +52,7 @@ public sealed class DocumentTemplateVersioningTests
             calls++;
             throw new NotSupportedException(method.Name);
         });
-        var service = new DocumentTemplateVersionService(repository);
+        var service = Service(repository);
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateDraftVersionAsync(
             Guid.NewGuid(), Guid.NewGuid(),
@@ -50,13 +69,15 @@ public sealed class DocumentTemplateVersioningTests
         var rowVersion = Convert.ToBase64String(new byte[8]);
         var repository = Proxy<IDocumentTemplateVersionRepository>((method, arguments) =>
         {
+            if (method.Name == nameof(IDocumentTemplateVersionRepository.GetByTemplateUidAsync))
+                return Task.FromResult<IReadOnlyList<DocumentTemplateVersionResponse>>([Version(templateUid, 2, "Draft", versionUid)]);
             Assert.Equal(nameof(IDocumentTemplateVersionRepository.PublishAsync), method.Name);
             Assert.Equal(templateUid, arguments![0]);
             Assert.Equal(versionUid, arguments[1]);
             Assert.Equal(rowVersion, arguments[2]);
             return Task.FromResult<DocumentTemplateVersionResponse?>(Version(templateUid, 2, "Published"));
         });
-        var service = new DocumentTemplateVersionService(repository);
+        var service = Service(repository);
 
         var result = await service.PublishVersionAsync(
             templateUid, versionUid,
@@ -136,6 +157,35 @@ public sealed class DocumentTemplateVersioningTests
         Assert.Contains("VersionStatus=N'Draft'", sql, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Publish_InvalidDefinition_IsRejectedBeforePersistence()
+    {
+        var templateUid=Guid.NewGuid();var versionUid=Guid.NewGuid();var publishCalls=0;
+        var repository=Proxy<IDocumentTemplateVersionRepository>((method,_)=>method.Name switch
+        {
+            nameof(IDocumentTemplateVersionRepository.GetByTemplateUidAsync)=>Task.FromResult<IReadOnlyList<DocumentTemplateVersionResponse>>([new(){TemplateUid=templateUid,TemplateVersionUid=versionUid,DefinitionJson="{broken"}]),
+            nameof(IDocumentTemplateVersionRepository.PublishAsync)=>throw new InvalidOperationException($"Publish called {++publishCalls} times."),
+            _=>throw new NotSupportedException(method.Name)
+        });
+        await Assert.ThrowsAsync<TemplateDefinitionValidationException>(()=>Service(repository).PublishVersionAsync(templateUid,versionUid,new(){RowVersion=Convert.ToBase64String(new byte[8])},42));
+        Assert.Equal(0,publishCalls);
+    }
+
+    [Fact]
+    public void AdministrationMigration_CreatesDraftsClonesAndProtectsMetadataConcurrency()
+    {
+        var sql=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0034-template-administration-api.sql"));
+        Assert.Contains("DocumentTemplateAdmin_Create",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("N'Draft',0",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DocumentTemplateAdmin_Clone",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("@ExpectedRowVersion",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RowVersion=@ExpectedRowVersion",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("N'Clone'",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DocumentTemplateAdmin_SetActive",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("N'Deactivate'",sql,StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("UPDATE dbo.PatientDocument",sql,StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string Migration() => File.ReadAllText(Path.Combine(
         AppContext.BaseDirectory, "database", "tenant-clinical", "migrations",
         "0017-document-template-versioning.sql"));
@@ -144,12 +194,17 @@ public sealed class DocumentTemplateVersioningTests
         AppContext.BaseDirectory, "database", "tenant-clinical", "migrations",
         "0033-template-engine-schema-foundation.sql"));
 
-    private static DocumentTemplateVersionResponse Version(Guid templateUid, int number, string status) => new()
+    private static DocumentTemplateVersionService Service(IDocumentTemplateVersionRepository repository) =>
+        new(repository, new TemplateDefinitionSerializer(new TemplateDefinitionValidator()));
+
+    private static DocumentTemplateVersionResponse Version(Guid templateUid, int number, string status, Guid? versionUid=null) => new()
     {
         TemplateUid = templateUid,
-        TemplateVersionUid = Guid.NewGuid(),
+        TemplateVersionUid = versionUid ?? Guid.NewGuid(),
         VersionNumber = number,
         Status = status,
+        SchemaVersion = 1,
+        DefinitionJson = "{\"schemaVersion\":1,\"sections\":[]}",
         RowVersion = Convert.ToBase64String(new byte[8])
     };
 

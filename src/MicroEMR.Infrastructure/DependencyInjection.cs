@@ -38,6 +38,7 @@ using MicroEMR.Infrastructure.ClinicConfiguration;
 using MicroEMR.Application.TenantUserAdministration;
 using MicroEMR.Application.Reporting;
 using MicroEMR.Infrastructure.Reporting;
+using MicroEMR.Application.Templates.Repositories;
 
 namespace MicroEMR.Infrastructure;
 
@@ -81,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
             services.AddScoped<IDocumentTemplateVersionRepository, DocumentTemplateVersionRepository>();
+            services.AddScoped<ITemplateAdministrationRepository, TemplateAdministrationRepository>();
             services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();
             services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
