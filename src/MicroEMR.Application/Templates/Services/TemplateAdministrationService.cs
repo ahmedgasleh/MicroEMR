@@ -32,6 +32,7 @@ public sealed class TemplateAdministrationService(
     public Task<TemplateAdministrationResult?> CreateAsync(CreateAdministrativeTemplateRequest request, TemplateAccessContext context, CancellationToken token=default)
     {
         ValidateMetadata(request.TemplateKind,request.Category);
+        if(request.TemplateScope=="Personal" && !request.OwnerUserId.HasValue)request.OwnerUserId=context.UserId;
         authorization.EnsureCanCreate(request.TemplateScope,request.OwnerUserId,context);
         var result=serializer.Process(request.Definition);
         if(!result.IsValid) throw new TemplateDefinitionValidationException(result.Errors);
@@ -44,6 +45,7 @@ public sealed class TemplateAdministrationService(
         if(current is null)return null;
         if(!authorization.CanMutate(current,context))throw new UnauthorizedAccessException("The template cannot be modified by the current user.");
         ValidateMetadata(request.TemplateKind,request.Category);
+        if(request.TemplateScope=="Personal" && !request.OwnerUserId.HasValue)request.OwnerUserId=context.UserId;
         authorization.EnsureCanCreate(request.TemplateScope,request.OwnerUserId,context);
         ValidateRowVersion(request.RowVersion);
         return await repository.UpdateMetadataAsync(uid,request,context.UserId,token);

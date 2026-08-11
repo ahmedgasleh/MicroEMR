@@ -88,14 +88,14 @@
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <li class="sidebar-menu-item">
-                    <a asp-controller="DocumentTemplates"
+                    <a asp-controller="TemplateAdministration"
                        asp-action="Index"
                        class="sidebar-link"
                        data-bs-toggle="tooltip"
                        data-bs-placement="right"
-                       data-bs-title="Document Templates">
-                        <span class="sidebar-icon"><i class="bi bi-file-earmark-text"></i></span>
-                        <span class="sidebar-text">Document Templates</span>
+                       data-bs-title="Templates">
+                        <span class="sidebar-icon"><i class="bi bi-ui-checks-grid"></i></span>
+                        <span class="sidebar-text">Templates</span>
                     </a>
                 </li>
             }

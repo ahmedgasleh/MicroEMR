@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.Configuration;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
 using MicroEMR.Application.PatientDocuments.Services;
@@ -155,6 +156,8 @@ public sealed class DocumentTemplateVersioningTests
         Assert.Contains("N'{\"schemaVersion\":1,\"sections\":[]}'", sql, StringComparison.Ordinal);
         Assert.Contains("PublishedBy BIGINT", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("VersionStatus=N'Draft'", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ADD Category NVARCHAR(100) NULL;\nGO\n\nUPDATE dbo.DocumentTemplate SET Category", sql.Replace("\r\n", "\n"), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ADD PublishedBy BIGINT NULL;\nGO\n\nUPDATE dbo.DocumentTemplateVersion", sql.Replace("\r\n", "\n"), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -184,6 +187,21 @@ public sealed class DocumentTemplateVersioningTests
         Assert.Contains("DocumentTemplateAdmin_SetActive",sql,StringComparison.OrdinalIgnoreCase);
         Assert.Contains("N'Deactivate'",sql,StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("UPDATE dbo.PatientDocument",sql,StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TemplateEngineMigrations_AreRegisteredInTenantManifest()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["TenantProvisioning:SqlAssetsPath"] = Path.Combine(AppContext.BaseDirectory, "database")
+            }).Build();
+        var migrations = await new MicroEMR.Infrastructure.Provisioning.FileTenantDatabaseMigrationSource(configuration)
+            .GetAvailableMigrationsAsync();
+
+        Assert.Contains(migrations, migration => migration.MigrationId == "0033-template-engine-schema-foundation");
+        Assert.Contains(migrations, migration => migration.MigrationId == "0034-template-administration-api");
     }
 
     private static string Migration() => File.ReadAllText(Path.Combine(

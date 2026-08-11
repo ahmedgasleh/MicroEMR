@@ -31,5 +31,7 @@
   { "migrationId": "0029-appointment-status-report", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0029-appointment-status-report.sql" },
   { "migrationId": "0030-overdue-task-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0030-overdue-task-foundation.sql" },
   { "migrationId": "0031-patient-document-create-preserve-instance-content", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0031-patient-document-create-preserve-instance-content.sql" },
-  { "migrationId": "0032-patient-document-draft-editing", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0032-patient-document-draft-editing.sql" }
+  { "migrationId": "0032-patient-document-draft-editing", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0032-patient-document-draft-editing.sql" },
+  { "migrationId": "0033-template-engine-schema-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0033-template-engine-schema-foundation.sql" },
+  { "migrationId": "0034-template-administration-api", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0034-template-administration-api.sql" }
 ]
