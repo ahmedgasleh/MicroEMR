@@ -118,9 +118,31 @@ public sealed class DocumentTemplateVersioningTests
         Assert.DoesNotContain("UPDATE dbo.PatientDocumentContent", createSql, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void SchemaFoundation_AddsValidatedJsonAndCompatibleTemplateMetadata()
+    {
+        var sql = SchemaFoundationMigration();
+
+        Assert.Contains("ADD TemplateKind NVARCHAR(20)", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("TemplateKind IN (N'Document', N'Encounter')", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("TemplateScope IN (N'System', N'Clinic', N'Personal')", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("TemplateScope <> N'Personal' OR OwnerUserId IS NOT NULL", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ADD SchemaVersion INT NOT NULL", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ADD DefinitionJson NVARCHAR(MAX) NOT NULL", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ISJSON(DefinitionJson) = 1", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("JSON_VALUE(DefinitionJson, '$.schemaVersion')", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("N'{\"schemaVersion\":1,\"sections\":[]}'", sql, StringComparison.Ordinal);
+        Assert.Contains("PublishedBy BIGINT", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("VersionStatus=N'Draft'", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string Migration() => File.ReadAllText(Path.Combine(
         AppContext.BaseDirectory, "database", "tenant-clinical", "migrations",
         "0017-document-template-versioning.sql"));
+
+    private static string SchemaFoundationMigration() => File.ReadAllText(Path.Combine(
+        AppContext.BaseDirectory, "database", "tenant-clinical", "migrations",
+        "0033-template-engine-schema-foundation.sql"));
 
     private static DocumentTemplateVersionResponse Version(Guid templateUid, int number, string status) => new()
     {

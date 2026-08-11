@@ -505,6 +505,11 @@ public sealed class PatientDocumentRepository
                 reader.GetString(
                     reader.GetOrdinal("DocumentType")),
 
+            TemplateKind = GetOptionalString(reader, "TemplateKind") ?? "Document",
+            Category = GetOptionalString(reader, "Category"),
+            TemplateScope = GetOptionalString(reader, "TemplateScope") ?? "Clinic",
+            OwnerUserId = GetOptionalInt64(reader, "OwnerUserId"),
+
             Description =
                 GetNullableString(
                     reader,
@@ -536,6 +541,11 @@ public sealed class PatientDocumentRepository
             DocumentType =
                 reader.GetString(
                     reader.GetOrdinal("DocumentType")),
+
+            TemplateKind = GetOptionalString(reader, "TemplateKind") ?? "Document",
+            Category = GetOptionalString(reader, "Category"),
+            TemplateScope = GetOptionalString(reader, "TemplateScope") ?? "Clinic",
+            OwnerUserId = GetOptionalInt64(reader, "OwnerUserId"),
 
             Description =
                 GetNullableString(
