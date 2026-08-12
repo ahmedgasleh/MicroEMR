@@ -69,6 +69,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
 builder.Services.AddScoped<IAuthenticatedSubjectAccessor, AuthenticatedSubjectAccessor>();
 

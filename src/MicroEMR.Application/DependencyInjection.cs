@@ -19,6 +19,7 @@ using MicroEMR.Application.Templates.Services;
 using MicroEMR.Application.Templates.Runtime;
 using MicroEMR.Application.Templates.Output;
 using MicroEMR.Application.Templates.Variables;
+using MicroEMR.Application.ClinicalOutput;
 
 namespace MicroEMR.Application;
 
@@ -54,6 +55,8 @@ public static class DependencyInjection
         services.AddSingleton<ITemplateHtmlRenderer, TemplateHtmlRenderer>();
         services.AddSingleton<ITemplateAuthorizationService, TemplateAuthorizationService>();
         services.AddScoped<ITemplateAdministrationService, TemplateAdministrationService>();
+        services.AddSingleton<IClinicalPrintLayoutRenderer, ClinicalPrintLayoutRenderer>();
+        services.AddScoped<IClinicalPdfPreviewService, ClinicalPdfPreviewService>();
 
         return services;
     }

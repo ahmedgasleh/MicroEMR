@@ -17,6 +17,7 @@ public interface IPatientDocumentApiClient
         Guid documentUid,
         UpdatePatientDocumentDraftRequest request,
         CancellationToken cancellationToken = default);
+    Task<byte[]> PreviewPdfAsync(Guid documentUid, string structuredDataJson, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<DocumentTemplateListItemResponse>>
         GetActiveTemplatesAsync(

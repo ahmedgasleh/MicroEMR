@@ -50,6 +50,7 @@ public interface IPatientEncounterApiClient
     Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
         Guid patientUid, Guid encounterUid, UpdateEncounterStructuredDataRequest request,
         CancellationToken cancellationToken = default);
+    Task<byte[]> PreviewPdfAsync(Guid encounterUid, string structuredDataJson, CancellationToken cancellationToken = default);
 
     Task<PatientEncounterDetailsResponse?> SignEncounterAsync(
         Guid patientUid,

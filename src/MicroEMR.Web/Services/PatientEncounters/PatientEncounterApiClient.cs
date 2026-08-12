@@ -9,6 +9,15 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 public sealed class PatientEncounterApiClient
     : IPatientEncounterApiClient
 {
+    public async Task<byte[]> PreviewPdfAsync(Guid encounterUid, string structuredDataJson, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patient-encounters/{encounterUid}/pdf-preview")
+        { Content = JsonContent.Create(new { structuredDataJson }) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+    }
     public async Task<IReadOnlyList<EncounterTemplateListItem>> GetEncounterTemplatesAsync(CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "api/document-templates/encounter");

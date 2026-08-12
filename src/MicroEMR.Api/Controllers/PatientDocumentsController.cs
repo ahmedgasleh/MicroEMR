@@ -7,6 +7,7 @@ using MicroEMR.Application.PatientDocuments.Services;
 using MicroEMR.Application.PatientDocuments;
 using MicroEMR.Application.Templates.Contracts;
 using MicroEMR.Application.Templates.Runtime;
+using MicroEMR.Application.ClinicalOutput;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -17,15 +18,45 @@ public sealed class PatientDocumentsController : ControllerBase
     private readonly IPatientDocumentService _documentService;
     private readonly ILogger<PatientDocumentsController> _logger;
     private readonly IAuthorizationService _authorization;
+    private readonly IClinicalPdfPreviewService _pdfPreview;
 
     public PatientDocumentsController(
         IPatientDocumentService documentService,
         ILogger<PatientDocumentsController> logger,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IClinicalPdfPreviewService pdfPreview)
     {
         _documentService = documentService;
         _logger = logger;
         _authorization = authorization;
+        _pdfPreview = pdfPreview;
+    }
+
+    [HttpPost("api/patient-documents/{documentUid:guid}/pdf-preview")]
+    [Produces("application/pdf")]
+    public async Task<IActionResult> PreviewPdf(Guid documentUid, [FromBody] TemplatePreviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (documentUid == Guid.Empty) return BadRequest();
+        try
+        {
+            var pdf = await _pdfPreview.PreviewPatientDocumentAsync(documentUid, request, cancellationToken);
+            return pdf is null ? NotFound() : File(pdf, "application/pdf");
+        }
+        catch (TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
+        }
+        catch (InvalidOperationException exception) when (exception is not PdfRenderingException)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (PdfRenderingException exception)
+        {
+            _logger.LogError(exception, "PDF preview engine failed for document {DocumentUid}.", documentUid);
+            return Problem("PDF preview is temporarily unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
     }
 
     [HttpGet("api/patients/{patientUid:guid}/documents")]
