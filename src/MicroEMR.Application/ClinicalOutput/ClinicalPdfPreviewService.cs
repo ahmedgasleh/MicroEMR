@@ -7,6 +7,7 @@ using MicroEMR.Application.Templates.Runtime;
 using MicroEMR.Application.Templates.Serialization;
 using MicroEMR.Application.Templates.Variables;
 using Microsoft.Extensions.Logging;
+using MicroEMR.Application.ClinicConfiguration;
 
 namespace MicroEMR.Application.ClinicalOutput;
 
@@ -16,6 +17,7 @@ public interface IClinicalPdfPreviewService
 {
     Task<byte[]?> PreviewPatientDocumentAsync(Guid documentUid, TemplatePreviewRequest request, CancellationToken token = default);
     Task<byte[]?> PreviewEncounterAsync(Guid encounterUid, TemplatePreviewRequest request, CancellationToken token = default);
+    Task<byte[]> RenderSignedEncounterAsync(Guid encounterUid, CancellationToken token = default);
 }
 
 public sealed class ClinicalPdfPreviewService(
@@ -23,6 +25,7 @@ public sealed class ClinicalPdfPreviewService(
     IPatientEncounterRepository encounters,
     IDocumentTemplateVersionRepository versions,
     IPatientService patients,
+    IClinicConfigurationService clinicConfiguration,
     ITemplateDefinitionSerializer definitions,
     ITemplateInstanceRuntime runtime,
     ITemplateOutputBuilder outputBuilder,
@@ -45,9 +48,13 @@ public sealed class ClinicalPdfPreviewService(
         var data = ProcessDraft(definition, request.StructuredDataJson);
         var patient = await patients.GetByUidAsync(document.PatientUid, token)
             ?? throw new InvalidOperationException("The document patient is unavailable.");
+        var clinic = await clinicConfiguration.GetAsync(token);
         var context = new TemplateVariableContext(patient.FullName, patient.DateOfBirth, document.CreatedByDisplayName,
             document.CreatedAt, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
-        return await RenderAsync(document.Title, definition, data, context, document.DocumentUid, null,
+        var printContext = CreatePrintContext(clinic, patient,
+            new("Document", document.Title, document.DocumentType, document.CreatedAt, null),
+            new("Created by", document.CreatedByDisplayName, document.CreatedAt, null, null));
+        return await RenderAsync(printContext, definition, data, context, document.DocumentUid, null,
             document.TemplateUid.Value, version.TemplateVersionUid, token);
     }
 
@@ -66,10 +73,16 @@ public sealed class ClinicalPdfPreviewService(
         var data = ProcessDraft(definition, request.StructuredDataJson);
         var patient = await patients.GetByUidAsync(encounter.PatientUid, token)
             ?? throw new InvalidOperationException("The encounter patient is unavailable.");
+        var clinic = await clinicConfiguration.GetAsync(token);
         var context = new TemplateVariableContext(patient.FullName, patient.DateOfBirth,
             encounter.ProviderName ?? encounter.CreatedByDisplayName, encounter.EncounterDateUtc,
             DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
-        return await RenderAsync(encounter.TemplateName ?? encounter.EncounterType, definition, data, context, null,
+        var printContext = CreatePrintContext(clinic, patient,
+            new("Encounter", encounter.TemplateName ?? encounter.EncounterType, encounter.EncounterType,
+                encounter.EncounterDateUtc, encounter.ProviderName ?? encounter.AppointmentProviderDisplayName),
+            new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
+                encounter.SignedByDisplayName, encounter.SignedAt));
+        return await RenderAsync(printContext, definition, data, context, null,
             encounter.EncounterUid, encounter.TemplateUid.Value, version.TemplateVersionUid, token);
     }
 
@@ -86,7 +99,7 @@ public sealed class ClinicalPdfPreviewService(
         return draft.Data!;
     }
 
-    private async Task<byte[]> RenderAsync(string title, Templates.Definitions.TemplateDefinition definition,
+    private async Task<byte[]> RenderAsync(ClinicalPrintContext printContext, Templates.Definitions.TemplateDefinition definition,
         TemplateInstanceData data, TemplateVariableContext? context, Guid? documentUid, Guid? encounterUid,
         Guid templateUid, Guid versionUid, CancellationToken token)
     {
@@ -94,7 +107,7 @@ public sealed class ClinicalPdfPreviewService(
         try
         {
             var html = htmlRenderer.Render(outputBuilder.Build(definition, data, context));
-            return await pdfRenderer.RenderAsync(printLayout.Render(title, html), token);
+            return await pdfRenderer.RenderAsync(printLayout.Render(printContext, html), token);
         }
         catch (Exception exception) when (exception is not TemplateInstanceValidationException)
         {
@@ -132,4 +145,42 @@ public sealed class ClinicalPdfPreviewService(
         if (templateUid != versionTemplateUid)
             throw new InvalidOperationException("The template version does not belong to the clinical record template.");
     }
+
+    public async Task<byte[]> RenderSignedEncounterAsync(Guid encounterUid, CancellationToken token = default)
+    {
+        var encounter = await encounters.GetByUidAsync(encounterUid, token)
+            ?? throw new InvalidOperationException("The signed encounter is unavailable.");
+        if (!string.Equals(encounter.Status, "Signed", StringComparison.OrdinalIgnoreCase)
+            || !encounter.TemplateUid.HasValue || !encounter.TemplateVersionUid.HasValue || encounter.StructuredDataJson is null)
+            throw new InvalidOperationException("A final PDF requires a signed schema-driven encounter.");
+        var version = await versions.GetByUidAsync(encounter.TemplateVersionUid.Value, token)
+            ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+        EnsureProvenance(encounter.TemplateUid.Value, version.TemplateUid);
+        var definition = RequireDefinition(version.DefinitionJson);
+        var processed = runtime.Process(definition, encounter.StructuredDataJson);
+        if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
+        var patient = await patients.GetByUidAsync(encounter.PatientUid, token)
+            ?? throw new InvalidOperationException("The encounter patient is unavailable.");
+        var clinic = await clinicConfiguration.GetAsync(token);
+        var variables = new TemplateVariableContext(patient.FullName, patient.DateOfBirth,
+            encounter.ProviderName ?? encounter.CreatedByDisplayName, encounter.EncounterDateUtc,
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
+        var printContext = CreatePrintContext(clinic, patient,
+            new("Encounter", encounter.TemplateName ?? encounter.EncounterType, encounter.EncounterType,
+                encounter.EncounterDateUtc, encounter.ProviderName ?? encounter.AppointmentProviderDisplayName),
+            new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
+                encounter.SignedByDisplayName, encounter.SignedAt));
+        return await RenderAsync(printContext, definition, processed.Data!, variables, null, encounterUid,
+            encounter.TemplateUid.Value, version.TemplateVersionUid, token);
+    }
+
+    private static ClinicalPrintContext CreatePrintContext(ClinicConfigurationResponse clinic,
+        Patients.Contracts.PatientDetailsResponse patient, ClinicalPrintRecord record, ClinicalPrintAuthorship authorship) =>
+        new(
+            new(string.IsNullOrWhiteSpace(clinic.LegalName) ? clinic.ClinicName : clinic.LegalName,
+                clinic.AddressLine1, clinic.AddressLine2, clinic.City, clinic.ProvinceState,
+                clinic.PostalCode, clinic.Phone, clinic.Fax, clinic.Email),
+            new(patient.FullName, patient.DateOfBirth, patient.HealthCardNumber,
+                patient.HealthCardVersion, patient.ChartNumber),
+            record, authorship, clinic.TimeZoneId);
 }
