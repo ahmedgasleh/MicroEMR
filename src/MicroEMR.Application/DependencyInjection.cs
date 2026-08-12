@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<ITemplateAdministrationService, TemplateAdministrationService>();
         services.AddSingleton<IClinicalPrintLayoutRenderer, ClinicalPrintLayoutRenderer>();
         services.AddScoped<IClinicalPdfPreviewService, ClinicalPdfPreviewService>();
+        services.AddScoped<IClinicalArtifactService, ClinicalArtifactService>();
 
         return services;
     }

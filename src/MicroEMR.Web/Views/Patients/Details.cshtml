@@ -1080,7 +1080,7 @@
 <form id="chartAlertAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <form id="patientTaskAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <div class="modal fade" id="patientReferralModal" tabindex="-1" aria-labelledby="patientReferralModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable" id="encounterDetailsDialog">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header"><h2 class="modal-title fs-5" id="patientReferralModalTitle">Add Referral</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body">
@@ -1170,7 +1170,7 @@
 <form id="problemAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
 <div class="modal fade" id="encounterDetailsModal" tabindex="-1" aria-labelledby="encounterDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" id="encounterDetailsDialog" style="max-width:min(96vw, 1600px)">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title fs-5" id="encounterDetailsModalLabel">Encounter Details</h2>
@@ -1245,8 +1245,9 @@
                             <div id="encounterNoteMessage"
                                  class="alert d-none mt-3 mb-0"
                                  role="status"></div>
-                            <div class="d-flex justify-content-end gap-2 mt-3">
+                            <div class="d-flex justify-content-end gap-2 mt-3" id="encounterEditorActions">
                                 <button type="button" class="btn btn-outline-primary d-none" id="previewEncounterButton">Preview</button>
+                                <button type="button" class="btn btn-outline-primary d-none" id="viewEncounterPdfButton">View PDF</button>
                                 <button type="button" class="btn btn-outline-secondary d-none" id="hideEncounterPreviewButton">Hide Preview</button>
                                 <button type="button"
                                         class="btn btn-outline-danger"
@@ -1261,7 +1262,7 @@
                             </div>
                         </div>
                       </div></div>
-                      <div class="col-12 col-lg-6 d-none" id="encounterPdfPreviewPane"><div class="d-flex flex-column h-100"><div id="encounterPdfPreviewMessage" class="alert alert-danger d-none"></div><iframe id="encounterPdfPreviewFrame" class="w-100 h-100 flex-grow-1 border rounded" style="min-height:70vh" title="Encounter PDF preview"></iframe></div></div>
+                      <div class="col-12 col-lg-6 d-none" id="encounterPdfPreviewPane"><div class="d-flex flex-column h-100"><div id="encounterPdfPreviewMessage" class="alert alert-danger d-none"></div><iframe id="encounterPdfPreviewFrame" class="w-100 flex-grow-1 border rounded" style="min-height:0" title="Encounter PDF preview"></iframe><div class="d-flex justify-content-end gap-2 mt-3" id="encounterPdfPreviewActions"></div></div></div>
                         <div class="col-12">
                             <h3 class="fs-6">Addendums</h3>
                             <p id="encounterAddendumHelper" class="small text-muted mb-3">
@@ -1423,6 +1424,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateSoapNoteUrl = '@Url.Action("UpdateEncounterSoapNote", "PatientEncounters")';
     const updateStructuredDataUrl = '@Url.Action("UpdateEncounterStructuredData", "PatientEncounters")';
     const previewPdfUrl = '@Url.Action("PreviewPdf", "PatientEncounters")';
+    const finalPdfUrl = '@Url.Action("FinalPdf", "PatientEncounters")';
     const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
     const encounterAddendumsUrl = '@Url.Action("EncounterAddendums", "PatientEncounters")';
     const createEncounterAddendumUrl = '@Url.Action("CreateEncounterAddendum", "PatientEncounters")';
@@ -1433,11 +1435,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentStructuredEncounter = null;
     let historyLoaded = false;
     const previewButton = document.getElementById("previewEncounterButton");
+    const viewPdfButton = document.getElementById("viewEncounterPdfButton");
     const hidePreviewButton = document.getElementById("hideEncounterPreviewButton");
     const previewPane = document.getElementById("encounterPdfPreviewPane");
     const previewFrame = document.getElementById("encounterPdfPreviewFrame");
     const previewMessage = document.getElementById("encounterPdfPreviewMessage");
     const editorPane = document.getElementById("encounterEditorPane");
+    const editorActions = document.getElementById("encounterEditorActions");
+    const previewActions = document.getElementById("encounterPdfPreviewActions");
     const dialog = document.getElementById("encounterDetailsDialog");
     let previewObjectUrl = null;
 
@@ -1454,9 +1459,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const closePdfPreview = () => {
         previewPane.classList.add("d-none");
+        previewPane.style.height = "";
         editorPane.classList.remove("col-lg-6"); editorPane.classList.add("col-12");
-        dialog.classList.remove("modal-xl"); dialog.classList.add("modal-lg");
+        editorActions.prepend(viewPdfButton);
+        editorActions.append(hidePreviewButton);
         hidePreviewButton.classList.add("d-none");
+    };
+
+    const showPdfPreviewControls = () => {
+        previewPane.style.paddingTop = "0";
+        previewPane.style.height = `${editorPane.getBoundingClientRect().height}px`;
+        previewActions.append(viewPdfButton, hidePreviewButton);
+        hidePreviewButton.classList.remove("d-none");
     };
 
     const formatDate = value => value
@@ -1505,6 +1519,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentEncounterIsEditable =
             String(encounter.status).toLowerCase() === "open";
         previewButton.classList.toggle("d-none", !currentStructuredEncounter || !currentEncounterIsEditable);
+        viewPdfButton.classList.toggle("d-none", !currentStructuredEncounter || String(encounter.status).toLowerCase() !== "signed");
         Object.values(soapFields).forEach(field => {
             field.readOnly = !currentEncounterIsEditable;
         });
@@ -1929,10 +1944,23 @@ document.addEventListener("DOMContentLoaded", () => {
             if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
             previewObjectUrl = URL.createObjectURL(await response.blob()); previewFrame.src = previewObjectUrl;
             previewPane.classList.remove("d-none"); editorPane.classList.remove("col-12"); editorPane.classList.add("col-lg-6");
-            dialog.classList.remove("modal-lg"); dialog.classList.add("modal-xl"); hidePreviewButton.classList.remove("d-none");
+            showPdfPreviewControls();
             previewButton.textContent = "Refresh Preview";
         } catch(error) { previewMessage.textContent=error instanceof Error?error.message:"PDF preview could not be generated.";previewMessage.classList.remove("d-none"); }
         finally { previewButton.disabled=false;if(previewButton.textContent==="Generating…")previewButton.textContent="Preview"; }
+    });
+    viewPdfButton.addEventListener("click", async () => {
+        if (!currentEncounterUid) return;
+        viewPdfButton.disabled = true; previewMessage.classList.add("d-none");
+        try {
+            const response = await fetch(`${finalPdfUrl}?encounterUid=${encodeURIComponent(currentEncounterUid)}`);
+            if (!response.ok) throw new Error("The stored final PDF is unavailable.");
+            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = URL.createObjectURL(await response.blob()); previewFrame.src = previewObjectUrl;
+            previewPane.classList.remove("d-none"); editorPane.classList.remove("col-12"); editorPane.classList.add("col-lg-6");
+            showPdfPreviewControls();
+        } catch(error) { previewMessage.textContent=error instanceof Error?error.message:"The stored final PDF is unavailable.";previewMessage.classList.remove("d-none"); }
+        finally { viewPdfButton.disabled=false; }
     });
     hidePreviewButton.addEventListener("click", closePdfPreview);
     modalElement.addEventListener("hidden.bs.modal", () => { closePdfPreview(); if(previewObjectUrl) URL.revokeObjectURL(previewObjectUrl); previewObjectUrl=null; previewFrame.removeAttribute("src"); });

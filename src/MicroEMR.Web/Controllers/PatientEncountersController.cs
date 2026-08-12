@@ -10,6 +10,13 @@ namespace MicroEMR.Web.Controllers;
 [Authorize]
 public sealed class PatientEncountersController : Controller
 {
+    [HttpGet]
+    public async Task<IActionResult> FinalPdf(Guid encounterUid, CancellationToken cancellationToken)
+    {
+        if (encounterUid == Guid.Empty) return BadRequest();
+        try { return File(await _encounterApiClient.GetFinalPdfAsync(encounterUid, cancellationToken), "application/pdf"); }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.NotFound) { return NotFound(); }
+    }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> PreviewPdf(Guid encounterUid, string structuredDataJson, CancellationToken cancellationToken)
     {

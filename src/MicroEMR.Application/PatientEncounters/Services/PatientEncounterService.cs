@@ -9,6 +9,7 @@ using MicroEMR.Application.Templates.Serialization;
 using MicroEMR.Application.Templates.Definitions;
 using MicroEMR.Application.Templates.Variables;
 using MicroEMR.Application.Patients.Services;
+using MicroEMR.Application.ClinicalOutput;
 
 namespace MicroEMR.Application.PatientEncounters.Services;
 
@@ -24,6 +25,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
     private readonly IPatientService? _patients;
     private readonly ITemplateVariableResolver? _variables;
     private readonly bool _structuredRuntimeAvailable;
+    private readonly IClinicalArtifactService? _artifacts;
 
     public PatientEncounterService(
         IPatientEncounterRepository repository,
@@ -44,7 +46,8 @@ public sealed class PatientEncounterService : IPatientEncounterService
         ITemplateDefinitionSerializer definitions,
         ITemplateInstanceRuntime runtime,
         IPatientService patients,
-        ITemplateVariableResolver variables)
+        ITemplateVariableResolver variables,
+        IClinicalArtifactService? artifacts = null)
     {
         _repository = repository;
         _schedulingAppointmentRepository = schedulingAppointmentRepository;
@@ -55,6 +58,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
         _runtime = runtime;
         _patients = patients;
         _variables = variables;
+        _artifacts = artifacts;
         _structuredRuntimeAvailable = true;
     }
 
@@ -222,6 +226,13 @@ public sealed class PatientEncounterService : IPatientEncounterService
         var current = _structuredRuntimeAvailable
             ? await _repository.GetByUidAsync(encounterUid, cancellationToken)
             : null;
+        if (current is not null && current.PatientUid != patientUid) return null;
+        if (current is not null && string.Equals(current.Status, "Signed", StringComparison.OrdinalIgnoreCase))
+        {
+            if (current.TemplateVersionUid.HasValue && _artifacts is not null)
+                await _artifacts.EnsureEncounterFinalPdfAsync(encounterUid, signedBy, cancellationToken);
+            return await EnrichAsync(current, cancellationToken);
+        }
         if (current?.TemplateVersionUid is Guid versionUid)
         {
             var version = await _versions!.GetByUidAsync(versionUid, cancellationToken)
@@ -241,6 +252,8 @@ public sealed class PatientEncounterService : IPatientEncounterService
             AppointmentStatus.Seen,
             AppointmentStatus.Completed,
             cancellationToken);
+        if (signed?.TemplateVersionUid.HasValue == true && _artifacts is not null)
+            await _artifacts.EnsureEncounterFinalPdfAsync(encounterUid, signedBy, cancellationToken);
         return signed is null ? null : await EnrichAsync(signed, cancellationToken);
     }
 

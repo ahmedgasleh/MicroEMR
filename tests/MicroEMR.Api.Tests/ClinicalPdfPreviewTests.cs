@@ -18,7 +18,7 @@ public sealed class ClinicalPdfPreviewTests
     [Fact]
     public void PrintLayout_UsesLetterStaticHtmlAndSafeTitle()
     {
-        var html = new ClinicalPrintLayoutRenderer().Render("Title <script>x</script>",
+        var html = new ClinicalPrintLayoutRenderer().Render(Context(title: "Title <script>x</script>"),
             "<article class=\"template-document\">safe</article>");
 
         Assert.StartsWith("<!DOCTYPE html>", html.TrimStart(), StringComparison.OrdinalIgnoreCase);
@@ -26,6 +26,40 @@ public sealed class ClinicalPdfPreviewTests
         Assert.Contains("break-inside: avoid", html);
         Assert.Contains("Title &lt;script&gt;x&lt;/script&gt;", html);
         Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PatientDocumentLayout_IncludesAuthoritativeClinicalContextAndOmitsMissingOptionalValues()
+    {
+        var html = new ClinicalPrintLayoutRenderer().Render(Context(), "<article>Clinical body</article>");
+        Assert.Contains("MicroEMR Clinic", html);
+        Assert.Contains("Patient:</dt><dd>John Smith", html);
+        Assert.Contains("DOB:</dt><dd>January 5, 1970", html);
+        Assert.Contains("Health Card:</dt><dd>1234 AB", html);
+        Assert.Contains("Chart:</dt><dd>C100", html);
+        Assert.Contains("Document:</dt><dd>Consultation", html);
+        Assert.Contains("Created by:</dt><dd>Dr. Author", html);
+        Assert.Contains("Clinical body", html);
+        Assert.DoesNotContain("Fax:", html);
+    }
+
+    [Fact]
+    public void SignedEncounterLayout_UsesSignatureFooterAndEncodesAllMetadata()
+    {
+        var context = Context(title: "Encounter <script>x</script>") with
+        {
+            Clinic = Context().Clinic with { Name = "Clinic <img src=x>" },
+            Patient = Context().Patient with { FullName = "Jane <b>Patient</b>" },
+            Record = new("Encounter", "Encounter <script>x</script>", "Office Visit", new(2026,8,12,18,0,0,DateTimeKind.Utc), "Dr <X>"),
+            Authorship = new("Prepared by", "Creator", new(2026,8,12,17,0,0,DateTimeKind.Utc), "Dr. Signer <Y>", new(2026,8,12,18,30,0,DateTimeKind.Utc))
+        };
+        var html = new ClinicalPrintLayoutRenderer().Render(context, "<article>Body</article>");
+        Assert.Contains("Electronically signed by:</dt><dd>Dr. Signer &lt;Y&gt;", html);
+        Assert.Contains("Signed:</dt><dd>", html);
+        Assert.DoesNotContain("Prepared by:</dt>", html);
+        Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<img", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Jane &lt;b&gt;Patient&lt;/b&gt;", html);
     }
 
     [Fact]
@@ -67,4 +101,11 @@ public sealed class ClinicalPdfPreviewTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MicroEMR.slnx"))) directory = directory.Parent;
         return directory?.FullName ?? throw new DirectoryNotFoundException();
     }
+
+    private static ClinicalPrintContext Context(string title = "Consultation") => new(
+        new("MicroEMR Clinic", "123 Main", null, "Toronto", "Ontario", "M1M 1M1", "416-555-1234", null, null),
+        new("John Smith", new(1970, 1, 5), "1234", "AB", "C100"),
+        new("Document", title, "Consultation", new(2026, 8, 12, 18, 15, 0, DateTimeKind.Utc), null),
+        new("Created by", "Dr. Author", new(2026, 8, 12, 18, 15, 0, DateTimeKind.Utc), null, null),
+        "America/Toronto");
 }

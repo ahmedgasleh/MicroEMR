@@ -67,6 +67,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddSingleton<IPdfRenderer, PlaywrightPdfRenderer>();
+        services.AddScoped<IClinicalOutputArtifactRepository, ClinicalOutputArtifactRepository>();
         services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();
         services.AddScoped<ITenantMembershipLifecycleRepository, SqlTenantMembershipLifecycleRepository>();
         services.AddScoped<ITenantRoleManagementRepository, SqlTenantRoleManagementRepository>();

@@ -15,15 +15,28 @@ public sealed class PatientEncountersController : ControllerBase
     private readonly IPatientEncounterService _encounterService;
     private readonly ILogger<PatientEncountersController> _logger;
     private readonly IClinicalPdfPreviewService _pdfPreview;
+    private readonly IClinicalArtifactService _artifacts;
 
     public PatientEncountersController(
         IPatientEncounterService encounterService,
         ILogger<PatientEncountersController> logger,
-        IClinicalPdfPreviewService pdfPreview)
+        IClinicalPdfPreviewService pdfPreview,
+        IClinicalArtifactService artifacts)
     {
         _encounterService = encounterService;
         _logger = logger;
         _pdfPreview = pdfPreview;
+        _artifacts = artifacts;
+    }
+
+    [HttpGet("api/patient-encounters/{encounterUid:guid}/final-pdf")]
+    public async Task<IActionResult> GetFinalPdf(Guid encounterUid, CancellationToken cancellationToken)
+    {
+        if (encounterUid == Guid.Empty) return BadRequest();
+        var artifact = await _artifacts.OpenEncounterFinalPdfAsync(encounterUid, cancellationToken);
+        return artifact is null
+            ? NotFound(new { message = "The final PDF artifact was not found." })
+            : File(artifact.Content, artifact.MimeType, artifact.FileName, enableRangeProcessing: true);
     }
 
     [HttpGet("api/patients/{patientUid:guid}/encounters")]
