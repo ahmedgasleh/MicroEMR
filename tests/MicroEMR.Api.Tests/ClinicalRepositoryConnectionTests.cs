@@ -1,4 +1,3 @@
-using MicroEMR.Infrastructure.EncounterSoapTemplates;
 using MicroEMR.Infrastructure.PatientAllergies;
 using MicroEMR.Infrastructure.PatientChartAlerts;
 using MicroEMR.Infrastructure.PatientDocuments;
@@ -34,7 +33,6 @@ public sealed class ClinicalRepositoryConnectionTests
             typeof(PatientTaskRepository),
             typeof(PatientVitalRepository),
             typeof(PatientReferralRepository),
-            typeof(EncounterSoapTemplateRepository),
             typeof(SchedulingReadRepository),
             typeof(SchedulingAppointmentRepository)
         ];

@@ -1,3 +1,0 @@
-using MicroEMR.Web.Models.EncounterSoapTemplates;
-namespace MicroEMR.Web.Services.EncounterSoapTemplates;
-public interface IEncounterSoapTemplateApiClient{Task<IReadOnlyList<EncounterSoapTemplateResponse>>GetAllAsync(string status,CancellationToken token=default);Task<EncounterSoapTemplateResponse?>CreateAsync(SaveEncounterSoapTemplateViewModel request,CancellationToken token=default);Task<EncounterSoapTemplateResponse?>UpdateAsync(Guid uid,SaveEncounterSoapTemplateViewModel request,CancellationToken token=default);Task<EncounterSoapTemplateResponse?>SetActiveAsync(Guid uid,bool active,CancellationToken token=default);}

@@ -270,8 +270,6 @@ public sealed class PatientEncounterRepository
             AddNullableString(command, "@PlanNote", SqlDbType.NVarChar, -1, request.PlanSnapshot);
         }
         else
-            command.Parameters.Add(new SqlParameter("@EncounterSoapTemplateUid", SqlDbType.UniqueIdentifier)
-            { Value = (object?)request.EncounterSoapTemplateUid ?? DBNull.Value });
 
         command.Parameters.Add(
             new SqlParameter(

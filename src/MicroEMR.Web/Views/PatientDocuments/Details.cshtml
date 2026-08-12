@@ -86,8 +86,15 @@
         <div class="col-12 col-lg-8">
             <div class="border rounded-3 p-3 h-100">
                 <h5 class="mb-3">Content</h5>
-                @* Keep document content encoded until sanitized rich HTML rendering exists. *@
-                <pre class="mb-0 p-3 bg-light border rounded-3 text-wrap">@Model.Content</pre>
+                @if (Model.IsStructured)
+                {
+                    @* Structured content is generated exclusively by the encoding shared template renderer. *@
+                    <div class="p-3 bg-light border rounded-3">@Html.Raw(Model.Content)</div>
+                }
+                else
+                {
+                    <pre class="mb-0 p-3 bg-light border rounded-3 text-wrap">@Model.Content</pre>
+                }
             </div>
         </div>
     </div>

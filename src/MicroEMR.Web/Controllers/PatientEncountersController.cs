@@ -498,13 +498,12 @@ public sealed class PatientEncountersController : Controller
             ReasonForVisit = model.ReasonForVisit,
             LocationName = model.LocationName,
             ProviderName = model.ProviderName,
-            EncounterSoapTemplateUid = model.EncounterSoapTemplateUid,
             TemplateUid = model.TemplateUid
         };
 
         try
         {
-            await _encounterApiClient.CreateAsync(
+            var created = await _encounterApiClient.CreateAsync(
                 model.PatientUid,
                 request,
                 cancellationToken);
@@ -520,7 +519,8 @@ public sealed class PatientEncountersController : Controller
                     patientUid = model.PatientUid,
                     tab = string.Equals(model.ReturnTab, "summary", StringComparison.OrdinalIgnoreCase)
                         ? "summary"
-                        : "encounters"
+                        : "encounters",
+                    openEncounterUid = created.EncounterUid
                 });
         }
         catch (HttpRequestException exception)

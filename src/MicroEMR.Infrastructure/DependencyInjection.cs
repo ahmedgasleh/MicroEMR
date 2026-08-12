@@ -15,8 +15,6 @@ using MicroEMR.Infrastructure.PatientVitals;
 using MicroEMR.Infrastructure.Patients;
 using MicroEMR.Infrastructure.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
-using MicroEMR.Application.EncounterSoapTemplates;
-using MicroEMR.Infrastructure.EncounterSoapTemplates;
 using MicroEMR.Application.PatientChartAlerts;
 using MicroEMR.Infrastructure.PatientChartAlerts;
 using MicroEMR.Application.PatientResults;
@@ -70,7 +68,6 @@ public static class DependencyInjection
         services.AddScoped<ITenantMembershipLifecycleRepository, SqlTenantMembershipLifecycleRepository>();
         services.AddScoped<ITenantRoleManagementRepository, SqlTenantRoleManagementRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
-        services.AddScoped<IEncounterSoapTemplateRepository, EncounterSoapTemplateRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();
         services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();

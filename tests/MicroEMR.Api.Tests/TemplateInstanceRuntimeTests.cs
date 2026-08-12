@@ -52,6 +52,18 @@ public sealed class TemplateInstanceRuntimeTests
     }
 
     [Fact]
+    public void InitialDraft_AllowsRequiredFieldsToRemainEmpty()
+    {
+        var initial = Runtime.CreateInitial(Definition(required: true));
+
+        Assert.True(initial.IsValid);
+        Assert.NotNull(initial.Data);
+        Assert.DoesNotContain("text", initial.Data.Values.Keys);
+        Assert.Contains(Runtime.Process(Definition(required: true), initial.Json).Errors,
+            error => error.Code == "Required");
+    }
+
+    [Fact]
     public void Snapshot_IsDeterministicAndUsesOptionLabels()
     {
         var definition = Definition(required: false);

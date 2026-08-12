@@ -74,7 +74,7 @@ public sealed class DocumentTemplatesController : ControllerBase
         var context = await AccessContext();
         return Ok(templates.Where(x => x.TemplateKind == "Encounter" && x.IsActive
             && x.TemplateVersionUid.HasValue
-            && (x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId)));
+            && (x.TemplateScope != "Personal" || x.OwnerUserId == context.UserId || context.IsClinicAdministrator)));
     }
 
     [HttpGet("{templateUid:guid}")]

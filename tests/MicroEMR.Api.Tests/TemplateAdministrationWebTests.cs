@@ -19,7 +19,7 @@ public sealed class TemplateAdministrationWebTests
         var script=File.ReadAllText(Path.Combine(root,"src","MicroEMR.Web","ClientApp","template-administration","builder.ts"));
         Assert.Contains("Add Section",view);Assert.Contains("Add Field",script);Assert.Contains("Add Option",view);
         Assert.Contains("Save Draft",view);Assert.Contains("Validate",view);Assert.Contains("Schema Preview",view);Assert.Contains("Publish Version",view);
-        Assert.Contains("Edit in New Draft",view);Assert.Contains("Encounter template is not yet connected",view);
+        Assert.Contains("Edit in New Draft",view);Assert.DoesNotContain("Encounter template is not yet connected",view);
         Assert.DoesNotContain("name=\"DefinitionJson\"",view,StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Raw JSON",view,StringComparison.OrdinalIgnoreCase);
     }

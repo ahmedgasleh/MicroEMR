@@ -123,8 +123,6 @@ public sealed class PatientEncounterService : IPatientEncounterService
     {
         if (request.TemplateUid.HasValue)
         {
-            if (request.EncounterSoapTemplateUid.HasValue)
-                throw new ArgumentException("Choose either a schema template or a legacy SOAP template.");
             var template = await _templates!.GetTemplateByUidAsync(request.TemplateUid.Value, cancellationToken)
                 ?? throw new UnauthorizedAccessException("The selected encounter template is unavailable.");
             if (!template.IsActive || template.TemplateKind != "Encounter"
@@ -133,6 +131,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
             var version = (await _versions!.GetByTemplateUidAsync(template.TemplateUid, cancellationToken))
                 .SingleOrDefault(x => x.IsCurrent && x.Status == "Published")
                 ?? throw new InvalidOperationException("The selected encounter template has no active published version.");
+            EnsureVersionProvenance(template.TemplateUid, version.TemplateUid);
             var definition = RequireDefinition(version.DefinitionJson);
             var patient = await _patients!.GetByUidAsync(patientUid, cancellationToken)
                 ?? throw new InvalidOperationException("The patient was not found.");
@@ -197,6 +196,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
             throw new InvalidOperationException("The encounter is not schema-driven.");
         var version = await _versions!.GetByUidAsync(current.TemplateVersionUid.Value, cancellationToken)
             ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+        EnsureVersionProvenance(current.TemplateUid, version.TemplateUid);
         var definition = RequireDefinition(version.DefinitionJson);
         var processed = _runtime!.Process(definition, request.StructuredDataJson);
         if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
@@ -226,6 +226,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
         {
             var version = await _versions!.GetByUidAsync(versionUid, cancellationToken)
                 ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+            EnsureVersionProvenance(current.TemplateUid, version.TemplateUid);
             var validation = _runtime!.Process(RequireDefinition(version.DefinitionJson), current.StructuredDataJson);
             if (!validation.IsValid) throw new TemplateInstanceValidationException(validation.Errors);
         }
@@ -248,6 +249,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (!encounter.TemplateVersionUid.HasValue) return encounter;
         var version = await _versions!.GetByUidAsync(encounter.TemplateVersionUid.Value, token)
             ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
+        EnsureVersionProvenance(encounter.TemplateUid, version.TemplateUid);
         encounter.TemplateDefinition = RequireDefinition(version.DefinitionJson);
         var patient = await _patients!.GetByUidAsync(encounter.PatientUid, token)
             ?? throw new InvalidOperationException("The encounter patient is unavailable.");
@@ -337,5 +339,11 @@ public sealed class PatientEncounterService : IPatientEncounterService
             throw new ArgumentException("Patient identifier is required.", nameof(patientUid));
         if (encounterUid == Guid.Empty)
             throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
+    }
+
+    private static void EnsureVersionProvenance(Guid? templateUid, Guid versionTemplateUid)
+    {
+        if (templateUid.HasValue && versionTemplateUid != templateUid.Value)
+            throw new InvalidOperationException("The template version does not belong to the encounter template.");
     }
 }

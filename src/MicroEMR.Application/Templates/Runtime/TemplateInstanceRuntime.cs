@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MicroEMR.Application.Templates.Definitions;
 using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Output;
+using MicroEMR.Application.Templates.Variables;
 
 namespace MicroEMR.Application.Templates.Runtime;
 
@@ -25,8 +27,12 @@ public interface ITemplateInstanceRuntime
     string RenderSnapshot(TemplateDefinition definition, TemplateInstanceData data);
 }
 
-public sealed class TemplateInstanceRuntime(ITemplateDefinitionSerializer definitions) : ITemplateInstanceRuntime
+public sealed class TemplateInstanceRuntime(
+    ITemplateDefinitionSerializer definitions,
+    ITemplateOutputBuilder? outputBuilder = null) : ITemplateInstanceRuntime
 {
+    private readonly ITemplateOutputBuilder _outputBuilder = outputBuilder
+        ?? new TemplateOutputBuilder(new TemplateVariableResolver());
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -106,24 +112,16 @@ public sealed class TemplateInstanceRuntime(ITemplateDefinitionSerializer defini
     public string RenderSnapshot(TemplateDefinition definition, TemplateInstanceData data)
     {
         var output = new StringBuilder();
-        foreach (var section in definition.Sections!.OrderBy(x => x.Order))
+        foreach (var section in _outputBuilder.Build(definition, data).Sections)
         {
             if (output.Length > 0) output.Append('\n');
             output.Append(section.Title).Append('\n');
-            output.Append(new string('-', section.Title!.Length)).Append('\n');
-            foreach (var field in section.Fields!.OrderBy(x => x.Order))
+            output.Append(new string('-', section.Title.Length)).Append('\n');
+            foreach (var item in section.Items)
             {
-                if (field.Type == TemplateFieldTypes.StaticText) { if (!string.IsNullOrWhiteSpace(field.Content)) output.Append(field.Content).Append('\n'); continue; }
-                if (!data.Values.TryGetValue(field.Key!, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined || value.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(value.GetString())) continue;
-                var display = field.Type switch
-                {
-                    TemplateFieldTypes.Boolean or TemplateFieldTypes.Checkbox => value.GetBoolean() ? "Yes" : "No",
-                    TemplateFieldTypes.Select or TemplateFieldTypes.Radio => field.Options!.First(x => x.Value == value.GetString()).Label,
-                    TemplateFieldTypes.Number => value.GetRawText(),
-                    _ => value.GetString()
-                };
-                output.Append(field.Label).Append('\n');
-                output.Append(display).Append('\n').Append('\n');
+                if (item.IsStaticContent) { output.Append(item.DisplayValue).Append('\n'); continue; }
+                output.Append(item.Label).Append('\n');
+                output.Append(item.DisplayValue).Append('\n').Append('\n');
             }
         }
         return output.ToString().TrimEnd();

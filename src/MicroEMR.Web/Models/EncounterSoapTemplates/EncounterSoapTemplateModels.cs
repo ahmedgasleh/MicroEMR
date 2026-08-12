@@ -1,7 +1,0 @@
-using System.ComponentModel.DataAnnotations;
-namespace MicroEMR.Web.Models.EncounterSoapTemplates;
-public sealed class EncounterSoapTemplateResponse{public Guid EncounterSoapTemplateUid{get;set;}public string TemplateName{get;set;}="";public string? EncounterType{get;set;}public string? SubjectiveTemplate{get;set;}public string? ObjectiveTemplate{get;set;}public string? AssessmentTemplate{get;set;}public string? PlanTemplate{get;set;}public bool IsActive{get;set;}public DateTime CreatedAt{get;set;}public DateTime? UpdatedAt{get;set;}public string? CreatedByDisplayName{get;set;}public string? UpdatedByDisplayName{get;set;}}
-public class SaveEncounterSoapTemplateViewModel{[Required,StringLength(200)]public string TemplateName{get;set;}="";[StringLength(100)]public string? EncounterType{get;set;}public string? SubjectiveTemplate{get;set;}public string? ObjectiveTemplate{get;set;}public string? AssessmentTemplate{get;set;}public string? PlanTemplate{get;set;}}
-public sealed class UpdateEncounterSoapTemplateViewModel:SaveEncounterSoapTemplateViewModel{public Guid EncounterSoapTemplateUid{get;set;}}
-public sealed class SetEncounterSoapTemplateActiveViewModel{public Guid EncounterSoapTemplateUid{get;set;}public bool IsActive{get;set;}}
-public sealed class EncounterSoapTemplateIndexViewModel{public string Status{get;set;}="Active";public IReadOnlyList<EncounterSoapTemplateResponse> Templates{get;set;}=[];}

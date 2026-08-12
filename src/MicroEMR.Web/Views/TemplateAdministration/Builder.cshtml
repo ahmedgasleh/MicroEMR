@@ -9,7 +9,6 @@
             <div><div class="d-flex gap-2 align-items-center"><h3 class="mb-0">@Model.Template.TemplateName</h3><span class="badge @(Model.Version.Status=="Draft"?"text-bg-warning":"text-bg-success")">@Model.Version.Status Version @Model.Version.VersionNumber</span></div><p class="mt-2 mb-0">@Model.Template.TemplateKind / @(Model.Template.Category??"Uncategorized") / @Model.Template.TemplateScope · Schema v@Model.Version.SchemaVersion</p></div>
             <a asp-action="Index" class="btn btn-outline-secondary">Back to Templates</a>
         </div>
-        @if(Model.IsEncounterTemplate){<div class="alert alert-info py-2"><i class="bi bi-info-circle me-1"></i>This Encounter template is not yet connected to the encounter runtime. The existing SOAP template workflow is unchanged.</div>}
         @if(Model.Template.TemplateScope=="System"){<div class="alert alert-secondary py-2">System templates are read-only. Clone this template to customize it.</div>}
         <div id="builderMessage" class="alert d-none" role="alert"></div>
         <div class="d-flex flex-wrap gap-2 mt-3">
