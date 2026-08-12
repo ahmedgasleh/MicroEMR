@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Application.PatientEncounters;
+using MicroEMR.Application.ClinicalOutput;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -13,13 +14,16 @@ public sealed class PatientEncountersController : ControllerBase
 {
     private readonly IPatientEncounterService _encounterService;
     private readonly ILogger<PatientEncountersController> _logger;
+    private readonly IClinicalPdfPreviewService _pdfPreview;
 
     public PatientEncountersController(
         IPatientEncounterService encounterService,
-        ILogger<PatientEncountersController> logger)
+        ILogger<PatientEncountersController> logger,
+        IClinicalPdfPreviewService pdfPreview)
     {
         _encounterService = encounterService;
         _logger = logger;
+        _pdfPreview = pdfPreview;
     }
 
     [HttpGet("api/patients/{patientUid:guid}/encounters")]
@@ -309,6 +313,33 @@ public sealed class PatientEncountersController : ControllerBase
                 "Failed to update SOAP note for encounter {EncounterUid}.", encounterUid);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { message = "Encounter note could not be saved." });
+        }
+    }
+
+    [HttpPost("api/patient-encounters/{encounterUid:guid}/pdf-preview")]
+    [Produces("application/pdf")]
+    public async Task<IActionResult> PreviewPdf(Guid encounterUid, [FromBody] TemplatePreviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (encounterUid == Guid.Empty) return BadRequest();
+        try
+        {
+            var pdf = await _pdfPreview.PreviewEncounterAsync(encounterUid, request, cancellationToken);
+            return pdf is null ? NotFound() : File(pdf, "application/pdf");
+        }
+        catch (MicroEMR.Application.Templates.Runtime.TemplateInstanceValidationException exception)
+        {
+            foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
+            return ValidationProblem(ModelState);
+        }
+        catch (InvalidOperationException exception) when (exception is not PdfRenderingException)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (PdfRenderingException exception)
+        {
+            _logger.LogError(exception, "PDF preview engine failed for encounter {EncounterUid}.", encounterUid);
+            return Problem("PDF preview is temporarily unavailable.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
 

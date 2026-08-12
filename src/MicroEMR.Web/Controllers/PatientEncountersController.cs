@@ -10,6 +10,23 @@ namespace MicroEMR.Web.Controllers;
 [Authorize]
 public sealed class PatientEncountersController : Controller
 {
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> PreviewPdf(Guid encounterUid, string structuredDataJson, CancellationToken cancellationToken)
+    {
+        if (encounterUid == Guid.Empty || string.IsNullOrWhiteSpace(structuredDataJson)) return BadRequest();
+        try
+        {
+            return File(await _encounterApiClient.PreviewPdfAsync(encounterUid, structuredDataJson, cancellationToken), "application/pdf");
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest)
+        {
+            return BadRequest(new { message = "Preview could not be generated. Review the template field values." });
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "PDF preview is temporarily unavailable." });
+        }
+    }
     private readonly IPatientEncounterApiClient _encounterApiClient;
     private readonly ILogger<PatientEncountersController> _logger;
 

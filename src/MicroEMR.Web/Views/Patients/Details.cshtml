@@ -1080,7 +1080,7 @@
 <form id="chartAlertAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <form id="patientTaskAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 <div class="modal fade" id="patientReferralModal" tabindex="-1" aria-labelledby="patientReferralModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" id="encounterDetailsDialog">
         <div class="modal-content">
             <div class="modal-header"><h2 class="modal-title fs-5" id="patientReferralModalTitle">Add Referral</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body">
@@ -1183,7 +1183,8 @@
                     <p class="text-muted mt-2 mb-0">Loading encounter details...</p>
                 </div>
                 <div id="encounterDetailsContent" class="d-none">
-                    <div class="row g-4">
+                    <div class="row g-4 align-items-stretch" id="encounterPreviewLayout">
+                      <div class="col-12" id="encounterEditorPane"><div class="row g-4 h-100">
                         <div class="col-12 col-md-6">
                             <dl class="row mb-0">
                                 <dt class="col-sm-5">Date/time</dt><dd class="col-sm-7" id="encounterDetailsDate"></dd>
@@ -1245,6 +1246,8 @@
                                  class="alert d-none mt-3 mb-0"
                                  role="status"></div>
                             <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button type="button" class="btn btn-outline-primary d-none" id="previewEncounterButton">Preview</button>
+                                <button type="button" class="btn btn-outline-secondary d-none" id="hideEncounterPreviewButton">Hide Preview</button>
                                 <button type="button"
                                         class="btn btn-outline-danger"
                                         id="signEncounterButton">
@@ -1257,6 +1260,8 @@
                                 </button>
                             </div>
                         </div>
+                      </div></div>
+                      <div class="col-12 col-lg-6 d-none" id="encounterPdfPreviewPane"><div class="d-flex flex-column h-100"><div id="encounterPdfPreviewMessage" class="alert alert-danger d-none"></div><iframe id="encounterPdfPreviewFrame" class="w-100 h-100 flex-grow-1 border rounded" style="min-height:70vh" title="Encounter PDF preview"></iframe></div></div>
                         <div class="col-12">
                             <h3 class="fs-6">Addendums</h3>
                             <p id="encounterAddendumHelper" class="small text-muted mb-3">
@@ -1417,6 +1422,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const encounterHistoryUrl = '@Url.Action("EncounterHistory", "PatientEncounters")';
     const updateSoapNoteUrl = '@Url.Action("UpdateEncounterSoapNote", "PatientEncounters")';
     const updateStructuredDataUrl = '@Url.Action("UpdateEncounterStructuredData", "PatientEncounters")';
+    const previewPdfUrl = '@Url.Action("PreviewPdf", "PatientEncounters")';
     const signEncounterUrl = '@Url.Action("SignEncounter", "PatientEncounters")';
     const encounterAddendumsUrl = '@Url.Action("EncounterAddendums", "PatientEncounters")';
     const createEncounterAddendumUrl = '@Url.Action("CreateEncounterAddendum", "PatientEncounters")';
@@ -1426,6 +1432,32 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentEncounterIsEditable = false;
     let currentStructuredEncounter = null;
     let historyLoaded = false;
+    const previewButton = document.getElementById("previewEncounterButton");
+    const hidePreviewButton = document.getElementById("hideEncounterPreviewButton");
+    const previewPane = document.getElementById("encounterPdfPreviewPane");
+    const previewFrame = document.getElementById("encounterPdfPreviewFrame");
+    const previewMessage = document.getElementById("encounterPdfPreviewMessage");
+    const editorPane = document.getElementById("encounterEditorPane");
+    const dialog = document.getElementById("encounterDetailsDialog");
+    let previewObjectUrl = null;
+
+    const collectStructuredData = () => {
+        const values = {};
+        document.querySelectorAll("#encounterStructuredFields [data-field-key]").forEach(input => {
+            const type=input.dataset.fieldType;
+            if(type==="Checkbox") values[input.dataset.fieldKey]=input.checked;
+            else if(type==="Boolean"&&input.value!=="") values[input.dataset.fieldKey]=input.value==="true";
+            else if(input.value!=="") values[input.dataset.fieldKey]=type==="Number"?Number(input.value):input.value;
+        });
+        return JSON.stringify({schemaVersion: currentStructuredEncounter.templateDefinition.schemaVersion, values});
+    };
+
+    const closePdfPreview = () => {
+        previewPane.classList.add("d-none");
+        editorPane.classList.remove("col-lg-6"); editorPane.classList.add("col-12");
+        dialog.classList.remove("modal-xl"); dialog.classList.add("modal-lg");
+        hidePreviewButton.classList.add("d-none");
+    };
 
     const formatDate = value => value
         ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
@@ -1472,6 +1504,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentEncounterUid = encounter.encounterUid;
         currentEncounterIsEditable =
             String(encounter.status).toLowerCase() === "open";
+        previewButton.classList.toggle("d-none", !currentStructuredEncounter || !currentEncounterIsEditable);
         Object.values(soapFields).forEach(field => {
             field.readOnly = !currentEncounterIsEditable;
         });
@@ -1721,14 +1754,7 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append("PatientUid", currentPatientUid);
             formData.append("EncounterUid", currentEncounterUid);
             if (currentStructuredEncounter) {
-                const values = {};
-                document.querySelectorAll("#encounterStructuredFields [data-field-key]").forEach(input => {
-                    const type=input.dataset.fieldType;
-                    if(type==="Checkbox") values[input.dataset.fieldKey]=input.checked;
-                    else if(type==="Boolean"&&input.value!=="") values[input.dataset.fieldKey]=input.value==="true";
-                    else if(input.value!=="") values[input.dataset.fieldKey]=type==="Number"?Number(input.value):input.value;
-                });
-                formData.append("StructuredDataJson", JSON.stringify({schemaVersion: currentStructuredEncounter.templateDefinition.schemaVersion, values}));
+                formData.append("StructuredDataJson", collectStructuredData());
                 formData.append("RowVersion", currentStructuredEncounter.rowVersion);
             } else {
                 formData.append("SubjectiveNote", soapFields.SubjectiveNote.value);
@@ -1888,6 +1914,28 @@ document.addEventListener("DOMContentLoaded", () => {
             button.dataset.patientUid,
             button.dataset.encounterUid));
     });
+
+    previewButton.addEventListener("click", async () => {
+        if (!currentStructuredEncounter || !currentEncounterUid) return;
+        previewButton.disabled = true; previewButton.textContent = "Generating…";
+        previewMessage.classList.add("d-none");
+        try {
+            const body = new FormData();
+            body.append("encounterUid", currentEncounterUid);
+            body.append("structuredDataJson", collectStructuredData());
+            const token = document.querySelector('#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
+            const response = await fetch(previewPdfUrl, { method:"POST", headers:{"RequestVerificationToken":token}, body });
+            if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || "PDF preview could not be generated.");
+            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = URL.createObjectURL(await response.blob()); previewFrame.src = previewObjectUrl;
+            previewPane.classList.remove("d-none"); editorPane.classList.remove("col-12"); editorPane.classList.add("col-lg-6");
+            dialog.classList.remove("modal-lg"); dialog.classList.add("modal-xl"); hidePreviewButton.classList.remove("d-none");
+            previewButton.textContent = "Refresh Preview";
+        } catch(error) { previewMessage.textContent=error instanceof Error?error.message:"PDF preview could not be generated.";previewMessage.classList.remove("d-none"); }
+        finally { previewButton.disabled=false;if(previewButton.textContent==="Generating…")previewButton.textContent="Preview"; }
+    });
+    hidePreviewButton.addEventListener("click", closePdfPreview);
+    modalElement.addEventListener("hidden.bs.modal", () => { closePdfPreview(); if(previewObjectUrl) URL.revokeObjectURL(previewObjectUrl); previewObjectUrl=null; previewFrame.removeAttribute("src"); });
 
     const initiallyOpenEncounterUid = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Context.Request.Query["openEncounterUid"].FirstOrDefault()));
     if (initiallyOpenEncounterUid) {
