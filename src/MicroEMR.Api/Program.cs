@@ -13,6 +13,9 @@ using MicroEMR.Application.PatientFiles;
 using Microsoft.AspNetCore.Http.Features;
 using MicroEMR.Application.TenantUserAdministration;
 using MicroEMR.Application.PlatformAdministration;
+using MicroEMR.Api.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,6 +84,17 @@ builder.Services.AddScoped<ITenantContext>(serviceProvider =>
 
 builder.Services.AddMicroEmrApplication();
 builder.Services.AddMicroEmrInfrastructure();
+builder.Services.AddDbContext<AdministrationIdentityDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("AuthDatabase")
+        ?? builder.Configuration.GetConnectionString("AuthServerConnection")));
+builder.Services.AddIdentityCore<AdministrationIdentityUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.SignIn.RequireConfirmedEmail = false;
+    })
+    .AddEntityFrameworkStores<AdministrationIdentityDbContext>()
+    .AddDefaultTokenProviders();
+builder.Services.AddScoped<IIdentityUserAdministration, IdentityUserAdministration>();
 
 var app = builder.Build();
 

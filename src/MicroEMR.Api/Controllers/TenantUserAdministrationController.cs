@@ -16,6 +16,22 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         CancellationToken cancellationToken) =>
         Ok(await service.GetTenantUsersAsync(cancellationToken));
 
+    [HttpPost]
+    public async Task<ActionResult<AddTenantUserResult>> AddUser(
+        AddTenantUserRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await service.AddTenantUserAsync(request, cancellationToken);
+            return result.ClinicalProvisioningFailed ? StatusCode(StatusCodes.Status207MultiStatus, result) : CreatedAtAction(
+                nameof(GetUser), new { authUserId = result.User.AuthUserId }, result);
+        }
+        catch (TenantMembershipAlreadyExistsException ex) { return Conflict(new { message = ex.Message }); }
+        catch (TenantRoleValidationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (TenantUserCreationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
     [HttpGet("{authUserId}")]
     public async Task<ActionResult<TenantUserAdministrationItem>> GetUser(
         string authUserId, CancellationToken cancellationToken)

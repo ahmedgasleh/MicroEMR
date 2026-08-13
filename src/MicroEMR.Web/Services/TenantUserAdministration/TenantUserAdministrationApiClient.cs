@@ -8,6 +8,8 @@ namespace MicroEMR.Web.Services.TenantUserAdministration;
 
 public interface ITenantUserAdministrationApiClient
 {
+    Task<AddTenantUserResultViewModel> AddUserAsync(AddTenantUserViewModel model,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TenantUserAdministrationItemViewModel>> GetUsersAsync(
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel?> GetUserAsync(string authUserId,
@@ -26,6 +28,29 @@ public sealed class TenantUserAdministrationApiClient(
     HttpClient client,
     IHttpContextAccessor contextAccessor) : ITenantUserAdministrationApiClient
 {
+    public async Task<AddTenantUserResultViewModel> AddUserAsync(AddTenantUserViewModel model,
+        CancellationToken cancellationToken = default)
+    {
+        var context = contextAccessor.HttpContext ?? throw new InvalidOperationException("The authenticated request context is unavailable.");
+        var token = await context.GetTokenAsync("access_token");
+        if (string.IsNullOrWhiteSpace(token)) throw new UnauthorizedAccessException("The API access token is unavailable.");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/admin/users");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(new
+        {
+            model.FirstName, model.LastName, model.Email, model.InitialRole, model.ProvisionClinicalUser
+        });
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var payload = await response.Content.ReadFromJsonAsync<ApiError>(cancellationToken: cancellationToken);
+            throw new HttpRequestException(payload?.Message ?? "The user could not be added.", null, response.StatusCode);
+        }
+        return await response.Content.ReadFromJsonAsync<AddTenantUserResultViewModel>(cancellationToken: cancellationToken)
+            ?? throw new HttpRequestException("The user could not be added.");
+    }
+
+    private sealed record ApiError(string Message);
     public async Task<IReadOnlyList<TenantUserAdministrationItemViewModel>> GetUsersAsync(
         CancellationToken cancellationToken = default)
     {

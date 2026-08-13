@@ -6,6 +6,8 @@
     var user = Model.User;
 }
 <div class="content-panel">
+    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+    @if (TempData["WarningMessage"] is string warning) { <div class="alert alert-warning" role="alert">@warning</div> }
     <div class="content-panel-header d-flex justify-content-between align-items-start gap-3">
         <div><a asp-action="Index" class="small text-decoration-none">&larr; User Administration</a>
             <h1 class="h3 mt-2 mb-1">@user.DisplayName</h1><p class="text-muted mb-0">@(user.Email ?? user.UserName)</p></div>

@@ -22,6 +22,8 @@ public sealed record TenantUserAdministrationItem(
 
 public interface ITenantUserAdministrationService
 {
+    Task<AddTenantUserResult> AddTenantUserAsync(AddTenantUserRequest request,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
         CancellationToken cancellationToken = default);
     async Task<TenantUserAdministrationItem?> GetTenantUserAsync(string authUserId,
@@ -38,6 +40,11 @@ public interface ITenantUserAdministrationService
         CancellationToken cancellationToken = default);
 }
 
+public sealed record AddTenantUserRequest(string FirstName, string LastName, string Email,
+    string InitialRole, bool ProvisionClinicalUser);
+public sealed record AddTenantUserResult(TenantUserAdministrationItem User, bool AuthIdentityCreated,
+    bool ClinicalProvisioningFailed, string Message);
+
 public sealed class TenantUserAdministrationService(
     ITenantContext tenantContext,
     IPlatformMembershipAdministrationService memberships,
@@ -46,8 +53,78 @@ public sealed class TenantUserAdministrationService(
     ITenantMembershipLifecycleRepository lifecycle,
     ITenantRoleManagementRepository roleManagement,
     IAuthenticatedSubjectAccessor subjectAccessor,
+    IIdentityUserAdministration identityAdministration,
+    ITenantUserCreationRepository userCreation,
     ILogger<TenantUserAdministrationService> logger) : ITenantUserAdministrationService
 {
+    public TenantUserAdministrationService(ITenantContext tenantContext,
+        IPlatformMembershipAdministrationService memberships, IIdentityUserProfileLookup identityUsers,
+        IClinicalUserRepository clinicalUsers, ITenantMembershipLifecycleRepository lifecycle,
+        ITenantRoleManagementRepository roleManagement, IAuthenticatedSubjectAccessor subjectAccessor,
+        ILogger<TenantUserAdministrationService> logger)
+        : this(tenantContext, memberships, identityUsers, clinicalUsers, lifecycle, roleManagement, subjectAccessor,
+            new UnsupportedIdentityAdministration(), new UnsupportedUserCreationRepository(), logger) { }
+
+    public async Task<AddTenantUserResult> AddTenantUserAsync(AddTenantUserRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var role = NormalizeRole(request.InitialRole);
+        var identity = await identityAdministration.ResolveOrCreateAsync(
+            new(request.FirstName, request.LastName, request.Email), cancellationToken);
+        var existing = await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid, cancellationToken);
+        if (existing.Any(x => string.Equals(x.UserId, identity.Profile.UserId, StringComparison.Ordinal)))
+            throw new TenantMembershipAlreadyExistsException("This user already belongs to this clinic.");
+
+        var actor = subjectAccessor.GetRequiredSubject();
+        await userCreation.CreateAsync(identity.Profile.UserId, tenantContext.TenantUid, role, actor, cancellationToken);
+        logger.LogInformation("Tenant membership and initial role {Role} created for {TargetUserId} in {TenantUid} by {ActorUserId}.",
+            role, identity.Profile.UserId, tenantContext.TenantUid, actor);
+
+        var provisioningFailed = false;
+        if (request.ProvisionClinicalUser)
+        {
+            try
+            {
+                await clinicalUsers.ProvisionAsync(identity.Profile.UserId, identity.Profile.Username,
+                    identity.Profile.DisplayName, identity.Profile.Email, cancellationToken);
+                logger.LogInformation("Clinical user provisioned for {TargetUserId} in {TenantUid} by {ActorUserId}.",
+                    identity.Profile.UserId, tenantContext.TenantUid, actor);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                provisioningFailed = true;
+                logger.LogError(ex, "Clinical provisioning failed after tenant access was created for {TargetUserId} in {TenantUid}.",
+                    identity.Profile.UserId, tenantContext.TenantUid);
+            }
+        }
+
+        var user = (await GetTenantUsersAsync(cancellationToken)).Single(x =>
+            string.Equals(x.AuthUserId, identity.Profile.UserId, StringComparison.Ordinal));
+        var message = provisioningFailed
+            ? "User added to clinic, but clinical provisioning failed. Retry from User Details."
+            : identity.Created
+                ? "User account created and added to clinic. Account setup delivery is not configured."
+                : "User added to clinic.";
+        return new(user, identity.Created, provisioningFailed, message);
+    }
+
+    private static string NormalizeRole(string role)
+    {
+        try { return TenantRoleCatalog.Normalize(role); }
+        catch (ArgumentException ex) { throw new TenantRoleValidationException("The initial tenant role is invalid.", ex); }
+    }
+
+    private sealed class UnsupportedIdentityAdministration : IIdentityUserAdministration
+    {
+        public Task<ResolveOrCreateIdentityResult> ResolveOrCreateAsync(ResolveOrCreateIdentityRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+    private sealed class UnsupportedUserCreationRepository : ITenantUserCreationRepository
+    {
+        public Task CreateAsync(string authUserId, Guid tenantUid, string initialRole, string actorAuthUserId,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
     public async Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
         CancellationToken cancellationToken = default)
     {
