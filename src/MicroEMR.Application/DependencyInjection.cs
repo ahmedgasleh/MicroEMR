@@ -20,6 +20,7 @@ using MicroEMR.Application.Templates.Runtime;
 using MicroEMR.Application.Templates.Output;
 using MicroEMR.Application.Templates.Variables;
 using MicroEMR.Application.ClinicalOutput;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Application;
 
@@ -42,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientFileService, PatientFileService>();
         services.AddScoped<IClinicConfigurationService, ClinicConfigurationService>();
         services.AddScoped<ITenantUserAdministrationService, TenantUserAdministrationService>();
+        services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.AddScoped<ISchedulingReadService, SchedulingReadService>();
         services.AddScoped<ISchedulingAppointmentService, SchedulingAppointmentService>();
         services.AddScoped<IAppointmentStatusTransitionService, AppointmentStatusTransitionService>();

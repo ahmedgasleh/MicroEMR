@@ -218,6 +218,19 @@ public sealed class PatientsController : Controller
                     tab = "demographics"
                 });
         }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Patient demographics update was denied for patient {PatientUid}.",
+                model.PatientUid);
+
+            ModelState.AddModelError(
+                string.Empty,
+                "You do not have permission to edit patient demographics. Contact a clinic administrator if your access profile should allow this action.");
+
+            return View(model);
+        }
         catch (HttpRequestException exception)
             when (exception.StatusCode == HttpStatusCode.BadRequest)
         {

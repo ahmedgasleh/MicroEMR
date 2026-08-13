@@ -38,6 +38,7 @@ using MicroEMR.Application.Reporting;
 using MicroEMR.Infrastructure.Reporting;
 using MicroEMR.Application.Templates.Repositories;
 using MicroEMR.Application.ClinicalOutput;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Infrastructure.ClinicalOutput;
 
 namespace MicroEMR.Infrastructure;
@@ -72,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantMembershipLifecycleRepository, SqlTenantMembershipLifecycleRepository>();
         services.AddScoped<ITenantRoleManagementRepository, SqlTenantRoleManagementRepository>();
         services.AddScoped<ITenantUserCreationRepository, SqlTenantUserCreationRepository>();
+        services.AddScoped<IAccessProfileRepository, SqlAccessProfileRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();

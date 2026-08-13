@@ -23,9 +23,10 @@
         <section class="col-md-6"><h2 class="h5">Clinic access</h2><dl class="row mb-0">
             <dt class="col-sm-5">Membership</dt><dd class="col-sm-7">@user.MembershipStatus</dd>
             <dt class="col-sm-5">Tenant roles</dt><dd class="col-sm-7">@(user.TenantRoles.Count == 0 ? "No role assigned" : string.Join(", ", user.TenantRoles))</dd>
+            <dt class="col-sm-5">Access profile</dt><dd class="col-sm-7">@(user.AccessProfileName ?? "Not assigned")</dd>
             <dt class="col-sm-5">Clinical user</dt><dd class="col-sm-7">@(user.ClinicalUserProvisioned ? (user.ClinicalUserActive == false ? "Provisioned, inactive" : "Provisioned") : "Not provisioned")</dd>
             @if (user.ClinicalUserId.HasValue) { <dt class="col-sm-5">Clinical user ID</dt><dd class="col-sm-7">@user.ClinicalUserId</dd> }
         </dl></section>
     </div>
-    <div class="border-top mt-4 pt-3"><a asp-action="Index" class="btn btn-primary">Manage membership and roles</a></div>
+    <div class="border-top mt-4 pt-3"><h2 class="h5">Change Access Profile</h2><form asp-action="AssignAccessProfile" method="post" class="row g-2 align-items-end"><input type="hidden" name="authUserId" value="@user.AuthUserId"/><input type="hidden" name="rowVersion" value="@user.RowVersion"/><div class="col-md-6"><label for="accessProfileUid" class="form-label">Access Profile</label><select id="accessProfileUid" name="accessProfileUid" class="form-select" required>@foreach(var profile in Model.AccessProfiles.Where(x=>x.IsActive)){if(profile.AccessProfileUid==user.AccessProfileUid){<option value="@profile.AccessProfileUid" selected>@profile.Name</option>}else{<option value="@profile.AccessProfileUid">@profile.Name</option>}}</select></div><div class="col-auto"><button class="btn btn-primary" type="submit">Save profile</button></div></form><a asp-action="Index" class="btn btn-outline-secondary mt-3">Manage membership and roles</a></div>
 </div>

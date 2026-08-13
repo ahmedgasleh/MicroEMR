@@ -62,6 +62,7 @@ builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClie
 builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IClinicConfigurationApiClient, ClinicConfigurationApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<ITenantUserAdministrationApiClient, TenantUserAdministrationApiClient>(ConfigureApiClient);
+builder.Services.AddHttpClient<IAccessProfileApiClient, AccessProfileApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient);
 builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient);
 

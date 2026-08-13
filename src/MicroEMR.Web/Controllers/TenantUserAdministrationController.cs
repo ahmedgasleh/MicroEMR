@@ -11,6 +11,7 @@ namespace MicroEMR.Web.Controllers;
 [Authorize(Policy = ClinicConfigurationAuthorization.Policy)]
 public sealed class TenantUserAdministrationController(
     ITenantUserAdministrationApiClient client,
+    IAccessProfileApiClient accessProfiles,
     ILogger<TenantUserAdministrationController> logger) : Controller
 {
     [HttpGet]
@@ -36,7 +37,7 @@ public sealed class TenantUserAdministrationController(
     {
         var user = await client.GetUserAsync(authUserId, cancellationToken);
         if (user is null) return NotFound();
-        return View(new TenantUserDetailsViewModel { User = user });
+        return View(new TenantUserDetailsViewModel { User = user, AccessProfiles = await accessProfiles.ListAsync(cancellationToken) });
     }
 
     [HttpGet]
@@ -126,6 +127,14 @@ public sealed class TenantUserAdministrationController(
     [ValidateAntiForgeryToken]
     public Task<IActionResult> ProvisionClinicalUser(string authUserId, CancellationToken cancellationToken) =>
         ChangeAsync(() => client.ProvisionClinicalUserAsync(authUserId, cancellationToken), cancellationToken);
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignAccessProfile(string authUserId,Guid accessProfileUid,string rowVersion,CancellationToken cancellationToken)
+    {
+        try{await accessProfiles.AssignAsync(authUserId,accessProfileUid,rowVersion,cancellationToken);TempData["SuccessMessage"]="Access profile updated.";}
+        catch(HttpRequestException){TempData["WarningMessage"]="The access profile could not be updated. Reload and try again.";}
+        return RedirectToAction(nameof(Details),new{authUserId});
+    }
 
     private async Task<IActionResult> ChangeAsync(
         Func<Task<TenantUserAdministrationItemViewModel>> action,
