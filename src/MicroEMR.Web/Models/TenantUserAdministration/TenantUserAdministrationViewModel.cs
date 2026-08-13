@@ -1,5 +1,7 @@
 namespace MicroEMR.Web.Models.TenantUserAdministration;
 
+using System.ComponentModel.DataAnnotations;
+
 public sealed class TenantUserAdministrationItemViewModel
 {
     public string AuthUserId { get; set; } = string.Empty;
@@ -26,4 +28,22 @@ public sealed class TenantUserAdministrationViewModel
 public sealed class TenantUserDetailsViewModel
 {
     public required TenantUserAdministrationItemViewModel User { get; init; }
+}
+
+public sealed class AddTenantUserViewModel
+{
+    [Required, StringLength(100)] public string FirstName { get; set; } = string.Empty;
+    [Required, StringLength(100)] public string LastName { get; set; } = string.Empty;
+    [Required, EmailAddress, StringLength(256)] public string Email { get; set; } = string.Empty;
+    [Required] public string InitialRole { get; set; } = string.Empty;
+    public bool ProvisionClinicalUser { get; set; } = true;
+    public IReadOnlyCollection<string> CanonicalRoles { get; init; } = [];
+}
+
+public sealed class AddTenantUserResultViewModel
+{
+    public required TenantUserAdministrationItemViewModel User { get; init; }
+    public bool AuthIdentityCreated { get; init; }
+    public bool ClinicalProvisioningFailed { get; init; }
+    public string Message { get; init; } = string.Empty;
 }

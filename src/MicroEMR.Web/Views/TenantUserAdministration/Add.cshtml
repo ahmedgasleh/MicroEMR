@@ -1,0 +1,31 @@
+@model MicroEMR.Web.Models.TenantUserAdministration.AddTenantUserViewModel
+@{
+    ViewData["Title"] = "Add User";
+    ViewData["Subtitle"] = "Add an identity to the active clinic.";
+    Layout = "_AppLayout";
+}
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div><a asp-action="Index" class="small text-decoration-none">&larr; User Administration</a>
+            <h1 class="h3 mt-2 mb-1">Add User</h1>
+            <p class="text-muted mb-0">Existing MicroEMR identities are reused automatically without exposing other clinic access.</p></div>
+    </div>
+    <form asp-action="Add" method="post" class="mt-4" id="addTenantUserForm">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <div class="row g-3">
+            <div class="col-md-6"><label asp-for="FirstName" class="form-label"></label><input asp-for="FirstName" class="form-control" autocomplete="given-name" /><span asp-validation-for="FirstName" class="text-danger"></span></div>
+            <div class="col-md-6"><label asp-for="LastName" class="form-label"></label><input asp-for="LastName" class="form-control" autocomplete="family-name" /><span asp-validation-for="LastName" class="text-danger"></span></div>
+            <div class="col-12"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="email" /><span asp-validation-for="Email" class="text-danger"></span></div>
+            <div class="col-md-6"><label asp-for="InitialRole" class="form-label">Initial Role</label><select asp-for="InitialRole" class="form-select">
+                @foreach (var role in Model.CanonicalRoles) { <option value="@role">@role</option> }
+            </select><span asp-validation-for="InitialRole" class="text-danger"></span></div>
+            <div class="col-12"><div class="form-check"><input asp-for="ProvisionClinicalUser" class="form-check-input" /><label asp-for="ProvisionClinicalUser" class="form-check-label">Provision clinical user</label></div>
+                <div class="form-text">Enabled by default because clinical and audit write operations require a tenant clinical identity.</div></div>
+        </div>
+        <div class="mt-4 d-flex gap-2"><button type="submit" class="btn btn-primary" id="addTenantUserButton">Add User</button><a asp-action="Index" class="btn btn-outline-secondary">Cancel</a></div>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script type="module" src="~/dist/user-administration/add-user.js" asp-append-version="true"></script>
+}

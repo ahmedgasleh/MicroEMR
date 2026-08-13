@@ -36,3 +36,11 @@ public sealed class TenantRoleInactiveMembershipException(string message, Except
 public sealed class TenantRoleSelfLockoutException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
 public sealed class TenantClinicalProvisioningNotEligibleException(string message) : TenantMembershipLifecycleException(message);
 public sealed class TenantClinicalProvisioningIdentityNotFoundException(string message) : TenantMembershipLifecycleException(message);
+public sealed class TenantMembershipAlreadyExistsException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+public sealed class TenantUserCreationException(string message, Exception? inner = null) : TenantMembershipLifecycleException(message, inner);
+
+public interface ITenantUserCreationRepository
+{
+    Task CreateAsync(string authUserId, Guid tenantUid, string initialRole, string actorAuthUserId,
+        CancellationToken cancellationToken = default);
+}

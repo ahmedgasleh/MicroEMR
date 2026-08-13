@@ -48,6 +48,26 @@ public sealed class SqlIdentityUserLookup : IIdentityUserLookup, IIdentityUserPr
             reader.GetBoolean(4));
     }
 
+    public Task<IdentityUserProfile?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        return GetSingleAsync("NormalizedEmail", email.Trim().ToUpperInvariant(), cancellationToken);
+    }
+
+    private async Task<IdentityUserProfile?> GetSingleAsync(string column, string value, CancellationToken token)
+    {
+        if (!IsAvailable) throw new InvalidOperationException("Identity user validation is not configured.");
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand($"SELECT Id, UserName, FullName, Email, IsActive FROM dbo.AspNetUsers WHERE {column} = @Value", connection);
+        command.Parameters.Add("@Value", System.Data.SqlDbType.NVarChar, 256).Value = value;
+        await connection.OpenAsync(token);
+        await using var reader = await command.ExecuteReaderAsync(token);
+        if (!await reader.ReadAsync(token)) return null;
+        var username = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+        return new(reader.GetString(0), username, reader.IsDBNull(2) ? username : reader.GetString(2),
+            reader.IsDBNull(3) ? null : reader.GetString(3), reader.GetBoolean(4));
+    }
+
     public async Task<IReadOnlyDictionary<string, IdentityUserProfile>> GetByIdsAsync(
         IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
     {

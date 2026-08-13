@@ -9,6 +9,8 @@ public sealed record IdentityUserProfile(
 
 public interface IIdentityUserProfileLookup
 {
+    Task<IdentityUserProfile?> GetByEmailAsync(string email, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IdentityUserProfile?>(null);
     Task<IdentityUserProfile?> GetByIdAsync(
         string userId,
         CancellationToken cancellationToken = default);
@@ -25,4 +27,13 @@ public interface IIdentityUserProfileLookup
         }
         return profiles;
     }
+}
+
+public sealed record ResolveOrCreateIdentityRequest(string FirstName, string LastName, string Email);
+public sealed record ResolveOrCreateIdentityResult(IdentityUserProfile Profile, bool Created);
+
+public interface IIdentityUserAdministration
+{
+    Task<ResolveOrCreateIdentityResult> ResolveOrCreateAsync(
+        ResolveOrCreateIdentityRequest request, CancellationToken cancellationToken = default);
 }

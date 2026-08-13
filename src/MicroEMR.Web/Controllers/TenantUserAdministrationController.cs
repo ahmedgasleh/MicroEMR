@@ -39,6 +39,73 @@ public sealed class TenantUserAdministrationController(
         return View(new TenantUserDetailsViewModel { User = user });
     }
 
+    [HttpGet]
+    public IActionResult Add() => View(new AddTenantUserViewModel
+    {
+        InitialRole = "Physician",
+        CanonicalRoles = TenantRoleCatalog.Allowed.OrderBy(x => x, StringComparer.Ordinal).ToArray()
+    });
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Add(AddTenantUserViewModel model, CancellationToken cancellationToken)
+    {
+        if (!TenantRoleCatalog.Allowed.Contains(model.InitialRole))
+            ModelState.AddModelError(nameof(model.InitialRole), "Select a valid initial role.");
+        if (!ModelState.IsValid)
+            return View(WithRoles());
+        try
+        {
+            var result = await client.AddUserAsync(model, cancellationToken);
+            TempData[result.ClinicalProvisioningFailed ? "WarningMessage" : "SuccessMessage"] = result.Message;
+            return RedirectToAction(nameof(Details), new { authUserId = result.User.AuthUserId });
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.Conflict)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(WithRoles());
+        }
+        catch (Exception ex) when (ex is HttpRequestException or UnauthorizedAccessException)
+        {
+            logger.LogError(ex, "Tenant user could not be added.");
+            ModelState.AddModelError(string.Empty, "The user could not be added. No duplicate submission is needed; check User Administration before retrying.");
+            return View(WithRoles());
+        }
+
+        AddTenantUserViewModel WithRoles() => new()
+        {
+            FirstName = model.FirstName, LastName = model.LastName, Email = model.Email,
+            InitialRole = model.InitialRole, ProvisionClinicalUser = model.ProvisionClinicalUser,
+            CanonicalRoles = TenantRoleCatalog.Allowed.OrderBy(x => x, StringComparer.Ordinal).ToArray()
+        };
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddFromModal(AddTenantUserViewModel model, CancellationToken cancellationToken)
+    {
+        if (!TenantRoleCatalog.Allowed.Contains(model.InitialRole))
+            ModelState.AddModelError(nameof(model.InitialRole), "Select a valid initial role.");
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(x => x.Errors)
+                .Select(x => x.ErrorMessage).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+            return BadRequest(new { success = false, message = errors.FirstOrDefault() ?? "Check the highlighted fields." });
+        }
+        try
+        {
+            var result = await client.AddUserAsync(model, cancellationToken);
+            return Json(new { success = true, result.Message, result.ClinicalProvisioningFailed });
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.Conflict)
+        { return StatusCode((int)ex.StatusCode.Value, new { success = false, message = ex.Message }); }
+        catch (Exception ex) when (ex is HttpRequestException or UnauthorizedAccessException)
+        {
+            logger.LogError(ex, "Tenant user could not be added from the modal.");
+            return StatusCode(502, new { success = false, message = "The user could not be added. Check the list before retrying." });
+        }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Deactivate(string authUserId, string rowVersion, CancellationToken cancellationToken) =>
