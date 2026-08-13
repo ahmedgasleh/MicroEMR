@@ -9,11 +9,14 @@ using MicroEMR.Application.Templates.Serialization;
 using MicroEMR.Application.Templates.Services;
 using System.Text.Json;
 using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.TemplatesUse)]
 [Route("api/document-templates")]
 public sealed class DocumentTemplatesController : ControllerBase
 {

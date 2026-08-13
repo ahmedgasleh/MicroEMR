@@ -71,6 +71,8 @@ builder.Services.AddAuthorization(options =>
             new TenantRoleRequirement(TenantRoleCatalog.ClinicAdministrator)));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();

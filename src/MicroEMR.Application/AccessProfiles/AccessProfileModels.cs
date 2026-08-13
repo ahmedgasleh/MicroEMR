@@ -8,6 +8,61 @@ public static class PermissionKeys
 {
     public const string PatientsView = "Patients.View";
     public const string PatientsEdit = "Patients.Edit";
+    public const string SchedulingView = "Scheduling.View";
+    public const string SchedulingManage = "Scheduling.Manage";
+    public const string EncountersView = "Encounters.View";
+    public const string EncountersEdit = "Encounters.Edit";
+    public const string EncountersSign = "Encounters.Sign";
+    public const string DocumentsView = "Documents.View";
+    public const string DocumentsManage = "Documents.Manage";
+    public const string TemplatesUse = "Templates.Use";
+    public const string TemplatesManage = "Templates.Manage";
+    public const string ClinicalDataManage = "ClinicalData.Manage";
+    public const string ReferralsView = "Referrals.View";
+    public const string ReferralsManage = "Referrals.Manage";
+    public const string ResultsView = "Results.View";
+    public const string ResultsReview = "Results.Review";
+    public const string TasksView = "Tasks.View";
+    public const string TasksManage = "Tasks.Manage";
+    public const string ReportsView = "Reports.View";
+    public const string ReportsExport = "Reports.Export";
+    public const string ClinicSettingsManage = "ClinicSettings.Manage";
+    public const string UsersView = "Users.View";
+    public const string UsersManage = "Users.Manage";
+    public const string UsersManageAccess = "Users.ManageAccess";
+}
+
+public interface ICurrentUserPermissionService
+{
+    Task<IReadOnlySet<string>> GetEffectivePermissionsAsync(CancellationToken token = default);
+    Task<bool> HasPermissionAsync(string permissionKey, CancellationToken token = default);
+}
+
+// Scoped lifetime makes the task a per-request cache. Profile changes are therefore
+// visible on the next request without putting tenant-specific access into OIDC claims.
+public sealed class CurrentUserPermissionService(
+    ITenantContext tenant,
+    IAccessProfileRepository repository,
+    TenantUserAdministration.IAuthenticatedSubjectAccessor actor) : ICurrentUserPermissionService
+{
+    private Task<IReadOnlySet<string>>? _effectivePermissions;
+
+    public Task<IReadOnlySet<string>> GetEffectivePermissionsAsync(CancellationToken token = default) =>
+        _effectivePermissions ??= LoadAsync(token);
+
+    public async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken token = default) =>
+        PermissionCatalog.IsKnown(permissionKey) &&
+        (await GetEffectivePermissionsAsync(token)).Contains(permissionKey);
+
+    private async Task<IReadOnlySet<string>> LoadAsync(CancellationToken token)
+    {
+        var effective = await repository.GetEffectiveAsync(
+            tenant.TenantUid, actor.GetRequiredSubject(), token);
+
+        return string.Equals(effective.MembershipStatus, "Active", StringComparison.Ordinal)
+            ? effective.PermissionKeys.ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+    }
 }
 
 public static class PermissionCatalog

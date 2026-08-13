@@ -7,11 +7,14 @@ using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.SchedulingView)]
 [Route("api/scheduling")]
 public sealed class SchedulingController : ControllerBase
 {
@@ -35,6 +38,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(ScheduleAppointmentListItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -105,6 +109,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("blocked-times")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     public async Task<ActionResult<SchedulingBlockedTimeResponse>> CreateBlockedTime(
         [FromBody] CreateSchedulingBlockedTimeRequest request,
         CancellationToken cancellationToken = default)
@@ -125,6 +130,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("blocked-times/{blockedTimeUid:guid}/cancel")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     public async Task<ActionResult<SchedulingBlockedTimeResponse>> CancelBlockedTime(
         Guid blockedTimeUid,
         CancellationToken cancellationToken = default)
@@ -213,6 +219,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/cancel")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(CancelScheduleAppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -241,6 +248,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/start-encounter")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(StartEncounterFromAppointmentResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -295,6 +303,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/status")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(UpdateAppointmentStatusResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -334,6 +343,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/arrive")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(UpdateAppointmentStatusResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -372,6 +382,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPut("appointments/{appointmentUid:guid}")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -415,6 +426,7 @@ public sealed class SchedulingController : ControllerBase
     }
 
     [HttpPost("appointments/{appointmentUid:guid}/reschedule")]
+    [RequirePermission(PermissionKeys.SchedulingManage)]
     [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

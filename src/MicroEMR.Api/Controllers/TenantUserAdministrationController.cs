@@ -3,20 +3,23 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.TenantUserAdministration;
 using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = TenantAuthorizationPolicies.ClinicAdministrator)]
+[Authorize]
 [Route("api/admin/users")]
 public sealed class TenantUserAdministrationController(ITenantUserAdministrationService service) : ControllerBase
 {
     [HttpGet]
+    [RequirePermission(PermissionKeys.UsersView)]
     public async Task<ActionResult<IReadOnlyList<TenantUserAdministrationItem>>> Get(
         CancellationToken cancellationToken) =>
         Ok(await service.GetTenantUsersAsync(cancellationToken));
 
     [HttpPost]
+    [RequirePermission(PermissionKeys.UsersManage)]
     public async Task<ActionResult<AddTenantUserResult>> AddUser(
         AddTenantUserRequest request, CancellationToken cancellationToken)
     {
@@ -33,6 +36,7 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
     }
 
     [HttpGet("{authUserId}")]
+    [RequirePermission(PermissionKeys.UsersView)]
     public async Task<ActionResult<TenantUserAdministrationItem>> GetUser(
         string authUserId, CancellationToken cancellationToken)
     {
@@ -41,21 +45,25 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
     }
 
     [HttpPost("{authUserId}/membership/deactivate")]
+    [RequirePermission(PermissionKeys.UsersManage)]
     public Task<ActionResult<TenantUserAdministrationItem>> Deactivate(
         string authUserId, MembershipRowVersionRequest request, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.DeactivateMembershipAsync(authUserId, request.RowVersion, cancellationToken));
 
     [HttpPost("{authUserId}/membership/activate")]
+    [RequirePermission(PermissionKeys.UsersManage)]
     public Task<ActionResult<TenantUserAdministrationItem>> Activate(
         string authUserId, MembershipRowVersionRequest request, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.ActivateMembershipAsync(authUserId, request.RowVersion, cancellationToken));
 
     [HttpPut("{authUserId}/roles")]
+    [RequirePermission(PermissionKeys.UsersManageAccess)]
     public Task<ActionResult<TenantUserAdministrationItem>> UpdateRoles(
         string authUserId, TenantRoleUpdateRequest request, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.UpdateTenantRolesAsync(authUserId, request.SelectedRoles ?? [], request.RowVersion, cancellationToken));
 
     [HttpPost("{authUserId}/clinical-user/provision")]
+    [RequirePermission(PermissionKeys.UsersManage)]
     public Task<ActionResult<TenantUserAdministrationItem>> ProvisionClinicalUser(
         string authUserId, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.ProvisionClinicalUserAsync(authUserId, cancellationToken));

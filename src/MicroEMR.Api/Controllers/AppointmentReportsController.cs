@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.Reporting;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = TenantAuthorizationPolicies.ClinicAdministrator)]
+[Authorize]
+[RequirePermission(PermissionKeys.ReportsView)]
 [Route("api/reports/appointments/status")]
 public sealed class AppointmentReportsController(IAppointmentStatusReportService service) : ControllerBase
 {
@@ -22,6 +24,7 @@ public sealed class AppointmentReportsController(IAppointmentStatusReportService
     }
 
     [HttpGet("csv")]
+    [RequirePermission(PermissionKeys.ReportsExport)]
     public async Task<IActionResult> Csv([FromQuery] DateOnly startDate, [FromQuery] DateOnly endDate,
         CancellationToken cancellationToken)
     {

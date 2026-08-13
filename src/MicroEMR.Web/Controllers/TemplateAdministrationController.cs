@@ -6,10 +6,12 @@ using MicroEMR.Application.Templates.Definitions;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Web.Models.TemplateAdministration;
 using MicroEMR.Web.Services.TemplateAdministration;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.TemplatesManage)]
 public sealed class TemplateAdministrationController(ITemplateAdministrationApiClient client,ILogger<TemplateAdministrationController> logger):Controller
 {
     private static readonly JsonSerializerOptions JsonOptions=new(JsonSerializerDefaults.Web);

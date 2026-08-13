@@ -5,10 +5,12 @@ using MicroEMR.Web.Authorization;
 using MicroEMR.Web.Models;
 using MicroEMR.Web.Models.ClinicConfiguration;
 using MicroEMR.Web.Services.ClinicConfiguration;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
-[Authorize(Policy = ClinicConfigurationAuthorization.Policy)]
+[Authorize]
+[RequireWebPermission(PermissionKeys.ClinicSettingsManage)]
 public sealed class ClinicConfigurationController(
     IClinicConfigurationApiClient client,
     ILogger<ClinicConfigurationController> logger) : Controller

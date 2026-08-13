@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
+using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientDocuments;
 using MicroEMR.Application.Templates;
 using MicroEMR.Application.Templates.Contracts;
@@ -10,6 +11,7 @@ using MicroEMR.Application.ClinicalUsers;
 namespace MicroEMR.Api.Controllers;
 
 [ApiController,Authorize,Route("api/document-templates/administration")]
+[RequirePermission(PermissionKeys.TemplatesManage)]
 public sealed class TemplateAdministrationController(
     ITemplateAdministrationService service, IAuthorizationService authorization,
     IAuthenticatedClinicalUserAccessor clinicalUsers) : ControllerBase

@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
@@ -10,6 +12,7 @@ namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.EncountersView)]
 public sealed class PatientEncountersController : ControllerBase
 {
     private readonly IPatientEncounterService _encounterService;
@@ -141,6 +144,7 @@ public sealed class PatientEncountersController : ControllerBase
 
     [Authorize]
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     public async Task<ActionResult<PatientEncounterAddendumResponse>> CreateEncounterAddendum(
         Guid patientUid,
         Guid encounterUid,
@@ -174,6 +178,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/encounters")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -254,6 +259,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/note")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -295,6 +301,7 @@ public sealed class PatientEncountersController : ControllerBase
 
     [Authorize]
     [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/soap-note")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -330,6 +337,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPost("api/patient-encounters/{encounterUid:guid}/pdf-preview")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     [Produces("application/pdf")]
     public async Task<IActionResult> PreviewPdf(Guid encounterUid, [FromBody] TemplatePreviewRequest request,
         CancellationToken cancellationToken)
@@ -357,6 +365,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPut("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/structured-data")]
+    [RequirePermission(PermissionKeys.EncountersEdit)]
     public async Task<ActionResult<PatientEncounterDetailsResponse>> UpdateStructuredData(
         Guid patientUid, Guid encounterUid, [FromBody] UpdateEncounterStructuredDataRequest request,
         CancellationToken cancellationToken)
@@ -380,6 +389,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/sign")]
+    [RequirePermission(PermissionKeys.EncountersSign)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

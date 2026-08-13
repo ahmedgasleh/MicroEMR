@@ -5,10 +5,12 @@ using MicroEMR.Web.Models;
 using MicroEMR.Web.Models.TenantUserAdministration;
 using MicroEMR.Web.Services.TenantUserAdministration;
 using MicroEMR.Application.PlatformAdministration;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
-[Authorize(Policy = ClinicConfigurationAuthorization.Policy)]
+[Authorize]
+[RequireWebPermission(PermissionKeys.UsersView)]
 public sealed class TenantUserAdministrationController(
     ITenantUserAdministrationApiClient client,
     IAccessProfileApiClient accessProfiles,

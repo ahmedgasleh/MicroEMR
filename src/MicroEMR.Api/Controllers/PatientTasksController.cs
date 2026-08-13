@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Application.PatientTasks;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController, Authorize, Route("api/patients/{patientUid:guid}/tasks")]
+[RequirePermission(PermissionKeys.TasksView)]
 public sealed class PatientTasksController : ControllerBase
 {
     private static readonly HashSet<string> Statuses = new(["Open", "Completed", "All"], StringComparer.OrdinalIgnoreCase);
@@ -27,15 +30,19 @@ public sealed class PatientTasksController : ControllerBase
         patientUid == Guid.Empty || patientTaskUid == Guid.Empty ? BadRequest() :
         await _repository.GetByUidAsync(patientUid, patientTaskUid, cancellationToken) is { } item ? Ok(item) : NotFound();
     [HttpPost]
+    [RequirePermission(PermissionKeys.TasksManage)]
     public Task<IActionResult> Create(Guid patientUid, CreatePatientTaskRequest request, CancellationToken cancellationToken) =>
         Mutate(patientUid, request, () => _repository.CreateAsync(patientUid, request, UserId(), cancellationToken), true);
     [HttpPut("{patientTaskUid:guid}")]
+    [RequirePermission(PermissionKeys.TasksManage)]
     public Task<IActionResult> Update(Guid patientUid, Guid patientTaskUid, UpdatePatientTaskRequest request, CancellationToken cancellationToken) =>
         Mutate(patientUid, request, () => _repository.UpdateAsync(patientUid, patientTaskUid, request, UserId(), cancellationToken));
     [HttpPost("{patientTaskUid:guid}/complete")]
+    [RequirePermission(PermissionKeys.TasksManage)]
     public Task<IActionResult> Complete(Guid patientUid, Guid patientTaskUid, CompletePatientTaskRequest request, CancellationToken cancellationToken) =>
         Mutate(patientUid, request, () => _repository.CompleteAsync(patientUid, patientTaskUid, request, UserId(), cancellationToken));
     [HttpPost("{patientTaskUid:guid}/reopen")]
+    [RequirePermission(PermissionKeys.TasksManage)]
     public Task<IActionResult> Reopen(Guid patientUid, Guid patientTaskUid, CancellationToken cancellationToken) =>
         Mutate(patientUid, null, () => _repository.ReopenAsync(patientUid, patientTaskUid, UserId(), cancellationToken));
 
@@ -62,6 +69,7 @@ public sealed class PatientTasksController : ControllerBase
 }
 
 [ApiController, Authorize, Route("api/patient-tasks")]
+[RequirePermission(PermissionKeys.TasksView)]
 public sealed class PatientTaskDashboardController : ControllerBase
 {
     private readonly IPatientTaskRepository _repository;

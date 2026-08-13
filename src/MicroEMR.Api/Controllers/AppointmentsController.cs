@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.Scheduling.DTOs;
 using MicroEMR.Application.Scheduling.Services;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
+[Authorize, RequirePermission(PermissionKeys.SchedulingManage)]
 [Route("api/[controller]")]
 public class AppointmentsController : ControllerBase
 {
