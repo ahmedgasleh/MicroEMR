@@ -5,7 +5,7 @@ using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
-[ApiController,Authorize(Policy=TenantAuthorizationPolicies.ClinicAdministrator),Route("api/admin/access-profiles")]
+[ApiController,Authorize,RequirePermission(PermissionKeys.UsersManageAccess),Route("api/admin/access-profiles")]
 public sealed class AccessProfilesController(IAccessProfileService service):ControllerBase
 {
     [HttpGet("permissions")] public ActionResult<IReadOnlyList<BusinessPermission>> Permissions()=>Ok(PermissionCatalog.All);
@@ -16,6 +16,14 @@ public sealed class AccessProfilesController(IAccessProfileService service):Cont
     [HttpPut("users/{authUserId}")] public async Task<IActionResult> Assign(string authUserId,AssignUserAccessProfileRequest request,CancellationToken token)
     {try{await service.AssignAsync(authUserId,request.AccessProfileUid,request.RowVersion,token);return NoContent();}catch(FormatException){return BadRequest(new{message="Invalid row version."});}catch(KeyNotFoundException){return NotFound();}catch(InvalidOperationException ex){return Conflict(new{message=ex.Message});}}
     [HttpGet("users/{authUserId}/effective")] public async Task<ActionResult<IReadOnlyCollection<string>>> Effective(string authUserId,CancellationToken token)=>Ok(await service.GetEffectivePermissionsAsync(authUserId,token));
+}
+
+[ApiController, Authorize, Route("api/permissions/me")]
+public sealed class EffectivePermissionsController(ICurrentUserPermissionService permissions) : ControllerBase
+{
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlySet<string>>> Get(CancellationToken token) =>
+        Ok(await permissions.GetEffectivePermissionsAsync(token));
 }
 public sealed record UpdateAccessProfilePermissionsRequest(IReadOnlyCollection<string>? PermissionKeys,string RowVersion);
 public sealed record AssignUserAccessProfileRequest(Guid AccessProfileUid,string RowVersion);

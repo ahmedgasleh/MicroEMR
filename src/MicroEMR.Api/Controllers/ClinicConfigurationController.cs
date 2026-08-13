@@ -2,11 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.ClinicConfiguration;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = TenantAuthorizationPolicies.ClinicAdministrator)]
+[Authorize]
+[RequirePermission(PermissionKeys.ClinicSettingsManage)]
 [Route("api/clinic-configuration")]
 public sealed class ClinicConfigurationController(
     IClinicConfigurationService service,

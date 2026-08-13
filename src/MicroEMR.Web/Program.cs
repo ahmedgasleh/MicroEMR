@@ -29,6 +29,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IWebPermissionService, WebPermissionService>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, WebPermissionHandler>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, WebPermissionPolicyProvider>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICurrentPatientContext, CurrentPatientContext>();
 

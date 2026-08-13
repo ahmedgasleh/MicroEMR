@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 using Microsoft.AspNetCore.Mvc;
 
 using MicroEMR.Application.PatientDocuments.Contracts;
@@ -13,6 +15,7 @@ namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.DocumentsView)]
 public sealed class PatientDocumentsController : ControllerBase
 {
     private readonly IPatientDocumentService _documentService;
@@ -33,6 +36,7 @@ public sealed class PatientDocumentsController : ControllerBase
     }
 
     [HttpPost("api/patient-documents/{documentUid:guid}/pdf-preview")]
+    [RequirePermission(PermissionKeys.DocumentsManage)]
     [Produces("application/pdf")]
     public async Task<IActionResult> PreviewPdf(Guid documentUid, [FromBody] TemplatePreviewRequest request,
         CancellationToken cancellationToken)
@@ -103,6 +107,7 @@ public sealed class PatientDocumentsController : ControllerBase
     }
 
     [HttpPut("api/patient-documents/{documentUid:guid}/draft")]
+    [RequirePermission(PermissionKeys.DocumentsManage)]
     [ProducesResponseType<PatientDocumentDetailsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -158,6 +163,7 @@ public sealed class PatientDocumentsController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/documents")]
+    [RequirePermission(PermissionKeys.DocumentsManage)]
     [ProducesResponseType<PatientDocumentDetailsResponse>(
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

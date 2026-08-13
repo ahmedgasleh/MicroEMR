@@ -2,11 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Application.PatientReferrals;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.ReferralsView)]
 [Route("api/patients/{patientUid:guid}/referrals")]
 public sealed class PatientReferralsController(
     IPatientReferralService service,
@@ -53,6 +56,7 @@ public sealed class PatientReferralsController(
     }
 
     [HttpPost]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
     [ProducesResponseType<PatientReferralDetailsResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -104,18 +108,21 @@ public sealed class PatientReferralsController(
     }
 
     [HttpPost("{referralUid:guid}/send")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<ActionResult<PatientReferralDetailsResponse>> MarkSent(
         Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
         CancellationToken cancellationToken = default) =>
         TransitionAsync(patientUid, referralUid, request, service.MarkSentAsync, cancellationToken);
 
     [HttpPost("{referralUid:guid}/response-received")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<ActionResult<PatientReferralDetailsResponse>> MarkResponseReceived(
         Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
         CancellationToken cancellationToken = default) =>
         TransitionAsync(patientUid, referralUid, request, service.MarkResponseReceivedAsync, cancellationToken);
 
     [HttpPost("{referralUid:guid}/close")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<ActionResult<PatientReferralDetailsResponse>> Close(
         Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
         CancellationToken cancellationToken = default) =>

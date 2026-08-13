@@ -5,10 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Services.Patients;
 using System.Net;
 using System.Globalization;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers.Scheduling;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.SchedulingView)]
 [Route("Scheduling")]
 public sealed class SchedulingController : Controller
 {

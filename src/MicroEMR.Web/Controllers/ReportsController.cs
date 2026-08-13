@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Web.Models.Reporting;
 using MicroEMR.Web.Services.Reporting;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
-[Authorize(Policy = ClinicConfigurationAuthorization.Policy)]
+[Authorize]
+[RequireWebPermission(PermissionKeys.ReportsView)]
 public sealed class ReportsController(IAppointmentStatusReportApiClient client, ILogger<ReportsController> logger) : Controller
 {
     [HttpGet]
@@ -26,6 +28,7 @@ public sealed class ReportsController(IAppointmentStatusReportApiClient client, 
     }
 
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.ReportsExport)]
     public async Task<IActionResult> AppointmentStatusCsv(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
     {
         if (endDate < startDate || endDate.DayNumber - startDate.DayNumber > 365) return BadRequest();

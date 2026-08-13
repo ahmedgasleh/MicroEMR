@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;using Microsoft.AspNetCore.Mvc;using MicroEMR.Web.Authorization;using MicroEMR.Web.Services.TenantUserAdministration;
 namespace MicroEMR.Web.Controllers;
-[Authorize(Policy=ClinicConfigurationAuthorization.Policy)] public sealed class AccessProfilesController(IAccessProfileApiClient client):Controller
+[Authorize, RequireWebPermission(MicroEMR.Application.AccessProfiles.PermissionKeys.UsersManageAccess)] public sealed class AccessProfilesController(IAccessProfileApiClient client):Controller
 {
  [HttpGet]public async Task<IActionResult> Index(CancellationToken t)=>View(await client.ListAsync(t));
  [HttpGet]public async Task<IActionResult> Details(Guid uid,CancellationToken t){var p=await client.GetAsync(uid,t);return p is null?NotFound():View(new AccessProfileDetailsViewModel(p,await client.PermissionsAsync(t)));}

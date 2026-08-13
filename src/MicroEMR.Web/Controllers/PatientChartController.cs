@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Services.Patients;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.PatientsView)]
 public sealed class PatientChartController : Controller
 {
     private readonly ICurrentPatientContext _currentPatientContext;
