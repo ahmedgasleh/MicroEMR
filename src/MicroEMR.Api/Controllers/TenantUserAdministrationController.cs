@@ -16,6 +16,14 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         CancellationToken cancellationToken) =>
         Ok(await service.GetTenantUsersAsync(cancellationToken));
 
+    [HttpGet("{authUserId}")]
+    public async Task<ActionResult<TenantUserAdministrationItem>> GetUser(
+        string authUserId, CancellationToken cancellationToken)
+    {
+        var user = await service.GetTenantUserAsync(authUserId, cancellationToken);
+        return user is null ? NotFound() : Ok(user);
+    }
+
     [HttpPost("{authUserId}/membership/deactivate")]
     public Task<ActionResult<TenantUserAdministrationItem>> Deactivate(
         string authUserId, MembershipRowVersionRequest request, CancellationToken cancellationToken) =>

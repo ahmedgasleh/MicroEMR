@@ -31,6 +31,14 @@ public sealed class TenantUserAdministrationController(
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Details(string authUserId, CancellationToken cancellationToken)
+    {
+        var user = await client.GetUserAsync(authUserId, cancellationToken);
+        if (user is null) return NotFound();
+        return View(new TenantUserDetailsViewModel { User = user });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> Deactivate(string authUserId, string rowVersion, CancellationToken cancellationToken) =>
