@@ -11,6 +11,8 @@ using System.Security.Cryptography.Xml;
 using MicroEMR.Application.Patients.Contracts;
 using MicroEMR.Application.Patients.Exceptions;
 using MicroEMR.Application.Patients.Services;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -21,13 +23,19 @@ public sealed class PatientsController : ControllerBase
 {
     private readonly IPatientService _patientService;
     private readonly ILogger<PatientsController> _logger;
+    private readonly IAccessProfileService _permissions;
+    private readonly IAuthenticatedSubjectAccessor _subject;
 
     public PatientsController (
         IPatientService patientService,
-        ILogger<PatientsController> logger )
+        ILogger<PatientsController> logger,
+        IAccessProfileService permissions,
+        IAuthenticatedSubjectAccessor subject )
     {
         _patientService = patientService;
         _logger = logger;
+        _permissions = permissions;
+        _subject = subject;
     }
 
     [HttpGet]
@@ -43,6 +51,7 @@ public sealed class PatientsController : ControllerBase
         [FromQuery] bool includeInactive = false,
         CancellationToken cancellationToken = default )
     {
+        if (!await HasPermissionAsync(PermissionKeys.PatientsView, cancellationToken)) return Forbid();
         var result =
             await _patientService.SearchAsync(
                 searchText,
@@ -65,6 +74,7 @@ public sealed class PatientsController : ControllerBase
         Guid patientUid,
         CancellationToken cancellationToken = default )
     {
+        if (!await HasPermissionAsync(PermissionKeys.PatientsView, cancellationToken)) return Forbid();
         var patient =
             await _patientService.GetByUidAsync(
                 patientUid,
@@ -92,6 +102,7 @@ public sealed class PatientsController : ControllerBase
         [FromBody] CreatePatientRequest request,
         CancellationToken cancellationToken = default )
     {
+        if (!await HasPermissionAsync(PermissionKeys.PatientsEdit, cancellationToken)) return Forbid();
         var patient =
             await _patientService.CreateAsync(
                 request,
@@ -121,6 +132,7 @@ public sealed class PatientsController : ControllerBase
             [FromBody] UpdatePatientDemographicsRequest request,
             CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(PermissionKeys.PatientsEdit, cancellationToken)) return Forbid();
         if (patientUid == Guid.Empty)
         {
             return BadRequest();
@@ -175,4 +187,7 @@ public sealed class PatientsController : ControllerBase
 
     private long GetAuthenticatedUserId() =>
         ClinicalUserActorContext.GetRequired(HttpContext);
+
+    private Task<bool> HasPermissionAsync(string permission, CancellationToken cancellationToken) =>
+        _permissions.HasPermissionAsync(_subject.GetRequiredSubject(), permission, cancellationToken);
 }

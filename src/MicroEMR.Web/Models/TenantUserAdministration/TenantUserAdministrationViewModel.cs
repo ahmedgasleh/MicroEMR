@@ -17,6 +17,8 @@ public sealed class TenantUserAdministrationItemViewModel
     public DateTimeOffset? MembershipUpdatedAt { get; set; }
     public string RowVersion { get; set; } = string.Empty;
     public bool IsCurrentUser { get; set; }
+    public Guid? AccessProfileUid { get; set; }
+    public string? AccessProfileName { get; set; }
 }
 
 public sealed class TenantUserAdministrationViewModel
@@ -28,6 +30,7 @@ public sealed class TenantUserAdministrationViewModel
 public sealed class TenantUserDetailsViewModel
 {
     public required TenantUserAdministrationItemViewModel User { get; init; }
+    public IReadOnlyList<MicroEMR.Application.AccessProfiles.AccessProfileSummary> AccessProfiles { get; init; } = [];
 }
 
 public sealed class AddTenantUserViewModel

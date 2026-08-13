@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Application.PlatformAdministration;
 using MicroEMR.Application.Tenancy;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Application.TenantUserAdministration;
 
@@ -18,7 +19,9 @@ public sealed record TenantUserAdministrationItem(
     bool? ClinicalUserActive,
     DateTimeOffset? MembershipUpdatedAt,
     string RowVersion,
-    bool IsCurrentUser);
+    bool IsCurrentUser,
+    Guid? AccessProfileUid = null,
+    string? AccessProfileName = null);
 
 public interface ITenantUserAdministrationService
 {
@@ -55,15 +58,25 @@ public sealed class TenantUserAdministrationService(
     IAuthenticatedSubjectAccessor subjectAccessor,
     IIdentityUserAdministration identityAdministration,
     ITenantUserCreationRepository userCreation,
+    IAccessProfileRepository accessProfiles,
     ILogger<TenantUserAdministrationService> logger) : ITenantUserAdministrationService
 {
     public TenantUserAdministrationService(ITenantContext tenantContext,
         IPlatformMembershipAdministrationService memberships, IIdentityUserProfileLookup identityUsers,
         IClinicalUserRepository clinicalUsers, ITenantMembershipLifecycleRepository lifecycle,
         ITenantRoleManagementRepository roleManagement, IAuthenticatedSubjectAccessor subjectAccessor,
+        IIdentityUserAdministration identityAdministration,ITenantUserCreationRepository userCreation,
+        ILogger<TenantUserAdministrationService> logger)
+        : this(tenantContext,memberships,identityUsers,clinicalUsers,lifecycle,roleManagement,subjectAccessor,
+            identityAdministration,userCreation,new UnsupportedAccessProfiles(),logger) { }
+
+    public TenantUserAdministrationService(ITenantContext tenantContext,
+        IPlatformMembershipAdministrationService memberships, IIdentityUserProfileLookup identityUsers,
+        IClinicalUserRepository clinicalUsers, ITenantMembershipLifecycleRepository lifecycle,
+        ITenantRoleManagementRepository roleManagement, IAuthenticatedSubjectAccessor subjectAccessor,
         ILogger<TenantUserAdministrationService> logger)
         : this(tenantContext, memberships, identityUsers, clinicalUsers, lifecycle, roleManagement, subjectAccessor,
-            new UnsupportedIdentityAdministration(), new UnsupportedUserCreationRepository(), logger) { }
+            new UnsupportedIdentityAdministration(), new UnsupportedUserCreationRepository(), new UnsupportedAccessProfiles(), logger) { }
 
     public async Task<AddTenantUserResult> AddTenantUserAsync(AddTenantUserRequest request,
         CancellationToken cancellationToken = default)
@@ -125,6 +138,15 @@ public sealed class TenantUserAdministrationService(
         public Task CreateAsync(string authUserId, Guid tenantUid, string initialRole, string actorAuthUserId,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
+    private sealed class UnsupportedAccessProfiles : IAccessProfileRepository
+    {
+        public Task<IReadOnlyList<AccessProfileSummary>> ListAsync(Guid t,CancellationToken c=default)=>Task.FromResult<IReadOnlyList<AccessProfileSummary>>([]);
+        public Task<AccessProfileDetails?> GetAsync(Guid t,Guid p,CancellationToken c=default)=>Task.FromResult<AccessProfileDetails?>(null);
+        public Task<IReadOnlyDictionary<string,UserAccessProfile>> GetAssignmentsAsync(Guid t,IReadOnlyCollection<string> u,CancellationToken c=default)=>Task.FromResult<IReadOnlyDictionary<string,UserAccessProfile>>(new Dictionary<string,UserAccessProfile>());
+        public Task UpdatePermissionsAsync(Guid t,Guid p,IReadOnlyCollection<string> k,string v,string a,CancellationToken c=default)=>throw new NotSupportedException();
+        public Task AssignAsync(Guid t,string u,Guid p,string v,string a,CancellationToken c=default)=>throw new NotSupportedException();
+        public Task<(string MembershipStatus,IReadOnlyCollection<string> PermissionKeys)> GetEffectiveAsync(Guid t,string u,CancellationToken c=default)=>Task.FromResult<(string,IReadOnlyCollection<string>)>(("Missing",[]));
+    }
     public async Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
         CancellationToken cancellationToken = default)
     {
@@ -134,6 +156,7 @@ public sealed class TenantUserAdministrationService(
         var userIds = tenantMemberships.Select(x => x.UserId).Distinct(StringComparer.Ordinal).ToArray();
         var identities = await identityUsers.GetByIdsAsync(userIds, cancellationToken);
         var clinicalUsersBySubject = await clinicalUsers.GetByAuthSubjectIdsAsync(userIds, cancellationToken);
+        var profileAssignments = await accessProfiles.GetAssignmentsAsync(tenantContext.TenantUid,userIds,cancellationToken);
         var results = new List<TenantUserAdministrationItem>(tenantMemberships.Count);
 
         foreach (var membership in tenantMemberships)
@@ -155,7 +178,9 @@ public sealed class TenantUserAdministrationService(
                 clinical?.IsActive,
                 membership.UpdatedAt,
                 membership.RowVersion ?? throw new InvalidDataException("Membership concurrency metadata is unavailable."),
-                string.Equals(identity.UserId, actorSubject, StringComparison.Ordinal)));
+                string.Equals(identity.UserId, actorSubject, StringComparison.Ordinal),
+                profileAssignments.GetValueOrDefault(identity.UserId)?.AccessProfileUid,
+                profileAssignments.GetValueOrDefault(identity.UserId)?.AccessProfileName));
         }
 
         logger.LogInformation("Tenant user administration list loaded for tenant {TenantUid}; count {UserCount}.",

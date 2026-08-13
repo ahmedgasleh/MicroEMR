@@ -25,6 +25,9 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 6. `006_platform_administration.sql`
 7. `007_membership_activation_lifecycle.sql`
 8. `008_tenant_role_management.sql`
+9. `009_tenant_user_creation.sql`
+10. `010_access_profiles.sql`
+11. `011_access_profile_assignment_nonclustered_key.sql`
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one
@@ -34,6 +37,14 @@ run platform schema changes at startup.
 Scripts 007 and 008 add tenant-admin membership activation and canonical tenant
 role replacement with RowVersion concurrency, audit logging, and last-active-
 administrator protection. Apply them explicitly in sequence.
+
+Script 010 adds tenant-scoped Access Profiles, built-in profile permission sets,
+role-compatible assignment backfill, effective-permission procedures, audit, and
+optimistic concurrency. Apply it after 009; applications do not apply it at startup.
+
+Script 011 converts the access-profile assignment composite primary key to a
+nonclustered key, avoiding SQL Server's 900-byte clustered-index key limit for
+the `NVARCHAR(450)` Auth user identifier. Apply it after 010.
 
 If the platform tables were created before the membership primary keys were
 changed to nonclustered indexes, run `004_make_membership_keys_nonclustered.sql`
