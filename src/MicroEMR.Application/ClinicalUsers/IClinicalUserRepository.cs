@@ -6,6 +6,19 @@ public interface IClinicalUserRepository
         string authSubjectId,
         CancellationToken cancellationToken = default);
 
+    async Task<IReadOnlyDictionary<string, ClinicalUser>> GetByAuthSubjectIdsAsync(
+        IReadOnlyCollection<string> authSubjectIds,
+        CancellationToken cancellationToken = default)
+    {
+        var users = new Dictionary<string, ClinicalUser>(StringComparer.Ordinal);
+        foreach (var subject in authSubjectIds.Distinct(StringComparer.Ordinal))
+        {
+            var user = await GetByAuthSubjectIdAsync(subject, cancellationToken);
+            if (user is not null) users[user.AuthSubjectId] = user;
+        }
+        return users;
+    }
+
     Task<ClinicalUser> SetAuthSubjectIdAsync(
         long userId,
         string authSubjectId,

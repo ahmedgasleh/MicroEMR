@@ -22,3 +22,8 @@ public sealed class TenantUserAdministrationViewModel
     public IReadOnlyList<TenantUserAdministrationItemViewModel> Users { get; init; } = [];
     public IReadOnlyCollection<string> CanonicalRoles { get; init; } = [];
 }
+
+public sealed class TenantUserDetailsViewModel
+{
+    public required TenantUserAdministrationItemViewModel User { get; init; }
+}

@@ -24,6 +24,10 @@ public interface ITenantUserAdministrationService
 {
     Task<IReadOnlyList<TenantUserAdministrationItem>> GetTenantUsersAsync(
         CancellationToken cancellationToken = default);
+    async Task<TenantUserAdministrationItem?> GetTenantUserAsync(string authUserId,
+        CancellationToken cancellationToken = default) =>
+        (await GetTenantUsersAsync(cancellationToken)).SingleOrDefault(x =>
+            string.Equals(x.AuthUserId, authUserId, StringComparison.Ordinal));
     Task<TenantUserAdministrationItem> DeactivateMembershipAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItem> ActivateMembershipAsync(string authUserId, string rowVersion,
@@ -50,13 +54,16 @@ public sealed class TenantUserAdministrationService(
         var actorSubject = subjectAccessor.GetRequiredSubject();
         var tenantMemberships = await memberships.GetTenantMembershipsAsync(
             tenantContext.TenantUid, cancellationToken);
+        var userIds = tenantMemberships.Select(x => x.UserId).Distinct(StringComparer.Ordinal).ToArray();
+        var identities = await identityUsers.GetByIdsAsync(userIds, cancellationToken);
+        var clinicalUsersBySubject = await clinicalUsers.GetByAuthSubjectIdsAsync(userIds, cancellationToken);
         var results = new List<TenantUserAdministrationItem>(tenantMemberships.Count);
 
         foreach (var membership in tenantMemberships)
         {
-            var identity = await identityUsers.GetByIdAsync(membership.UserId, cancellationToken)
+            var identity = identities.GetValueOrDefault(membership.UserId)
                 ?? throw new InvalidDataException("A tenant membership references an unavailable Auth identity.");
-            var clinical = await clinicalUsers.GetByAuthSubjectIdAsync(identity.UserId, cancellationToken);
+            var clinical = clinicalUsersBySubject.GetValueOrDefault(identity.UserId);
 
             results.Add(new TenantUserAdministrationItem(
                 identity.UserId,
@@ -78,6 +85,14 @@ public sealed class TenantUserAdministrationService(
             tenantContext.TenantUid, results.Count);
         return results.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.UserName, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    public async Task<TenantUserAdministrationItem?> GetTenantUserAsync(string authUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);
+        return (await GetTenantUsersAsync(cancellationToken)).SingleOrDefault(x =>
+            string.Equals(x.AuthUserId, authUserId, StringComparison.Ordinal));
     }
 
     public Task<TenantUserAdministrationItem> DeactivateMembershipAsync(string authUserId, string rowVersion,

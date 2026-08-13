@@ -1,0 +1,29 @@
+@model MicroEMR.Web.Models.TenantUserAdministration.TenantUserDetailsViewModel
+@{
+    ViewData["Title"] = "User Details";
+    ViewData["Subtitle"] = "Tenant membership and clinical identity summary.";
+    Layout = "_AppLayout";
+    var user = Model.User;
+}
+<div class="content-panel">
+    <div class="content-panel-header d-flex justify-content-between align-items-start gap-3">
+        <div><a asp-action="Index" class="small text-decoration-none">&larr; User Administration</a>
+            <h1 class="h3 mt-2 mb-1">@user.DisplayName</h1><p class="text-muted mb-0">@(user.Email ?? user.UserName)</p></div>
+        <span class="badge @(user.MembershipStatus == "Active" ? "text-bg-success" : "text-bg-secondary") fs-6">@user.MembershipStatus</span>
+    </div>
+    <div class="row g-4 mt-2">
+        <section class="col-md-6"><h2 class="h5">Identity</h2><dl class="row mb-0">
+            <dt class="col-sm-4">Display name</dt><dd class="col-sm-8">@user.DisplayName</dd>
+            <dt class="col-sm-4">Email</dt><dd class="col-sm-8">@(user.Email ?? "Not available")</dd>
+            <dt class="col-sm-4">Username</dt><dd class="col-sm-8">@user.UserName</dd>
+            <dt class="col-sm-4">Auth account</dt><dd class="col-sm-8">@(user.AuthUserActive ? "Active" : "Inactive")</dd>
+        </dl></section>
+        <section class="col-md-6"><h2 class="h5">Clinic access</h2><dl class="row mb-0">
+            <dt class="col-sm-5">Membership</dt><dd class="col-sm-7">@user.MembershipStatus</dd>
+            <dt class="col-sm-5">Tenant roles</dt><dd class="col-sm-7">@(user.TenantRoles.Count == 0 ? "No role assigned" : string.Join(", ", user.TenantRoles))</dd>
+            <dt class="col-sm-5">Clinical user</dt><dd class="col-sm-7">@(user.ClinicalUserProvisioned ? (user.ClinicalUserActive == false ? "Provisioned, inactive" : "Provisioned") : "Not provisioned")</dd>
+            @if (user.ClinicalUserId.HasValue) { <dt class="col-sm-5">Clinical user ID</dt><dd class="col-sm-7">@user.ClinicalUserId</dd> }
+        </dl></section>
+    </div>
+    <div class="border-top mt-4 pt-3"><a asp-action="Index" class="btn btn-primary">Manage membership and roles</a></div>
+</div>

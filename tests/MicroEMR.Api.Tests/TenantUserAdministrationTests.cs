@@ -62,6 +62,34 @@ public sealed class TenantUserAdministrationTests
     }
 
     [Fact]
+    public async Task DetailsReturnSelectedCurrentTenantUserWithRolesAndClinicalMapping()
+    {
+        var service = Service(
+            [Membership("auth-1", TenantA, "Active", "ClinicAdministrator"),
+             Membership("auth-2", TenantA, "Inactive", "Nurse")],
+            [Profile("auth-1", "admin", "Admin"), Profile("auth-2", "nurse", "Nurse User")],
+            [new ClinicalUser(42, Guid.NewGuid(), "nurse", "Nurse User", true, "auth-2")]);
+
+        var user = await service.GetTenantUserAsync("auth-2");
+
+        Assert.NotNull(user);
+        Assert.Equal("Inactive", user.MembershipStatus);
+        Assert.Equal(["Nurse"], user.TenantRoles);
+        Assert.Equal(42, user.ClinicalUserId);
+    }
+
+    [Fact]
+    public async Task DetailsDoNotReturnUserOutsideCurrentTenant()
+    {
+        var service = Service(
+            [Membership("tenant-b-user", TenantB, "Active", "ClinicAdministrator")],
+            [Profile("tenant-b-user", "other", "Other")], []);
+
+        Assert.Null(await service.GetTenantUserAsync("tenant-b-user"));
+        Assert.Null(await service.GetTenantUserAsync("missing"));
+    }
+
+    [Fact]
     public async Task ProvisioningNeverFallsBackToMatchingUsernameOrEmail()
     {
         var service = Service(

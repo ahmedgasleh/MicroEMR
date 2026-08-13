@@ -31,13 +31,13 @@
                 <caption class="visually-hidden">Users assigned to the active clinic</caption>
                 <thead>
                     <tr>
-                        <th scope="col">Name / Username</th>
+                        <th scope="col">User</th>
                         <th scope="col">Email</th>
-                        <th scope="col">Membership</th>
-                        <th scope="col">Tenant Roles</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Roles</th>
                         <th scope="col">Clinical User</th>
                         <th scope="col">Clinical User ID</th>
-                        <th scope="col" class="text-end">Action</th>
+                        <th scope="col" class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,7 +57,7 @@
                             <td data-tenant-roles>
                                 @if (user.TenantRoles.Count == 0)
                                 {
-                                    <span class="text-muted">No roles</span>
+                                    <span class="text-muted">No role assigned</span>
                                 }
                                 else
                                 {
@@ -83,6 +83,8 @@
                             </td>
                             <td data-clinical-user-id>@(user.ClinicalUserId?.ToString() ?? "—")</td>
                             <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary me-1" asp-action="Details"
+                                   asp-route-authUserId="@user.AuthUserId">View details</a>
                                 @if (!user.ClinicalUserProvisioned && user.MembershipStatus == "Active")
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-success me-1"

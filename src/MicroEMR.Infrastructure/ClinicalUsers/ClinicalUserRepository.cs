@@ -25,6 +25,33 @@ public sealed class ClinicalUserRepository(
         return result;
     }
 
+    public async Task<IReadOnlyDictionary<string, ClinicalUser>> GetByAuthSubjectIdsAsync(
+        IReadOnlyCollection<string> authSubjectIds, CancellationToken cancellationToken = default)
+    {
+        var subjects = authSubjectIds.Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal).ToArray();
+        if (subjects.Length == 0) return new Dictionary<string, ClinicalUser>(StringComparer.Ordinal);
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        var names = new string[subjects.Length];
+        for (var index = 0; index < subjects.Length; index++)
+        {
+            names[index] = $"@AuthSubjectId{index}";
+            command.Parameters.Add(names[index], SqlDbType.NVarChar, 450).Value = subjects[index];
+        }
+        command.CommandText = $"SELECT UserId, UserUid, Username, DisplayName, IsActive, AuthSubjectId FROM dbo.ApplicationUser WHERE AuthSubjectId IN ({string.Join(',', names)});";
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new Dictionary<string, ClinicalUser>(StringComparer.Ordinal);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var user = Map(reader);
+            if (!results.TryAdd(user.AuthSubjectId, user))
+                throw new ClinicalUserProvisioningConflictException(
+                    "Multiple clinical identities have the same Auth subject. Manual resolution is required.");
+        }
+        return results;
+    }
+
     public async Task<ClinicalUser> SetAuthSubjectIdAsync(
         long userId,
         string authSubjectId,

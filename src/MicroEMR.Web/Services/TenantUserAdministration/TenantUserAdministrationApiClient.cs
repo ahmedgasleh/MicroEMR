@@ -10,6 +10,8 @@ public interface ITenantUserAdministrationApiClient
 {
     Task<IReadOnlyList<TenantUserAdministrationItemViewModel>> GetUsersAsync(
         CancellationToken cancellationToken = default);
+    Task<TenantUserAdministrationItemViewModel?> GetUserAsync(string authUserId,
+        CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel> DeactivateAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel> ActivateAsync(string authUserId, string rowVersion,
@@ -54,6 +56,21 @@ public sealed class TenantUserAdministrationApiClient(
     public Task<TenantUserAdministrationItemViewModel> DeactivateAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default) =>
         ChangeAsync(authUserId, "deactivate", rowVersion, cancellationToken);
+
+    public async Task<TenantUserAdministrationItemViewModel?> GetUserAsync(string authUserId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);
+        var context = contextAccessor.HttpContext ?? throw new InvalidOperationException("The authenticated request context is unavailable.");
+        var token = await context.GetTokenAsync("access_token");
+        if (string.IsNullOrWhiteSpace(token)) throw new UnauthorizedAccessException("The API access token is unavailable.");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/admin/users/{Uri.EscapeDataString(authUserId)}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (!response.IsSuccessStatusCode) throw new HttpRequestException("User details could not be loaded.", null, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<TenantUserAdministrationItemViewModel>(cancellationToken: cancellationToken);
+    }
 
     public Task<TenantUserAdministrationItemViewModel> ActivateAsync(string authUserId, string rowVersion,
         CancellationToken cancellationToken = default) =>

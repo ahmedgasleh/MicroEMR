@@ -47,4 +47,33 @@ public sealed class SqlIdentityUserLookup : IIdentityUserLookup, IIdentityUserPr
             reader.IsDBNull(3) ? null : reader.GetString(3),
             reader.GetBoolean(4));
     }
+
+    public async Task<IReadOnlyDictionary<string, IdentityUserProfile>> GetByIdsAsync(
+        IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).ToArray();
+        if (ids.Length == 0) return new Dictionary<string, IdentityUserProfile>(StringComparer.Ordinal);
+        if (!IsAvailable) throw new InvalidOperationException("Identity user validation is not configured.");
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = connection.CreateCommand();
+        var names = new string[ids.Length];
+        for (var index = 0; index < ids.Length; index++)
+        {
+            names[index] = $"@UserId{index}";
+            command.Parameters.Add(names[index], System.Data.SqlDbType.NVarChar, 450).Value = ids[index];
+        }
+        command.CommandText = $"SELECT Id, UserName, FullName, Email, IsActive FROM dbo.AspNetUsers WHERE Id IN ({string.Join(',', names)});";
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var results = new Dictionary<string, IdentityUserProfile>(StringComparer.Ordinal);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var username = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+            var profile = new IdentityUserProfile(reader.GetString(0), username,
+                reader.IsDBNull(2) ? username : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3), reader.GetBoolean(4));
+            results[profile.UserId] = profile;
+        }
+        return results;
+    }
 }
