@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using MicroEMR.Application.AccessProfiles;
-using MicroEMR.Application.PlatformAdministration;
-using MicroEMR.Application.Security;
 
 namespace MicroEMR.Api.Authorization;
 
@@ -15,9 +13,7 @@ public sealed class PermissionAuthorizationHandler(
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
-        var legacyAdminFallback = IsAdministrativePermission(requirement.PermissionKey) &&
-            context.User.HasClaim(MicroEmrClaimTypes.TenantRole, TenantRoleCatalog.ClinicAdministrator);
-        if (legacyAdminFallback || await permissions.HasPermissionAsync(requirement.PermissionKey))
+        if (await permissions.HasPermissionAsync(requirement.PermissionKey))
         {
             context.Succeed(requirement);
             return;
@@ -27,10 +23,6 @@ public sealed class PermissionAuthorizationHandler(
             context.User.FindFirst("sub")?.Value ?? "unknown", requirement.PermissionKey);
     }
 
-    private static bool IsAdministrativePermission(string key) => key is
-        PermissionKeys.UsersView or PermissionKeys.UsersManage or PermissionKeys.UsersManageAccess or
-        PermissionKeys.ClinicSettingsManage or PermissionKeys.ReportsView or PermissionKeys.ReportsExport or
-        PermissionKeys.TemplatesManage;
 }
 
 public sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> options)

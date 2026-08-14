@@ -163,6 +163,9 @@
                     <div class="col-md-6"><label for="addFirstName" class="form-label">First Name</label><input id="addFirstName" name="FirstName" class="form-control" maxlength="100" autocomplete="given-name" required /></div>
                     <div class="col-md-6"><label for="addLastName" class="form-label">Last Name</label><input id="addLastName" name="LastName" class="form-control" maxlength="100" autocomplete="family-name" required /></div>
                     <div class="col-12"><label for="addEmail" class="form-label">Email</label><input id="addEmail" name="Email" type="email" class="form-control" maxlength="256" autocomplete="email" required /></div>
+                    <div class="col-md-6"><label for="addTemporaryPassword" class="form-label">Temporary Password</label><input id="addTemporaryPassword" name="TemporaryPassword" type="password" class="form-control" minlength="8" maxlength="128" autocomplete="new-password" /></div>
+                    <div class="col-md-6"><label for="addConfirmTemporaryPassword" class="form-label">Confirm Temporary Password</label><input id="addConfirmTemporaryPassword" name="ConfirmTemporaryPassword" type="password" class="form-control" minlength="8" maxlength="128" autocomplete="new-password" /></div>
+                    <div class="col-12 form-text">Required for a new identity. Share it securely; the user should change it immediately after signing in.</div>
                     <div class="col-md-6"><label for="addInitialRole" class="form-label">Initial Role</label><select id="addInitialRole" name="InitialRole" class="form-select" required>
                         @foreach (var role in Model.CanonicalRoles)
                         {

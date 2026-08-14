@@ -68,6 +68,11 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
         string authUserId, CancellationToken cancellationToken) =>
         ChangeAsync(() => service.ProvisionClinicalUserAsync(authUserId, cancellationToken));
 
+    [HttpPost("{authUserId}/password/reset")]
+    [RequirePermission(PermissionKeys.UsersManageAccess)]
+    public async Task<IActionResult> ResetPassword(string authUserId,ResetTenantUserPasswordRequest request,CancellationToken cancellationToken)
+    {try{await service.ResetPasswordAsync(authUserId,request.TemporaryPassword,cancellationToken);return NoContent();}catch(ArgumentException ex){return BadRequest(new{message=ex.Message});}catch(KeyNotFoundException){return NotFound();}catch(TenantMembershipNotFoundException){return NotFound();}}
+
     private async Task<ActionResult<TenantUserAdministrationItem>> ChangeAsync(
         Func<Task<TenantUserAdministrationItem>> action)
     {
@@ -88,4 +93,5 @@ public sealed class TenantUserAdministrationController(ITenantUserAdministration
 }
 
 public sealed record MembershipRowVersionRequest(string RowVersion);
+public sealed record ResetTenantUserPasswordRequest(string TemporaryPassword);
 public sealed record TenantRoleUpdateRequest(IReadOnlyCollection<string>? SelectedRoles, string RowVersion);

@@ -78,6 +78,8 @@ public sealed class TenantUserAdministrationController(
         AddTenantUserViewModel WithRoles() => new()
         {
             FirstName = model.FirstName, LastName = model.LastName, Email = model.Email,
+            TemporaryPassword = model.TemporaryPassword,
+            ConfirmTemporaryPassword = model.ConfirmTemporaryPassword,
             InitialRole = model.InitialRole, ProvisionClinicalUser = model.ProvisionClinicalUser,
             CanonicalRoles = TenantRoleCatalog.Allowed.OrderBy(x => x, StringComparer.Ordinal).ToArray()
         };
@@ -135,6 +137,33 @@ public sealed class TenantUserAdministrationController(
     {
         try{await accessProfiles.AssignAsync(authUserId,accessProfileUid,rowVersion,cancellationToken);TempData["SuccessMessage"]="Access profile updated.";}
         catch(HttpRequestException){TempData["WarningMessage"]="The access profile could not be updated. Reload and try again.";}
+        return RedirectToAction(nameof(Details),new{authUserId});
+    }
+
+    [HttpGet,RequireWebPermission(PermissionKeys.UsersManageAccess)]
+    public async Task<IActionResult> ManageAccess(string authUserId,CancellationToken cancellationToken)
+    {
+        var user=await client.GetUserAsync(authUserId,cancellationToken);if(user is null)return NotFound();
+        var access=await accessProfiles.GetUserAccessAsync(authUserId,cancellationToken);if(access is null)return NotFound();
+        return View(new ManageUserAccessViewModel{User=user,Access=access});
+    }
+
+    [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.UsersManageAccess)]
+    public async Task<IActionResult> SetPermissionOverride(string authUserId,string permissionKey,PermissionOverrideState overrideState,string rowVersion,CancellationToken cancellationToken)
+    {
+        try{await accessProfiles.SetUserOverrideAsync(authUserId,permissionKey,overrideState,rowVersion,cancellationToken);TempData["SuccessMessage"]=$"{permissionKey} now uses {overrideState}.";}
+        catch(HttpRequestException ex)when(ex.StatusCode==System.Net.HttpStatusCode.Conflict){TempData["WarningMessage"]="Access changed in another session. Review the current values and try again.";}
+        catch(HttpRequestException){TempData["WarningMessage"]="The permission override could not be updated.";}
+        return RedirectToAction(nameof(ManageAccess),new{authUserId});
+    }
+
+    [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.UsersManageAccess)]
+    public async Task<IActionResult> ResetPassword(string authUserId,string temporaryPassword,string confirmTemporaryPassword,CancellationToken cancellationToken)
+    {
+        if(string.IsNullOrWhiteSpace(temporaryPassword)||temporaryPassword.Length<8){TempData["WarningMessage"]="Enter a temporary password with at least 8 characters.";return RedirectToAction(nameof(Details),new{authUserId});}
+        if(!string.Equals(temporaryPassword,confirmTemporaryPassword,StringComparison.Ordinal)){TempData["WarningMessage"]="The temporary passwords do not match.";return RedirectToAction(nameof(Details),new{authUserId});}
+        try{await client.ResetPasswordAsync(authUserId,temporaryPassword,cancellationToken);TempData["SuccessMessage"]="Temporary password set. Share it securely and ask the user to change it immediately.";}
+        catch(HttpRequestException ex){TempData["WarningMessage"]=ex.Message;}
         return RedirectToAction(nameof(Details),new{authUserId});
     }
 

@@ -16,6 +16,9 @@
             <div class="col-md-6"><label asp-for="FirstName" class="form-label"></label><input asp-for="FirstName" class="form-control" autocomplete="given-name" /><span asp-validation-for="FirstName" class="text-danger"></span></div>
             <div class="col-md-6"><label asp-for="LastName" class="form-label"></label><input asp-for="LastName" class="form-control" autocomplete="family-name" /><span asp-validation-for="LastName" class="text-danger"></span></div>
             <div class="col-12"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="email" /><span asp-validation-for="Email" class="text-danger"></span></div>
+            <div class="col-md-6"><label asp-for="TemporaryPassword" class="form-label">Temporary Password</label><input asp-for="TemporaryPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="TemporaryPassword" class="text-danger"></span></div>
+            <div class="col-md-6"><label asp-for="ConfirmTemporaryPassword" class="form-label">Confirm Temporary Password</label><input asp-for="ConfirmTemporaryPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ConfirmTemporaryPassword" class="text-danger"></span></div>
+            <div class="col-12 form-text">Required only when this email does not already have a MicroEMR identity. Use at least 8 characters with uppercase, lowercase, and a number. Share it securely and ask the user to change it after signing in.</div>
             <div class="col-md-6"><label asp-for="InitialRole" class="form-label">Initial Role</label><select asp-for="InitialRole" class="form-select">
                 @foreach (var role in Model.CanonicalRoles) { <option value="@role">@role</option> }
             </select><span asp-validation-for="InitialRole" class="text-danger"></span></div>

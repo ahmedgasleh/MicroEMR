@@ -41,10 +41,11 @@ public interface ITenantUserAdministrationService
         IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItem> ProvisionClinicalUserAsync(string authUserId,
         CancellationToken cancellationToken = default);
+    Task ResetPasswordAsync(string authUserId,string temporaryPassword,CancellationToken cancellationToken=default);
 }
 
 public sealed record AddTenantUserRequest(string FirstName, string LastName, string Email,
-    string InitialRole, bool ProvisionClinicalUser);
+    string InitialRole, bool ProvisionClinicalUser, string? TemporaryPassword = null);
 public sealed record AddTenantUserResult(TenantUserAdministrationItem User, bool AuthIdentityCreated,
     bool ClinicalProvisioningFailed, string Message);
 
@@ -84,7 +85,7 @@ public sealed class TenantUserAdministrationService(
         ArgumentNullException.ThrowIfNull(request);
         var role = NormalizeRole(request.InitialRole);
         var identity = await identityAdministration.ResolveOrCreateAsync(
-            new(request.FirstName, request.LastName, request.Email), cancellationToken);
+            new(request.FirstName, request.LastName, request.Email, request.TemporaryPassword), cancellationToken);
         var existing = await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid, cancellationToken);
         if (existing.Any(x => string.Equals(x.UserId, identity.Profile.UserId, StringComparison.Ordinal)))
             throw new TenantMembershipAlreadyExistsException("This user already belongs to this clinic.");
@@ -117,7 +118,7 @@ public sealed class TenantUserAdministrationService(
         var message = provisioningFailed
             ? "User added to clinic, but clinical provisioning failed. Retry from User Details."
             : identity.Created
-                ? "User account created and added to clinic. Account setup delivery is not configured."
+                ? "User account created with the temporary password and added to the clinic. Ask the user to sign in and change it immediately."
                 : "User added to clinic.";
         return new(user, identity.Created, provisioningFailed, message);
     }
@@ -254,6 +255,15 @@ public sealed class TenantUserAdministrationService(
             clinical.UserId, identity.UserId, tenantContext.TenantUid, actor);
         return (await GetTenantUsersAsync(cancellationToken)).Single(x =>
             string.Equals(x.AuthUserId, identity.UserId, StringComparison.Ordinal));
+    }
+
+    public async Task ResetPasswordAsync(string authUserId,string temporaryPassword,CancellationToken cancellationToken=default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authUserId);ArgumentException.ThrowIfNullOrWhiteSpace(temporaryPassword);
+        var membership=(await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid,cancellationToken)).SingleOrDefault(x=>string.Equals(x.UserId,authUserId,StringComparison.Ordinal));
+        if(membership is null)throw new TenantMembershipNotFoundException("The membership was not found in the active tenant.");
+        await identityAdministration.ResetPasswordAsync(authUserId,temporaryPassword,cancellationToken);
+        logger.LogWarning("Temporary password reset for tenant user {TargetUserId} in {TenantUid} by {ActorUserId}.",authUserId,tenantContext.TenantUid,subjectAccessor.GetRequiredSubject());
     }
 
     private async Task<TenantUserAdministrationItem> ChangeMembershipAsync(string authUserId, string rowVersion,

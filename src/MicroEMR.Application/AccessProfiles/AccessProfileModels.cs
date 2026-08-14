@@ -90,6 +90,10 @@ public static class PermissionCatalog
 public sealed record AccessProfileSummary(Guid AccessProfileUid,string Name,string Description,bool IsBuiltIn,bool IsActive,int PermissionCount,int AssignedUserCount,string RowVersion);
 public sealed record AccessProfileDetails(Guid AccessProfileUid,string Name,string Description,bool IsBuiltIn,bool IsActive,IReadOnlyCollection<string> PermissionKeys,int AssignedUserCount,string RowVersion);
 public sealed record UserAccessProfile(string AuthUserId,Guid? AccessProfileUid,string? AccessProfileName,bool? IsActive,string? RowVersion);
+public enum PermissionOverrideState { Inherit, Allow, Deny }
+public sealed record UserPermissionAccessData(string MembershipStatus,Guid? AccessProfileUid,string? AccessProfileName,string MembershipRowVersion,IReadOnlySet<string> ProfilePermissionKeys,IReadOnlyDictionary<string,PermissionOverrideState> Overrides);
+public sealed record UserPermissionAccessItem(string PermissionKey,string DisplayName,string Group,string Description,bool ProfileAllowed,PermissionOverrideState OverrideState,bool EffectiveAllowed);
+public sealed record UserEffectiveAccess(string AuthUserId,string MembershipStatus,Guid? AccessProfileUid,string? AccessProfileName,string MembershipRowVersion,IReadOnlyList<UserPermissionAccessItem> Permissions);
 public interface IAccessProfileRepository
 {
     Task<IReadOnlyList<AccessProfileSummary>> ListAsync(Guid tenantUid,CancellationToken token=default);
@@ -98,6 +102,8 @@ public interface IAccessProfileRepository
     Task UpdatePermissionsAsync(Guid tenantUid,Guid profileUid,IReadOnlyCollection<string> keys,string rowVersion,string actor,CancellationToken token=default);
     Task AssignAsync(Guid tenantUid,string authUserId,Guid profileUid,string membershipRowVersion,string actor,CancellationToken token=default);
     Task<(string MembershipStatus,IReadOnlyCollection<string> PermissionKeys)> GetEffectiveAsync(Guid tenantUid,string authUserId,CancellationToken token=default);
+    Task<UserPermissionAccessData?> GetUserAccessAsync(Guid tenantUid,string authUserId,CancellationToken token=default) => Task.FromResult<UserPermissionAccessData?>(null);
+    Task SetUserOverrideAsync(Guid tenantUid,string authUserId,string permissionKey,PermissionOverrideState state,string membershipRowVersion,string actor,CancellationToken token=default) => throw new NotSupportedException();
 }
 public interface IAccessProfileService
 {
@@ -107,6 +113,8 @@ public interface IAccessProfileService
     Task AssignAsync(string authUserId,Guid uid,string membershipRowVersion,CancellationToken token=default);
     Task<IReadOnlyCollection<string>> GetEffectivePermissionsAsync(string authUserId,CancellationToken token=default);
     Task<bool> HasPermissionAsync(string authUserId,string key,CancellationToken token=default);
+    Task<UserEffectiveAccess?> GetUserAccessAsync(string authUserId,CancellationToken token=default);
+    Task SetUserOverrideAsync(string authUserId,string permissionKey,PermissionOverrideState state,string membershipRowVersion,CancellationToken token=default);
 }
 public sealed class AccessProfileService(ITenantContext tenant,IAccessProfileRepository repository,
     TenantUserAdministration.IAuthenticatedSubjectAccessor actor) : IAccessProfileService
@@ -125,4 +133,23 @@ public sealed class AccessProfileService(ITenantContext tenant,IAccessProfileRep
     { var x=await repository.GetEffectiveAsync(tenant.TenantUid,user,token); return x.MembershipStatus=="Active"?x.PermissionKeys:[]; }
     public async Task<bool> HasPermissionAsync(string user,string key,CancellationToken token=default)
     { if(!PermissionCatalog.IsKnown(key)) return false; return (await GetEffectivePermissionsAsync(user,token)).Contains(key,StringComparer.Ordinal); }
+    public async Task<UserEffectiveAccess?> GetUserAccessAsync(string user,CancellationToken token=default)
+    {
+        var data=await repository.GetUserAccessAsync(tenant.TenantUid,user,token); if(data is null)return null;
+        var active=string.Equals(data.MembershipStatus,"Active",StringComparison.Ordinal);
+        var items=PermissionCatalog.All.Select(permission=>
+        {
+            var profile=data.ProfilePermissionKeys.Contains(permission.Key);
+            var state=data.Overrides.GetValueOrDefault(permission.Key,PermissionOverrideState.Inherit);
+            var effective=active && (state==PermissionOverrideState.Allow || state==PermissionOverrideState.Inherit && profile);
+            return new UserPermissionAccessItem(permission.Key,permission.DisplayName,permission.Group,permission.Description,profile,state,effective);
+        }).ToArray();
+        return new(user,data.MembershipStatus,data.AccessProfileUid,data.AccessProfileName,data.MembershipRowVersion,items);
+    }
+    public Task SetUserOverrideAsync(string user,string key,PermissionOverrideState state,string version,CancellationToken token=default)
+    {
+        if(!PermissionCatalog.IsKnown(key))throw new ArgumentException("Unknown permission key.",nameof(key));
+        if(!Enum.IsDefined(state))throw new ArgumentException("Invalid override state.",nameof(state));
+        return repository.SetUserOverrideAsync(tenant.TenantUid,user,key,state,version,actor.GetRequiredSubject(),token);
+    }
 }
