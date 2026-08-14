@@ -1,5 +1,8 @@
 @model MicroEMR.Web.Models.TenantUserAdministration.TenantUserAdministrationViewModel
 
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 @{
     ViewData["Title"] = "User Administration";
     ViewData["Subtitle"] = "View users assigned to the active clinic.";
@@ -8,6 +11,9 @@
         x.TenantRoles.Contains(MicroEMR.Application.PlatformAdministration.TenantRoleCatalog.ClinicAdministrator,
             StringComparer.Ordinal)).ToArray();
     var lastActiveAdministratorId = activeAdministrators.Length == 1 ? activeAdministrators[0].AuthUserId : null;
+    var effectivePermissions = await Permissions.GetAsync(Context.RequestAborted);
+    var canManageUsers = effectivePermissions.Contains(PermissionKeys.UsersManage);
+    var canManageAccess = effectivePermissions.Contains(PermissionKeys.UsersManageAccess);
 }
 
 <div class="content-panel">
@@ -18,9 +24,11 @@
             <h1 class="h3 mb-1">User Administration</h1>
             <p class="text-muted mb-0">Tenant membership, roles, and clinical-user provisioning status.</p>
         </div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"
+                disabled="@(!canManageUsers)" aria-disabled="@(!canManageUsers)"
+                title="@(canManageUsers ? null : "Read-only access")">Add User</button>
     </div>
-    <div class="mt-3"><a asp-controller="AccessProfiles" asp-action="Index" class="btn btn-outline-primary">Access Profiles</a></div>
+    @if (canManageAccess) { <div class="mt-3"><a asp-controller="AccessProfiles" asp-action="Index" class="btn btn-outline-primary">Access Profiles</a></div> }
 
     @if (Model.Users.Count == 0)
     {
@@ -90,7 +98,9 @@
                                 @if (!user.ClinicalUserProvisioned && user.MembershipStatus == "Active")
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-success me-1"
-                                            data-provision-clinical-user data-auth-user-id="@user.AuthUserId">
+                                            data-provision-clinical-user data-auth-user-id="@user.AuthUserId"
+                                            disabled="@(!canManageUsers)" aria-disabled="@(!canManageUsers)"
+                                            title="@(canManageUsers ? null : "Read-only access")">
                                         Provision Clinical User
                                     </button>
                                 }
@@ -98,7 +108,7 @@
                                 {
                                     <span class="small text-muted me-2">Activate the membership before provisioning.</span>
                                 }
-                                @if (user.MembershipStatus == "Active")
+                                @if (canManageAccess && user.MembershipStatus == "Active")
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-1"
                                             data-edit-roles data-auth-user-id="@user.AuthUserId"
@@ -119,13 +129,15 @@
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             data-membership-action="deactivate" data-auth-user-id="@user.AuthUserId"
-                                            data-row-version="@user.RowVersion">Deactivate</button>
+                                            data-row-version="@user.RowVersion" disabled="@(!canManageUsers)"
+                                            aria-disabled="@(!canManageUsers)" title="@(canManageUsers ? null : "Read-only access")">Deactivate</button>
                                 }
                                 else if (user.MembershipStatus == "Inactive")
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-primary"
                                             data-membership-action="activate" data-auth-user-id="@user.AuthUserId"
-                                            data-row-version="@user.RowVersion">Activate</button>
+                                            data-row-version="@user.RowVersion" disabled="@(!canManageUsers)"
+                                            aria-disabled="@(!canManageUsers)" title="@(canManageUsers ? null : "Read-only access")">Activate</button>
                                 }
                             </td>
                         </tr>

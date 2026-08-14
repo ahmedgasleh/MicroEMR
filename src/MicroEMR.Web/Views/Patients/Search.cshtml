@@ -1,5 +1,8 @@
 ﻿@model MicroEMR.Web.Models.Patients.PatientSearchResponse
 
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 @{
     ViewData["Title"] = "Patients";
     ViewData["Subtitle"] = "Search and manage patient records";
@@ -7,6 +10,7 @@
     DateOnly? dateOfBirth = ViewBag.DateOfBirth;
     var selectionMode = ViewBag.SelectionMode as string;
     Layout = selectionMode == "chart" ? "_PatientSearchModalLayout" : "_AppLayout";
+    var canEditPatients = await Permissions.HasAsync(PermissionKeys.PatientsEdit, Context.RequestAborted);
 }
 
 <div class="content-panel">
@@ -17,11 +21,15 @@
             <p>Search by name, chart number, health card or phone</p>
         </div>
 
-        <a asp-action="Create"
-           class="btn btn-primary">
-            <i class="bi bi-person-plus me-1"></i>
-            Register patient
-        </a>
+        @if (canEditPatients)
+        {
+            <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Register patient</a>
+        }
+        else
+        {
+            <button type="button" class="btn btn-primary" disabled aria-disabled="true"
+                    title="Read-only access"><i class="bi bi-person-plus me-1"></i>Register patient</button>
+        }
     </div>
 
     <div asp-validation-summary="ModelOnly"

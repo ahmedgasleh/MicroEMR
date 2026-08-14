@@ -1,8 +1,16 @@
 ﻿@model MicroEMR.Web.Models.Patients.PatientChartViewModel
 
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 @{
     var patient = Model.Patient;
     var summary = Model.Summary;
+    var effectivePermissions = await Permissions.GetAsync(Context.RequestAborted);
+    var canEditPatients = effectivePermissions.Contains(PermissionKeys.PatientsEdit);
+    var canEditEncounters = effectivePermissions.Contains(PermissionKeys.EncountersEdit);
+    var canSignEncounters = effectivePermissions.Contains(PermissionKeys.EncountersSign);
+    var canManageDocuments = effectivePermissions.Contains(PermissionKeys.DocumentsManage);
 
     ViewData ["Title"] = "Patient Chart";
     ViewData ["Subtitle"] = patient.ChartNumber;
@@ -203,12 +211,12 @@
             <div class="card-body py-3">
                 <h4 class="h6 mb-3">Quick Actions</h4>
                 <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-primary btn-sm" type="button" id="summaryNewEncounterButton" data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="summary"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
+                    <button class="btn btn-primary btn-sm" type="button" id="summaryNewEncounterButton" data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="summary" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
                     <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addVitalButton"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Add Vitals</button>
                     <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addProblemButton"><i class="bi bi-clipboard2-plus me-1" aria-hidden="true"></i>Add Problem</button>
                     <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="summary"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
                     <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryMedicationModal" data-return-tab="summary"><i class="bi bi-capsule me-1" aria-hidden="true"></i>Add Medication</button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="summary"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="summary" disabled="@(!canManageDocuments)" aria-disabled="@(!canManageDocuments)" title="@(canManageDocuments ? null : "Read-only access")"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
                 </div>
                 <div id="summaryQuickActionMessage" class="alert alert-warning d-none mt-3 mb-0" role="alert"></div>
             </div>
@@ -292,13 +300,16 @@
                         Back
                     </a>
 
-                    <a asp-controller="Patients"
-                       asp-action="Edit"
-                       asp-route-patientUid="@patient.PatientUid"
-                       class="btn btn-outline-primary">
-                        <i class="bi bi-pencil me-1"></i>
-                        Edit
-                    </a>
+                    @if (canEditPatients)
+                    {
+                        <a asp-controller="Patients" asp-action="Edit" asp-route-patientUid="@patient.PatientUid"
+                           class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-outline-primary" disabled aria-disabled="true"
+                                title="Read-only access"><i class="bi bi-pencil me-1"></i>Edit</button>
+                    }
                 </div>
             </div>
 
@@ -437,7 +448,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Patient Documents</h5>
 
-            <button type="button" id="newDocumentButton" class="btn btn-primary"
+            <button type="button" id="newDocumentButton" class="btn btn-primary" disabled="@(!canManageDocuments)" aria-disabled="@(!canManageDocuments)" title="@(canManageDocuments ? null : "Read-only access")"
                     data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="documents">
                 <i class="bi bi-file-earmark-plus me-1"></i>
                 New Document
@@ -552,7 +563,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Patient Encounters</h5>
 
-            <button type="button" id="newEncounterButton" class="btn btn-primary"
+            <button type="button" id="newEncounterButton" class="btn btn-primary" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")"
                     data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="encounters">
                 <i class="bi bi-plus-circle me-1"></i>
                 New Encounter
@@ -1251,12 +1262,12 @@
                                 <button type="button" class="btn btn-outline-secondary d-none" id="hideEncounterPreviewButton">Hide Preview</button>
                                 <button type="button"
                                         class="btn btn-outline-danger"
-                                        id="signEncounterButton">
+                                        id="signEncounterButton" disabled="@(!canSignEncounters)" aria-disabled="@(!canSignEncounters)" title="@(canSignEncounters ? null : "You don't have permission to sign encounters.")">
                                     Sign Encounter
                                 </button>
                                 <button type="button"
                                         class="btn btn-primary"
-                                        id="saveEncounterNoteButton">
+                                        id="saveEncounterNoteButton" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")">
                                     Save Note
                                 </button>
                             </div>
@@ -1370,6 +1381,7 @@
 <script type="module" src="~/dist/patient-encounters/templates.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+ const canEditEncounters = @Json.Serialize(canEditEncounters);
  const modal = document.getElementById("createEncounterModal");
  const form = document.getElementById("summaryCreateEncounterForm");
  const dateInput = document.getElementById("summaryEncounterDateLocal");
@@ -1381,7 +1393,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (returnTab) returnTab.value = trigger?.dataset.returnTab === "summary" ? "summary" : "encounters";
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
   if (dateInput) dateInput.value = now.toISOString().slice(0, 16);
-  if (saveButton) { saveButton.disabled = false; saveButton.innerHTML = '<i class="bi bi-save me-1" aria-hidden="true"></i>Save'; }
+   if (saveButton) { saveButton.disabled = !canEditEncounters; saveButton.innerHTML = '<i class="bi bi-save me-1" aria-hidden="true"></i>Save'; }
  });
  form?.addEventListener("submit", event => {
   if (!form.checkValidity()) { event.preventDefault(); form.reportValidity(); return; }
@@ -1390,6 +1402,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+    const canEditEncounters = @Json.Serialize(canEditEncounters);
+    const canSignEncounters = @Json.Serialize(canSignEncounters);
     const modalElement = document.getElementById("encounterDetailsModal");
     const modal = new bootstrap.Modal(modalElement);
     const loading = document.getElementById("encounterDetailsLoading");
@@ -1516,17 +1530,17 @@ document.addEventListener("DOMContentLoaded", () => {
         legacyNoteSection.classList.toggle("d-none", !encounter.notes);
         currentPatientUid = encounter.patientUid;
         currentEncounterUid = encounter.encounterUid;
-        currentEncounterIsEditable =
-            String(encounter.status).toLowerCase() === "open";
+        const encounterIsOpen = String(encounter.status).toLowerCase() === "open";
+        currentEncounterIsEditable = encounterIsOpen && canEditEncounters;
         previewButton.classList.toggle("d-none", !currentStructuredEncounter || !currentEncounterIsEditable);
         viewPdfButton.classList.toggle("d-none", !currentStructuredEncounter || String(encounter.status).toLowerCase() !== "signed");
         Object.values(soapFields).forEach(field => {
             field.readOnly = !currentEncounterIsEditable;
         });
-        saveNoteButton.classList.toggle("d-none", !currentEncounterIsEditable);
+        saveNoteButton.classList.toggle("d-none", !encounterIsOpen);
         saveNoteButton.disabled = !currentEncounterIsEditable;
-        signEncounterButton.classList.toggle("d-none", !currentEncounterIsEditable);
-        signEncounterButton.disabled = !currentEncounterIsEditable;
+        signEncounterButton.classList.toggle("d-none", !encounterIsOpen);
+        signEncounterButton.disabled = !canSignEncounters || !encounterIsOpen;
         const isSigned = String(encounter.status).toLowerCase() === "signed";
         addendumHelper.classList.toggle("d-none", isSigned);
         addendumForm.classList.toggle("d-none", !isSigned);
