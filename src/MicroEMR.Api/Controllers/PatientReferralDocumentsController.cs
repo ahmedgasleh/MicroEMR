@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientReferrals;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController, Authorize, Route("api/patients/{patientUid:guid}/referrals/{referralUid:guid}/documents")]
+[RequirePermission(PermissionKeys.ReferralsView)]
 public sealed class PatientReferralDocumentsController(IReferralDocumentService service) : ControllerBase
 {
     [HttpGet]
@@ -15,12 +18,12 @@ public sealed class PatientReferralDocumentsController(IReferralDocumentService 
         return result is null ? NotFound() : Ok(result);
     }
 
-    [HttpPost("{documentUid:guid}")]
+    [HttpPost("{documentUid:guid}"), RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<IActionResult> Link(Guid patientUid, Guid referralUid, Guid documentUid,
         [FromBody] ReferralDocumentMutationRequest request, CancellationToken cancellationToken) =>
         Mutate(() => service.LinkAsync(patientUid, referralUid, documentUid, request, cancellationToken));
 
-    [HttpDelete("{documentUid:guid}")]
+    [HttpDelete("{documentUid:guid}"), RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<IActionResult> Unlink(Guid patientUid, Guid referralUid, Guid documentUid,
         [FromBody] ReferralDocumentMutationRequest request, CancellationToken cancellationToken) =>
         Mutate(() => service.UnlinkAsync(patientUid, referralUid, documentUid, request, cancellationToken));

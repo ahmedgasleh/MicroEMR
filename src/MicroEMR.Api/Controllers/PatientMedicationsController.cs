@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientMedications.Contracts;
 using MicroEMR.Application.PatientMedications.Services;
 using MicroEMR.Application.PatientMedications;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.PatientsView)]
 public sealed class PatientMedicationsController : ControllerBase
 {
     private readonly IPatientMedicationService _medicationService;
@@ -76,6 +79,7 @@ public sealed class PatientMedicationsController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/medications")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     [ProducesResponseType<PatientMedicationDetailsResponse>(
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -145,6 +149,7 @@ public sealed class PatientMedicationsController : ControllerBase
     }
 
     [HttpPut("api/patients/{patientUid:guid}/medications/{medicationUid:guid}")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientMedicationDetailsResponse>> UpdateMedication(
         Guid patientUid, Guid medicationUid,
         [FromBody] UpdatePatientMedicationRequest request,
@@ -168,6 +173,7 @@ public sealed class PatientMedicationsController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/medications/{medicationUid:guid}/discontinue")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientMedicationDetailsResponse>> DiscontinueMedication(
         Guid patientUid, Guid medicationUid,
         [FromBody] DiscontinuePatientMedicationRequest request,

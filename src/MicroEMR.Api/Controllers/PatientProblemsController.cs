@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientProblems;
 using MicroEMR.Application.PatientProblems.Contracts;
 using MicroEMR.Application.PatientProblems.Services;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.PatientsView)]
 [Route("api/patients/{patientUid:guid}/problems")]
 public sealed class PatientProblemsController(IPatientProblemService service, ILogger<PatientProblemsController> logger) : ControllerBase
 {
@@ -28,7 +31,7 @@ public sealed class PatientProblemsController(IPatientProblemService service, IL
         return problem is null ? NotFound() : Ok(problem);
     }
 
-    [HttpPost]
+    [HttpPost, RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientProblemResponse>> Create(Guid patientUid, CreatePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
         if (patientUid == Guid.Empty) return BadRequest();
@@ -47,7 +50,7 @@ public sealed class PatientProblemsController(IPatientProblemService service, IL
         }
     }
 
-    [HttpPut("{patientProblemUid:guid}")]
+    [HttpPut("{patientProblemUid:guid}"), RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientProblemResponse>> Update(Guid patientUid, Guid patientProblemUid, UpdatePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
         if (patientUid == Guid.Empty || patientProblemUid == Guid.Empty) return BadRequest();
@@ -65,7 +68,7 @@ public sealed class PatientProblemsController(IPatientProblemService service, IL
         }
     }
 
-    [HttpPost("{patientProblemUid:guid}/resolve")]
+    [HttpPost("{patientProblemUid:guid}/resolve"), RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientProblemResponse>> Resolve(Guid patientUid, Guid patientProblemUid, ResolvePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
         if (patientUid == Guid.Empty || patientProblemUid == Guid.Empty) return BadRequest();
