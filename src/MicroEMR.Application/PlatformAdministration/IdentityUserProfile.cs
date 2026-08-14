@@ -29,11 +29,12 @@ public interface IIdentityUserProfileLookup
     }
 }
 
-public sealed record ResolveOrCreateIdentityRequest(string FirstName, string LastName, string Email);
+public sealed record ResolveOrCreateIdentityRequest(string FirstName, string LastName, string Email, string? TemporaryPassword = null);
 public sealed record ResolveOrCreateIdentityResult(IdentityUserProfile Profile, bool Created);
 
 public interface IIdentityUserAdministration
 {
     Task<ResolveOrCreateIdentityResult> ResolveOrCreateAsync(
         ResolveOrCreateIdentityRequest request, CancellationToken cancellationToken = default);
+    Task ResetPasswordAsync(string userId,string temporaryPassword,CancellationToken cancellationToken=default) => throw new NotSupportedException();
 }

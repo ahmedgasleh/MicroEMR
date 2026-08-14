@@ -22,6 +22,7 @@ public interface ITenantUserAdministrationApiClient
         IReadOnlyCollection<string> selectedRoles, string rowVersion, CancellationToken cancellationToken = default);
     Task<TenantUserAdministrationItemViewModel> ProvisionClinicalUserAsync(string authUserId,
         CancellationToken cancellationToken = default);
+    Task ResetPasswordAsync(string authUserId,string temporaryPassword,CancellationToken cancellationToken=default);
 }
 
 public sealed class TenantUserAdministrationApiClient(
@@ -38,7 +39,7 @@ public sealed class TenantUserAdministrationApiClient(
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Content = JsonContent.Create(new
         {
-            model.FirstName, model.LastName, model.Email, model.InitialRole, model.ProvisionClinicalUser
+            model.FirstName, model.LastName, model.Email, model.InitialRole, model.ProvisionClinicalUser, model.TemporaryPassword
         });
         using var response = await client.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -151,6 +152,11 @@ public sealed class TenantUserAdministrationApiClient(
         }
         return await response.Content.ReadFromJsonAsync<TenantUserAdministrationItemViewModel>(cancellationToken: cancellationToken)
             ?? throw new HttpRequestException("The clinical user could not be provisioned.");
+    }
+
+    public async Task ResetPasswordAsync(string authUserId,string temporaryPassword,CancellationToken cancellationToken=default)
+    {
+        var context=contextAccessor.HttpContext??throw new InvalidOperationException("The authenticated request context is unavailable.");var token=await context.GetTokenAsync("access_token")??throw new UnauthorizedAccessException("The API access token is unavailable.");using var request=new HttpRequestMessage(HttpMethod.Post,$"api/admin/users/{Uri.EscapeDataString(authUserId)}/password/reset");request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);request.Content=JsonContent.Create(new{temporaryPassword});using var response=await client.SendAsync(request,cancellationToken);if(!response.IsSuccessStatusCode){var error=await response.Content.ReadFromJsonAsync<ApiError>(cancellationToken:cancellationToken);throw new HttpRequestException(error?.Message??"The password could not be reset.",null,response.StatusCode);}
     }
 
     private async Task<TenantUserAdministrationItemViewModel> ChangeAsync(string authUserId, string action,

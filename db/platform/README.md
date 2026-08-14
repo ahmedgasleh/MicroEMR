@@ -28,6 +28,7 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 9. `009_tenant_user_creation.sql`
 10. `010_access_profiles.sql`
 11. `011_access_profile_assignment_nonclustered_key.sql`
+12. `012_user_permission_overrides.sql`
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one

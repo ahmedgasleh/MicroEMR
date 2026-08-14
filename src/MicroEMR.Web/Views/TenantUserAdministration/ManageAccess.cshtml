@@ -1,0 +1,16 @@
+@model MicroEMR.Web.Models.TenantUserAdministration.ManageUserAccessViewModel
+@using MicroEMR.Application.AccessProfiles
+@{ViewData["Title"]="Manage Access";ViewData["Subtitle"]=$"Effective access for {Model.User.DisplayName}";Layout="_AppLayout";}
+<div class="content-panel">
+ <a asp-action="Details" asp-route-authUserId="@Model.User.AuthUserId" class="small text-decoration-none">&larr; User Details</a>
+ <div class="d-flex justify-content-between align-items-start mt-2"><div><h1 class="h3 mb-1">Manage Access — @Model.User.DisplayName</h1><p class="text-muted mb-0">Profile: <strong>@(Model.Access.AccessProfileName??"Not assigned")</strong></p></div><span class="badge @(Model.Access.MembershipStatus=="Active"?"text-bg-success":"text-bg-secondary")">@Model.Access.MembershipStatus</span></div>
+ @if(TempData["SuccessMessage"] is string success){<div class="alert alert-success mt-3">@success</div>}
+ @if(TempData["WarningMessage"] is string warning){<div class="alert alert-warning mt-3">@warning</div>}
+ @if(Model.Access.MembershipStatus!="Active"){<div class="alert alert-warning mt-3">User is inactive in this clinic. All effective access is disabled; profile and overrides are preserved.</div>}
+ @foreach(var group in Model.Access.Permissions.GroupBy(x=>x.Group))
+ {
+  <section class="mt-4"><h2 class="h5">@group.Key</h2><div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Permission</th><th>Profile</th><th style="width:16rem">Override</th><th>Effective</th></tr></thead><tbody>
+  @foreach(var item in group){<tr><td><div class="fw-semibold">@item.DisplayName</div><div class="small text-muted">@item.Description</div></td><td><span class="badge @(item.ProfileAllowed?"text-bg-success":"text-bg-secondary")">@(item.ProfileAllowed?"Allow":"Deny")</span></td><td><form asp-action="SetPermissionOverride" method="post" class="d-flex gap-2"><input type="hidden" name="authUserId" value="@Model.User.AuthUserId"/><input type="hidden" name="permissionKey" value="@item.PermissionKey"/><input type="hidden" name="rowVersion" value="@Model.Access.MembershipRowVersion"/><select name="overrideState" class="form-select form-select-sm" aria-label="Override for @item.DisplayName">@foreach(var state in Enum.GetValues<PermissionOverrideState>()){<option value="@state" selected="@(state==item.OverrideState)">@state</option>}</select><button type="submit" class="btn btn-sm btn-outline-primary">Save</button></form></td><td><span class="badge @(item.EffectiveAllowed?"text-bg-success":"text-bg-danger")">@(item.EffectiveAllowed?"Allow":"Deny")</span></td></tr>}
+  </tbody></table></div></section>
+ }
+</div>

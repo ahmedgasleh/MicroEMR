@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using MicroEMR.Application.AccessProfiles;
-using MicroEMR.Application.PlatformAdministration;
-using MicroEMR.Application.Security;
 using MicroEMR.Web.Services.TenantUserAdministration;
 
 namespace MicroEMR.Web.Authorization;
@@ -29,15 +27,9 @@ public sealed class WebPermissionHandler(IWebPermissionService permissions)
 {
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, WebPermissionRequirement requirement)
     {
-        var legacyAdminFallback = IsAdministrative(requirement.Key) &&
-            context.User.HasClaim(MicroEmrClaimTypes.TenantRole, TenantRoleCatalog.ClinicAdministrator);
-        if (legacyAdminFallback || await permissions.HasAsync(requirement.Key)) context.Succeed(requirement);
+        if (await permissions.HasAsync(requirement.Key)) context.Succeed(requirement);
     }
 
-    private static bool IsAdministrative(string key) => key is
-        PermissionKeys.UsersView or PermissionKeys.UsersManage or PermissionKeys.UsersManageAccess or
-        PermissionKeys.ClinicSettingsManage or PermissionKeys.ReportsView or PermissionKeys.ReportsExport or
-        PermissionKeys.TemplatesManage;
 }
 
 public sealed class WebPermissionPolicyProvider(IOptions<AuthorizationOptions> options)

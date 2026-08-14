@@ -24,12 +24,13 @@ public sealed class AddTenantUserWorkflowTests
     public async Task NewIdentityCreatesTenantAccessRoleAndClinicalUser()
     {
         var harness = new Harness(created: true);
-        var result = await harness.Service.AddTenantUserAsync(new("Jane", "Doe", "jane@example.test", "Physician", true));
+        var result = await harness.Service.AddTenantUserAsync(new("Jane", "Doe", "jane@example.test", "Physician", true, "Temporary123"));
         Assert.True(result.AuthIdentityCreated);
         Assert.False(result.ClinicalProvisioningFailed);
         Assert.Equal(("auth-jane", Tenant, "Physician", "admin-subject"), harness.Creation.Last);
         Assert.Equal(1, harness.Clinical.ProvisionCalls);
         Assert.Equal(["Physician"], result.User.TenantRoles);
+        Assert.Equal("Temporary123", harness.Identity.LastRequest?.TemporaryPassword);
     }
 
     [Fact]
@@ -41,6 +42,15 @@ public sealed class AddTenantUserWorkflowTests
         Assert.Equal(1, harness.Identity.Calls);
         Assert.Equal(0, harness.Clinical.ProvisionCalls);
         Assert.Equal("Scheduler", Assert.Single(result.User.TenantRoles));
+    }
+
+    [Fact]
+    public async Task ExistingTenantUserPasswordCanBeResetWithoutLoggingOrRecreatingMembership()
+    {
+        var harness=new Harness(created:false,alreadyMember:true);
+        await harness.Service.ResetPasswordAsync("auth-jane","Replacement123");
+        Assert.Equal(("auth-jane","Replacement123"),harness.Identity.LastReset);
+        Assert.Null(harness.Creation.Last);
     }
 
     [Fact]
@@ -96,8 +106,11 @@ public sealed class AddTenantUserWorkflowTests
     private sealed class IdentityAdmin(IdentityUserProfile profile, bool created) : IIdentityUserAdministration
     {
         public int Calls { get; private set; }
+        public ResolveOrCreateIdentityRequest? LastRequest { get; private set; }
+        public (string UserId,string Password)? LastReset { get; private set; }
         public Task<ResolveOrCreateIdentityResult> ResolveOrCreateAsync(ResolveOrCreateIdentityRequest request, CancellationToken cancellationToken = default)
-        { Calls++; return Task.FromResult(new ResolveOrCreateIdentityResult(profile, created)); }
+        { Calls++; LastRequest=request; return Task.FromResult(new ResolveOrCreateIdentityResult(profile, created)); }
+        public Task ResetPasswordAsync(string userId,string temporaryPassword,CancellationToken cancellationToken=default){LastReset=(userId,temporaryPassword);return Task.CompletedTask;}
     }
     private sealed class CreationRepository : ITenantUserCreationRepository
     {

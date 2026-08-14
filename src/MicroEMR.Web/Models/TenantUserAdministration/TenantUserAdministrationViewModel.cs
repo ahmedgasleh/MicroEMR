@@ -33,12 +33,20 @@ public sealed class TenantUserDetailsViewModel
     public IReadOnlyList<MicroEMR.Application.AccessProfiles.AccessProfileSummary> AccessProfiles { get; init; } = [];
 }
 
+public sealed class ManageUserAccessViewModel
+{
+    public required TenantUserAdministrationItemViewModel User { get; init; }
+    public required MicroEMR.Application.AccessProfiles.UserEffectiveAccess Access { get; init; }
+}
+
 public sealed class AddTenantUserViewModel
 {
     [Required, StringLength(100)] public string FirstName { get; set; } = string.Empty;
     [Required, StringLength(100)] public string LastName { get; set; } = string.Empty;
     [Required, EmailAddress, StringLength(256)] public string Email { get; set; } = string.Empty;
     [Required] public string InitialRole { get; set; } = string.Empty;
+    [DataType(DataType.Password), StringLength(128, MinimumLength = 8)] public string? TemporaryPassword { get; set; }
+    [DataType(DataType.Password), Compare(nameof(TemporaryPassword), ErrorMessage = "Passwords do not match.")] public string? ConfirmTemporaryPassword { get; set; }
     public bool ProvisionClinicalUser { get; set; } = true;
     public IReadOnlyCollection<string> CanonicalRoles { get; init; } = [];
 }
