@@ -1,9 +1,13 @@
 @model MicroEMR.Web.Models.Reporting.AppointmentStatusReportViewModel
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 @{
     ViewData["Title"] = "Appointment Status Report";
     ViewData["Subtitle"] = "Appointment activity by status and date range.";
     Layout = "_AppLayout";
     var zone = Model.Report is null ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(Model.Report.TimeZoneId);
+    var canExport = await Permissions.HasAsync(PermissionKeys.ReportsExport, Context.RequestAborted);
 }
 
 <div class="content-panel">
@@ -15,8 +19,16 @@
         <div class="col-sm-4 col-lg-3"><label for="endDate" class="form-label">End Date</label>
             <input id="endDate" name="endDate" type="date" class="form-control" required value="@Model.EndDate.ToString("yyyy-MM-dd")" /></div>
         <div class="col-sm-4 col-lg-6"><button type="submit" class="btn btn-primary">Run Report</button>
-            <a asp-action="AppointmentStatusCsv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")"
-               asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary ms-1">Export CSV</a></div>
+            @if (canExport)
+            {
+                <a asp-action="AppointmentStatusCsv" asp-route-startDate="@Model.StartDate.ToString("yyyy-MM-dd")"
+                   asp-route-endDate="@Model.EndDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary ms-1">Export CSV</a>
+            }
+            else
+            {
+                <button type="button" class="btn btn-outline-secondary ms-1" disabled aria-disabled="true"
+                        title="You don't have permission to export reports.">Export CSV</button>
+            }</div>
     </form>
     @if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
 </div>

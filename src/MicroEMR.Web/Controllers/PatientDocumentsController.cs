@@ -4,13 +4,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientDocuments;
 using MicroEMR.Web.Services.PatientDocuments;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.DocumentsView)]
 public sealed class PatientDocumentsController : Controller
 {
     [HttpPost, ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.DocumentsManage)]
     public async Task<IActionResult> PreviewPdf(Guid documentUid, string structuredDataJson, CancellationToken cancellationToken)
     {
         if (documentUid == Guid.Empty || string.IsNullOrWhiteSpace(structuredDataJson)) return BadRequest();
@@ -39,6 +43,7 @@ public sealed class PatientDocumentsController : Controller
     }
 
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.DocumentsManage)]
     public async Task<IActionResult> Create(
         Guid patientUid,
         CancellationToken cancellationToken)
@@ -215,6 +220,7 @@ public sealed class PatientDocumentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.DocumentsManage)]
     public async Task<IActionResult> UpdateDraft(
         Guid documentUid,
         UpdatePatientDocumentDraftRequest request,

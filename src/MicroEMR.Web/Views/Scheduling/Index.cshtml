@@ -1,6 +1,9 @@
 @model MicroEMR.Web.Models.Scheduling.SchedulingIndexViewModel
 @using System.Text.Json
 @using System.Text.Json.Serialization
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 
 @{
     Layout = "_AppLayout";
@@ -22,6 +25,7 @@
 
     var openAddAppointmentJson =
         JsonSerializer.Serialize(Model.OpenAddAppointment, jsonOptions);
+    var canManageScheduling = await Permissions.HasAsync(PermissionKeys.SchedulingManage, Context.RequestAborted);
 }
 
 @section Styles {
@@ -737,7 +741,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveEditAppointmentButton">Save</button>
+                <button type="button" class="btn btn-primary" id="saveEditAppointmentButton" disabled="@(!canManageScheduling)" aria-disabled="@(!canManageScheduling)" title="@(canManageScheduling ? null : "Read-only access")">Save</button>
             </div>
         </div>
     </div>
@@ -759,7 +763,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="keepAppointmentButton">Keep Appointment</button>
-                <button type="button" class="btn btn-danger" id="confirmCancelAppointmentButton">
+                <button type="button" class="btn btn-danger" id="confirmCancelAppointmentButton" disabled="@(!canManageScheduling)" aria-disabled="@(!canManageScheduling)" title="@(canManageScheduling ? null : "Read-only access")">
                     Confirm Cancel
                 </button>
             </div>
@@ -835,7 +839,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger" id="removeBlockedTimeButton">Remove Block</button>
+                <button type="button" class="btn btn-danger" id="removeBlockedTimeButton" disabled="@(!canManageScheduling)" aria-disabled="@(!canManageScheduling)" title="@(canManageScheduling ? null : "Read-only access")">Remove Block</button>
             </div>
         </div>
     </div>
@@ -855,7 +859,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" id="keepCurrentTimeButton">Keep Current Time</button>
-                <button type="button" class="btn btn-primary" id="confirmMoveButton">Confirm Move</button>
+                <button type="button" class="btn btn-primary" id="confirmMoveButton" disabled="@(!canManageScheduling)" aria-disabled="@(!canManageScheduling)" title="@(canManageScheduling ? null : "Read-only access")">Confirm Move</button>
             </div>
         </div>
     </div>
@@ -948,7 +952,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveAppointmentButton">Save Appointment</button>
+                <button type="button" class="btn btn-primary" id="saveAppointmentButton" disabled="@(!canManageScheduling)" aria-disabled="@(!canManageScheduling)" title="@(canManageScheduling ? null : "Read-only access")">Save Appointment</button>
             </div>
         </div>
     </div>
@@ -1047,7 +1051,8 @@ else
 
         const resources = @Html.Raw(resourcesJson);
         const initialDate = @Html.Raw(initialDateJson);
-        const shouldOpenAddAppointment = @Html.Raw(openAddAppointmentJson);
+        const canManageScheduling = @Json.Serialize(canManageScheduling);
+        const shouldOpenAddAppointment = canManageScheduling && @Html.Raw(openAddAppointmentJson);
 
         if (!resources.length) {
             return;
@@ -1177,10 +1182,10 @@ else
                 cellDuration: 15,
                 businessBeginsHour: 8,
                 businessEndsHour: 18,
-                eventMoveHandling: "Update",
+                eventMoveHandling: canManageScheduling ? "Update" : "Disabled",
                 eventResizeHandling: "Disabled",
                 eventDeleteHandling: "Disabled",
-                timeRangeSelectedHandling: "Enabled",
+                timeRangeSelectedHandling: canManageScheduling ? "Enabled" : "Disabled",
                 onBeforeEventRender: args => {
                     if (args.data.eventKind !== "appointment") return;
                     args.data.areas = [

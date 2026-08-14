@@ -1,11 +1,15 @@
 @model MicroEMR.Web.Models.PatientDocuments.PatientDocumentDetailsResponse
 
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
 @{
     ViewData["Title"] = Model.Title;
     ViewData["Subtitle"] = Model.DocumentType;
     Layout = "_AppLayout";
     var isDraft = string.Equals(Model.Status, "Draft", StringComparison.OrdinalIgnoreCase);
-    var showEditor = !ViewData.ModelState.IsValid || (isDraft && Model.IsStructured);
+    var canManage = await Permissions.HasAsync(PermissionKeys.DocumentsManage, Context.RequestAborted);
+    var showEditor = canManage && (!ViewData.ModelState.IsValid || (isDraft && Model.IsStructured));
 }
 
 <div class="content-panel">
@@ -18,7 +22,8 @@
         <div class="d-flex gap-2">
             @if (isDraft)
             {
-                <button type="button" class="btn btn-primary @(showEditor ? "d-none" : "")" id="editDocumentButton">
+                <button type="button" class="btn btn-primary @(showEditor ? "d-none" : "")" id="editDocumentButton"
+                        disabled="@(!canManage)" aria-disabled="@(!canManage)" title="@(canManage ? null : "Read-only access")">
                     <i class="bi bi-pencil me-1"></i>
                     Edit
                 </button>

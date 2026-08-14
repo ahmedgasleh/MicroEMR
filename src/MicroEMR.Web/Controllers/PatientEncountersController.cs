@@ -4,10 +4,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Services.PatientEncounters;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.EncountersView)]
 public sealed class PatientEncountersController : Controller
 {
     [HttpGet]
@@ -18,6 +21,7 @@ public sealed class PatientEncountersController : Controller
         catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.NotFound) { return NotFound(); }
     }
     [HttpPost, ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> PreviewPdf(Guid encounterUid, string structuredDataJson, CancellationToken cancellationToken)
     {
         if (encounterUid == Guid.Empty || string.IsNullOrWhiteSpace(structuredDataJson)) return BadRequest();
@@ -219,6 +223,7 @@ public sealed class PatientEncountersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> CreateEncounterAddendum(
         CreateEncounterAddendumViewModel model,
         CancellationToken cancellationToken)
@@ -262,6 +267,7 @@ public sealed class PatientEncountersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> UpdateEncounterNote(
         UpdateEncounterNoteViewModel model,
         CancellationToken cancellationToken)
@@ -335,6 +341,7 @@ public sealed class PatientEncountersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> UpdateEncounterSoapNote(
         UpdateEncounterSoapNoteViewModel model,
         CancellationToken cancellationToken)
@@ -377,6 +384,7 @@ public sealed class PatientEncountersController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> UpdateEncounterStructuredData(
         Guid patientUid, Guid encounterUid, string structuredDataJson, string rowVersion,
         CancellationToken cancellationToken)
@@ -396,6 +404,7 @@ public sealed class PatientEncountersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersSign)]
     public async Task<IActionResult> SignEncounter(
         Guid patientUid,
         Guid encounterUid,
@@ -464,6 +473,7 @@ public sealed class PatientEncountersController : Controller
     }
 
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> Create(
         Guid patientUid, CancellationToken cancellationToken)
     {

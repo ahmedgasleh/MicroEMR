@@ -15,10 +15,13 @@ using MicroEMR.Web.Services.PatientMedications;
 using MicroEMR.Web.Services.PatientProblems;
 using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Models.PatientVitals;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.PatientsView)]
 public sealed class PatientsController : Controller
 {
     private readonly IPatientApiClient _patientApiClient;
@@ -102,6 +105,7 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.PatientsEdit)]
     public IActionResult Create()
     {
         return View(new CreatePatientRequest());
@@ -109,6 +113,7 @@ public sealed class PatientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.PatientsEdit)]
     public async Task<IActionResult> Create(
         CreatePatientRequest model,
         CancellationToken cancellationToken)
@@ -162,6 +167,7 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.PatientsEdit)]
     public async Task<IActionResult> Edit(
         Guid patientUid,
         CancellationToken cancellationToken)
