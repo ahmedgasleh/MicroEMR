@@ -5,9 +5,12 @@ using MicroEMR.Application.PatientVitals.Contracts;
 using MicroEMR.Application.PatientVitals.Services;
 using MicroEMR.Application.PatientVitals;
 using Microsoft.Data.SqlClient;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 namespace MicroEMR.Api.Controllers;
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.PatientsView)]
 public sealed class PatientVitalsController(IPatientVitalService service, ILogger<PatientVitalsController> logger) : ControllerBase
 {
     [HttpGet("api/patients/{patientUid:guid}/vitals")]
@@ -28,7 +31,7 @@ public sealed class PatientVitalsController(IPatientVitalService service, ILogge
         }
         catch (SqlException ex) when (ex.Number == 51401) { return NotFound(); }
     }
-    [HttpPost("api/patients/{patientUid:guid}/vitals")]
+    [HttpPost("api/patients/{patientUid:guid}/vitals"), RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientVitalResponse>> Create(Guid patientUid,[FromBody]CreatePatientVitalRequest request,CancellationToken cancellationToken)
     {
         if(patientUid==Guid.Empty)return BadRequest();
@@ -39,7 +42,7 @@ public sealed class PatientVitalsController(IPatientVitalService service, ILogge
         catch(SqlException ex) when(ex.Number == 51403){return BadRequest(new{message="One or more vital measurements are invalid."});}
         catch(Exception ex){logger.LogError(ex,"Failed to create patient vitals.");return Problem("Vitals could not be saved.");}
     }
-    [HttpPut("api/patients/{patientUid:guid}/vitals/{patientVitalUid:guid}")]
+    [HttpPut("api/patients/{patientUid:guid}/vitals/{patientVitalUid:guid}"), RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientVitalResponse>> Update(Guid patientUid,Guid patientVitalUid,[FromBody]UpdatePatientVitalRequest request,CancellationToken cancellationToken)
     {
         if(patientUid==Guid.Empty||patientVitalUid==Guid.Empty)return BadRequest();

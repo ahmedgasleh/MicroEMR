@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Services;
 using MicroEMR.Application.PatientAllergies;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Api.Controllers;
 
 [ApiController]
 [Authorize]
+[RequirePermission(PermissionKeys.PatientsView)]
 public sealed class PatientAllergiesController : ControllerBase
 {
     private readonly IPatientAllergyService _allergyService;
@@ -76,6 +79,7 @@ public sealed class PatientAllergiesController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/allergies")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     [ProducesResponseType<PatientAllergyDetailsResponse>(
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -145,6 +149,7 @@ public sealed class PatientAllergiesController : ControllerBase
     }
 
     [HttpPut("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     [ProducesResponseType<PatientAllergyDetailsResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -191,6 +196,7 @@ public sealed class PatientAllergiesController : ControllerBase
     }
 
     [HttpPost("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}/resolve")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientAllergyDetailsResponse>> ResolveAllergy(
         Guid patientUid, Guid allergyUid, [FromBody] ResolvePatientAllergyRequest request,
         CancellationToken cancellationToken)
