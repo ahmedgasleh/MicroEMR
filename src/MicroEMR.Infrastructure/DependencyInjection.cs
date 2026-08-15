@@ -11,6 +11,8 @@ using MicroEMR.Infrastructure.PatientDocuments;
 using MicroEMR.Infrastructure.PatientEncounters;
 using MicroEMR.Infrastructure.PatientMedications;
 using MicroEMR.Infrastructure.PatientProblems;
+using MicroEMR.Application.PatientClinicalHistory;
+using MicroEMR.Infrastructure.PatientClinicalHistory;
 using MicroEMR.Infrastructure.PatientVitals;
 using MicroEMR.Infrastructure.Patients;
 using MicroEMR.Infrastructure.Scheduling;
@@ -90,6 +92,7 @@ public static class DependencyInjection
             services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();
             services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
+            services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();

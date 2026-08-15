@@ -11,6 +11,7 @@
     var canEditEncounters = effectivePermissions.Contains(PermissionKeys.EncountersEdit);
     var canSignEncounters = effectivePermissions.Contains(PermissionKeys.EncountersSign);
     var canManageDocuments = effectivePermissions.Contains(PermissionKeys.DocumentsManage);
+    var canManageClinicalData = effectivePermissions.Contains(PermissionKeys.ClinicalDataManage);
 
     ViewData ["Title"] = "Patient Chart";
     ViewData ["Subtitle"] = patient.ChartNumber;
@@ -40,6 +41,7 @@
 
     var problemsActive =
         Model.ActiveTab == "problems";
+    var historyActive = Model.ActiveTab == "history";
 
     var medicationsActive =
         Model.ActiveTab == "medications";
@@ -181,6 +183,7 @@
             Problems
         </button>
     </li>
+    <li class="nav-item"><button class="nav-link @(historyActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#history" type="button">Medical / Surgical History</button></li>
 
     <li class="nav-item">
         <button class="nav-link @(allergiesActive ? "active" : null)"
@@ -230,6 +233,15 @@
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Medications</h4>@if (summary.ActiveMedications.Count == 0) { <p class="text-muted mb-0">No active medications recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.ActiveMedications) { <div class="list-group-item px-0"><div class="fw-semibold">@item.MedicationName @item.Strength</div><div class="small">@string.Join(" · ", new[] { item.Frequency, item.Route }.Where(value => !string.IsNullOrWhiteSpace(value)))</div>@if (item.StartDate.HasValue) { <small class="text-muted">Started @item.StartDate.Value.ToString("MMM d, yyyy")</small> }</div> }</div>@if (summary.ActiveMedicationsTotalCount > 5) { <div class="small text-muted mt-2">+ @(summary.ActiveMedicationsTotalCount - 5) more active medications</div> } }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View Medications</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Encounters</h4>@if (summary.RecentEncounters.Count == 0) { <p class="text-muted mb-0">No encounters recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.RecentEncounters) { <div class="list-group-item px-0"><div class="d-flex justify-content-between gap-2"><span class="fw-semibold">@item.EncounterType</span><span class="badge text-bg-secondary">@item.Status</span></div><div class="small text-muted">@item.EncounterDateUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</div><div class="small">@(item.ReasonForVisit ?? item.ProviderName ?? "—")</div></div> }</div> }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="encounters">View Encounters</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Documents</h4>@if (summary.RecentDocuments.Count == 0) { <p class="text-muted mb-0">No documents recorded.</p> } else { <div class="list-group list-group-flush">@foreach (var item in summary.RecentDocuments) { <div class="list-group-item px-0"><div class="d-flex justify-content-between gap-2"><span class="fw-semibold">@item.Title</span><span class="badge text-bg-secondary">@item.Status</span></div><div class="small">@item.DocumentType</div><div class="small text-muted">@item.CreatedAt.ToLocalTime().ToString("MMM d, yyyy") · @(item.CreatedByDisplayName ?? "Unknown")</div></div> }</div> }</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="documents">View Documents</button></div></div></div>
+            <div class="col-12"><div class="card"><div class="card-body"><h4 class="h6">Past Medical and Surgical History</h4><div id="clinicalHistorySummary" class="text-muted">Loading history...</div></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="history">View Medical / Surgical History</button></div></div></div>
+        </div>
+    </div>
+    <div class="tab-pane fade @(historyActive ? "show active" : null)" id="history" role="tabpanel">
+        <div id="patientClinicalHistoryRoot" data-patient-uid="@patient.PatientUid" data-list-url="@Url.Action("List", "PatientClinicalHistory", new { patientUid = patient.PatientUid })" data-mutation-url="@Url.Action("List", "PatientClinicalHistory", new { patientUid = patient.PatientUid })" data-can-manage="@canManageClinicalData.ToString().ToLowerInvariant()">
+            <div class="d-flex justify-content-between align-items-center mb-3"><div><h5 class="mb-1">Past Medical and Surgical History</h5><p class="text-body-secondary mb-0">Structured longitudinal history distinct from active problems.</p></div>@if(canManageClinicalData){<button id="addClinicalHistoryButton" class="btn btn-primary" type="button">Add History</button>}</div>
+            <div id="clinicalHistoryMessage" class="alert d-none" role="alert"></div>
+            <div class="d-flex justify-content-end mb-3"><select id="clinicalHistoryStatus" class="form-select form-select-sm w-auto"><option value="Active">Active</option><option value="Archived">Archived</option><option value="All">All</option></select></div>
+            <div id="clinicalHistoryList" aria-live="polite">Loading history...</div>
         </div>
     </div>
     <div class="tab-pane fade @(timelineActive ? "show active" : null)" id="timeline" role="tabpanel">
@@ -1378,7 +1390,9 @@
 
 @section Scripts {
 <script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
+<div class="modal fade" id="clinicalHistoryModal" tabindex="-1" aria-labelledby="clinicalHistoryModalTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="clinicalHistoryModalTitle">Add History</h2><button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="clinicalHistoryForm">@Html.AntiForgeryToken()<input type="hidden" name="HistoryUid"/><input type="hidden" name="RowVersion"/><div class="mb-3"><label class="form-label" for="clinicalHistoryType">History type</label><select class="form-select" id="clinicalHistoryType" name="HistoryType" required><option value="Medical">Medical</option><option value="Surgical">Surgical</option></select></div><div class="mb-3"><label class="form-label" for="clinicalHistoryDescription">Description</label><textarea class="form-control" id="clinicalHistoryDescription" name="Description" maxlength="1000" required rows="3"></textarea></div><div><label class="form-label" for="clinicalHistoryDate">Relevant date</label><input class="form-control" id="clinicalHistoryDate" name="RelevantDate" type="date"/></div><div id="clinicalHistoryEditorMessage" class="alert alert-danger d-none mt-3"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveClinicalHistoryButton" type="button">Save</button></div></div></div></div>
 <script type="module" src="~/dist/patients/recent-patients.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-clinical-history.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-chart-alerts.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-tasks.js" asp-append-version="true"></script>
