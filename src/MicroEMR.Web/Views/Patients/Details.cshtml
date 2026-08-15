@@ -546,10 +546,14 @@
              data-list-url="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })"
              data-details-url-root="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })"
              data-upload-url="@Url.Action("Upload", "PatientFiles", new { patientUid = patient.PatientUid })"
-             data-content-url-root="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })">
+             data-content-url-root="@Url.Action("List", "PatientFiles", new { patientUid = patient.PatientUid })"
+             data-can-manage="@canManageDocuments.ToString().ToLowerInvariant()">
             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
                 <div><h5 class="mb-1">Patient Files</h5><p class="text-body-secondary mb-0">Files uploaded to this patient chart.</p></div>
-                <button id="uploadPatientFileButton" class="btn btn-primary" type="button"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload File</button>
+                @if (canManageDocuments)
+                {
+                    <button id="uploadPatientFileButton" class="btn btn-primary" type="button"><i class="bi bi-upload me-1" aria-hidden="true"></i>Upload File</button>
+                }
             </div>
             <div id="patientFileMessage" class="alert d-none" role="alert"></div>
             <div id="patientFileList" aria-live="polite"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading files...</span></div></div>
@@ -1362,8 +1366,11 @@
  <div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="patientFileUploadTitle">Upload File</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
  <div class="modal-body"><form id="patientFileUploadForm" enctype="multipart/form-data" novalidate>@Html.AntiForgeryToken()
   <div class="mb-3"><label for="patientFileInput" class="form-label">File</label><input id="patientFileInput" name="File" type="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.txt,application/pdf,image/jpeg,image/png,text/plain" required aria-describedby="patientFileGuidance patientFileValidation"/><div id="patientFileValidation" class="invalid-feedback">Select a file to upload.</div><div id="patientFileGuidance" class="form-text">PDF, JPEG, PNG, or TXT. Maximum 25 MB.</div></div>
+  <div class="mb-3"><label for="patientFileTitle" class="form-label">Document title <span class="text-danger">*</span></label><input id="patientFileTitle" name="Title" class="form-control" maxlength="200" required/><div class="invalid-feedback">Enter a document title.</div></div>
+  <div class="mb-3"><label for="patientFileCategory" class="form-label">Document type / category <span class="text-danger">*</span></label><input id="patientFileCategory" name="Category" class="form-control" maxlength="100" required/><div class="invalid-feedback">Enter a document type or category.</div></div>
+  <div class="row g-3 mb-3"><div class="col-md-6"><label for="patientFileDocumentDate" class="form-label">Document date <span class="text-body-secondary">(optional)</span></label><input id="patientFileDocumentDate" name="DocumentDate" type="date" class="form-control"/></div><div class="col-md-6"><label for="patientFileReceivedDate" class="form-label">Received date <span class="text-body-secondary">(optional)</span></label><input id="patientFileReceivedDate" name="ReceivedDate" type="date" class="form-control"/></div></div>
+  <div class="row g-3 mb-3"><div class="col-md-6"><label for="patientFileSourceOrganization" class="form-label">Source organization <span class="text-body-secondary">(optional)</span></label><input id="patientFileSourceOrganization" name="SourceOrganization" class="form-control" maxlength="200"/></div><div class="col-md-6"><label for="patientFileAuthorName" class="form-label">Author / provider <span class="text-body-secondary">(optional)</span></label><input id="patientFileAuthorName" name="AuthorName" class="form-control" maxlength="200"/></div></div>
   <div class="mb-3"><label for="patientFileDescription" class="form-label">Description <span class="text-body-secondary">(optional)</span></label><textarea id="patientFileDescription" name="Description" class="form-control" maxlength="1000" rows="3"></textarea></div>
-  <div class="mb-3"><label for="patientFileCategory" class="form-label">Category <span class="text-body-secondary">(optional)</span></label><input id="patientFileCategory" name="Category" class="form-control" maxlength="100"/></div>
   <div id="patientFileUploadMessage" class="alert alert-danger d-none mb-0" role="alert"></div>
  </form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" form="patientFileUploadForm" id="submitPatientFile" class="btn btn-primary">Upload File</button></div></div></div>
 </div>

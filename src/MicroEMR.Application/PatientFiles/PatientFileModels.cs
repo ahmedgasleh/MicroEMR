@@ -17,6 +17,11 @@ public sealed class PatientFile
     public string? Sha256Hash { get; init; }
     public string? Description { get; init; }
     public string? Category { get; init; }
+    public string? Title { get; init; }
+    public string? SourceOrganization { get; init; }
+    public string? AuthorName { get; init; }
+    public DateOnly? DocumentDate { get; init; }
+    public DateOnly? ReceivedDate { get; init; }
     public PatientFileStatus Status { get; init; }
     public DateTime UploadedAtUtc { get; init; }
     public long UploadedBy { get; init; }
@@ -35,6 +40,11 @@ public sealed class CreatePatientFileMetadata
     public string? Sha256Hash { get; init; }
     public string? Description { get; init; }
     public string? Category { get; init; }
+    public required string Title { get; init; }
+    public string? SourceOrganization { get; init; }
+    public string? AuthorName { get; init; }
+    public DateOnly? DocumentDate { get; init; }
+    public DateOnly? ReceivedDate { get; init; }
 }
 
 public static class PatientFileNaming

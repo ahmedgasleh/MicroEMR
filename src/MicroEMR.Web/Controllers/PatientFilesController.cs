@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientFiles;
 using MicroEMR.Web.Services.PatientFiles;
+using MicroEMR.Web.Authorization;
+using MicroEMR.Application.AccessProfiles;
 
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
+[RequireWebPermission(PermissionKeys.DocumentsView)]
 [Route("patients/{patientUid:guid}/files")]
 public sealed class PatientFilesController(IPatientFileApiClient client, ILogger<PatientFilesController> logger) : Controller
 {
@@ -31,6 +34,7 @@ public sealed class PatientFilesController(IPatientFileApiClient client, ILogger
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(27_262_976)]
+    [RequireWebPermission(PermissionKeys.DocumentsManage)]
     public async Task<IActionResult> Upload(Guid patientUid, UploadPatientFileViewModel model, CancellationToken cancellationToken)
     {
         if (model.File is null) ModelState.AddModelError(nameof(model.File), "A file is required.");
@@ -38,14 +42,14 @@ public sealed class PatientFilesController(IPatientFileApiClient client, ILogger
             return BadRequest(new { success = false, message = ModelState.Values.SelectMany(x => x.Errors).FirstOrDefault()?.ErrorMessage ?? "Please correct the file information." });
         try
         {
-            var file = await client.UploadAsync(patientUid, model.File!, model.Description, model.Category, cancellationToken);
+            var file = await client.UploadAsync(patientUid, model.File!, model, cancellationToken);
             return file is null ? NotFound(new { success = false, message = "Patient was not found." }) : Json(new { success = true, file, message = "File uploaded successfully." });
         }
         catch (Exception exception) { return Failure(exception, "The file could not be uploaded.", patientUid); }
     }
-    [HttpPost("{fileUid:guid}/archive"),ValidateAntiForgeryToken]
+    [HttpPost("{fileUid:guid}/archive"),ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.DocumentsManage)]
     public Task<IActionResult>Archive(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken ct)=>Transition(patientUid,fileUid,rowVersion,client.ArchiveAsync,ct);
-    [HttpPost("{fileUid:guid}/restore"),ValidateAntiForgeryToken]
+    [HttpPost("{fileUid:guid}/restore"),ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.DocumentsManage)]
     public Task<IActionResult>Restore(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken ct)=>Transition(patientUid,fileUid,rowVersion,client.RestoreAsync,ct);
     private async Task<IActionResult>Transition(Guid p,Guid f,string v,Func<Guid,Guid,string,CancellationToken,Task<PatientFileViewModel?>> action,CancellationToken ct)
     {if(string.IsNullOrWhiteSpace(v))return BadRequest(new{success=false,message="The file version is required."});try{var file=await action(p,f,v,ct);return file is null?NotFound(new{success=false,message="File was not found."}):Json(new{success=true,file});}catch(Exception e){return Failure(e,"The file status could not be changed.",p,f);}}

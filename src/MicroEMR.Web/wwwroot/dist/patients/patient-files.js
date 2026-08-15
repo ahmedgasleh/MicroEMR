@@ -11,12 +11,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailsModal = bootstrap.Modal.getOrCreateInstance(detailsElement);
     const form = document.querySelector("#patientFileUploadForm");
     const fileInput = document.querySelector("#patientFileInput");
+    const titleInput = document.querySelector("#patientFileTitle");
+    const categoryInput = document.querySelector("#patientFileCategory");
     const submit = document.querySelector("#submitPatientFile");
+    const canManage = root.dataset.canManage === "true";
     let loaded = false;
     const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const size = (bytes) => bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1).replace(".0", "")} KB` : `${(bytes / 1048576).toFixed(1).replace(".0", "")} MB`;
     const type = (contentType) => ({ "application/pdf": "PDF", "image/jpeg": "JPEG image", "image/png": "PNG image", "text/plain": "Text" }[contentType.toLowerCase()] ?? "File");
     const date = (value) => value ? new Date(value).toLocaleString() : "—";
+    const day = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString() : "—";
     const detailsUrl = (uid) => `${root.dataset.detailsUrlRoot.replace(/\/$/, "")}/${encodeURIComponent(uid)}`;
     const contentUrl = (uid) => `${root.dataset.contentUrlRoot.replace(/\/$/, "")}/${encodeURIComponent(uid)}/content`;
     const lifecycleUrl = (uid, action) => `${root.dataset.contentUrlRoot.replace(/\/$/, "")}/${encodeURIComponent(uid)}/${action}`;
@@ -33,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-folder2-open" aria-hidden="true"></i></div><div class="microemr-empty-state__title">No files uploaded for this patient.</div></div>';
                 return;
             }
-            list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Filename</th><th>Category</th><th>Type</th><th>Size</th><th>Status</th><th>Uploaded</th><th>Uploaded by</th><th class="text-end">Actions</th></tr></thead><tbody>${files.map(file => { const archived = file.status.toLowerCase() === "archived"; return `<tr><td class="text-break"><button type="button" class="btn btn-link p-0 text-start file-details" data-file-uid="${file.fileUid}">${escapeHtml(file.originalFileName)}</button></td><td>${escapeHtml(file.category || "—")}</td><td>${escapeHtml(type(file.contentType))}</td><td class="text-nowrap">${size(file.fileSizeBytes)}</td><td><span class="badge ${archived ? "text-bg-secondary" : "text-bg-success"}">${escapeHtml(file.status)}</span></td><td class="text-nowrap">${escapeHtml(date(file.uploadedAtUtc))}</td><td>${escapeHtml(file.uploadedByDisplayName || file.uploadedBy || "—")}</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary file-details" data-file-uid="${file.fileUid}">Details</button> <a class="btn btn-sm btn-outline-primary" href="${contentUrl(file.fileUid)}">Download</a> <button type="button" class="btn btn-sm ${archived ? "btn-outline-success" : "btn-outline-warning"} file-lifecycle" data-file-uid="${file.fileUid}" data-row-version="${escapeHtml(file.rowVersion)}" data-action="${archived ? "restore" : "archive"}">${archived ? "Restore" : "Archive"}</button></td></tr>`; }).join("")}</tbody></table></div>`;
+            list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Document</th><th>Category</th><th>Source</th><th>Document date</th><th>Status</th><th>Received / uploaded</th><th class="text-end">Actions</th></tr></thead><tbody>${files.map(file => { const archived = file.status.toLowerCase() === "archived"; const lifecycle = canManage ? ` <button type="button" class="btn btn-sm ${archived ? "btn-outline-success" : "btn-outline-warning"} file-lifecycle" data-file-uid="${file.fileUid}" data-row-version="${escapeHtml(file.rowVersion)}" data-action="${archived ? "restore" : "archive"}">${archived ? "Restore" : "Archive"}</button>` : ""; return `<tr><td class="text-break"><button type="button" class="btn btn-link p-0 text-start file-details" data-file-uid="${file.fileUid}">${escapeHtml(file.title || file.originalFileName)}</button><div class="small text-body-secondary">${escapeHtml(file.originalFileName)} · ${size(file.fileSizeBytes)}</div></td><td>${escapeHtml(file.category || "—")}</td><td>${escapeHtml(file.sourceOrganization || file.authorName || "—")}</td><td class="text-nowrap">${escapeHtml(day(file.documentDate))}</td><td><span class="badge ${archived ? "text-bg-secondary" : "text-bg-success"}">${escapeHtml(file.status)}</span></td><td class="text-nowrap">${escapeHtml(file.receivedDate ? day(file.receivedDate) : date(file.uploadedAtUtc))}</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-outline-secondary file-details" data-file-uid="${file.fileUid}">Details</button> <a class="btn btn-sm btn-outline-primary" href="${contentUrl(file.fileUid)}">Download</a>${lifecycle}</td></tr>`; }).join("")}</tbody></table></div>`;
         }
         catch (error) {
             list.innerHTML = "";
@@ -51,12 +55,16 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector("#uploadPatientFileButton")?.addEventListener("click", () => { form.reset(); fileInput.classList.remove("is-invalid"); document.querySelector("#patientFileUploadMessage")?.classList.add("d-none"); uploadModal.show(); });
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!fileInput.files?.length) {
-            fileInput.classList.add("is-invalid");
-            fileInput.focus();
+        const missingFile = !fileInput.files?.length;
+        const missingTitle = !titleInput.value.trim();
+        const missingCategory = !categoryInput.value.trim();
+        fileInput.classList.toggle("is-invalid", missingFile);
+        titleInput.classList.toggle("is-invalid", missingTitle);
+        categoryInput.classList.toggle("is-invalid", missingCategory);
+        if (missingFile || missingTitle || missingCategory) {
+            (missingFile ? fileInput : missingTitle ? titleInput : categoryInput).focus();
             return;
         }
-        fileInput.classList.remove("is-invalid");
         submit.disabled = true;
         submit.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Uploading...';
         const uploadMessage = document.querySelector("#patientFileUploadMessage");
@@ -117,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(result.message || "File details could not be loaded.");
             const file = result.file;
             const row = (label, value) => `<dt class="col-sm-4">${label}</dt><dd class="col-sm-8 text-break">${escapeHtml(value || "—")}</dd>`;
-            body.innerHTML = `<dl class="row mb-0">${row("Original filename", file.originalFileName)}${row("Category", file.category)}${row("Description", file.description)}${row("Content type", file.contentType)}${row("File size", size(file.fileSizeBytes))}${row("Status", file.status)}${row("Uploaded", date(file.uploadedAtUtc))}${row("Uploaded by", file.uploadedByDisplayName || file.uploadedBy)}${file.sha256Hash ? row("SHA-256", file.sha256Hash) : ""}${file.updatedAtUtc ? row("Updated", date(file.updatedAtUtc)) : ""}${file.updatedByDisplayName ? row("Updated by", file.updatedByDisplayName) : ""}</dl>`;
+            body.innerHTML = `<dl class="row mb-0">${row("Document title", file.title)}${row("Original filename", file.originalFileName)}${row("Category", file.category)}${row("Source organization", file.sourceOrganization)}${row("Author / provider", file.authorName)}${row("Document date", day(file.documentDate))}${row("Received date", day(file.receivedDate))}${row("Description", file.description)}${row("Content type", file.contentType)}${row("File size", size(file.fileSizeBytes))}${row("Status", file.status)}${row("Uploaded", date(file.uploadedAtUtc))}${row("Uploaded by", file.uploadedByDisplayName || file.uploadedBy)}${file.sha256Hash ? row("SHA-256", file.sha256Hash) : ""}${file.updatedAtUtc ? row("Updated", date(file.updatedAtUtc)) : ""}${file.updatedByDisplayName ? row("Updated by", file.updatedByDisplayName) : ""}</dl>`;
         }
         catch (error) {
             body.innerHTML = `<div class="alert alert-danger mb-0" role="alert">${escapeHtml(error instanceof Error ? error.message : "File details could not be loaded.")}</div>`;

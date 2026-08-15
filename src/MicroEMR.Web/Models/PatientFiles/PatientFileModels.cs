@@ -13,6 +13,11 @@ public sealed class PatientFileViewModel
     public string? Sha256Hash { get; set; }
     public string? Description { get; set; }
     public string? Category { get; set; }
+    public string? Title { get; set; }
+    public string? SourceOrganization { get; set; }
+    public string? AuthorName { get; set; }
+    public DateOnly? DocumentDate { get; set; }
+    public DateOnly? ReceivedDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime UploadedAtUtc { get; set; }
     public long UploadedBy { get; set; }
@@ -26,5 +31,10 @@ public sealed class UploadPatientFileViewModel
 {
     [Required] public IFormFile? File { get; set; }
     [StringLength(1000)] public string? Description { get; set; }
-    [StringLength(100)] public string? Category { get; set; }
+    [Required, StringLength(100)] public string? Category { get; set; }
+    [Required, StringLength(200)] public string? Title { get; set; }
+    [StringLength(200)] public string? SourceOrganization { get; set; }
+    [StringLength(200)] public string? AuthorName { get; set; }
+    public DateOnly? DocumentDate { get; set; }
+    public DateOnly? ReceivedDate { get; set; }
 }

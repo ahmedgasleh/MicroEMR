@@ -26,20 +26,30 @@ public sealed class PatientFileApiClient(HttpClient client, IHttpContextAccessor
         return await response.Content.ReadFromJsonAsync<PatientFileViewModel>(cancellationToken: cancellationToken);
     }
 
-    public async Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, string? description, string? category, CancellationToken cancellationToken = default)
+    public async Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, UploadPatientFileViewModel metadata, CancellationToken cancellationToken = default)
     {
         using var request = await RequestAsync(HttpMethod.Post, $"api/patients/{patientUid}/files");
         using var content = new MultipartFormDataContent();
         var streamContent = new StreamContent(file.OpenReadStream());
         streamContent.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType);
         content.Add(streamContent, "file", file.FileName);
-        if (!string.IsNullOrWhiteSpace(description)) content.Add(new StringContent(description.Trim()), "description");
-        if (!string.IsNullOrWhiteSpace(category)) content.Add(new StringContent(category.Trim()), "category");
+        Add(content, "description", metadata.Description);
+        Add(content, "category", metadata.Category);
+        Add(content, "title", metadata.Title);
+        Add(content, "sourceOrganization", metadata.SourceOrganization);
+        Add(content, "authorName", metadata.AuthorName);
+        if (metadata.DocumentDate.HasValue) content.Add(new StringContent(metadata.DocumentDate.Value.ToString("yyyy-MM-dd")), "documentDate");
+        if (metadata.ReceivedDate.HasValue) content.Add(new StringContent(metadata.ReceivedDate.Value.ToString("yyyy-MM-dd")), "receivedDate");
         request.Content = content;
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<PatientFileViewModel>(cancellationToken: cancellationToken);
+    }
+
+    private static void Add(MultipartFormDataContent content, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value)) content.Add(new StringContent(value.Trim()), name);
     }
 
     public async Task<HttpResponseMessage> GetContentAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default)

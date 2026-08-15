@@ -60,7 +60,16 @@ public sealed class PatientFileWebTests
         var details = await client.GetByUidAsync(patientUid, fileUid);
         await using var bytes = new MemoryStream("%PDF-test"u8.ToArray());
         var formFile = new FormFile(bytes, 0, bytes.Length, "ignored-browser-field", "report.pdf") { Headers = new HeaderDictionary(), ContentType = "application/pdf" };
-        await client.UploadAsync(patientUid, formFile, "Clinical report", "Reports");
+        await client.UploadAsync(patientUid, formFile, new UploadPatientFileViewModel
+        {
+            Title = "Consultation report",
+            Description = "Clinical report",
+            Category = "Reports",
+            SourceOrganization = "Ontario Specialist Clinic",
+            AuthorName = "Dr. Example",
+            DocumentDate = new DateOnly(2026, 8, 1),
+            ReceivedDate = new DateOnly(2026, 8, 4)
+        });
         using var content = await client.GetContentAsync(patientUid, fileUid);
 
         Assert.Equal($"api/patients/{patientUid}/files", handler.Requests[0].Path);
@@ -73,6 +82,11 @@ public sealed class PatientFileWebTests
         Assert.Contains("name=file", body); Assert.Contains("filename=report.pdf", body);
         Assert.Contains("name=description", body); Assert.Contains("Clinical report", body);
         Assert.Contains("name=category", body); Assert.Contains("Reports", body);
+        Assert.Contains("name=title", body); Assert.Contains("Consultation report", body);
+        Assert.Contains("name=sourceOrganization", body); Assert.Contains("Ontario Specialist Clinic", body);
+        Assert.Contains("name=authorName", body); Assert.Contains("Dr. Example", body);
+        Assert.Contains("name=documentDate", body); Assert.Contains("2026-08-01", body);
+        Assert.Contains("name=receivedDate", body); Assert.Contains("2026-08-04", body);
         Assert.DoesNotContain("PatientUid", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Tenant", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Actor", body, StringComparison.OrdinalIgnoreCase);
@@ -129,7 +143,7 @@ public sealed class PatientFileWebTests
             contentResult is Exception exception ? Task.FromException<HttpResponseMessage>(exception) : Task.FromResult((HttpResponseMessage)contentResult);
         public Task<IReadOnlyList<PatientFileViewModel>> GetByPatientUidAsync(Guid patientUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PatientFileViewModel?> GetByUidAsync(Guid patientUid, Guid fileUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, string? description, string? category, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PatientFileViewModel?> UploadAsync(Guid patientUid, IFormFile file, UploadPatientFileViewModel metadata, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PatientFileViewModel?> ArchiveAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default)=>throw new NotSupportedException();
         public Task<PatientFileViewModel?> RestoreAsync(Guid patientUid,Guid fileUid,string rowVersion,CancellationToken cancellationToken=default)=>throw new NotSupportedException();
     }

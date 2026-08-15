@@ -12,7 +12,7 @@ public sealed class PatientFileApiFoundationTests
     public void ControllerIsAuthenticatedPatientScopedAndUploadIsBounded()
     {
         var type=typeof(PatientFilesController);
-        Assert.NotNull(type.GetCustomAttributes(typeof(AuthorizeAttribute),true).SingleOrDefault());
+        Assert.NotEmpty(type.GetCustomAttributes(typeof(AuthorizeAttribute),true));
         Assert.Equal("api/patients/{patientUid:guid}/files",type.GetCustomAttributes(typeof(RouteAttribute),true).Cast<RouteAttribute>().Single().Template);
         var upload=type.GetMethod(nameof(PatientFilesController.Upload))!;
         Assert.Single(upload.GetCustomAttributes(typeof(RequestSizeLimitAttribute),true));
