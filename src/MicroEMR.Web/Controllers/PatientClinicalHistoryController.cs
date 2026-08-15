@@ -1,0 +1,11 @@
+using Microsoft.AspNetCore.Authorization;using Microsoft.AspNetCore.Mvc;using MicroEMR.Application.AccessProfiles;using MicroEMR.Web.Authorization;using MicroEMR.Web.Models.PatientClinicalHistory;using MicroEMR.Web.Services.PatientClinicalHistory;
+namespace MicroEMR.Web.Controllers;
+[Authorize,RequireWebPermission(PermissionKeys.PatientsView),Route("patients/{patientUid:guid}/clinical-history")]
+public sealed class PatientClinicalHistoryController(IPatientClinicalHistoryApiClient client):Controller
+{
+ [HttpGet]public async Task<IActionResult>List(Guid patientUid,string status="Active",CancellationToken ct=default){try{return Json(new{success=true,items=await client.List(patientUid,status,ct)});}catch(HttpRequestException e){return Failure(e);}}
+ [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Create(Guid patientUid,SavePatientClinicalHistoryViewModel x,CancellationToken ct){if(!ModelState.IsValid)return BadRequest(new{success=false,message="History type and description are required."});try{return Json(new{success=true,item=await client.Create(patientUid,x,ct)});}catch(HttpRequestException e){return Failure(e);}}
+ [HttpPost("{historyUid:guid}"),ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Update(Guid patientUid,Guid historyUid,SavePatientClinicalHistoryViewModel x,CancellationToken ct){if(!ModelState.IsValid)return BadRequest(new{success=false,message="History information is invalid."});try{return await client.Update(patientUid,historyUid,x,ct)is{}item?Json(new{success=true,item}):NotFound();}catch(HttpRequestException e){return Failure(e);}}
+ [HttpPost("{historyUid:guid}/archive"),ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Archive(Guid patientUid,Guid historyUid,string rowVersion,CancellationToken ct){try{return await client.Archive(patientUid,historyUid,rowVersion,ct)is{}item?Json(new{success=true,item}):NotFound();}catch(HttpRequestException e){return Failure(e);}}
+ private ObjectResult Failure(HttpRequestException e)=>StatusCode(e.StatusCode is{}status?(int)status:StatusCodes.Status502BadGateway,new{success=false,message=e.Message});
+}

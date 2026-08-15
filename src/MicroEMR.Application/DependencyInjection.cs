@@ -21,6 +21,7 @@ using MicroEMR.Application.Templates.Output;
 using MicroEMR.Application.Templates.Variables;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.PatientClinicalHistory;
 
 namespace MicroEMR.Application;
 
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientEncounterService, PatientEncounterService>();
         services.AddScoped<IPatientMedicationService, PatientMedicationService>();
         services.AddScoped<IPatientProblemService, PatientProblemService>();
+        services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
         services.AddScoped<IPatientVitalService, PatientVitalService>();
         services.AddScoped<IPatientReferralService, PatientReferralService>();
         services.AddScoped<IReferralStatusTransitionService, ReferralStatusTransitionService>();

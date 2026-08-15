@@ -1,0 +1,3 @@
+using MicroEMR.Web.Models.PatientClinicalHistory;
+namespace MicroEMR.Web.Services.PatientClinicalHistory;
+public interface IPatientClinicalHistoryApiClient{Task<IReadOnlyList<PatientClinicalHistoryViewModel>>List(Guid patientUid,string status,CancellationToken ct=default);Task<PatientClinicalHistoryViewModel>Create(Guid patientUid,SavePatientClinicalHistoryViewModel x,CancellationToken ct=default);Task<PatientClinicalHistoryViewModel?>Update(Guid patientUid,Guid historyUid,SavePatientClinicalHistoryViewModel x,CancellationToken ct=default);Task<PatientClinicalHistoryViewModel?>Archive(Guid patientUid,Guid historyUid,string rowVersion,CancellationToken ct=default);}

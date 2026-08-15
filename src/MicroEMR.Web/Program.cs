@@ -9,6 +9,7 @@ using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Services.PatientMedications;
 using MicroEMR.Web.Services.PatientProblems;
+using MicroEMR.Web.Services.PatientClinicalHistory;
 using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Services.Scheduling;
 using System.Globalization;
@@ -88,6 +89,7 @@ builder.Services.AddHttpClient<
 builder.Services.AddHttpClient<
     IPatientProblemApiClient,
     PatientProblemApiClient>(ConfigureApiClient);
+builder.Services.AddHttpClient<IPatientClinicalHistoryApiClient,PatientClinicalHistoryApiClient>(ConfigureApiClient);
 
 builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient);
 
