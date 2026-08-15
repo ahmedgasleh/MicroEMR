@@ -192,6 +192,7 @@ public sealed class PatientsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.PatientsEdit)]
     public async Task<IActionResult> Edit(
         EditPatientDemographicsViewModel model,
         CancellationToken cancellationToken)

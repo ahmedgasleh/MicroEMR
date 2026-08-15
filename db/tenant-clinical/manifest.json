@@ -37,5 +37,6 @@
   { "migrationId": "0035-patient-document-structured-data", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0035-patient-document-structured-data.sql" },
   { "migrationId": "0036-encounter-template-runtime", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0036-encounter-template-runtime.sql" },
   { "migrationId": "0037-remove-legacy-encounter-soap-templates", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0037-remove-legacy-encounter-soap-templates.sql" },
-  { "migrationId": "0038-clinical-output-artifacts", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0038-clinical-output-artifacts.sql" }
+  { "migrationId": "0038-clinical-output-artifacts", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0038-clinical-output-artifacts.sql" },
+  { "migrationId": "0039-patient-demographic-audit", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0039-patient-demographic-audit.sql" }
 ]
