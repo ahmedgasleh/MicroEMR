@@ -6,6 +6,7 @@ using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Web.Services.Patients;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -39,14 +40,36 @@ public sealed class PatientEncountersController : Controller
         }
     }
     private readonly IPatientEncounterApiClient _encounterApiClient;
+    private readonly IPatientApiClient _patientApiClient;
     private readonly ILogger<PatientEncountersController> _logger;
 
     public PatientEncountersController(
         IPatientEncounterApiClient encounterApiClient,
+        IPatientApiClient patientApiClient,
         ILogger<PatientEncountersController> logger)
     {
         _encounterApiClient = encounterApiClient;
+        _patientApiClient = patientApiClient;
         _logger = logger;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PrintHistory(
+        Guid patientUid,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || startDate == default || endDate == default)
+            return BadRequest("Patient, start date, and end date are required.");
+        if (endDate < startDate)
+            return BadRequest("End date cannot be before start date.");
+
+        var patient = await _patientApiClient.GetByUidAsync(patientUid, cancellationToken);
+        if (patient is null) return NotFound();
+
+        var encounters = await _encounterApiClient.GetByPatientUidAsync(patientUid, cancellationToken);
+        return View(EncounterHistoryPrintViewModel.Create(patient, encounters, startDate, endDate));
     }
 
     [HttpGet]

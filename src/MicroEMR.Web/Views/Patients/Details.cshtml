@@ -576,14 +576,21 @@
          id="encounters"
          role="tabpanel">
 
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
             <h5 class="mb-0">Patient Encounters</h5>
-
-            <button type="button" id="newEncounterButton" class="btn btn-primary" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")"
+            <div class="d-flex gap-2 flex-wrap">
+            <form asp-controller="PatientEncounters" asp-action="PrintHistory" method="get" target="_blank" class="d-flex gap-2 align-items-end flex-wrap">
+                <input type="hidden" name="patientUid" value="@patient.PatientUid" />
+                <div><label for="encounterPrintStartDate" class="form-label small mb-1">From</label><input id="encounterPrintStartDate" name="startDate" type="date" class="form-control form-control-sm" required /></div>
+                <div><label for="encounterPrintEndDate" class="form-label small mb-1">To</label><input id="encounterPrintEndDate" name="endDate" type="date" class="form-control form-control-sm" required /></div>
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print History</button>
+            </form>
+            <button type="button" id="newEncounterButton" class="btn btn-primary align-self-end" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")"
                     data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="encounters">
                 <i class="bi bi-plus-circle me-1"></i>
                 New Encounter
             </button>
+            </div>
         </div>
 
         @if (Model.Encounters.Count == 0)
