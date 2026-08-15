@@ -70,6 +70,20 @@ public sealed class UpdatePatientDemographicsRequest : IValidatableObject
     public IEnumerable<ValidationResult> Validate(
         ValidationContext validationContext)
     {
+        if (string.IsNullOrWhiteSpace(FirstName))
+        {
+            yield return new ValidationResult(
+                "First name is required.",
+                [nameof(FirstName)]);
+        }
+
+        if (string.IsNullOrWhiteSpace(LastName))
+        {
+            yield return new ValidationResult(
+                "Last name is required.",
+                [nameof(LastName)]);
+        }
+
         if (DateOfBirth.HasValue &&
             DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
         {

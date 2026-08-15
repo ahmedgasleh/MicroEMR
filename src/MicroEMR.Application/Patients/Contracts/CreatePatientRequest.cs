@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MicroEMR.Application.Patients.Contracts;
 
-public sealed class CreatePatientRequest
+public sealed class CreatePatientRequest : IValidatableObject
 {
     [Required]
     [StringLength(100)]
@@ -60,4 +60,29 @@ public sealed class CreatePatientRequest
 
     [StringLength(2)]
     public string CountryCode { get; set; } = "CA";
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (string.IsNullOrWhiteSpace(FirstName))
+        {
+            yield return new ValidationResult(
+                "First name is required.",
+                [nameof(FirstName)]);
+        }
+
+        if (string.IsNullOrWhiteSpace(LastName))
+        {
+            yield return new ValidationResult(
+                "Last name is required.",
+                [nameof(LastName)]);
+        }
+
+        if (DateOfBirth.HasValue &&
+            DateOfBirth.Value > DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            yield return new ValidationResult(
+                "Date of birth cannot be in the future.",
+                [nameof(DateOfBirth)]);
+        }
+    }
 }
