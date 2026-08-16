@@ -10,4 +10,5 @@ public sealed class CreateScheduleAppointmentRequest
     public string? AppointmentType { get; set; }
     public string? Reason { get; set; }
     public string? Notes { get; set; }
+    public bool IsCritical { get; set; }
 }

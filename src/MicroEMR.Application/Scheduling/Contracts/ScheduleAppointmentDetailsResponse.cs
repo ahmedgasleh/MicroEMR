@@ -11,6 +11,7 @@ public sealed class ScheduleAppointmentDetailsResponse
     public string? AppointmentType { get; set; }
     public string? Reason { get; set; }
     public string? Notes { get; set; }
+    public bool IsCritical { get; set; }
     public string Status { get; set; } = string.Empty;
     public string PatientDisplayName { get; set; } = string.Empty;
     public string ChartNumber { get; set; } = string.Empty;

@@ -40,5 +40,6 @@
   { "migrationId": "0038-clinical-output-artifacts", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0038-clinical-output-artifacts.sql" },
   { "migrationId": "0039-patient-demographic-audit", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0039-patient-demographic-audit.sql" },
   { "migrationId": "0040-patient-file-external-report-metadata", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0040-patient-file-external-report-metadata.sql" },
-  { "migrationId": "0041-patient-clinical-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0041-patient-clinical-history.sql" }
+  { "migrationId": "0041-patient-clinical-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0041-patient-clinical-history.sql" },
+  { "migrationId": "0042-scheduling-critical-appointments", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0042-scheduling-critical-appointments.sql" }
 ]

@@ -117,6 +117,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 p.ChartNumber,
                 a.Reason,
                 a.AppointmentType,
+                a.IsCritical,
                 a.StartDateTimeUtc,
                 a.EndDateTimeUtc,
                 sr.ResourceUid AS PrimaryResourceUid,
@@ -214,6 +215,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                     Reason = GetNullableString(reader, "Reason"),
                     AppointmentType =
                         GetNullableString(reader, "AppointmentType"),
+                    IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
                     StartDateTimeUtc = SpecifyUtc(
                         reader.GetDateTime(
                             reader.GetOrdinal("StartDateTimeUtc"))),
@@ -259,7 +261,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
     {
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
-            "dbo.ScheduleAppointment_GetByUid",
+            "dbo.ScheduleAppointment_GetByUidWithCriticalFlag",
             connection)
         {
             CommandType = CommandType.StoredProcedure
@@ -285,6 +287,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             AppointmentType = GetNullableString(reader, "AppointmentType"),
             Reason = GetNullableString(reader, "Reason"),
             Notes = GetNullableString(reader, "Notes"),
+            IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
             Status = reader.GetString(reader.GetOrdinal("Status")),
             PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
             ChartNumber = reader.GetString(reader.GetOrdinal("ChartNumber")),

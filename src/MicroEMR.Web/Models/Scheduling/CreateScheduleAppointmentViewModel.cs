@@ -23,6 +23,8 @@ public sealed class CreateScheduleAppointmentViewModel : IValidatableObject
     [StringLength(1000)]
     public string? Notes { get; set; }
 
+    public bool IsCritical { get; set; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (PatientUid == Guid.Empty)

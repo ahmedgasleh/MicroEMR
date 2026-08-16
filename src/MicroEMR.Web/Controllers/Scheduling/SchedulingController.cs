@@ -74,7 +74,8 @@ public sealed class SchedulingController : Controller
                     EndDateTimeUtc = ToUtc(model.EndDateTimeLocal),
                     AppointmentType = model.AppointmentType,
                     Reason = model.Reason,
-                    Notes = model.Notes
+                    Notes = model.Notes,
+                    IsCritical = model.IsCritical
                 }, cancellationToken);
 
             return Json(new { success = true, appointmentUid = appointment.AppointmentUid });
@@ -312,7 +313,8 @@ public sealed class SchedulingController : Controller
                     EndDateTimeUtc = ToUtc(model.EndDateTimeLocal),
                     AppointmentType = model.AppointmentType,
                     Reason = model.Reason,
-                    Notes = model.Notes
+                    Notes = model.Notes,
+                    IsCritical = model.IsCritical
                 },
                 cancellationToken);
             if (result is null)
@@ -440,6 +442,7 @@ public sealed class SchedulingController : Controller
                 appointment.AppointmentType,
                 appointment.Reason,
                 appointment.Notes,
+                appointment.IsCritical,
                 appointment.Status,
                 appointment.LinkedEncounterUid,
                 appointment.LinkedEncounterStatus,
@@ -621,6 +624,7 @@ public sealed class SchedulingController : Controller
                     patientDisplayName = appointment.PatientDisplayName,
                     appointmentType = appointment.AppointmentType,
                     status = appointment.Status,
+                    isCritical = appointment.IsCritical,
                     reason = appointment.Reason,
                     primaryResourceName = appointment.PrimaryResourceName
                 });
