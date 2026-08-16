@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.Security;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Web.Controllers;
 using MicroEMR.Web.Models.ClinicConfiguration;
@@ -102,11 +103,12 @@ public sealed class ClinicConfigurationWebTests
     }
 
     [Fact]
-    public void ControllerAndNavigationUseSameNarrowTenantAdminClaimAsApi()
+    public void ControllerAndNavigationUseEffectiveClinicSettingsPermission()
     {
-        var authorize = Assert.Single(typeof(ClinicConfigurationController)
-            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>());
-        Assert.Equal(TenantAuthorizationPolicies.ClinicAdministrator, authorize.Policy);
+        var authorize = typeof(ClinicConfigurationController)
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>();
+        Assert.Contains(authorize, x => x.Policy is null);
+        Assert.Contains(authorize, x => x.Policy == WebPermissionPolicyProvider.Prefix + PermissionKeys.ClinicSettingsManage);
         Assert.Equal("TenantClinicAdministrator", ClinicConfigurationAuthorization.Policy);
         Assert.Equal("ClinicAdministrator", ClinicConfigurationAuthorization.Role);
 

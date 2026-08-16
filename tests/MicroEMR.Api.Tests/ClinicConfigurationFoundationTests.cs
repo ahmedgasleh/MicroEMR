@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.ClinicConfiguration;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Infrastructure.Provisioning;
 using Xunit;
 
@@ -37,11 +38,11 @@ public sealed class ClinicConfigurationFoundationTests
     }
 
     [Fact]
-    public void ApiIsAdminOnlyAndRequestCannotSelectTenantOrChangePlatformOwnedFields()
+    public void ApiRequiresEffectiveClinicSettingsPermissionAndRequestIsNarrow()
     {
-        var authorize = Assert.Single(typeof(ClinicConfigurationController)
-            .GetCustomAttributes<AuthorizeAttribute>());
-        Assert.Equal(TenantAuthorizationPolicies.ClinicAdministrator, authorize.Policy);
+        var authorize = typeof(ClinicConfigurationController).GetCustomAttributes<AuthorizeAttribute>();
+        Assert.Contains(authorize, x => x.Policy is null);
+        Assert.Contains(authorize, x => x.Policy == PermissionPolicyProvider.Prefix + PermissionKeys.ClinicSettingsManage);
 
         var names = typeof(SaveClinicConfigurationRequest).GetProperties()
             .Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
