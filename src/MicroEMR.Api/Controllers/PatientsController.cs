@@ -13,6 +13,7 @@ using MicroEMR.Application.Patients.Exceptions;
 using MicroEMR.Application.Patients.Services;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Api.Authorization;
+using MicroEMR.Application.ReadAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -23,13 +24,50 @@ public sealed class PatientsController : ControllerBase
 {
     private readonly IPatientService _patientService;
     private readonly ILogger<PatientsController> _logger;
+    private readonly IPatientChartReadAuditService _readAudit;
 
     public PatientsController (
         IPatientService patientService,
-        ILogger<PatientsController> logger )
+        ILogger<PatientsController> logger,
+        IPatientChartReadAuditService readAudit )
     {
         _patientService = patientService;
         _logger = logger;
+        _readAudit = readAudit;
+    }
+
+    [HttpPost("{patientUid:guid}/chart-open")]
+    [RequirePermission(PermissionKeys.PatientsView)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> RecordChartOpened(
+        Guid patientUid,
+        CancellationToken cancellationToken = default)
+    {
+        var patient = await _patientService.GetByUidAsync(patientUid, cancellationToken);
+        if (patient is null) return NotFound();
+
+        try
+        {
+            await _readAudit.RecordOpenedAsync(
+                patient.PatientUid, HttpContext.TraceIdentifier, cancellationToken);
+            return NoContent();
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Patient chart access audit failed for patient {PatientUid}; chart access was prevented. TraceIdentifier: {TraceIdentifier}.",
+                patient.PatientUid, HttpContext.TraceIdentifier);
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Patient chart audit unavailable",
+                detail: "The patient chart cannot be opened because access auditing is temporarily unavailable.");
+        }
     }
 
     [HttpGet]

@@ -353,6 +353,26 @@ public sealed class PatientsController : Controller
             return NotFound();
         }
 
+        try
+        {
+            await _patientApiClient.RecordChartOpenedAsync(
+                patient.PatientUid, cancellationToken);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            _logger.LogWarning(exception,
+                "Patient chart access audit was denied for patient {PatientUid}; chart access was prevented.",
+                patient.PatientUid);
+            return Forbid();
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogError(exception,
+                "Patient chart access audit failed for patient {PatientUid}; chart access was prevented.",
+                patient.PatientUid);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
         var documents =
             await _patientDocumentApiClient.GetByPatientUidAsync(
                 patientUid,

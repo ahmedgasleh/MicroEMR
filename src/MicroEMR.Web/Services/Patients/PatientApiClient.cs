@@ -119,6 +119,19 @@ public sealed class PatientApiClient : IPatientApiClient
                    "The API created the patient but returned no patient data.");
     }
 
+    public async Task RecordChartOpenedAsync(
+        Guid patientUid,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/patients/{patientUid}/chart-open");
+
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public async Task<PatientDetailsResponse> UpdateDemographicsAsync(
         Guid patientUid,
         UpdatePatientDemographicsRequest patientRequest,

@@ -15,6 +15,11 @@ public interface IPatientApiClient
         Guid patientUid,
         CancellationToken cancellationToken = default );
 
+    Task RecordChartOpenedAsync(
+        Guid patientUid,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Patient chart read auditing is not implemented by this client.");
+
     Task<PatientDetailsResponse> CreateAsync (
         CreatePatientRequest request,
         CancellationToken cancellationToken = default );
