@@ -17,4 +17,6 @@ public sealed class UpdateScheduleAppointmentRequest
 
     [StringLength(1000)]
     public string? Notes { get; set; }
+
+    public bool IsCritical { get; set; }
 }

@@ -213,6 +213,16 @@
             opacity: 1;
         }
 
+        .scheduling-critical-appointment {
+            border: 2px solid #b02a37 !important;
+            box-shadow: inset 4px 0 0 #b02a37;
+        }
+
+        .scheduling-critical-appointment .calendar_default_event_inner::before {
+            content: "Critical · ";
+            font-weight: 700;
+        }
+
         .scheduling-mini-calendar-header {
             display: flex;
             align-items: center;
@@ -612,6 +622,8 @@
                     <dd class="col-sm-8" id="detailsChartNumber"></dd>
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8" id="detailsStatus"></dd>
+                    <dt class="col-sm-4">Priority</dt>
+                    <dd class="col-sm-8" id="detailsPriority"></dd>
                     <dt class="col-sm-4">Date</dt>
                     <dd class="col-sm-8" id="detailsDate"></dd>
                     <dt class="col-sm-4">Start time</dt>
@@ -735,6 +747,12 @@
                             <textarea id="EditNotes" name="Notes" maxlength="1000" rows="3"
                                       class="form-control"></textarea>
                             <div class="invalid-feedback" data-edit-error-for="Notes"></div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input id="EditIsCritical" name="IsCritical" value="true" type="checkbox" class="form-check-input" />
+                                <label for="EditIsCritical" class="form-check-label">Critical appointment</label>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -946,6 +964,12 @@
                             <label for="Notes" class="form-label">Notes</label>
                             <textarea id="Notes" name="Notes" maxlength="1000" rows="3" class="form-control"></textarea>
                             <div class="invalid-feedback" data-error-for="Notes"></div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input id="IsCritical" name="IsCritical" value="true" type="checkbox" class="form-check-input" />
+                                <label for="IsCritical" class="form-check-label">Critical appointment</label>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -1188,6 +1212,9 @@ else
                 timeRangeSelectedHandling: canManageScheduling ? "Enabled" : "Disabled",
                 onBeforeEventRender: args => {
                     if (args.data.eventKind !== "appointment") return;
+                    if (args.data.isCritical) {
+                        args.data.cssClass = `${args.data.cssClass || ""} scheduling-critical-appointment`.trim();
+                    }
                     args.data.areas = [
                         ...(args.data.areas || []),
                         {
@@ -1690,6 +1717,7 @@ else
                 setDetailsText("detailsPatient", details.patientDisplayName);
                 setDetailsText("detailsChartNumber", details.chartNumber);
                 setDetailsText("detailsStatus", details.status);
+                setDetailsText("detailsPriority", details.isCritical ? "Critical" : "Standard");
                 setDetailsText("detailsDate", start.toLocaleDateString());
                 setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
                 setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
@@ -1902,6 +1930,7 @@ else
             document.getElementById("EditAppointmentType").value = currentAppointmentDetails.appointmentType || "";
             document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
             document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
+            document.getElementById("EditIsCritical").checked = Boolean(currentAppointmentDetails.isCritical);
 
             appointmentDetailsModalElement.addEventListener(
                 "hidden.bs.modal",

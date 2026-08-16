@@ -14,6 +14,8 @@ public sealed class ScheduleAppointmentListItemResponse
 
     public string? AppointmentType { get; set; }
 
+    public bool IsCritical { get; set; }
+
     public DateTime StartDateTimeUtc { get; set; }
 
     public DateTime EndDateTimeUtc { get; set; }
