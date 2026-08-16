@@ -24,9 +24,13 @@ No retention period is invented. Obtain OntarioMD/business/privacy guidance for 
 
 Clinic Administration should review its tenant clinical audit with date, user, patient, action/category and resource filters. Cross-tenant review belongs in security-only operational tooling. Search/export must be separately authorized and audited.
 
+## Implementation status
+
+Step 14 implements the first vertical slice: additive structured fields in the existing tenant `AuditLog` and one synchronous, fail-closed `PatientChartOpened` event at the central Web chart action. It does not implement any other candidate event, denial auditing, review tooling, retention, or replication. See `06-step14-patient-chart-open-implementation.md` for evidence and runtime verification.
+
 ## Delivery recommendation
 
-Step 13A is a **MEDIUM** vertical slice: additive structured `AuditLog` evolution plus one explicit `PatientChartOpened` integration and complete tests. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.
+The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.
 
 ## Unresolved OntarioMD / governance questions
 

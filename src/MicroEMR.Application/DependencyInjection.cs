@@ -22,6 +22,7 @@ using MicroEMR.Application.Templates.Variables;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.PatientClinicalHistory;
+using MicroEMR.Application.ReadAudit;
 
 namespace MicroEMR.Application;
 
@@ -63,6 +64,7 @@ public static class DependencyInjection
         services.AddSingleton<IClinicalPrintLayoutRenderer, ClinicalPrintLayoutRenderer>();
         services.AddScoped<IClinicalPdfPreviewService, ClinicalPdfPreviewService>();
         services.AddScoped<IClinicalArtifactService, ClinicalArtifactService>();
+        services.AddScoped<IPatientChartReadAuditService, PatientChartReadAuditService>();
 
         return services;
     }
