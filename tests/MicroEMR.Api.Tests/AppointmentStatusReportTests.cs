@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.Reporting;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Web.Authorization;
 using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Core.Tenancy;
@@ -63,12 +65,12 @@ public sealed class AppointmentStatusReportTests
     }
 
     [Fact]
-    public void ApiAndWebAreTenantAdministratorProtectedAndContractsAreNarrow()
+    public void ApiAndWebRequireEffectiveReportPermissionAndContractsAreNarrow()
     {
-        var api = Assert.Single(typeof(AppointmentReportsController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>());
-        var web = Assert.Single(typeof(MicroEMR.Web.Controllers.ReportsController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>());
-        Assert.Equal(TenantAuthorizationPolicies.ClinicAdministrator, api.Policy);
-        Assert.Equal("TenantClinicAdministrator", web.Policy);
+        var api = typeof(AppointmentReportsController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>();
+        var web = typeof(MicroEMR.Web.Controllers.ReportsController).GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>();
+        Assert.Contains(api, x => x.Policy == PermissionPolicyProvider.Prefix + PermissionKeys.ReportsView);
+        Assert.Contains(web, x => x.Policy == WebPermissionPolicyProvider.Prefix + PermissionKeys.ReportsView);
         foreach (var method in new[] { nameof(AppointmentReportsController.Get), nameof(AppointmentReportsController.Csv) })
             Assert.DoesNotContain(typeof(AppointmentReportsController).GetMethod(method)!.GetParameters(),
                 x => x.Name!.Contains("tenant", StringComparison.OrdinalIgnoreCase));

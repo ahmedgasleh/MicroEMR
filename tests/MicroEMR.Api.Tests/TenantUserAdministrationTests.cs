@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Web.Authorization;
 using MicroEMR.Application.PlatformAdministration;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Application.TenantUserAdministration;
@@ -103,10 +105,15 @@ public sealed class TenantUserAdministrationTests
     }
 
     [Fact]
-    public void ApiAndWebControllersRequireTenantClinicAdministratorPolicy()
+    public void ApiAndWebControllersUseEffectiveUserPermissions()
     {
-        Assert.Equal(TenantAuthorizationPolicies.ClinicAdministrator, Policy(typeof(MicroEMR.Api.Controllers.TenantUserAdministrationController)));
-        Assert.Equal("TenantClinicAdministrator", Policy(typeof(MicroEMR.Web.Controllers.TenantUserAdministrationController)));
+        Assert.Contains(typeof(MicroEMR.Api.Controllers.TenantUserAdministrationController)
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>(), x => x.Policy is null);
+        Assert.Equal(PermissionPolicyProvider.Prefix + PermissionKeys.UsersView, ActionPolicy("Get"));
+        Assert.Equal(PermissionPolicyProvider.Prefix + PermissionKeys.UsersManage, ActionPolicy("AddUser"));
+        Assert.Equal(PermissionPolicyProvider.Prefix + PermissionKeys.UsersManageAccess, ActionPolicy("UpdateRoles"));
+        Assert.Equal(WebPermissionPolicyProvider.Prefix + PermissionKeys.UsersView,
+            Policy(typeof(MicroEMR.Web.Controllers.TenantUserAdministrationController), WebPermissionPolicyProvider.Prefix));
     }
 
     [Fact]
@@ -228,8 +235,13 @@ public sealed class TenantUserAdministrationTests
     private static string RepositoryRoot() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
         "..", "..", "..", "..", ".."));
 
-    private static string? Policy(Type type) => Assert.Single(type
-        .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>()).Policy;
+    private static string? Policy(Type type, string prefix) => Assert.Single(type
+        .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>(),
+        x => x.Policy?.StartsWith(prefix, StringComparison.Ordinal) == true).Policy;
+    private static string? ActionPolicy(string action) => Assert.Single(
+        typeof(MicroEMR.Api.Controllers.TenantUserAdministrationController).GetMethod(action)!
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>(),
+        x => x.Policy?.StartsWith(PermissionPolicyProvider.Prefix, StringComparison.Ordinal) == true).Policy;
 
     private static ITenantUserAdministrationService Service(
         IReadOnlyList<PlatformMembershipInfo> memberships,

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Web.Controllers;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Web.Authorization;
 using Xunit;
 
 namespace MicroEMR.Api.Tests;
@@ -9,7 +11,10 @@ public sealed class TemplateAdministrationWebTests
     [Fact]
     public void AdministrationControllerRequiresAuthentication()
     {
-        Assert.Single(typeof(TemplateAdministrationController).GetCustomAttributes(typeof(AuthorizeAttribute),true));
+        var authorize = typeof(TemplateAdministrationController)
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>();
+        Assert.Contains(authorize, x => x.Policy is null);
+        Assert.Contains(authorize, x => x.Policy == WebPermissionPolicyProvider.Prefix + PermissionKeys.TemplatesManage);
     }
 
     [Fact]

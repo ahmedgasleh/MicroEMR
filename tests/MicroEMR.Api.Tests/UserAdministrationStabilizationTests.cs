@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.PlatformAdministration;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Web.Authorization;
 using Xunit;
 
@@ -10,13 +11,23 @@ namespace MicroEMR.Api.Tests;
 public sealed class UserAdministrationStabilizationTests
 {
     [Fact]
-    public void AllApiOperationsShareTenantAdministratorAuthorization()
+    public void ApiOperationsUseGranularEffectiveUserPermissions()
     {
-        var authorize = Assert.Single(typeof(TenantUserAdministrationController)
-            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>());
-        Assert.Equal(TenantAuthorizationPolicies.ClinicAdministrator, authorize.Policy);
+        var authorize = typeof(TenantUserAdministrationController)
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>();
+        Assert.Contains(authorize, x => x.Policy is null);
+        AssertPermission(nameof(TenantUserAdministrationController.Get), PermissionKeys.UsersView);
+        AssertPermission(nameof(TenantUserAdministrationController.GetUser), PermissionKeys.UsersView);
+        AssertPermission(nameof(TenantUserAdministrationController.AddUser), PermissionKeys.UsersManage);
+        AssertPermission(nameof(TenantUserAdministrationController.UpdateRoles), PermissionKeys.UsersManageAccess);
+        AssertPermission(nameof(TenantUserAdministrationController.ResetPassword), PermissionKeys.UsersManageAccess);
         Assert.Equal(TenantRoleCatalog.ClinicAdministrator, ClinicConfigurationAuthorization.Role);
     }
+
+    private static void AssertPermission(string action, string permission) =>
+        Assert.Contains(typeof(TenantUserAdministrationController).GetMethod(action)!
+            .GetCustomAttributes(typeof(AuthorizeAttribute), true).Cast<AuthorizeAttribute>(),
+            x => x.Policy == PermissionPolicyProvider.Prefix + permission);
 
     [Fact]
     public void MutationContractsRejectOverPostingByConstruction()
