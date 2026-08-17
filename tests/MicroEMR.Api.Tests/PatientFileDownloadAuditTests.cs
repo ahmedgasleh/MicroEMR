@@ -111,6 +111,9 @@ public sealed class PatientFileDownloadAuditTests
             Recorded = (eventType, resourceType, resourceUid, patientUid, requestCorrelationId);
             return Failure is null ? Task.FromResult(Guid.NewGuid()) : Task.FromException<Guid>(Failure);
         }
+        public Task<Guid> RecordAggregateReportAsync(string eventType, string reportKey,
+            string requestCorrelationId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class Files : IPatientFileService

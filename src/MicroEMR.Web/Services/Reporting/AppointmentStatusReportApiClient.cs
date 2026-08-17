@@ -7,15 +7,17 @@ namespace MicroEMR.Web.Services.Reporting;
 
 public interface IAppointmentStatusReportApiClient
 {
-    Task<AppointmentStatusReport> GetAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
+    Task<AppointmentStatusReport> GetAsync(DateOnly startDate, DateOnly endDate, bool auditExecution = true,
+        CancellationToken cancellationToken = default);
     Task<byte[]> GetCsvAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default);
 }
 
 public sealed class AppointmentStatusReportApiClient(HttpClient client, IHttpContextAccessor accessor)
     : IAppointmentStatusReportApiClient
 {
-    public Task<AppointmentStatusReport> GetAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
-        SendAsync<AppointmentStatusReport>($"api/reports/appointments/status?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}", cancellationToken);
+    public Task<AppointmentStatusReport> GetAsync(DateOnly startDate, DateOnly endDate, bool auditExecution = true,
+        CancellationToken cancellationToken = default) =>
+        SendAsync<AppointmentStatusReport>($"api/reports/appointments/status?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}&auditExecution={auditExecution.ToString().ToLowerInvariant()}", cancellationToken);
 
     public Task<byte[]> GetCsvAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
         SendBytesAsync($"api/reports/appointments/status/csv?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}", cancellationToken);

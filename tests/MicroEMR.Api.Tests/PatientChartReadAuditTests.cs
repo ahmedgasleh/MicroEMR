@@ -169,6 +169,9 @@ public sealed class PatientChartReadAuditTests
         public Task<Guid> RecordStructuredReadAsync(string eventType, string resourceType, Guid resourceUid,
             Guid patientUid, long clinicalUserId, string requestCorrelationId, string sourceApplication,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Guid> RecordAggregateReportAsync(string eventType, string reportKey, long clinicalUserId,
+            string requestCorrelationId, string sourceApplication,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class RecordingAuditService : IPatientChartReadAuditService

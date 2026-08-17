@@ -36,6 +36,8 @@ Step 16B1 wires synchronous, fail-closed `PatientFileDownloaded` auditing into t
 
 Step 17A adds the aggregate audit contract through immutable migration `0046`: `ReportExecuted` and `CsvExported` use resource type `Report`, null patient/resource UIDs and the governed `AppointmentStatusDateReport` key. Filters are intentionally omitted and no report controller is wired yet. See `13-step17a-aggregate-report-contract.md`.
 
+Step 17B wires synchronous, fail-closed `ReportExecuted` and `CsvExported` at the appointment report API after successful query/generation and before response disclosure. Initial Reports page rendering is excluded, exports create no duplicate execution event, and aggregate identity remains patient-free. See `14-step17b-report-export-implementation.md`.
+
 ## Delivery recommendation
 
 The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.

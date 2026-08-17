@@ -21,7 +21,7 @@ public sealed class ReportsController(IAppointmentStatusReportApiClient client, 
             return View(new AppointmentStatusReportViewModel { StartDate = start, EndDate = end,
                 ErrorMessage = end < start ? "End date must be on or after start date." : "The report range cannot exceed 366 days." });
         try { return View(new AppointmentStatusReportViewModel { StartDate = start, EndDate = end,
-            Report = await client.GetAsync(start, end, cancellationToken) }); }
+            Report = await client.GetAsync(start, end, startDate.HasValue || endDate.HasValue, cancellationToken) }); }
         catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
         { logger.LogError(exception, "Appointment status report could not be loaded."); return View(new AppointmentStatusReportViewModel
             { StartDate = start, EndDate = end, ErrorMessage = "The appointment status report could not be loaded." }); }
