@@ -10,6 +10,7 @@ using MicroEMR.Application.PatientDocuments;
 using MicroEMR.Application.Templates.Contracts;
 using MicroEMR.Application.Templates.Runtime;
 using MicroEMR.Application.ClinicalOutput;
+using MicroEMR.Application.ReadAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -22,17 +23,20 @@ public sealed class PatientDocumentsController : ControllerBase
     private readonly ILogger<PatientDocumentsController> _logger;
     private readonly IAuthorizationService _authorization;
     private readonly IClinicalPdfPreviewService _pdfPreview;
+    private readonly IStructuredReadAuditService _readAudit;
 
     public PatientDocumentsController(
         IPatientDocumentService documentService,
         ILogger<PatientDocumentsController> logger,
         IAuthorizationService authorization,
-        IClinicalPdfPreviewService pdfPreview)
+        IClinicalPdfPreviewService pdfPreview,
+        IStructuredReadAuditService readAudit)
     {
         _documentService = documentService;
         _logger = logger;
         _authorization = authorization;
         _pdfPreview = pdfPreview;
+        _readAudit = readAudit;
     }
 
     [HttpPost("api/patient-documents/{documentUid:guid}/pdf-preview")]
@@ -101,6 +105,31 @@ public sealed class PatientDocumentsController : ControllerBase
             {
                 message = "The requested document was not found."
             });
+        }
+
+        try
+        {
+            await _readAudit.RecordAsync(
+                ReadAuditActions.PatientDocumentViewed,
+                ReadAuditResourceTypes.PatientDocument,
+                document.DocumentUid,
+                document.PatientUid,
+                HttpContext.TraceIdentifier,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Patient document access audit failed for document {DocumentUid}; access was prevented. TraceIdentifier: {TraceIdentifier}.",
+                document.DocumentUid, HttpContext.TraceIdentifier);
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Patient document audit unavailable",
+                detail: "The patient document cannot be opened because access auditing is temporarily unavailable.");
         }
 
         return Ok(document);

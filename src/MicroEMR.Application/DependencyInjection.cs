@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IClinicalPdfPreviewService, ClinicalPdfPreviewService>();
         services.AddScoped<IClinicalArtifactService, ClinicalArtifactService>();
         services.AddScoped<IPatientChartReadAuditService, PatientChartReadAuditService>();
+        services.AddScoped<IStructuredReadAuditService, StructuredReadAuditService>();
 
         return services;
     }
