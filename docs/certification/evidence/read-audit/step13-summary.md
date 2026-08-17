@@ -34,6 +34,8 @@ Step 16A extends the controlled procedure allow-list through immutable migration
 
 Step 16B1 wires synchronous, fail-closed `PatientFileDownloaded` auditing into the existing explicit file-content endpoint after compound ownership and storage resolution but before stream release. Patient Document download remains deferred because the current product provides Preview only. See `11-step16b1-patient-file-download-audit.md`.
 
+Step 17A adds the aggregate audit contract through immutable migration `0046`: `ReportExecuted` and `CsvExported` use resource type `Report`, null patient/resource UIDs and the governed `AppointmentStatusDateReport` key. Filters are intentionally omitted and no report controller is wired yet. See `13-step17a-aggregate-report-contract.md`.
+
 ## Delivery recommendation
 
 The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.
