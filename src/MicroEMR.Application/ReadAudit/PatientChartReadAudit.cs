@@ -5,11 +5,30 @@ namespace MicroEMR.Application.ReadAudit;
 public static class ReadAuditActions
 {
     public const string PatientChartOpened = "PatientChartOpened";
+    public const string EncounterViewed = "EncounterViewed";
+    public const string PatientDocumentViewed = "PatientDocumentViewed";
+}
+
+public static class ReadAuditResourceTypes
+{
+    public const string PatientChart = "PatientChart";
+    public const string Encounter = "Encounter";
+    public const string PatientDocument = "PatientDocument";
 }
 
 public interface IReadAuditRepository
 {
     Task<Guid> RecordPatientChartOpenedAsync(
+        Guid patientUid,
+        long clinicalUserId,
+        string requestCorrelationId,
+        string sourceApplication,
+        CancellationToken cancellationToken = default);
+
+    Task<Guid> RecordStructuredReadAsync(
+        string eventType,
+        string resourceType,
+        Guid resourceUid,
         Guid patientUid,
         long clinicalUserId,
         string requestCorrelationId,
