@@ -43,5 +43,6 @@
   { "migrationId": "0041-patient-clinical-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0041-patient-clinical-history.sql" },
   { "migrationId": "0042-scheduling-critical-appointments", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0042-scheduling-critical-appointments.sql" },
   { "migrationId": "0043-patient-chart-read-audit", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0043-patient-chart-read-audit.sql" },
-  { "migrationId": "0044-structured-read-audit-procedure", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0044-structured-read-audit-procedure.sql" }
+  { "migrationId": "0044-structured-read-audit-procedure", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0044-structured-read-audit-procedure.sql" },
+  { "migrationId": "0045-structured-disclosure-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0045-structured-disclosure-audit-events.sql" }
 ]

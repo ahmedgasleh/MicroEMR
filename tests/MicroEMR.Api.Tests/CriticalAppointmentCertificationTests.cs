@@ -37,9 +37,10 @@ public sealed class CriticalAppointmentCertificationTests
             .ToArray();
 
         Assert.Contains("0041-patient-clinical-history", migrationIds);
-        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^3]);
-        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^2]);
-        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^1]);
+        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^4]);
+        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^3]);
+        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^2]);
+        Assert.Equal("0045-structured-disclosure-audit-events", migrationIds[^1]);
         Assert.Equal(migrationIds.Length, migrationIds.Distinct(StringComparer.Ordinal).Count());
     }
 

@@ -30,6 +30,8 @@ Step 14 implements the first vertical slice: additive structured fields in the e
 
 Step 15B additionally implements synchronous, fail-closed `EncounterViewed` and `PatientDocumentViewed` events at the two intentional individual-detail API actions, reusing migration `0044` and the Step 14 actor/tenant conventions. List and automatic chart feeds remain unaudited. See `08-step15b-encounter-document-view-implementation.md`.
 
+Step 16A extends the controlled procedure allow-list through immutable migration `0045` for future `PatientDocumentDownloaded` and `PatientFileDownloaded` events. No endpoint is wired yet; print events remain deferred because the current application has no reliable server-controlled print semantic. See `10-step16a-disclosure-event-allowlist.md`.
+
 ## Delivery recommendation
 
 The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.
