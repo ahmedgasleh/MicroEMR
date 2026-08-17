@@ -7,6 +7,7 @@ public static class ReadAuditActions
     public const string PatientChartOpened = "PatientChartOpened";
     public const string EncounterViewed = "EncounterViewed";
     public const string PatientDocumentViewed = "PatientDocumentViewed";
+    public const string PatientFileDownloaded = "PatientFileDownloaded";
 }
 
 public static class ReadAuditResourceTypes
@@ -14,6 +15,7 @@ public static class ReadAuditResourceTypes
     public const string PatientChart = "PatientChart";
     public const string Encounter = "Encounter";
     public const string PatientDocument = "PatientDocument";
+    public const string PatientFile = "PatientFile";
 }
 
 public interface IReadAuditRepository

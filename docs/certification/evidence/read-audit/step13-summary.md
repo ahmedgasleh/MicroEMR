@@ -32,6 +32,8 @@ Step 15B additionally implements synchronous, fail-closed `EncounterViewed` and 
 
 Step 16A extends the controlled procedure allow-list through immutable migration `0045` for future `PatientDocumentDownloaded` and `PatientFileDownloaded` events. No endpoint is wired yet; print events remain deferred because the current application has no reliable server-controlled print semantic. See `10-step16a-disclosure-event-allowlist.md`.
 
+Step 16B1 wires synchronous, fail-closed `PatientFileDownloaded` auditing into the existing explicit file-content endpoint after compound ownership and storage resolution but before stream release. Patient Document download remains deferred because the current product provides Preview only. See `11-step16b1-patient-file-download-audit.md`.
+
 ## Delivery recommendation
 
 The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.
