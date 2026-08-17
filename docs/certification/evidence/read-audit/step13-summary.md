@@ -28,6 +28,8 @@ Clinic Administration should review its tenant clinical audit with date, user, p
 
 Step 14 implements the first vertical slice: additive structured fields in the existing tenant `AuditLog` and one synchronous, fail-closed `PatientChartOpened` event at the central Web chart action. It does not implement any other candidate event, denial auditing, review tooling, retention, or replication. See `06-step14-patient-chart-open-implementation.md` for evidence and runtime verification.
 
+Step 15B additionally implements synchronous, fail-closed `EncounterViewed` and `PatientDocumentViewed` events at the two intentional individual-detail API actions, reusing migration `0044` and the Step 14 actor/tenant conventions. List and automatic chart feeds remain unaudited. See `08-step15b-encounter-document-view-implementation.md`.
+
 ## Delivery recommendation
 
 The Step 13A **MEDIUM** vertical slice is implemented by Step 14. Later slices cover encounter/document views; downloads/prints; reports/exports; platform denials/monitoring; and finally review tooling/immutable replication. The detailed plan contains future automated and runtime evidence cases.

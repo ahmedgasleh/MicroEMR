@@ -7,6 +7,7 @@ using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.ClinicalOutput;
+using MicroEMR.Application.ReadAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -19,17 +20,20 @@ public sealed class PatientEncountersController : ControllerBase
     private readonly ILogger<PatientEncountersController> _logger;
     private readonly IClinicalPdfPreviewService _pdfPreview;
     private readonly IClinicalArtifactService _artifacts;
+    private readonly IStructuredReadAuditService _readAudit;
 
     public PatientEncountersController(
         IPatientEncounterService encounterService,
         ILogger<PatientEncountersController> logger,
         IClinicalPdfPreviewService pdfPreview,
-        IClinicalArtifactService artifacts)
+        IClinicalArtifactService artifacts,
+        IStructuredReadAuditService readAudit)
     {
         _encounterService = encounterService;
         _logger = logger;
         _pdfPreview = pdfPreview;
         _artifacts = artifacts;
+        _readAudit = readAudit;
     }
 
     [HttpGet("api/patient-encounters/{encounterUid:guid}/final-pdf")]
@@ -90,6 +94,31 @@ public sealed class PatientEncountersController : ControllerBase
             {
                 message = "The requested encounter was not found."
             });
+        }
+
+        try
+        {
+            await _readAudit.RecordAsync(
+                ReadAuditActions.EncounterViewed,
+                ReadAuditResourceTypes.Encounter,
+                encounter.EncounterUid,
+                encounter.PatientUid,
+                HttpContext.TraceIdentifier,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Encounter access audit failed for encounter {EncounterUid}; access was prevented. TraceIdentifier: {TraceIdentifier}.",
+                encounter.EncounterUid, HttpContext.TraceIdentifier);
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Encounter audit unavailable",
+                detail: "The encounter cannot be opened because access auditing is temporarily unavailable.");
         }
 
         return Ok(encounter);
