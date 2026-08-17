@@ -104,5 +104,8 @@ public sealed class EncounterDocumentReadAuditTests
         public Task<Guid> RecordPatientChartOpenedAsync(Guid patientUid, long clinicalUserId,
             string requestCorrelationId, string sourceApplication,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Guid> RecordAggregateReportAsync(string eventType, string reportKey, long clinicalUserId,
+            string requestCorrelationId, string sourceApplication,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

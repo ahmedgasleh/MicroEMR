@@ -8,6 +8,8 @@ public static class ReadAuditActions
     public const string EncounterViewed = "EncounterViewed";
     public const string PatientDocumentViewed = "PatientDocumentViewed";
     public const string PatientFileDownloaded = "PatientFileDownloaded";
+    public const string ReportExecuted = "ReportExecuted";
+    public const string CsvExported = "CsvExported";
 }
 
 public static class ReadAuditResourceTypes
@@ -16,6 +18,12 @@ public static class ReadAuditResourceTypes
     public const string Encounter = "Encounter";
     public const string PatientDocument = "PatientDocument";
     public const string PatientFile = "PatientFile";
+    public const string Report = "Report";
+}
+
+public static class ReadAuditReportKeys
+{
+    public const string AppointmentStatusDateReport = "AppointmentStatusDateReport";
 }
 
 public interface IReadAuditRepository
@@ -32,6 +40,14 @@ public interface IReadAuditRepository
         string resourceType,
         Guid resourceUid,
         Guid patientUid,
+        long clinicalUserId,
+        string requestCorrelationId,
+        string sourceApplication,
+        CancellationToken cancellationToken = default);
+
+    Task<Guid> RecordAggregateReportAsync(
+        string eventType,
+        string reportKey,
         long clinicalUserId,
         string requestCorrelationId,
         string sourceApplication,
@@ -53,6 +69,12 @@ public interface IStructuredReadAuditService
         string resourceType,
         Guid resourceUid,
         Guid patientUid,
+        string requestCorrelationId,
+        CancellationToken cancellationToken = default);
+
+    Task<Guid> RecordAggregateReportAsync(
+        string eventType,
+        string reportKey,
         string requestCorrelationId,
         CancellationToken cancellationToken = default);
 }
@@ -98,6 +120,22 @@ public sealed class StructuredReadAuditService(
         var clinicalUserId = await actor.GetRequiredUserIdAsync(cancellationToken);
         return await repository.RecordStructuredReadAsync(
             eventType.Trim(), resourceType.Trim(), resourceUid, patientUid, clinicalUserId,
+            requestCorrelationId.Trim(), "MicroEMR.Api", cancellationToken);
+    }
+
+    public async Task<Guid> RecordAggregateReportAsync(
+        string eventType,
+        string reportKey,
+        string requestCorrelationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(eventType)) throw new ArgumentException("An event type is required.", nameof(eventType));
+        if (string.IsNullOrWhiteSpace(reportKey)) throw new ArgumentException("A report identity is required.", nameof(reportKey));
+        if (string.IsNullOrWhiteSpace(requestCorrelationId))
+            throw new ArgumentException("A request correlation identifier is required.", nameof(requestCorrelationId));
+
+        var clinicalUserId = await actor.GetRequiredUserIdAsync(cancellationToken);
+        return await repository.RecordAggregateReportAsync(eventType.Trim(), reportKey.Trim(), clinicalUserId,
             requestCorrelationId.Trim(), "MicroEMR.Api", cancellationToken);
     }
 }
