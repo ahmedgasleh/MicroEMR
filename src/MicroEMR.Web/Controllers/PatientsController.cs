@@ -17,6 +17,7 @@ using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Models.PatientVitals;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -333,6 +334,7 @@ public sealed class PatientsController : Controller
     }
 
     [HttpGet]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientChartView)]
     public async Task<IActionResult> Details(
         Guid patientUid,
         string? tab,

@@ -4,6 +4,7 @@ using MicroEMR.Application.PatientFiles;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -17,6 +18,7 @@ public sealed class PatientFilesController(
     [HttpGet]public async Task<ActionResult<IReadOnlyList<PatientFileResponse>>>List(Guid patientUid,CancellationToken ct)=>Ok(await service.GetByPatientUidAsync(patientUid,ct));
     [HttpGet("{fileUid:guid}")]public async Task<ActionResult<PatientFileResponse>>Get(Guid patientUid,Guid fileUid,CancellationToken ct)=>await service.GetByUidAsync(patientUid,fileUid,ct)is{}x?Ok(x):NotFound();
     [HttpGet("{fileUid:guid}/content")]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientFileDownload)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Content(Guid patientUid,Guid fileUid,CancellationToken ct)

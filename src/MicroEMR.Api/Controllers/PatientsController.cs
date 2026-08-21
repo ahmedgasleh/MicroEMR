@@ -14,6 +14,7 @@ using MicroEMR.Application.Patients.Services;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -38,6 +39,7 @@ public sealed class PatientsController : ControllerBase
 
     [HttpPost("{patientUid:guid}/chart-open")]
     [RequirePermission(PermissionKeys.PatientsView)]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientChartView)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
@@ -98,6 +100,7 @@ public sealed class PatientsController : ControllerBase
 
     [HttpGet("{patientUid:guid}")]
     [RequirePermission(PermissionKeys.PatientsView)]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientChartView)]
     [ProducesResponseType(
         typeof(PatientDetailsResponse),
         StatusCodes.Status200OK)]

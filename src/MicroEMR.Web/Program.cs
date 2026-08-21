@@ -24,6 +24,9 @@ using MicroEMR.Application.Security;
 using MicroEMR.Web.Services.TenantUserAdministration;
 using MicroEMR.Web.Services.Reporting;
 using MicroEMR.Web.Services.TemplateAdministration;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Authorization;
+using MicroEMR.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +36,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IWebPermissionService, WebPermissionService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, WebPermissionHandler>();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, WebPermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermissionAuthorizationResultHandler>();
+builder.Services.AddMicroEmrPlatformInfrastructure();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICurrentPatientContext, CurrentPatientContext>();
 

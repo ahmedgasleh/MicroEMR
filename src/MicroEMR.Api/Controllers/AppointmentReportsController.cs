@@ -4,6 +4,7 @@ using MicroEMR.Api.Authorization;
 using MicroEMR.Application.Reporting;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -17,6 +18,7 @@ public sealed class AppointmentReportsController(
     ILogger<AppointmentReportsController> logger) : ControllerBase
 {
     [HttpGet]
+    [SensitiveCapability(SecurityAuditCapabilities.AppointmentReportRun)]
     public async Task<ActionResult<AppointmentStatusReport>> Get([FromQuery] DateOnly startDate,
         [FromQuery] DateOnly endDate, [FromQuery] bool auditExecution = true,
         CancellationToken cancellationToken = default)
@@ -45,6 +47,7 @@ public sealed class AppointmentReportsController(
 
     [HttpGet("csv")]
     [RequirePermission(PermissionKeys.ReportsExport)]
+    [SensitiveCapability(SecurityAuditCapabilities.AppointmentReportExport)]
     public async Task<IActionResult> Csv([FromQuery] DateOnly startDate, [FromQuery] DateOnly endDate,
         CancellationToken cancellationToken)
     {

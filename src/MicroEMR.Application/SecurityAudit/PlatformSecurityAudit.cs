@@ -1,5 +1,7 @@
 namespace MicroEMR.Application.SecurityAudit;
 
+using MicroEMR.Application.AccessProfiles;
+
 public static class SecurityAuditCapabilities
 {
     public const string PatientChartView = "PatientChartView";
@@ -8,6 +10,37 @@ public static class SecurityAuditCapabilities
     public const string PatientFileDownload = "PatientFileDownload";
     public const string AppointmentReportRun = "AppointmentReportRun";
     public const string AppointmentReportExport = "AppointmentReportExport";
+}
+
+public static class SensitiveCapabilityCatalog
+{
+    private static readonly IReadOnlyDictionary<string, string> PermissionByCapability =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [SecurityAuditCapabilities.PatientChartView] = PermissionKeys.PatientsView,
+            [SecurityAuditCapabilities.EncounterView] = PermissionKeys.EncountersView,
+            [SecurityAuditCapabilities.PatientDocumentView] = PermissionKeys.DocumentsView,
+            [SecurityAuditCapabilities.PatientFileDownload] = PermissionKeys.DocumentsView,
+            [SecurityAuditCapabilities.AppointmentReportRun] = PermissionKeys.ReportsView,
+            [SecurityAuditCapabilities.AppointmentReportExport] = PermissionKeys.ReportsExport
+        };
+
+    public static bool TryGetRequiredPermission(string capability, out string requiredPermission) =>
+        PermissionByCapability.TryGetValue(capability, out requiredPermission!);
+}
+
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true)]
+public sealed class SensitiveCapabilityAttribute : Attribute
+{
+    public SensitiveCapabilityAttribute(string capability)
+    {
+        if (!SensitiveCapabilityCatalog.TryGetRequiredPermission(capability, out _))
+            throw new ArgumentException("Unknown sensitive capability.", nameof(capability));
+
+        Capability = capability;
+    }
+
+    public string Capability { get; }
 }
 
 public static class SecurityAuditSourceApplications

@@ -8,6 +8,7 @@ using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -69,6 +70,7 @@ public sealed class PatientEncountersController : ControllerBase
     }
 
     [HttpGet("api/patient-encounters/{encounterUid:guid}")]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterView)]
     [ProducesResponseType<PatientEncounterDetailsResponse>(
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
