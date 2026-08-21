@@ -49,6 +49,11 @@ public static class SecurityAuditSourceApplications
     public const string Web = "MicroEMR.Web";
 }
 
+public static class SecurityAuditResourceTypes
+{
+    public const string Encounter = "Encounter";
+}
+
 public sealed record MissingPermissionSecurityEvent(
     string ActorSubject,
     long? ClinicalUserId,
@@ -58,9 +63,25 @@ public sealed record MissingPermissionSecurityEvent(
     string SourceApplication,
     string? RequestCorrelationId);
 
+public sealed record CrossPatientOwnershipSecurityEvent(
+    string ActorSubject,
+    long? ClinicalUserId,
+    Guid TrustedTenantUid,
+    string Capability,
+    Guid RequestedPatientUid,
+    Guid AuthoritativePatientUid,
+    string ResourceType,
+    Guid ResourceUid,
+    string SourceApplication,
+    string? RequestCorrelationId);
+
 public interface IPlatformSecurityAuditRepository
 {
     Task RecordMissingPermissionAsync(
         MissingPermissionSecurityEvent securityEvent,
+        CancellationToken cancellationToken = default);
+
+    Task RecordCrossPatientOwnershipAsync(
+        CrossPatientOwnershipSecurityEvent securityEvent,
         CancellationToken cancellationToken = default);
 }
