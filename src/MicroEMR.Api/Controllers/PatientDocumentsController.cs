@@ -11,6 +11,7 @@ using MicroEMR.Application.Templates.Contracts;
 using MicroEMR.Application.Templates.Runtime;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -86,6 +87,7 @@ public sealed class PatientDocumentsController : ControllerBase
     }
 
     [HttpGet("api/patient-documents/{documentUid:guid}")]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientDocumentView)]
     [ProducesResponseType<PatientDocumentDetailsResponse>(
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

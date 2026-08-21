@@ -6,6 +6,7 @@ using MicroEMR.Web.Models.PatientDocuments;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -196,6 +197,7 @@ public sealed class PatientDocumentsController : Controller
     }
 
     [HttpGet]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientDocumentView)]
     public async Task<IActionResult> Details(
         Guid documentUid,
         CancellationToken cancellationToken)

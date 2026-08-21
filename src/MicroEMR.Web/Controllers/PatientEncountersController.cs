@@ -6,6 +6,7 @@ using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Web.Services.Patients;
 
 namespace MicroEMR.Web.Controllers;
@@ -77,6 +78,7 @@ public sealed class PatientEncountersController : Controller
         Json(await _encounterApiClient.GetEncounterTemplatesAsync(cancellationToken));
 
     [HttpGet]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterView)]
     public async Task<IActionResult> Details(
         Guid encounterUid,
         CancellationToken cancellationToken)

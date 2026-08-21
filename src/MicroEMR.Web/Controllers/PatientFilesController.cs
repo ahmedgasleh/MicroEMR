@@ -5,6 +5,7 @@ using MicroEMR.Web.Models.PatientFiles;
 using MicroEMR.Web.Services.PatientFiles;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -55,6 +56,7 @@ public sealed class PatientFilesController(IPatientFileApiClient client, ILogger
     {if(string.IsNullOrWhiteSpace(v))return BadRequest(new{success=false,message="The file version is required."});try{var file=await action(p,f,v,ct);return file is null?NotFound(new{success=false,message="File was not found."}):Json(new{success=true,file});}catch(Exception e){return Failure(e,"The file status could not be changed.",p,f);}}
 
     [HttpGet("{fileUid:guid}/content")]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientFileDownload)]
     public async Task<IActionResult> Content(Guid patientUid, Guid fileUid, CancellationToken cancellationToken)
     {
         HttpResponseMessage? apiResponse = null;
