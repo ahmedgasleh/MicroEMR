@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using MicroEMR.Infrastructure.Patients;
+using MicroEMR.Infrastructure.SecurityAudit;
 using MicroEMR.Infrastructure.Tenancy;
 using Xunit;
 
@@ -16,7 +17,8 @@ public sealed class ClinicalRepositoryArchitectureTests
             .Where(type => type.Name.EndsWith("Repository", StringComparison.Ordinal))
             .Where(type => type.Namespace?.StartsWith("MicroEMR.Infrastructure", StringComparison.Ordinal) == true)
             .Where(type => type.Namespace is not "MicroEMR.Infrastructure.Tenancy" and
-                not "MicroEMR.Infrastructure.Provisioning")
+                not "MicroEMR.Infrastructure.Provisioning" and
+                not "MicroEMR.Infrastructure.SecurityAudit")
             .ToArray();
 
         Assert.NotEmpty(repositoryTypes);
@@ -41,7 +43,8 @@ public sealed class ClinicalRepositoryArchitectureTests
         {
             typeof(SqlTenantCatalog),
             typeof(SqlTenantDatabaseResolver),
-            typeof(SqlUserTenantMembershipRepository)
+            typeof(SqlUserTenantMembershipRepository),
+            typeof(SqlPlatformSecurityAuditRepository)
         };
 
         foreach (var repositoryType in platformRepositories)
