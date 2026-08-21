@@ -133,13 +133,10 @@ public sealed class CrossPatientSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void RuntimeEncounterAddendumWorkflowIsNotWiredInFoundationStep()
+    public void RuntimeOwnershipAuditDoesNotLeakIntoEncounterApplicationService()
     {
-        var controller = Read("src", "MicroEMR.Api", "Controllers",
-            "PatientEncountersController.cs");
         var service = Read("src", "MicroEMR.Application", "PatientEncounters", "Services",
             "PatientEncounterService.cs");
-        Assert.DoesNotContain("RecordCrossPatientOwnershipAsync", controller);
         Assert.DoesNotContain("RecordCrossPatientOwnershipAsync", service);
     }
 

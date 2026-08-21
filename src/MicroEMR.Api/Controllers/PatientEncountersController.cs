@@ -9,6 +9,7 @@ using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.ReadAudit;
 using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Application.Tenancy;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -22,19 +23,25 @@ public sealed class PatientEncountersController : ControllerBase
     private readonly IClinicalPdfPreviewService _pdfPreview;
     private readonly IClinicalArtifactService _artifacts;
     private readonly IStructuredReadAuditService _readAudit;
+    private readonly IPlatformSecurityAuditRepository _securityAudit;
+    private readonly ITenantContextAccessor _tenantContext;
 
     public PatientEncountersController(
         IPatientEncounterService encounterService,
         ILogger<PatientEncountersController> logger,
         IClinicalPdfPreviewService pdfPreview,
         IClinicalArtifactService artifacts,
-        IStructuredReadAuditService readAudit)
+        IStructuredReadAuditService readAudit,
+        IPlatformSecurityAuditRepository securityAudit,
+        ITenantContextAccessor tenantContext)
     {
         _encounterService = encounterService;
         _logger = logger;
         _pdfPreview = pdfPreview;
         _artifacts = artifacts;
         _readAudit = readAudit;
+        _securityAudit = securityAudit;
+        _tenantContext = tenantContext;
     }
 
     [HttpGet("api/patient-encounters/{encounterUid:guid}/final-pdf")]
@@ -147,6 +154,7 @@ public sealed class PatientEncountersController : ControllerBase
 
     [Authorize]
     [HttpGet("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterView)]
     public async Task<ActionResult<IReadOnlyList<PatientEncounterAddendumResponse>>> GetEncounterAddendums(
         Guid patientUid,
         Guid encounterUid,
@@ -156,8 +164,15 @@ public sealed class PatientEncountersController : ControllerBase
             return BadRequest();
 
         var encounter = await _encounterService.GetByUidAsync(encounterUid, cancellationToken);
-        if (encounter is null || encounter.PatientUid != patientUid)
+        if (encounter is null)
             return NotFound(new { message = "Encounter was not found." });
+
+        if (encounter.PatientUid != patientUid)
+        {
+            await TryRecordCrossPatientOwnershipAsync(
+                patientUid, encounter.PatientUid, encounter.EncounterUid, cancellationToken);
+            return NotFound(new { message = "Encounter was not found." });
+        }
 
         try
         {
@@ -483,6 +498,52 @@ public sealed class PatientEncountersController : ControllerBase
 
     private long GetAuthenticatedUserId() =>
         ClinicalUserActorContext.GetRequired(HttpContext);
+
+    private async Task TryRecordCrossPatientOwnershipAsync(
+        Guid requestedPatientUid,
+        Guid authoritativePatientUid,
+        Guid encounterUid,
+        CancellationToken cancellationToken)
+    {
+        var subject = User.FindFirstValue("sub")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var tenantUid = _tenantContext.Current?.TenantUid;
+
+        if (string.IsNullOrWhiteSpace(subject) || tenantUid is null || tenantUid == Guid.Empty)
+        {
+            _logger.LogError(
+                "Cross-patient ownership security audit could not be recorded because trusted request context was unavailable. EncounterUid: {EncounterUid}; TraceIdentifier: {TraceIdentifier}.",
+                encounterUid, HttpContext.TraceIdentifier);
+            return;
+        }
+
+        long? clinicalUserId = ClinicalUserActorContext.TryGet(HttpContext, out var resolvedUserId)
+            ? resolvedUserId
+            : null;
+
+        try
+        {
+            await _securityAudit.RecordCrossPatientOwnershipAsync(
+                new CrossPatientOwnershipSecurityEvent(
+                    subject,
+                    clinicalUserId,
+                    tenantUid.Value,
+                    SecurityAuditCapabilities.EncounterView,
+                    requestedPatientUid,
+                    authoritativePatientUid,
+                    SecurityAuditResourceTypes.Encounter,
+                    encounterUid,
+                    SecurityAuditSourceApplications.Api,
+                    HttpContext.TraceIdentifier),
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception,
+                "Cross-patient ownership security audit persistence failed for encounter {EncounterUid}; access remained denied. TraceIdentifier: {TraceIdentifier}.",
+                encounterUid, HttpContext.TraceIdentifier);
+        }
+    }
 
     private string? GetAuthenticatedDisplayName()
     {
