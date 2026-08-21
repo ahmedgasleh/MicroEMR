@@ -181,6 +181,10 @@ public sealed class MissingPermissionAuthorizationAuditTests
         public Task RecordCrossPatientOwnershipAsync(CrossPatientOwnershipSecurityEvent securityEvent,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task RecordUnresolvedClinicalActorAsync(UnresolvedClinicalActorSecurityEvent securityEvent,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingAuthenticationService : IAuthenticationService

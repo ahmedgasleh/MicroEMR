@@ -67,6 +67,31 @@ public sealed class SqlPlatformSecurityAuditRepository(IConfiguration configurat
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task RecordUnresolvedClinicalActorAsync(
+        UnresolvedClinicalActorSecurityEvent securityEvent,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(securityEvent);
+
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PlatformSecurityAudit_RecordUnresolvedClinicalActor",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        Add(command, "@ActorSubject", SqlDbType.NVarChar, 451, securityEvent.ActorSubject);
+        Add(command, "@TargetTenantUid", SqlDbType.UniqueIdentifier, 0, securityEvent.TrustedTenantUid);
+        Add(command, "@Capability", SqlDbType.NVarChar, 101, securityEvent.Capability);
+        Add(command, "@RequiredPermission", SqlDbType.NVarChar, 101, securityEvent.RequiredPermission);
+        Add(command, "@SourceApplication", SqlDbType.NVarChar, 51, securityEvent.SourceApplication);
+        Add(command, "@RequestCorrelationId", SqlDbType.NVarChar, 129, securityEvent.RequestCorrelationId);
+
+        await connection.OpenAsync(cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static void Add(
         SqlCommand command,
         string name,
