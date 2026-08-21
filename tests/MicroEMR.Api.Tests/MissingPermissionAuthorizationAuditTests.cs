@@ -177,6 +177,10 @@ public sealed class MissingPermissionAuthorizationAuditTests
             Events.Add(securityEvent);
             return Task.CompletedTask;
         }
+
+        public Task RecordCrossPatientOwnershipAsync(CrossPatientOwnershipSecurityEvent securityEvent,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingAuthenticationService : IAuthenticationService
