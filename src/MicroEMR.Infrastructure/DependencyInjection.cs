@@ -44,6 +44,8 @@ using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Infrastructure.ClinicalOutput;
 using MicroEMR.Application.ReadAudit;
 using MicroEMR.Infrastructure.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Infrastructure.SecurityAudit;
 
 namespace MicroEMR.Infrastructure;
 
@@ -59,6 +61,7 @@ public static class DependencyInjection
             SqlUserTenantMembershipRepository>();
         services.AddScoped<IPlatformTenantAdministrationService, SqlPlatformTenantAdministrationService>();
         services.AddScoped<IPlatformMembershipAdministrationService, SqlPlatformMembershipAdministrationService>();
+        services.AddScoped<IPlatformSecurityAuditRepository, SqlPlatformSecurityAuditRepository>();
         services.AddScoped<IIdentityUserLookup, SqlIdentityUserLookup>();
         services.AddScoped<IIdentityUserProfileLookup>(serviceProvider =>
             serviceProvider.GetRequiredService<IIdentityUserLookup>() as IIdentityUserProfileLookup
