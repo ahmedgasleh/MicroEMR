@@ -197,6 +197,8 @@ public sealed class EncounterAddendumCrossPatientAuditTests
             MissingPermissionEvents.Add(securityEvent);
             return Task.CompletedTask;
         }
+        public Task RecordUnresolvedClinicalActorAsync(UnresolvedClinicalActorSecurityEvent securityEvent,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ReadAuditService : IStructuredReadAuditService

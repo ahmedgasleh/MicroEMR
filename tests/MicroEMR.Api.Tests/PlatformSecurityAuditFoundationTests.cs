@@ -136,7 +136,8 @@ public sealed class PlatformSecurityAuditFoundationTests
             ["011_access_profile_assignment_nonclustered_key.sql"] = "5D8A654C2A8FF644F757938A60E00F5008CEC43FFC758CB952830B623358DDC3",
             ["012_user_permission_overrides.sql"] = "A4C4DFE030DFECFA091691DA590F520D9FA934835B841976BE79CF17114F02ED",
             ["013_access_security_stabilization.sql"] = "B6B1E60E67281217EAB3C75759C0714053EEFA0F3DCCB57DFC28C425C6139E3D",
-            ["014_platform_security_denial_audit.sql"] = "08DD728378085F7482FAE51EBF107814206D62972BD11131ACA8AAD3F3F8FF04"
+            ["014_platform_security_denial_audit.sql"] = "08DD728378085F7482FAE51EBF107814206D62972BD11131ACA8AAD3F3F8FF04",
+            ["015_platform_cross_patient_security_audit.sql"] = "2EF7E56A721888122477BD23C2B9E8D5FE448C84AE7C5E2CDCBC78CDA31D480D"
         };
 
         foreach (var (file, hash) in expected)
@@ -144,7 +145,7 @@ public sealed class PlatformSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void PlatformMigrationSequenceEndsAtFifteenWithoutDuplicates()
+    public void PlatformMigrationSequenceEndsAtSixteenWithoutDuplicates()
     {
         var ids = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileNameWithoutExtension)
@@ -155,8 +156,8 @@ public sealed class PlatformSecurityAuditFoundationTests
 
         Assert.Equal(ids.Length, ids.Distinct().Count());
         Assert.Contains(14, ids);
-        Assert.Equal(15, ids.Max());
-        Assert.Single(ids, id => id == 15);
+        Assert.Equal(16, ids.Max());
+        Assert.Single(ids, id => id == 16);
     }
 
     private static int Count(string value, string fragment) =>

@@ -152,15 +152,15 @@ public sealed class CrossPatientSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void PlatformMigrationFifteenIsUniqueAndTenantMigrationsRemainAtFortySix()
+    public void PlatformMigrationFifteenRemainsUniqueAndTenantMigrationsRemainAtFortySix()
     {
         var platformIds = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 3 && int.TryParse(name[..3], out _))
             .Select(name => int.Parse(name![..3]))
             .ToArray();
-        Assert.Equal(15, platformIds.Max());
         Assert.Single(platformIds, id => id == 15);
+        Assert.Single(platformIds, id => id == 16);
 
         var tenantFiles = Directory.GetFiles(Path.Combine(Root(), "db", "tenant-clinical", "migrations"), "*.sql");
         Assert.DoesNotContain(tenantFiles, file => Path.GetFileName(file).StartsWith("0047", StringComparison.Ordinal));

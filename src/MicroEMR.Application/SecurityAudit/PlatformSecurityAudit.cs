@@ -6,6 +6,7 @@ public static class SecurityAuditCapabilities
 {
     public const string PatientChartView = "PatientChartView";
     public const string EncounterView = "EncounterView";
+    public const string EncounterEdit = "EncounterEdit";
     public const string PatientDocumentView = "PatientDocumentView";
     public const string PatientFileDownload = "PatientFileDownload";
     public const string AppointmentReportRun = "AppointmentReportRun";
@@ -75,6 +76,14 @@ public sealed record CrossPatientOwnershipSecurityEvent(
     string SourceApplication,
     string? RequestCorrelationId);
 
+public sealed record UnresolvedClinicalActorSecurityEvent(
+    string ActorSubject,
+    Guid TrustedTenantUid,
+    string Capability,
+    string RequiredPermission,
+    string SourceApplication,
+    string? RequestCorrelationId);
+
 public interface IPlatformSecurityAuditRepository
 {
     Task RecordMissingPermissionAsync(
@@ -83,5 +92,9 @@ public interface IPlatformSecurityAuditRepository
 
     Task RecordCrossPatientOwnershipAsync(
         CrossPatientOwnershipSecurityEvent securityEvent,
+        CancellationToken cancellationToken = default);
+
+    Task RecordUnresolvedClinicalActorAsync(
+        UnresolvedClinicalActorSecurityEvent securityEvent,
         CancellationToken cancellationToken = default);
 }
