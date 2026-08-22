@@ -199,6 +199,9 @@ public sealed class EncounterAddendumCrossPatientAuditTests
         }
         public Task RecordUnresolvedClinicalActorAsync(UnresolvedClinicalActorSecurityEvent securityEvent,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task RecordInvalidTenantMembershipAsync(InvalidTenantMembershipSecurityEvent securityEvent,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ReadAuditService : IStructuredReadAuditService

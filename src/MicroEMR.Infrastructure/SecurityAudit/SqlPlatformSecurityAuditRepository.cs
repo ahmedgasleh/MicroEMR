@@ -92,6 +92,29 @@ public sealed class SqlPlatformSecurityAuditRepository(IConfiguration configurat
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task RecordInvalidTenantMembershipAsync(
+        InvalidTenantMembershipSecurityEvent securityEvent,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(securityEvent);
+
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand(
+            "dbo.PlatformSecurityAudit_RecordInvalidTenantMembership",
+            connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        Add(command, "@ActorSubject", SqlDbType.NVarChar, 451, securityEvent.ActorSubject);
+        Add(command, "@RequestedTenantUid", SqlDbType.UniqueIdentifier, 0, securityEvent.RequestedTenantUid);
+        Add(command, "@SourceApplication", SqlDbType.NVarChar, 51, securityEvent.SourceApplication);
+        Add(command, "@RequestCorrelationId", SqlDbType.NVarChar, 129, securityEvent.RequestCorrelationId);
+
+        await connection.OpenAsync(cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static void Add(
         SqlCommand command,
         string name,

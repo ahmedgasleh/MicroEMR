@@ -192,5 +192,8 @@ public sealed class ClinicalActorResolutionMiddlewareTests
 
         public Task RecordCrossPatientOwnershipAsync(CrossPatientOwnershipSecurityEvent securityEvent,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task RecordInvalidTenantMembershipAsync(InvalidTenantMembershipSecurityEvent securityEvent,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }
