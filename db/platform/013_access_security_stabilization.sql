@@ -40,7 +40,8 @@ AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRANSACTION;
     DECLARE @LockResult INT,@Status VARCHAR(30),@Current BINARY(8);
-    EXEC @LockResult=sys.sp_getapplock @Resource=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid),@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
+    DECLARE @LockResource NVARCHAR(255)=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid);
+    EXEC @LockResult=sys.sp_getapplock @Resource=@LockResource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
     IF @LockResult<0 THROW 51601,'Access administration is busy. Try again.',1;
     SELECT @Status=MembershipStatus,@Current=RowVersion FROM dbo.UserTenantMembership WITH(UPDLOCK,HOLDLOCK) WHERE TenantUid=@TenantUid AND UserId=@UserId;
     IF @Status IS NULL THROW 51303,'Membership not found.',1;
@@ -62,7 +63,8 @@ AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRANSACTION;
     DECLARE @LockResult INT,@Current BINARY(8),@Old UNIQUEIDENTIFIER;
-    EXEC @LockResult=sys.sp_getapplock @Resource=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid),@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
+    DECLARE @LockResource NVARCHAR(255)=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid);
+    EXEC @LockResult=sys.sp_getapplock @Resource=@LockResource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
     IF @LockResult<0 THROW 51601,'Access administration is busy. Try again.',1;
     SELECT @Current=RowVersion FROM dbo.UserTenantMembership WITH(UPDLOCK,HOLDLOCK) WHERE TenantUid=@TenantUid AND UserId=@UserId;
     IF @Current IS NULL THROW 51303,'Membership not found.',1;
@@ -86,7 +88,8 @@ AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRANSACTION;
     DECLARE @LockResult INT,@Current BINARY(8);
-    EXEC @LockResult=sys.sp_getapplock @Resource=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid),@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
+    DECLARE @LockResource NVARCHAR(255)=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid);
+    EXEC @LockResult=sys.sp_getapplock @Resource=@LockResource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
     IF @LockResult<0 THROW 51601,'Access administration is busy. Try again.',1;
     SELECT @Current=RowVersion FROM dbo.AccessProfile WITH(UPDLOCK,HOLDLOCK) WHERE TenantUid=@TenantUid AND AccessProfileUid=@AccessProfileUid AND IsActive=1;
     IF @Current IS NULL THROW 51401,'Profile not found.',1;
@@ -113,7 +116,8 @@ AS
 BEGIN
     SET NOCOUNT ON; SET XACT_ABORT ON; BEGIN TRANSACTION;
     DECLARE @LockResult INT,@Current BINARY(8),@Old VARCHAR(5);
-    EXEC @LockResult=sys.sp_getapplock @Resource=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid),@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
+    DECLARE @LockResource NVARCHAR(255)=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid);
+    EXEC @LockResult=sys.sp_getapplock @Resource=@LockResource,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
     IF @LockResult<0 THROW 51601,'Access administration is busy. Try again.',1;
     SELECT @Current=RowVersion FROM dbo.UserTenantMembership WITH(UPDLOCK,HOLDLOCK) WHERE TenantUid=@TenantUid AND UserId=@UserId;
     IF @Current IS NULL THROW 51501,'Membership not found.',1;
