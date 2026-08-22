@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Auth.Data;
 using MicroEMR.Auth.Models;
 using MicroEMR.Auth.Services.Tenancy;
+using MicroEMR.Auth.Services.SecurityAudit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -14,6 +15,7 @@ public class AccountController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUserTenantMembershipService _membershipService;
     private readonly IPendingTenantSelectionStore _selectionStore;
+    private readonly TenantSelectionSecurityAuditRecorder _securityAudit;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
@@ -21,12 +23,14 @@ public class AccountController : Controller
         UserManager<ApplicationUser> userManager,
         IUserTenantMembershipService membershipService,
         IPendingTenantSelectionStore selectionStore,
+        TenantSelectionSecurityAuditRecorder securityAudit,
         ILogger<AccountController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _membershipService = membershipService;
         _selectionStore = selectionStore;
+        _securityAudit = securityAudit;
         _logger = logger;
     }
 
@@ -138,6 +142,14 @@ public class AccountController : Controller
             : null;
         if (selected is null)
         {
+            if (model.SelectedTenantUid is Guid requestedTenantUid && requestedTenantUid != Guid.Empty)
+            {
+                await _securityAudit.TryRecordInvalidMembershipAsync(
+                    HttpContext,
+                    user.Id,
+                    requestedTenantUid);
+            }
+
             _logger.LogWarning("Submitted tenant was unavailable or not allowed for user {UserId}, selection {SelectionId}. TraceIdentifier: {TraceIdentifier}",
                 user.Id, pending.SelectionId, HttpContext.TraceIdentifier);
             ModelState.AddModelError(nameof(model.SelectedTenantUid), "The selected clinic is unavailable. Please try again.");
