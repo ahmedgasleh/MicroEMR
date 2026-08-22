@@ -1,0 +1,64 @@
+@model MicroEMR.Web.Models.SecurityAudit.SecurityAuditDetailViewModel
+@{
+    ViewData["Title"] = "Security Audit Event";
+    ViewData["Subtitle"] = "Restricted security event detail.";
+    Layout = "_AppLayout";
+    string Display(object? value) => value?.ToString() ?? "—";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <a asp-action="Index" class="small text-decoration-none">&larr; Security Audit</a>
+            <h1 class="h3 mt-2 mb-1">Security Audit Event</h1>
+            <p class="text-muted mb-0">Identifiers are sensitive. This event records a denied attempt, not a confirmed disclosure.</p>
+        </div>
+    </div>
+    @if (Model.ErrorMessage is not null)
+    {
+        <div class="alert alert-danger mt-3" role="alert">@Model.ErrorMessage</div>
+    }
+    else if (Model.Detail is not null)
+    {
+        var detail = Model.Detail;
+        <div class="row g-4 mt-1">
+            <section class="col-lg-6" aria-labelledby="event-heading">
+                <h2 id="event-heading" class="h5">Event</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Event UID</dt><dd class="col-sm-7 font-monospace">@detail.SecurityAuditEventUid</dd>
+                    <dt class="col-sm-5">Occurred (UTC)</dt><dd class="col-sm-7">@detail.OccurredAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.fffffff")</dd>
+                    <dt class="col-sm-5">Event Type</dt><dd class="col-sm-7">@detail.EventType</dd>
+                    <dt class="col-sm-5">Outcome</dt><dd class="col-sm-7">@detail.Outcome</dd>
+                    <dt class="col-sm-5">Denial Reason</dt><dd class="col-sm-7">@detail.DenialReason</dd>
+                    <dt class="col-sm-5">Capability</dt><dd class="col-sm-7">@detail.Capability</dd>
+                    <dt class="col-sm-5">Required Permission</dt><dd class="col-sm-7">@Display(detail.RequiredPermission)</dd>
+                    <dt class="col-sm-5">Source Application</dt><dd class="col-sm-7">@detail.SourceApplication</dd>
+                    <dt class="col-sm-5">Correlation ID</dt><dd class="col-sm-7 font-monospace">@Display(detail.RequestCorrelationId)</dd>
+                </dl>
+            </section>
+            <section class="col-lg-6" aria-labelledby="identity-heading">
+                <h2 id="identity-heading" class="h5">Identity</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Actor Subject</dt><dd class="col-sm-7 font-monospace text-break">@detail.ActorSubject</dd>
+                    <dt class="col-sm-5">Clinical User ID</dt><dd class="col-sm-7">@Display(detail.ClinicalUserId)</dd>
+                </dl>
+            </section>
+            <section class="col-lg-6" aria-labelledby="tenant-heading">
+                <h2 id="tenant-heading" class="h5">Tenant context</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Trusted Tenant</dt><dd class="col-sm-7 font-monospace">@Display(detail.TargetTenantUid)</dd>
+                    <dt class="col-sm-5">Requested Tenant (untrusted)</dt><dd class="col-sm-7 font-monospace">@Display(detail.RequestedTenantUid)</dd>
+                </dl>
+            </section>
+            <section class="col-lg-6" aria-labelledby="resource-heading">
+                <h2 id="resource-heading" class="h5">Resource context</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Resource Type</dt><dd class="col-sm-7">@Display(detail.ResourceType)</dd>
+                    <dt class="col-sm-5">Resource UID</dt><dd class="col-sm-7 font-monospace">@Display(detail.ResourceUid)</dd>
+                    <dt class="col-sm-5">Requested Patient UID</dt><dd class="col-sm-7 font-monospace">@Display(detail.RequestedPatientUid)</dd>
+                    <dt class="col-sm-5">Authoritative Patient UID</dt><dd class="col-sm-7 font-monospace">@Display(detail.AuthoritativePatientUid)</dd>
+                </dl>
+            </section>
+        </div>
+    }
+</div>
