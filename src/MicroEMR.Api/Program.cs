@@ -18,6 +18,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization.Policy;
 using MicroEMR.Application.PlatformEntitlements;
+using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Api.SecurityAudit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,6 +87,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
 builder.Services.AddScoped<IAuthenticatedSubjectAccessor, AuthenticatedSubjectAccessor>();
+builder.Services.AddSingleton<ISecurityAuditContinuationTokenProtector, SecurityAuditContinuationTokenProtector>();
 
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext>(serviceProvider =>

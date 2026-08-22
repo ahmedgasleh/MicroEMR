@@ -3,6 +3,7 @@ using MicroEMR.Application.Security;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Core.Tenancy;
 using System.Text.Json;
+using MicroEMR.Api.Authorization;
 
 namespace MicroEMR.Api.Middleware;
 
@@ -145,7 +146,8 @@ public sealed class TenantResolutionMiddleware
     }
 
     private static bool ShouldSkip(HttpContext context) =>
-        context.User.Identity?.IsAuthenticated != true;
+        context.User.Identity?.IsAuthenticated != true ||
+        context.GetEndpoint()?.Metadata.GetMetadata<RequirePlatformEntitlementAttribute>() is not null;
 
     private static void ReplaceTenantRoleClaims(
         ClaimsPrincipal principal,
