@@ -7,6 +7,7 @@ public static class SecurityAuditCapabilities
     public const string PatientChartView = "PatientChartView";
     public const string EncounterView = "EncounterView";
     public const string EncounterEdit = "EncounterEdit";
+    public const string TenantSelection = "TenantSelection";
     public const string PatientDocumentView = "PatientDocumentView";
     public const string PatientFileDownload = "PatientFileDownload";
     public const string AppointmentReportRun = "AppointmentReportRun";
@@ -49,6 +50,7 @@ public static class SecurityAuditSourceApplications
 {
     public const string Api = "MicroEMR.Api";
     public const string Web = "MicroEMR.Web";
+    public const string Auth = "MicroEMR.Auth";
 }
 
 public static class SecurityAuditResourceTypes
@@ -85,6 +87,12 @@ public sealed record UnresolvedClinicalActorSecurityEvent(
     string SourceApplication,
     string? RequestCorrelationId);
 
+public sealed record InvalidTenantMembershipSecurityEvent(
+    string ActorSubject,
+    Guid RequestedTenantUid,
+    string SourceApplication,
+    string? RequestCorrelationId);
+
 public interface IPlatformSecurityAuditRepository
 {
     Task RecordMissingPermissionAsync(
@@ -97,5 +105,9 @@ public interface IPlatformSecurityAuditRepository
 
     Task RecordUnresolvedClinicalActorAsync(
         UnresolvedClinicalActorSecurityEvent securityEvent,
+        CancellationToken cancellationToken = default);
+
+    Task RecordInvalidTenantMembershipAsync(
+        InvalidTenantMembershipSecurityEvent securityEvent,
         CancellationToken cancellationToken = default);
 }
