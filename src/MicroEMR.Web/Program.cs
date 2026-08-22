@@ -27,6 +27,7 @@ using MicroEMR.Web.Services.TemplateAdministration;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Infrastructure;
+using MicroEMR.Web.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,14 @@ builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermiss
 builder.Services.AddMicroEmrPlatformInfrastructure();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICurrentPatientContext, CurrentPatientContext>();
+builder.Services.Configure<WebTokenRefreshOptions>(
+    builder.Configuration.GetSection(WebTokenRefreshOptions.SectionName));
+builder.Services.AddSingleton<ISessionTokenRefreshCoordinator, SessionTokenRefreshCoordinator>();
+builder.Services.AddScoped<IRefreshTokenClient, OpenIdConnectRefreshTokenClient>();
+builder.Services.AddScoped<IWebSessionTokenService, WebSessionTokenService>();
+builder.Services.AddTransient<WebApiBearerTokenHandler>();
+builder.Services.AddHttpClient(OpenIdConnectRefreshTokenClient.HttpClientName, client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
 
 static void ConfigureApiClient (
     IServiceProvider serviceProvider,
@@ -61,46 +70,49 @@ static void ConfigureApiClient (
             "application/json"));
 }
 
-builder.Services.AddHttpClient<
+static IHttpClientBuilder AddApiTokenRefresh(IHttpClientBuilder client) =>
+    client.AddHttpMessageHandler<WebApiBearerTokenHandler>();
+
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientApiClient,
-    PatientApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientChartAlertApiClient, PatientChartAlertApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientResultApiClient, PatientResultApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientTaskApiClient, PatientTaskApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IClinicConfigurationApiClient, ClinicConfigurationApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<ITenantUserAdministrationApiClient, TenantUserAdministrationApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IAccessProfileApiClient, AccessProfileApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient);
+    PatientApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientChartAlertApiClient, PatientChartAlertApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientResultApiClient, PatientResultApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientTaskApiClient, PatientTaskApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IClinicConfigurationApiClient, ClinicConfigurationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<ITenantUserAdministrationApiClient, TenantUserAdministrationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IAccessProfileApiClient, AccessProfileApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientAllergyApiClient,
-    PatientAllergyApiClient>(ConfigureApiClient);
+    PatientAllergyApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientDocumentApiClient,
-    PatientDocumentApiClient>(ConfigureApiClient);
+    PatientDocumentApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientEncounterApiClient,
-    PatientEncounterApiClient>(ConfigureApiClient);
+    PatientEncounterApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientMedicationApiClient,
-    PatientMedicationApiClient>(ConfigureApiClient);
+    PatientMedicationApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientProblemApiClient,
-    PatientProblemApiClient>(ConfigureApiClient);
-builder.Services.AddHttpClient<IPatientClinicalHistoryApiClient,PatientClinicalHistoryApiClient>(ConfigureApiClient);
+    PatientProblemApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientClinicalHistoryApiClient,PatientClinicalHistoryApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient);
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient));
 
-builder.Services.AddHttpClient<
+AddApiTokenRefresh(builder.Services.AddHttpClient<
     ISchedulingApiClient,
-    SchedulingApiClient>(ConfigureApiClient);
+    SchedulingApiClient>(ConfigureApiClient));
 
 builder.Services
     .AddAuthentication(options =>
@@ -225,6 +237,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
+app.UseMiddleware<WebSessionReauthenticationMiddleware>();
 app.UseAuthorization();
 
 app.MapDefaultControllerRoute();
