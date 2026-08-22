@@ -31,7 +31,8 @@ public sealed class AuthenticatedClinicalUserAccessor(
         var clinicalUser = await clinicalUsers.GetByAuthSubjectIdAsync(subject, cancellationToken);
         if (clinicalUser is null || !clinicalUser.IsActive)
             throw new ClinicalUserResolutionException(
-                "The authenticated account is not provisioned as an active clinical user in this tenant.");
+                "The authenticated account is not provisioned as an active clinical user in this tenant.",
+                isCompletedUnresolved: true);
 
         _resolvedUserId = clinicalUser.UserId;
         return clinicalUser.UserId;

@@ -191,6 +191,7 @@ public sealed class PatientEncountersController : ControllerBase
     [Authorize]
     [HttpPost("api/patients/{patientUid:guid}/encounters/{encounterUid:guid}/addendums")]
     [RequirePermission(PermissionKeys.EncountersEdit)]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterEdit)]
     public async Task<ActionResult<PatientEncounterAddendumResponse>> CreateEncounterAddendum(
         Guid patientUid,
         Guid encounterUid,
