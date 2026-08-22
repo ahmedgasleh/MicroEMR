@@ -105,7 +105,7 @@ public sealed class PlatformEntitlementFoundationTests
     {
         Assert.DoesNotContain("ALTER TABLE dbo.PlatformAuditEvent", Migration,
             StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(2, Count(Migration, "INSERT dbo.PlatformAuditEvent\n    ("));
+        Assert.Equal(2, Count(Migration.Replace("\r\n", "\n"), "INSERT dbo.PlatformAuditEvent\n    ("));
         Assert.Equal(2, Count(Migration, "ActorUserId, ActorType, Action, TargetTenantUid"));
         Assert.Equal(2, Count(Migration, "TargetUserId, Outcome, OccurredAtUtc, CorrelationId, DetailsJson"));
         Assert.DoesNotContain("INSERT dbo.PlatformAuditEvent VALUES", Migration,
@@ -177,7 +177,7 @@ public sealed class PlatformEntitlementFoundationTests
     {
         var platformIds = MigrationIds("db", "platform", 3);
         Assert.Equal(platformIds.Length, platformIds.Distinct().Count());
-        Assert.Equal(19, platformIds.Max());
+        Assert.Equal(20, platformIds.Max());
         Assert.Single(platformIds, id => id == 18);
         Assert.Single(platformIds, id => id == 19);
         var tenantIds = MigrationIds("db", "tenant-clinical", "migrations", 4);
