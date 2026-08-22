@@ -12,7 +12,6 @@ using MicroEMR.Web.Services.PatientProblems;
 using MicroEMR.Web.Services.PatientClinicalHistory;
 using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Services.Scheduling;
-using System.Globalization;
 using MicroEMR.Web.Services.PatientChartAlerts;
 using MicroEMR.Web.Services.PatientResults;
 using MicroEMR.Web.Services.PatientTasks;
@@ -28,6 +27,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Infrastructure;
 using MicroEMR.Web.Authentication;
+using MicroEMR.Application.PlatformEntitlements;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +36,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IWebPermissionService, WebPermissionService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, WebPermissionHandler>();
+builder.Services.AddScoped<IWebPlatformEntitlementAccessor, WebPlatformEntitlementAccessor>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, PlatformEntitlementAuthorizationHandler>();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, WebPermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermissionAuthorizationResultHandler>();
 builder.Services.AddMicroEmrPlatformInfrastructure();
@@ -123,22 +125,12 @@ builder.Services
     .AddCookie(options =>
     {
         options.Cookie.Name = "MicroEMR.Web";
-        options.Events.OnValidatePrincipal = context =>
-        {
-            var expiresAtValue = context.Properties.GetTokenValue("expires_at");
-
-            if (DateTimeOffset.TryParse(
-                    expiresAtValue,
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind,
-                    out var expiresAt) &&
-                expiresAt <= DateTimeOffset.UtcNow)
-            {
-                context.RejectPrincipal();
-            }
-
-            return Task.CompletedTask;
-        };
+        options.ExpireTimeSpan = TimeSpan.FromDays(14);
+        options.SlidingExpiration = false;
+        options.Events.OnValidatePrincipal = async context =>
+            await context.HttpContext.RequestServices
+                .GetRequiredService<IWebSessionTokenService>()
+                .RefreshCookieTicketAsync(context);
         options.Events.OnRedirectToLogin = context =>
         {
             if (string.Equals(context.Request.Headers.XRequestedWith, "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
@@ -169,7 +161,7 @@ builder.Services
         options.UsePkce = true;
 
         options.SaveTokens = true;
-        options.UseTokenLifetime = true;
+        options.UseTokenLifetime = false;
         //options.GetClaimsFromUserInfoEndpoint = true;
 
         options.Scope.Clear();
@@ -228,6 +220,10 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(ClinicConfigurationAuthorization.Policy, policy =>
         policy.RequireClaim(MicroEmrClaimTypes.TenantRole, ClinicConfigurationAuthorization.Role));
+    options.AddPolicy(
+        PlatformEntitlementPolicies.SecurityAuditView,
+        policy => policy.RequireAuthenticatedUser().AddRequirements(
+            new PlatformEntitlementRequirement(PlatformEntitlementKeys.SecurityAuditView)));
 });
 
 var app = builder.Build();

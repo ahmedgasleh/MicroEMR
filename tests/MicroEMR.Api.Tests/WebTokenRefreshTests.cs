@@ -8,6 +8,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MicroEMR.Web.Authentication;
 using Xunit;
+using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
+using MicroEMR.Application.PlatformEntitlements;
 
 namespace MicroEMR.Api.Tests;
 
@@ -48,7 +51,7 @@ public sealed class WebTokenRefreshTests
         var signedInProperties = authentication.SignedInProperties!;
         Assert.Equal("access-new", signedInProperties.GetTokenValue("access_token"));
         Assert.Equal("refresh-new", signedInProperties.GetTokenValue("refresh_token"));
-        Assert.Equal(Now.AddHours(1), signedInProperties.ExpiresUtc);
+        Assert.Equal(Now.AddDays(14), signedInProperties.ExpiresUtc);
         Assert.Equal(
             Now.AddHours(1),
             DateTimeOffset.Parse(
@@ -168,6 +171,51 @@ public sealed class WebTokenRefreshTests
     }
 
     [Fact]
+    public async Task CookieValidationRefreshesNearExpiryAndRenewsProtectedTicket()
+    {
+        var ticket = CreateTicket(Now.AddSeconds(30));
+        var authentication = new FakeAuthenticationService(ticket);
+        var httpContext = CreateContext(authentication);
+        var validation = new CookieValidatePrincipalContext(
+            httpContext,
+            new AuthenticationScheme(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                null,
+                typeof(CookieAuthenticationHandler)),
+            new CookieAuthenticationOptions(),
+            ticket);
+        var refresh = new FakeRefreshTokenClient
+        {
+            Result = new("access-new", "refresh-new", Now.AddMinutes(5))
+        };
+
+        await CreateService(refresh).RefreshCookieTicketAsync(validation);
+
+        Assert.True(validation.ShouldRenew);
+        Assert.Equal("access-new", validation.Properties.GetTokenValue("access_token"));
+        Assert.Equal("refresh-new", validation.Properties.GetTokenValue("refresh_token"));
+        Assert.Equal(Now.AddDays(14), validation.Properties.ExpiresUtc);
+        Assert.Equal(0, authentication.SignInCount);
+    }
+
+    [Fact]
+    public async Task WebEntitlementAccessorReadsAccessTokenFromProtectedTicket()
+    {
+        var ticket = CreateTicket(Now.AddMinutes(5));
+        var header = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("{\"alg\":\"none\"}"));
+        var payload = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(
+            "{\"platform_entitlement\":\"SecurityAudit.View\"}"));
+        ticket.Properties.UpdateTokenValue("access_token", $"{header}.{payload}.");
+        var authentication = new FakeAuthenticationService(ticket);
+        var context = CreateContext(authentication);
+        var accessor = new MicroEMR.Web.Authorization.WebPlatformEntitlementAccessor(
+            new HttpContextAccessor { HttpContext = context });
+
+        Assert.True(await accessor.HasAsync(PlatformEntitlementKeys.SecurityAuditView));
+        Assert.False(await accessor.HasAsync("SecurityAudit.Export"));
+    }
+
+    [Fact]
     public async Task ReauthenticationMiddlewareChallengesPageRequestsWithoutDetails()
     {
         var authentication = new FakeAuthenticationService(CreateTicket(Now));
@@ -215,7 +263,7 @@ public sealed class WebTokenRefreshTests
 
     private static AuthenticationTicket CreateTicket(DateTimeOffset expiresAt)
     {
-        var properties = new AuthenticationProperties { ExpiresUtc = expiresAt };
+        var properties = new AuthenticationProperties { ExpiresUtc = Now.AddDays(14) };
         properties.StoreTokens(
         [
             new AuthenticationToken { Name = "access_token", Value = "access-old" },

@@ -5,6 +5,7 @@ using OpenIddict.Abstractions;
 using MicroEMR.Auth.Services.Tenancy;
 using MicroEMR.Auth.Services.SecurityAudit;
 using MicroEMR.Infrastructure;
+using MicroEMR.Auth.Services.PlatformEntitlements;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,8 @@ builder.Services.AddScoped<ITenantClaimEnricher, TenantClaimEnricher>();
 builder.Services.AddScoped<TenantSelectionSecurityAuditRecorder>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSingleton<IPendingTenantSelectionStore, DistributedPendingTenantSelectionStore>();
+builder.Services.AddScoped<IPlatformEntitlementClaimService, PlatformEntitlementClaimService>();
+builder.Services.AddScoped<IPlatformRefreshAuthorizationService, PlatformRefreshAuthorizationService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -60,6 +63,9 @@ builder.Services.AddOpenIddict()
         options.AllowAuthorizationCodeFlow();
         options.AllowRefreshTokenFlow();
 
+        options.SetAccessTokenLifetime(TimeSpan.FromMinutes(5));
+        options.SetRefreshTokenLifetime(TimeSpan.FromDays(14));
+
         options.RequireProofKeyForCodeExchange();
         options.DisableAccessTokenEncryption();
 
@@ -76,10 +82,9 @@ builder.Services.AddOpenIddict()
 
         options.UseAspNetCore()
             .EnableAuthorizationEndpointPassthrough()
+            .EnableTokenEndpointPassthrough()
             .EnableEndSessionEndpointPassthrough()
             .EnableUserInfoEndpointPassthrough();
-
-        // Do not enable token endpoint passthrough.
     });
 builder.Services.AddHostedService<SeedData>();
 

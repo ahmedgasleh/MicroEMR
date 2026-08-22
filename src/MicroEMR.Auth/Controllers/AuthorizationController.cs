@@ -9,6 +9,9 @@ using MicroEMR.Auth.Services.Tenancy;
 using Microsoft.AspNetCore.WebUtilities;
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+using MicroEMR.Application.Security;
+using MicroEMR.Auth.Services.PlatformEntitlements;
+using System.Globalization;
 
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -24,6 +27,8 @@ public sealed class AuthorizationController : Controller
     private readonly IUserTenantMembershipService _membershipService;
     private readonly IPendingTenantSelectionStore _selectionStore;
     private readonly ILogger<AuthorizationController> _logger;
+    private readonly IPlatformEntitlementClaimService _platformEntitlements;
+    private readonly IPlatformRefreshAuthorizationService _platformRefreshAuthorization;
 
     public AuthorizationController(
         UserManager<ApplicationUser> userManager,
@@ -33,6 +38,8 @@ public sealed class AuthorizationController : Controller
         IUserTenantResolver tenantResolver,
         IUserTenantMembershipService membershipService,
         IPendingTenantSelectionStore selectionStore,
+        IPlatformEntitlementClaimService platformEntitlements,
+        IPlatformRefreshAuthorizationService platformRefreshAuthorization,
         ILogger<AuthorizationController> logger)
     {
         _userManager = userManager;
@@ -42,6 +49,8 @@ public sealed class AuthorizationController : Controller
         _tenantResolver = tenantResolver;
         _membershipService = membershipService;
         _selectionStore = selectionStore;
+        _platformEntitlements = platformEntitlements;
+        _platformRefreshAuthorization = platformRefreshAuthorization;
         _logger = logger;
     }
 
@@ -86,8 +95,7 @@ public sealed class AuthorizationController : Controller
             await _userManager.GetUserAsync(
                 authenticationResult.Principal);
 
-        if (identityUser is null ||
-            !identityUser.IsActive)
+        if (!await IsEligibleAsync(identityUser))
         {
             return Forbid(
                 OpenIddictServerAspNetCoreDefaults
@@ -103,11 +111,11 @@ public sealed class AuthorizationController : Controller
 
         identity.SetClaim(
             Claims.Subject,
-            await _userManager.GetUserIdAsync(identityUser));
+            await _userManager.GetUserIdAsync(identityUser!));
 
         identity.SetClaim(
             Claims.Name,
-            identityUser.FullName
+            identityUser!.FullName
             ?? identityUser.UserName
             ?? string.Empty);
 
@@ -209,6 +217,24 @@ public sealed class AuthorizationController : Controller
             return TenantForbid(tenantResult.ErrorDescription ?? "Your account could not be assigned to a clinic.");
         }
 
+        PlatformAuthorizationSnapshot platformAuthorization;
+        try
+        {
+            platformAuthorization = await _platformEntitlements.LoadAsync(
+                identityUser!.Id,
+                HttpContext.RequestAborted);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogError(
+                exception,
+                "Platform authorization state could not be loaded for token issuance. TraceIdentifier: {TraceIdentifier}",
+                HttpContext.TraceIdentifier);
+            return TokenForbid(Errors.ServerError, "The authorization service is temporarily unavailable.");
+        }
+
+        AddPlatformAuthorizationClaims(identity, platformAuthorization);
+
         var principal =
             new ClaimsPrincipal(identity);
 
@@ -235,6 +261,123 @@ public sealed class AuthorizationController : Controller
             OpenIddictServerAspNetCoreDefaults
                 .AuthenticationScheme);
     }
+
+    [HttpPost("~/connect/token")]
+    [IgnoreAntiforgeryToken]
+    public async Task<IActionResult> Exchange()
+    {
+        var request = HttpContext.GetOpenIddictServerRequest()
+            ?? throw new InvalidOperationException("The OpenID Connect request cannot be retrieved.");
+        var authentication = await HttpContext.AuthenticateAsync(
+            OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        var principal = authentication.Principal;
+        _logger.LogInformation(
+            "OpenID Connect token endpoint processing grant type {GrantType}. TraceIdentifier: {TraceIdentifier}",
+            request.GrantType ?? "missing",
+            HttpContext.TraceIdentifier);
+
+        if (!request.IsRefreshTokenGrantType())
+        {
+            // Only authorization-code and refresh grants are enabled. If OpenIddict passes a
+            // non-refresh request through with a trusted principal, it has already validated the
+            // code, client and PKCE verifier. Return that principal for normal token issuance.
+            return authentication.Succeeded && principal is not null
+                ? SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme)
+                : TokenForbid(Errors.InvalidGrant, "The authorization grant is no longer valid.");
+        }
+
+        var identityUserId = principal?.GetClaim(Claims.Subject);
+        if (!authentication.Succeeded || principal is null || string.IsNullOrWhiteSpace(identityUserId))
+        {
+            return TokenForbid(Errors.InvalidGrant, "The refresh token is no longer valid.");
+        }
+
+        var identityUser = await _userManager.FindByIdAsync(identityUserId);
+        if (!await IsEligibleAsync(identityUser))
+        {
+            return TokenForbid(Errors.InvalidGrant, "The refresh token is no longer valid.");
+        }
+
+        var trustedVersionValue = principal.GetClaim(MicroEmrClaimTypes.PlatformAuthorizationVersion);
+        if (!long.TryParse(
+                trustedVersionValue,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var trustedVersion))
+        {
+            return TokenForbid(Errors.InvalidGrant, "The refresh token is no longer valid.");
+        }
+
+        try
+        {
+            var currentAuthorization = await _platformRefreshAuthorization.ValidateAndLoadAsync(
+                identityUserId,
+                trustedVersion,
+                HttpContext.RequestAborted);
+            if (currentAuthorization is null)
+            {
+                _logger.LogInformation(
+                    "A stale platform authorization refresh was rejected for user {UserId}. TraceIdentifier: {TraceIdentifier}",
+                    identityUserId,
+                    HttpContext.TraceIdentifier);
+                return TokenForbid(Errors.InvalidGrant, "The refresh token is no longer valid.");
+            }
+
+            var identity = principal.Identity as ClaimsIdentity
+                ?? throw new InvalidOperationException("The refresh principal has no claims identity.");
+            foreach (var claim in identity.FindAll(MicroEmrClaimTypes.PlatformEntitlement).ToArray())
+            {
+                identity.RemoveClaim(claim);
+            }
+            foreach (var claim in identity.FindAll(MicroEmrClaimTypes.PlatformAuthorizationVersion).ToArray())
+            {
+                identity.RemoveClaim(claim);
+            }
+
+            AddPlatformAuthorizationClaims(identity, currentAuthorization);
+            principal.SetDestinations();
+            return SignIn(principal, OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogError(
+                exception,
+                "Platform authorization state could not be validated during refresh. TraceIdentifier: {TraceIdentifier}",
+                HttpContext.TraceIdentifier);
+            return TokenForbid(Errors.ServerError, "The authorization service is temporarily unavailable.");
+        }
+    }
+
+    private async Task<bool> IsEligibleAsync(ApplicationUser? user)
+    {
+        if (user is null || !user.IsActive)
+        {
+            return false;
+        }
+
+        return !_userManager.SupportsUserLockout || !await _userManager.IsLockedOutAsync(user);
+    }
+
+    private static void AddPlatformAuthorizationClaims(
+        ClaimsIdentity identity,
+        PlatformAuthorizationSnapshot snapshot)
+    {
+        foreach (var entitlement in snapshot.Entitlements)
+        {
+            identity.AddClaim(new Claim(MicroEmrClaimTypes.PlatformEntitlement, entitlement));
+        }
+
+        identity.AddClaim(new Claim(
+            MicroEmrClaimTypes.PlatformAuthorizationVersion,
+            snapshot.AuthorizationVersion.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    private IActionResult TokenForbid(string error, string description) => Forbid(
+        new AuthenticationProperties(new Dictionary<string, string?>
+        {
+            [OpenIddictServerAspNetCoreConstants.Properties.Error] = error,
+            [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description
+        }), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
 
     private IActionResult TenantForbid(string description) => Forbid(
         new AuthenticationProperties(new Dictionary<string, string?>
