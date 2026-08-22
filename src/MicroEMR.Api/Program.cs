@@ -17,6 +17,7 @@ using MicroEMR.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization.Policy;
+using MicroEMR.Application.PlatformEntitlements;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,8 +71,13 @@ builder.Services.AddAuthorization(options =>
         TenantAuthorizationPolicies.ClinicAdministrator,
         policy => policy.AddRequirements(
             new TenantRoleRequirement(TenantRoleCatalog.ClinicAdministrator)));
+    options.AddPolicy(
+        PlatformEntitlementPolicies.SecurityAuditView,
+        policy => policy.RequireAuthenticatedUser().AddRequirements(
+            new PlatformEntitlementRequirement(PlatformEntitlementKeys.SecurityAuditView)));
 });
 builder.Services.AddSingleton<IAuthorizationHandler, TenantRoleAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, PlatformEntitlementAuthorizationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermissionAuthorizationResultHandler>();

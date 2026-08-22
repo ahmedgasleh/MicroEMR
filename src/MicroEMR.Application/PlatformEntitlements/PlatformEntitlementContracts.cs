@@ -10,6 +10,19 @@ public static class PlatformEntitlementKeys
         string.Equals(key, SecurityAuditView, StringComparison.Ordinal);
 }
 
+public static class PlatformEntitlementPolicies
+{
+    public const string Prefix = "PlatformEntitlement:";
+    public const string SecurityAuditView = Prefix + PlatformEntitlementKeys.SecurityAuditView;
+
+    public static string For(string entitlementKey)
+    {
+        if (!PlatformEntitlementKeys.IsKnown(entitlementKey))
+            throw new ArgumentException("The platform entitlement is not recognized.", nameof(entitlementKey));
+        return Prefix + entitlementKey;
+    }
+}
+
 public sealed record PlatformEntitlementChangeResult(
     Guid UserPlatformEntitlementUid,
     long AuthorizationVersion);
