@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
 using MicroEMR.Auth.Services.Tenancy;
+using MicroEMR.Auth.Services.SecurityAudit;
 using MicroEMR.Infrastructure;
 
 
@@ -16,6 +17,7 @@ builder.Services.AddScoped<
     UserTenantMembershipService>();
 builder.Services.AddScoped<IUserTenantResolver, UserTenantResolver>();
 builder.Services.AddScoped<ITenantClaimEnricher, TenantClaimEnricher>();
+builder.Services.AddScoped<TenantSelectionSecurityAuditRecorder>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSingleton<IPendingTenantSelectionStore, DistributedPendingTenantSelectionStore>();
 
