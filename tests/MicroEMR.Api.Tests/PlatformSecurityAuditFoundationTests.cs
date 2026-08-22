@@ -146,7 +146,7 @@ public sealed class PlatformSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void PlatformMigrationSequenceEndsAtSeventeenWithoutDuplicates()
+    public void PlatformMigrationSequenceIncludesSecurityFoundationAndEntitlementSuccessor()
     {
         var ids = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileNameWithoutExtension)
@@ -157,9 +157,10 @@ public sealed class PlatformSecurityAuditFoundationTests
 
         Assert.Equal(ids.Length, ids.Distinct().Count());
         Assert.Contains(14, ids);
-        Assert.Equal(17, ids.Max());
+        Assert.Equal(18, ids.Max());
         Assert.Single(ids, id => id == 16);
         Assert.Single(ids, id => id == 17);
+        Assert.Single(ids, id => id == 18);
     }
 
     private static int Count(string value, string fragment) =>
