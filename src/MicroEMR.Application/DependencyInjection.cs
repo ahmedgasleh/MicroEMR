@@ -23,6 +23,7 @@ using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.PatientClinicalHistory;
 using MicroEMR.Application.ReadAudit;
+using MicroEMR.Application.SecurityAudit;
 
 namespace MicroEMR.Application;
 
@@ -66,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IClinicalArtifactService, ClinicalArtifactService>();
         services.AddScoped<IPatientChartReadAuditService, PatientChartReadAuditService>();
         services.AddScoped<IStructuredReadAuditService, StructuredReadAuditService>();
+        services.AddScoped<IPlatformSecurityAuditReviewService, PlatformSecurityAuditReviewService>();
 
         return services;
     }

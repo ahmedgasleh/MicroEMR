@@ -26,7 +26,7 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         await middleware.InvokeAsync(
             context,
             new RejectingAccessor(completedUnresolved: true),
-            new TenantContext(tenantUid, "tenant", "Tenant"),
+            Accessor(new TenantContext(tenantUid, "tenant", "Tenant")),
             securityAudit);
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
@@ -51,9 +51,9 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         var context = Context("inactive-subject", "trace-duplicate");
         var tenant = new TenantContext(Guid.NewGuid(), "tenant", "Tenant");
 
-        await middleware.InvokeAsync(context, new RejectingAccessor(true), tenant, securityAudit);
+        await middleware.InvokeAsync(context, new RejectingAccessor(true), Accessor(tenant), securityAudit);
         context.Response.Body = new MemoryStream();
-        await middleware.InvokeAsync(context, new RejectingAccessor(true), tenant, securityAudit);
+        await middleware.InvokeAsync(context, new RejectingAccessor(true), Accessor(tenant), securityAudit);
 
         Assert.False(executed);
         Assert.Single(securityAudit.UnresolvedEvents);
@@ -71,7 +71,7 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => middleware.InvokeAsync(
             context,
             new ThrowingAccessor(),
-            new TenantContext(Guid.NewGuid(), "tenant", "Tenant"),
+            Accessor(new TenantContext(Guid.NewGuid(), "tenant", "Tenant")),
             securityAudit));
 
         Assert.Empty(securityAudit.UnresolvedEvents);
@@ -87,7 +87,7 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         var context = Context("subject", "trace-unrelated", includeCapability: false);
 
         await middleware.InvokeAsync(context, new RejectingAccessor(true),
-            new TenantContext(Guid.NewGuid(), "tenant", "Tenant"), securityAudit);
+            Accessor(new TenantContext(Guid.NewGuid(), "tenant", "Tenant")), securityAudit);
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
         Assert.Empty(securityAudit.UnresolvedEvents);
@@ -104,7 +104,7 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         var context = Context("subject", "trace-persistence");
 
         await middleware.InvokeAsync(context, new RejectingAccessor(true),
-            new TenantContext(Guid.NewGuid(), "tenant", "Tenant"), securityAudit);
+            Accessor(new TenantContext(Guid.NewGuid(), "tenant", "Tenant")), securityAudit);
 
         Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
         Assert.False(executed);
@@ -130,7 +130,7 @@ public sealed class ClinicalActorResolutionMiddlewareTests
         var context = Context("mapped-subject", "trace-resolved");
 
         await middleware.InvokeAsync(context, new ResolvedAccessor(73),
-            new TenantContext(Guid.NewGuid(), "tenant", "Tenant"), securityAudit);
+            Accessor(new TenantContext(Guid.NewGuid(), "tenant", "Tenant")), securityAudit);
 
         Assert.Equal(73, actorAtEndpoint);
         Assert.Empty(securityAudit.UnresolvedEvents);
@@ -152,6 +152,13 @@ public sealed class ClinicalActorResolutionMiddlewareTests
                     new SensitiveCapabilityAttribute(SecurityAuditCapabilities.EncounterEdit)),
                 "encounter-addendum-post"));
         return context;
+    }
+
+    private static ITenantContextAccessor Accessor(TenantContext tenant)
+    {
+        var accessor = new TenantContextAccessor();
+        accessor.SetTenant(tenant);
+        return accessor;
     }
 
     private sealed class RejectingAccessor(bool completedUnresolved) : IAuthenticatedClinicalUserAccessor

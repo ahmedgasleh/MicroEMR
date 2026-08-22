@@ -177,8 +177,9 @@ public sealed class PlatformEntitlementFoundationTests
     {
         var platformIds = MigrationIds("db", "platform", 3);
         Assert.Equal(platformIds.Length, platformIds.Distinct().Count());
-        Assert.Equal(18, platformIds.Max());
+        Assert.Equal(19, platformIds.Max());
         Assert.Single(platformIds, id => id == 18);
+        Assert.Single(platformIds, id => id == 19);
         var tenantIds = MigrationIds("db", "tenant-clinical", "migrations", 4);
         Assert.Equal(46, tenantIds.Max());
         Assert.DoesNotContain(47, tenantIds);

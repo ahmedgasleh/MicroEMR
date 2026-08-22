@@ -5,6 +5,7 @@ using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Application.Tenancy;
 using System.Security.Claims;
 using System.Text.Json;
+using MicroEMR.Api.Authorization;
 
 namespace MicroEMR.Api.Middleware;
 
@@ -17,14 +18,18 @@ public sealed class ClinicalUserActorResolutionMiddleware(
     public async Task InvokeAsync(
         HttpContext context,
         IAuthenticatedClinicalUserAccessor clinicalUserAccessor,
-        ITenantContext tenantContext,
+        ITenantContextAccessor tenantContextAccessor,
         IPlatformSecurityAuditRepository securityAudit)
     {
-        if (!IsAuthenticatedMutation(context))
+        if (!IsAuthenticatedMutation(context) ||
+            context.GetEndpoint()?.Metadata.GetMetadata<RequirePlatformEntitlementAttribute>() is not null)
         {
             await next(context);
             return;
         }
+
+        var tenantContext = tenantContextAccessor.Current
+            ?? throw new InvalidOperationException("Tenant context has not been established for the clinical mutation.");
 
         try
         {

@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IPlatformTenantAdministrationService, SqlPlatformTenantAdministrationService>();
         services.AddScoped<IPlatformMembershipAdministrationService, SqlPlatformMembershipAdministrationService>();
         services.AddScoped<IPlatformSecurityAuditRepository, SqlPlatformSecurityAuditRepository>();
+        services.AddScoped<IPlatformSecurityAuditReviewRepository, SqlPlatformSecurityAuditReviewRepository>();
         services.AddScoped<IPlatformEntitlementRepository, SqlPlatformEntitlementRepository>();
         services.AddScoped<IPlatformEntitlementService, PlatformEntitlementService>();
         services.AddScoped<IIdentityUserLookup, SqlIdentityUserLookup>();

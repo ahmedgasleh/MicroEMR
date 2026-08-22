@@ -157,10 +157,11 @@ public sealed class PlatformSecurityAuditFoundationTests
 
         Assert.Equal(ids.Length, ids.Distinct().Count());
         Assert.Contains(14, ids);
-        Assert.Equal(18, ids.Max());
+        Assert.Equal(19, ids.Max());
         Assert.Single(ids, id => id == 16);
         Assert.Single(ids, id => id == 17);
         Assert.Single(ids, id => id == 18);
+        Assert.Single(ids, id => id == 19);
     }
 
     private static int Count(string value, string fragment) =>
