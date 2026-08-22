@@ -20,6 +20,7 @@ public static class SensitiveCapabilityCatalog
         {
             [SecurityAuditCapabilities.PatientChartView] = PermissionKeys.PatientsView,
             [SecurityAuditCapabilities.EncounterView] = PermissionKeys.EncountersView,
+            [SecurityAuditCapabilities.EncounterEdit] = PermissionKeys.EncountersEdit,
             [SecurityAuditCapabilities.PatientDocumentView] = PermissionKeys.DocumentsView,
             [SecurityAuditCapabilities.PatientFileDownload] = PermissionKeys.DocumentsView,
             [SecurityAuditCapabilities.AppointmentReportRun] = PermissionKeys.ReportsView,

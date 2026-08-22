@@ -47,13 +47,14 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void CapabilityMatchesApplicationPermissionAndDoesNotExpandMissingPermissionCatalog()
+    public void CapabilityMatchesApplicationPermissionAndIsGovernedForStep21B()
     {
         Assert.Equal("EncounterEdit", SecurityAuditCapabilities.EncounterEdit);
         Assert.Equal("Encounters.Edit", PermissionKeys.EncountersEdit);
         Assert.Contains("Capability = N'EncounterEdit' AND RequiredPermission = N'Encounters.Edit'", Migration);
-        Assert.False(SensitiveCapabilityCatalog.TryGetRequiredPermission(
-            SecurityAuditCapabilities.EncounterEdit, out _));
+        Assert.True(SensitiveCapabilityCatalog.TryGetRequiredPermission(
+            SecurityAuditCapabilities.EncounterEdit, out var permission));
+        Assert.Equal(PermissionKeys.EncountersEdit, permission);
     }
 
     [Fact]
@@ -74,7 +75,9 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
                      "@EventType", "@Outcome", "@DenialReason", "@RequestBody", "@RawUrl"
                  })
         {
-            var declaration = procedure[..procedure.IndexOf("AS\n", StringComparison.Ordinal)];
+            var declarationEnd = procedure.IndexOf("\nAS", StringComparison.Ordinal);
+            Assert.True(declarationEnd > 0);
+            var declaration = procedure[..declarationEnd];
             Assert.DoesNotContain(prohibited, declaration, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -121,12 +124,12 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void FoundationDoesNotWireRuntimeOrAlterExistingProceduresAndAdministration()
+    public void RuntimeUsesFoundationWithoutAlteringExistingProceduresOrAdministration()
     {
         var middleware = Read("src", "MicroEMR.Api", "Middleware",
             "ClinicalUserActorResolutionMiddleware.cs");
-        Assert.DoesNotContain("RecordUnresolvedClinicalActorAsync", middleware);
-        Assert.DoesNotContain("PlatformSecurityAudit", middleware);
+        Assert.Contains("RecordUnresolvedClinicalActorAsync", middleware);
+        Assert.Contains("UnresolvedClinicalActorSecurityEvent", middleware);
         Assert.DoesNotContain("CREATE OR ALTER PROCEDURE dbo.PlatformSecurityAudit_RecordMissingPermission", Migration);
         Assert.DoesNotContain("CREATE OR ALTER PROCEDURE dbo.PlatformSecurityAudit_RecordCrossPatientOwnership", Migration);
         Assert.DoesNotContain("ALTER TABLE dbo.PlatformAuditEvent", Migration, StringComparison.OrdinalIgnoreCase);

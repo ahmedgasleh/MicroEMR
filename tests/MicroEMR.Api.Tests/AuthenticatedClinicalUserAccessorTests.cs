@@ -29,11 +29,13 @@ public sealed class AuthenticatedClinicalUserAccessorTests
                 .GetRequiredUserIdAsync());
         await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
             Accessor(Principal(""), new StubRepository(), Guid.NewGuid()).GetRequiredUserIdAsync());
-        await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
+        var missing = await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
             Accessor(Principal("unknown"), new StubRepository(), Guid.NewGuid()).GetRequiredUserIdAsync());
-        await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
+        var inactive = await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
             Accessor(Principal("inactive"), new StubRepository("inactive", User(8, "inactive", false)), Guid.NewGuid())
                 .GetRequiredUserIdAsync());
+        Assert.True(missing.IsCompletedUnresolved);
+        Assert.True(inactive.IsCompletedUnresolved);
         await Assert.ThrowsAsync<ClinicalUserResolutionException>(() =>
             Accessor(new ClaimsPrincipal(new ClaimsIdentity()), new StubRepository(), Guid.NewGuid())
                 .GetRequiredUserIdAsync());

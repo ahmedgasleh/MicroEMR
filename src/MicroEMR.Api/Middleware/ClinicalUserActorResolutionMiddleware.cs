@@ -1,6 +1,9 @@
 using MicroEMR.Api.ClinicalUsers;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.ClinicalUsers;
+using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Application.Tenancy;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace MicroEMR.Api.Middleware;
@@ -9,10 +12,13 @@ public sealed class ClinicalUserActorResolutionMiddleware(
     RequestDelegate next,
     ILogger<ClinicalUserActorResolutionMiddleware> logger)
 {
+    private static readonly object RecordedUnresolvedCapabilitiesKey = new();
+
     public async Task InvokeAsync(
         HttpContext context,
         IAuthenticatedClinicalUserAccessor clinicalUserAccessor,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        IPlatformSecurityAuditRepository securityAudit)
     {
         if (!IsAuthenticatedMutation(context))
         {
@@ -28,6 +34,9 @@ public sealed class ClinicalUserActorResolutionMiddleware(
         }
         catch (ClinicalUserResolutionException exception)
         {
+            if (exception.IsCompletedUnresolved)
+                await TryRecordUnresolvedActorAsync(context, tenantContext, securityAudit);
+
             logger.LogWarning(
                 "Clinical mutation actor resolution rejected. TenantUid: {TenantUid}; Path: {Path}; TraceIdentifier: {TraceIdentifier}; Reason: {Reason}",
                 tenantContext.TenantUid, context.Request.Path, context.TraceIdentifier, exception.Message);
@@ -41,6 +50,56 @@ public sealed class ClinicalUserActorResolutionMiddleware(
                 detail = "Your authenticated account is not provisioned for clinical changes in this tenant."
             }, cancellationToken: context.RequestAborted);
         }
+    }
+
+    private async Task TryRecordUnresolvedActorAsync(
+        HttpContext context,
+        ITenantContext tenantContext,
+        IPlatformSecurityAuditRepository securityAudit)
+    {
+        var metadata = context.GetEndpoint()?.Metadata.GetMetadata<SensitiveCapabilityAttribute>();
+        if (metadata is null ||
+            !string.Equals(metadata.Capability, SecurityAuditCapabilities.EncounterEdit, StringComparison.Ordinal) ||
+            !SensitiveCapabilityCatalog.TryGetRequiredPermission(metadata.Capability, out var permission) ||
+            !string.Equals(permission, PermissionKeys.EncountersEdit, StringComparison.Ordinal))
+            return;
+
+        var subject = context.User.FindFirstValue("sub")
+            ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(subject) || tenantContext.TenantUid == Guid.Empty ||
+            !TryMarkFirstAttempt(context, metadata.Capability))
+            return;
+
+        try
+        {
+            await securityAudit.RecordUnresolvedClinicalActorAsync(
+                new UnresolvedClinicalActorSecurityEvent(
+                    subject,
+                    tenantContext.TenantUid,
+                    metadata.Capability,
+                    permission,
+                    SecurityAuditSourceApplications.Api,
+                    context.TraceIdentifier),
+                context.RequestAborted);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception,
+                "Unresolved-clinical-actor security audit persistence failed. Capability: {Capability}; Permission: {Permission}; TraceIdentifier: {TraceIdentifier}.",
+                metadata.Capability, permission, context.TraceIdentifier);
+        }
+    }
+
+    private static bool TryMarkFirstAttempt(HttpContext context, string capability)
+    {
+        if (!context.Items.TryGetValue(RecordedUnresolvedCapabilitiesKey, out var value) ||
+            value is not HashSet<string> recordedCapabilities)
+        {
+            recordedCapabilities = new HashSet<string>(StringComparer.Ordinal);
+            context.Items[RecordedUnresolvedCapabilitiesKey] = recordedCapabilities;
+        }
+
+        return recordedCapabilities.Add(capability);
     }
 
     private static bool IsAuthenticatedMutation(HttpContext context)

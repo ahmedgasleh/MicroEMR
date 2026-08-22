@@ -6,4 +6,17 @@ public interface IAuthenticatedClinicalUserAccessor
         CancellationToken cancellationToken = default);
 }
 
-public sealed class ClinicalUserResolutionException(string message) : Exception(message);
+public sealed class ClinicalUserResolutionException : Exception
+{
+    public ClinicalUserResolutionException(string message) : base(message)
+    {
+    }
+
+    public ClinicalUserResolutionException(string message, bool isCompletedUnresolved)
+        : base(message)
+    {
+        IsCompletedUnresolved = isCompletedUnresolved;
+    }
+
+    public bool IsCompletedUnresolved { get; }
+}
