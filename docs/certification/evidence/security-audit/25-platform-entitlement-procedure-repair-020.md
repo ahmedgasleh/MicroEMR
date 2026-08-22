@@ -48,24 +48,51 @@ Repository-focused migration-020 tests pass 7/7 in Release configuration, and th
 platform-security-audit focused regression passes 59/59. The repair contains exactly two
 `CREATE OR ALTER PROCEDURE` batches and their complete bodies match migration 018.
 
-A read-only inspection of the configured installed database was attempted without exposing credentials. The installed
-ODBC 17 `sqlcmd` client could not negotiate the configured encrypted connection, so no live metadata result was
-recorded and encryption was not weakened. No approved disposable platform database was identified in configuration.
-Consequently the following database-dependent checks remain pending and must not be represented as passed:
+A dedicated SQL Server 2025 LocalDB 17.0 instance provided the disposable platform environment. A temporary .NET 10
+harness used `Microsoft.Data.SqlClient`, Windows integrated authentication, `Encrypt=True`, and
+`TrustServerCertificate=False`; the configured application database was not used for these validation scenarios and
+SQL encryption was not weakened. Platform migrations are manually governed: corrected historical migration 013 is
+for fresh provisioning only, while an existing database already through 019 must not rerun 001–019 and advances by
+applying successor migration 020 only. See the approved exception evidence in
+`26-platform-migration-013-fresh-provisioning-repair.md`.
 
-- post-020 `sys.procedures`, `sys.parameters`, `sys.sql_modules`, and `OBJECT_DEFINITION` verification;
-- assign, duplicate assign, revoke, repeat revoke, and reassignment runtime behavior;
-- exact authorization-version and audit-event counts;
-- forced-failure transaction rollback;
-- corrupted-installed-state repair and existing-data preservation;
-- 019-to-020 upgrade and fresh 001-through-020 provisioning.
+Fresh provisioning applied every current platform script 001–020 in numeric order. Corrected migration 013 and
+migrations 014–020 all succeeded; no tenant migration ran. For the existing-upgrade scenario, a separate disposable
+database was prepared through 019, an explicit existing-data marker and baseline table counts were captured, and the
+upgrade operation executed only `020_platform_entitlement_procedure_repair.sql`. Migrations 013, 018, and 019 were not
+rerun. Counts for tenant, entitlement catalog, assignments, authorization state, platform audit, and security audit
+were identical before and after 020, including preservation of the marker.
 
-Run those checks only on an approved disposable/test SQL Server connection, with SSMS Always Encrypted parameterization
-disabled if SSMS is used. Apply scripts once in numeric order; do not rerun or edit migration 018. For an existing
-database at 019, capture assignment/version/audit counts, apply 020, verify both installed definitions and all four
-parameter rows per procedure using SQL Server metadata, run the synthetic lifecycle cases, and confirm the captured
-data is unchanged except for the explicitly created synthetic test history. For fresh provisioning, use an isolated SQL
-instance because platform scripts target `MicroEMR_Platform` explicitly.
+The incident fixture prepared another 019 database and replaced only the two installed procedure bodies with the
+observed `DECLARE @LockResult AS INT = CONCAT(...)` shape. Both corruption signatures were confirmed and assignment
+reproduced SQL error 245. Applying only migration 020 removed both signatures, preserved all captured data counts, and
+restored both full governed definitions.
+
+Post-020 metadata checks through `sys.procedures`, `sys.parameters`, and `sys.sql_modules` confirmed two procedures and
+eight intended parameters. Both definitions declare `@LockResource NVARCHAR(100) = CONCAT(...)`, declare
+`@LockResult INT` without an initializer, pass `@LockResource` to `sp_getapplock`, retain their transaction and explicit
+audit inserts, and contain no `INT = CONCAT(...)` corruption.
+
+The real Infrastructure entitlement repository exercised a synthetic Identity-style user identifier. Assignment
+changed version 0→1, created exactly one active/history row and one contract-correct
+`PlatformEntitlementAssigned` event, and returned `SecurityAudit.View`. Duplicate assignment returned 52006 with no
+row, version, or audit change. Revocation changed version 1→2, retained the historical row, removed it from the active
+read, and wrote exactly one `PlatformEntitlementRevoked` event. Repeat revoke returned 52007 with no change.
+Reassignment changed version 2→3, retained the revoked history, produced exactly one current active row and one new
+assignment audit. Tenant and `PlatformSecurityAuditEvent` counts did not change.
+
+Atomicity was forced safely in the disposable database with temporary audit-table constraints targeted to synthetic
+test users. An assignment audit failure rolled back the assignment row and authorization state. A revocation audit
+failure retained the active assignment and original version. The temporary constraints existed only in the disposable
+database and production procedures were not changed.
+
+An isolated Auth/API/Web environment was started successfully with the disposable platform connection, and the known
+test reviewer was assigned then revoked through the repository with authorization version 1→2. Full UI interaction
+could not be completed because the in-app browser connection lacked its required sandbox-policy metadata. Entitled
+list/filter/detail/review-audit behavior, unauthorized disclosure behavior, token refresh, and post-revocation browser
+access therefore remain explicitly unverified. The test grant was revoked and the standard development applications
+were restored. The earlier failed assignment on the affected configured database remains **NOT VERIFIED ON AFFECTED
+DATABASE** for assignment/version/audit side effects.
 
 ## Readiness
 
@@ -73,7 +100,6 @@ Auth regression passes 30/30. The API suite passes all 669 tests: 668 ran in the
 Playwright PDF test that could not spawn Chromium there passed when rerun with browser-launch permission. The Release
 solution build succeeds with zero warnings and zero errors.
 
-The source hotfix is isolated from Step 23B and contains no default entitlement assignment. It is not ready to merge
-until the pending database runtime, upgrade, and fresh-provisioning checks are completed and recorded here. After the
-validated hotfix is merged to `main`, Step 23B can update from repaired `main`,
-explicitly assign `SecurityAudit.View` through the governed tool, reauthenticate, and resume runtime UI validation.
+Migration 020 database repair behavior is validated for fresh, existing-correct, and existing-corrupted databases. It
+contains no default entitlement assignment. Final merge readiness remains conditional on completing the isolated Step
+23B browser/token authorization checks or explicitly accepting that separately documented runtime limitation.
