@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Infrastructure;
 using MicroEMR.Web.Authentication;
 using MicroEMR.Application.PlatformEntitlements;
+using MicroEMR.Web.Services.SecurityAudit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IWebPermissionService, WebPermissionService>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, WebPermissionHandler>();
 builder.Services.AddScoped<IWebPlatformEntitlementAccessor, WebPlatformEntitlementAccessor>();
+builder.Services.AddSingleton<ISecurityAuditPagingStateProtector, SecurityAuditPagingStateProtector>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, PlatformEntitlementAuthorizationHandler>();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider, WebPermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermissionAuthorizationResultHandler>();
@@ -88,6 +90,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<ITenantUserAdministrationApiCl
 AddApiTokenRefresh(builder.Services.AddHttpClient<IAccessProfileApiClient, AccessProfileApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<ISecurityAuditApiClient, SecurityAuditApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientAllergyApiClient,

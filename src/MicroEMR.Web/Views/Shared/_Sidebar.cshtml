@@ -1,11 +1,16 @@
 @using MicroEMR.Web.Authorization
 @using MicroEMR.Application.AccessProfiles
 @inject IWebPermissionService PermissionService
+@inject IWebPlatformEntitlementAccessor PlatformEntitlements
 @{
     var effectivePermissions = User.Identity?.IsAuthenticated == true
         ? await PermissionService.GetAsync(Context.RequestAborted)
         : new HashSet<string>(StringComparer.Ordinal);
     bool Can(string key) => effectivePermissions.Contains(key);
+    var canReviewSecurityAudit = User.Identity?.IsAuthenticated == true &&
+        await PlatformEntitlements.HasAsync(
+            MicroEMR.Application.PlatformEntitlements.PlatformEntitlementKeys.SecurityAuditView,
+            Context.RequestAborted);
 }
 
 <aside class="app-sidebar" id="appSidebar">
@@ -198,6 +203,20 @@
                     </a>
                 </li>
                 }
+            }
+
+            @if (canReviewSecurityAudit)
+            {
+                <li class="sidebar-section">
+                    <span class="sidebar-section-text">Platform Administration</span>
+                </li>
+                <li class="sidebar-menu-item">
+                    <a asp-controller="PlatformSecurityAudit" asp-action="Index" class="sidebar-link"
+                       data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Security Audit">
+                        <span class="sidebar-icon"><i class="bi bi-shield-lock"></i></span>
+                        <span class="sidebar-text">Security Audit</span>
+                    </a>
+                </li>
             }
 
         </ul>

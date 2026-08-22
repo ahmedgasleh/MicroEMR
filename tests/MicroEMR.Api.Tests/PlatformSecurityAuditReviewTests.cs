@@ -146,7 +146,7 @@ public sealed class PlatformSecurityAuditReviewTests
         Assert.DoesNotContain("EXEC(", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CREATE OR ALTER PROCEDURE dbo.PlatformSecurityAudit_GetByUid", sql);
         Assert.Contains("CREATE OR ALTER PROCEDURE dbo.PlatformAudit_RecordSecurityAuditReview", sql);
-        Assert.Contains("INSERT dbo.PlatformAuditEvent\r\n    (", sql.Replace("\n", "\r\n"));
+        Assert.Contains("INSERT dbo.PlatformAuditEvent\n    (", sql.Replace("\r\n", "\n"));
         Assert.DoesNotContain("INSERT dbo.PlatformAuditEvent VALUES", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ALTER TABLE dbo.PlatformAuditEvent", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("INSERT dbo.PlatformSecurityAuditEvent", sql, StringComparison.OrdinalIgnoreCase);

@@ -1,0 +1,153 @@
+@model MicroEMR.Web.Models.SecurityAudit.SecurityAuditIndexViewModel
+@{
+    ViewData["Title"] = "Security Audit";
+    ViewData["Subtitle"] = "Review platform security access-denial events.";
+    Layout = "_AppLayout";
+    string UtcValue(DateTime? value) => value?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm") ?? string.Empty;
+    string Display(object? value) => value?.ToString() ?? "—";
+}
+
+<div class="content-panel">
+    <div class="content-panel-header">
+        <div>
+            <h1 class="h3 mb-1">Security Audit</h1>
+            <p class="text-muted mb-0">Review platform security access-denial events.</p>
+        </div>
+    </div>
+
+    <form asp-action="Search" method="post" class="row g-3 align-items-end mt-1" data-security-audit-form>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.FromUtc" class="form-label">From (UTC)</label>
+            <input asp-for="Filters.FromUtc" name="FromUtc" type="datetime-local" class="form-control"
+                   value="@UtcValue(Model.Filters.FromUtc)" />
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.ToUtc" class="form-label">To (UTC)</label>
+            <input asp-for="Filters.ToUtc" name="ToUtc" type="datetime-local" class="form-control"
+                   value="@UtcValue(Model.Filters.ToUtc)" />
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.DenialReason" class="form-label">Denial Reason</label>
+            <select asp-for="Filters.DenialReason" name="DenialReason" class="form-select">
+                <option value="">All</option>
+                @foreach (var value in Model.DenialReasons) { <option value="@value">@value</option> }
+            </select>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.Capability" class="form-label">Capability</label>
+            <select asp-for="Filters.Capability" name="Capability" class="form-select">
+                <option value="">All</option>
+                @foreach (var value in Model.Capabilities) { <option value="@value">@value</option> }
+            </select>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.SourceApplication" class="form-label">Source Application</label>
+            <select asp-for="Filters.SourceApplication" name="SourceApplication" class="form-select">
+                <option value="">All</option>
+                @foreach (var value in Model.SourceApplications) { <option value="@value">@value</option> }
+            </select>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.TargetTenantUid" class="form-label">Trusted Tenant UID</label>
+            <input asp-for="Filters.TargetTenantUid" name="TargetTenantUid" class="form-control font-monospace"
+                   placeholder="Optional exact GUID" />
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <label asp-for="Filters.RequestCorrelationId" class="form-label">Correlation ID</label>
+            <input asp-for="Filters.RequestCorrelationId" name="RequestCorrelationId"
+                   class="form-control font-monospace" maxlength="128" placeholder="Exact value" />
+        </div>
+        <div class="col-12">
+            <details>
+                <summary class="small fw-semibold">Advanced restricted filter</summary>
+                <div class="row mt-2">
+                    <div class="col-sm-8 col-xl-6">
+                        <label asp-for="Filters.ActorSubject" class="form-label">Actor Subject</label>
+                        <input asp-for="Filters.ActorSubject" name="ActorSubject"
+                               class="form-control font-monospace" maxlength="450" autocomplete="off"
+                               placeholder="Exact value only" />
+                        <div class="form-text">Security-sensitive exact identifier. Partial and wildcard matching are not supported.</div>
+                        @if (Model.ActorSubjectFilterApplied)
+                        { <div class="form-text text-success">A restricted exact Actor Subject filter was applied. Its value is not retained in page HTML.</div> }
+                    </div>
+                </div>
+            </details>
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+            <button type="submit" class="btn btn-primary" data-security-audit-submit>Apply Filters</button>
+            <a asp-action="Reset" class="btn btn-outline-secondary">Reset</a>
+            <span class="small text-muted d-none" role="status" aria-live="polite" data-security-audit-loading>
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Loading security events…
+            </span>
+            <span class="small text-muted ms-auto">Maximum range: 31 days. Page size: 25.</span>
+        </div>
+    </form>
+
+    @if (Model.ErrorMessage is not null)
+    {
+        <div class="alert @(Model.IsValidationError ? "alert-warning" : "alert-danger") mt-3" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+</div>
+
+@if (Model.Results is not null)
+{
+    <div class="content-panel mt-4">
+        <div class="content-panel-header">
+            <div>
+                <h2 class="h5 mb-1">Events</h2>
+                <p class="text-muted mb-0">Newest events are shown first. Times are UTC.</p>
+            </div>
+        </div>
+        @if (Model.Results.Items.Count == 0)
+        {
+            <div class="microemr-empty-state">
+                <div class="microemr-empty-state__icon"><i class="bi bi-shield-check"></i></div>
+                <div class="microemr-empty-state__title">No security audit events were found for the selected filters.</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive mt-3">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead><tr>
+                        <th scope="col">Time (UTC)</th><th scope="col">Denial Reason</th>
+                        <th scope="col">Capability</th><th scope="col">Required Permission</th>
+                        <th scope="col">Source</th><th scope="col">Trusted Tenant</th>
+                        <th scope="col">Actor</th><th scope="col">Correlation ID</th><th scope="col"><span class="visually-hidden">Actions</span></th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach (var row in Model.Results.Items)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@row.OccurredAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td><span class="badge text-bg-secondary">@row.DenialReason</span></td>
+                            <td>@row.Capability</td><td>@Display(row.RequiredPermission)</td>
+                            <td>@row.SourceApplication</td>
+                            <td class="font-monospace small">@Display(row.TargetTenantUid)</td>
+                            <td class="font-monospace">@row.MaskedActorSubject</td>
+                            <td class="font-monospace small">@Display(row.RequestCorrelationId)</td>
+                            <td><a asp-action="Details" asp-route-id="@row.SecurityAuditEventUid"
+                                   class="btn btn-sm btn-outline-primary" aria-label="View security event details">Details</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                @if (Model.PagingStateToken is not null)
+                {
+                    <form asp-action="Older" method="post" data-security-audit-form>
+                        <input type="hidden" name="pagingStateToken" value="@Model.PagingStateToken" />
+                        <button type="submit" class="btn btn-outline-primary" data-security-audit-submit>Older events</button>
+                    </form>
+                }
+                <a asp-action="Index" class="btn btn-outline-secondary">Back to newest</a>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts { <script src="~/dist/security-audit/index.js" asp-append-version="true"></script> }
