@@ -42,7 +42,13 @@ public sealed class AccessSecurityStabilizationTests
         Assert.Contains("AccessProfile_AssignUser", sql);
         Assert.Contains("AccessProfile_ReplacePermissions", sql);
         Assert.Contains("UserPermissionOverride_Set", sql);
+        Assert.Equal(4, Count(sql, "DECLARE @LockResource NVARCHAR(255)=CONCAT(N'MicroEMR:AccessAdmin:',@TenantUid);"));
+        Assert.Equal(4, Count(sql, "@Resource=@LockResource"));
+        Assert.DoesNotContain("@Resource=CONCAT(N'MicroEMR:AccessAdmin:'", sql);
     }
+
+    private static int Count(string value, string fragment) =>
+        value.Split(fragment, StringSplitOptions.None).Length - 1;
 
     private static string Controller(string file) =>
         File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Api", "Controllers", file));
