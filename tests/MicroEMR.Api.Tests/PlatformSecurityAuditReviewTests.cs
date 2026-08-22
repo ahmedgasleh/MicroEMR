@@ -201,7 +201,7 @@ public sealed class PlatformSecurityAuditReviewTests
         var platform = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileName).Where(x => int.TryParse(x![..3], out _)).ToArray();
         Assert.Single(platform, x => x!.StartsWith("019_", StringComparison.Ordinal));
-        Assert.Equal(19, platform.Max(x => int.Parse(x![..3])));
+        Assert.Equal(20, platform.Max(x => int.Parse(x![..3])));
         var tenant = Directory.GetFiles(Path.Combine(Root(), "db", "tenant-clinical", "migrations"), "*.sql")
             .Max(x => int.Parse(Path.GetFileName(x)[..4]));
         Assert.Equal(46, tenant);

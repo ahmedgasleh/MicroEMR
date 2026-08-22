@@ -20,8 +20,9 @@ Each procedure now constructs the same lock name in a local `NVARCHAR(255)` vari
 authorization behavior, data mutation, and audit behavior are otherwise unchanged.
 
 The previous migration-013 SHA-256 was
-`B6B1E60E67281217EAB3C75759C0714053EEFA0F3DCCB57DFC28C425C6139E3D`. The approved corrected SHA-256 is
-`154FC46D4BF2DE480EA5FF6FAAC5843A86A881F8662523D112C4187AD0D26AC3`. Immutable-migration tests were updated only
+`B6B1E60E67281217EAB3C75759C0714053EEFA0F3DCCB57DFC28C425C6139E3D`. After integration normalized the checked-out
+script to the repository's Windows line endings, the corrected byte-level SHA-256 is
+`F8C261CB714C4FE1EB64D9437B07EAB47DF293A392DA112F6ED1BDF23FFB1680`. Immutable-migration tests were updated only
 for that explicitly approved hash exception. Focused contract coverage verifies exactly four lock-resource declarations,
 exactly four variable-based calls, and absence of the invalid direct-expression form.
 

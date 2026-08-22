@@ -105,7 +105,7 @@ public sealed class PlatformEntitlementFoundationTests
     {
         Assert.DoesNotContain("ALTER TABLE dbo.PlatformAuditEvent", Migration,
             StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(2, Count(Migration, "INSERT dbo.PlatformAuditEvent\n    ("));
+        Assert.Equal(2, Count(Migration.Replace("\r\n", "\n"), "INSERT dbo.PlatformAuditEvent\n    ("));
         Assert.Equal(2, Count(Migration, "ActorUserId, ActorType, Action, TargetTenantUid"));
         Assert.Equal(2, Count(Migration, "TargetUserId, Outcome, OccurredAtUtc, CorrelationId, DetailsJson"));
         Assert.DoesNotContain("INSERT dbo.PlatformAuditEvent VALUES", Migration,
@@ -177,7 +177,7 @@ public sealed class PlatformEntitlementFoundationTests
     {
         var platformIds = MigrationIds("db", "platform", 3);
         Assert.Equal(platformIds.Length, platformIds.Distinct().Count());
-        Assert.Equal(19, platformIds.Max());
+        Assert.Equal(20, platformIds.Max());
         Assert.Single(platformIds, id => id == 18);
         Assert.Single(platformIds, id => id == 19);
         var tenantIds = MigrationIds("db", "tenant-clinical", "migrations", 4);
@@ -202,7 +202,7 @@ public sealed class PlatformEntitlementFoundationTests
             ["010_access_profiles.sql"] = "14B21415A0A7558FBE67920483325E4D78DD3EDC735AF5A35FFCCC658B1DA992",
             ["011_access_profile_assignment_nonclustered_key.sql"] = "5D8A654C2A8FF644F757938A60E00F5008CEC43FFC758CB952830B623358DDC3",
             ["012_user_permission_overrides.sql"] = "A4C4DFE030DFECFA091691DA590F520D9FA934835B841976BE79CF17114F02ED",
-            ["013_access_security_stabilization.sql"] = "154FC46D4BF2DE480EA5FF6FAAC5843A86A881F8662523D112C4187AD0D26AC3",
+            ["013_access_security_stabilization.sql"] = "F8C261CB714C4FE1EB64D9437B07EAB47DF293A392DA112F6ED1BDF23FFB1680",
             ["014_platform_security_denial_audit.sql"] = "08DD728378085F7482FAE51EBF107814206D62972BD11131ACA8AAD3F3F8FF04",
             ["015_platform_cross_patient_security_audit.sql"] = "2EF7E56A721888122477BD23C2B9E8D5FE448C84AE7C5E2CDCBC78CDA31D480D",
             ["016_platform_unresolved_actor_security_audit.sql"] = "ABB584677BFB9BEF64DDE1F1315A52701D7DE8138528996DB916634105DBD421",
