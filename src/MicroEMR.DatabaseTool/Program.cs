@@ -8,6 +8,7 @@ using MicroEMR.Infrastructure.Provisioning;
 using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Infrastructure.ClinicalUsers;
 using MicroEMR.Infrastructure.Tenancy;
+using MicroEMR.Application.PlatformEntitlements;
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "src", "MicroEMR.Auth", "appsettings.json"), optional: true)
@@ -101,6 +102,25 @@ static async Task<int> RunAsync(string[] args, IServiceProvider services)
     if (group == "membership" && action is "set-default" or "clear-default") { var t = await RequiredTenant(tenants, Required(options, "tenant-key")); await memberships.SetDefaultAsync(new(Required(options, "user-id"), t.TenantUid, action == "set-default")); Console.WriteLine("Default membership updated."); return 0; }
     if (group == "tenant-role" && action is "add" or "remove") { var t = await RequiredTenant(tenants, Required(options, "tenant-key")); var user = Required(options, "user-id"); var role = Required(options, "role"); if (action == "add") await memberships.AddRoleAsync(new(user, t.TenantUid, role)); else { Confirm(options, t.TenantKey); await memberships.RemoveRoleAsync(new(user, t.TenantUid, role)); } Console.WriteLine($"Tenant role {action} completed."); return 0; }
     if (group == "tenant-role" && action == "list") { var t = await RequiredTenant(tenants, Required(options, "tenant-key")); PrintMemberships((await memberships.GetTenantMembershipsAsync(t.TenantUid)).Where(x => x.UserId == Required(options, "user-id"))); return 0; }
+    if (group == "platform-entitlement" && action is "assign" or "revoke")
+    {
+        var userId = Required(options, "user-id");
+        var entitlement = Required(options, "entitlement");
+        Confirm(options, userId);
+        var actor = services.GetRequiredService<IConfiguration>()["PlatformAdministration:ActorId"]
+            ?? throw new InvalidOperationException("PlatformAdministration:ActorId is required.");
+        var entitlements = services.GetRequiredService<IPlatformEntitlementService>();
+        var correlationId = Guid.NewGuid();
+        var result = action == "assign"
+            ? await entitlements.AssignAsync(userId, entitlement, actor, correlationId)
+            : await entitlements.RevokeAsync(userId, entitlement, actor, correlationId);
+        Console.WriteLine($"Platform entitlement {action} completed.");
+        Console.WriteLine($"UserId: {userId}");
+        Console.WriteLine($"Entitlement: {entitlement}");
+        Console.WriteLine($"Authorization version: {result.AuthorizationVersion}");
+        Console.WriteLine($"CorrelationId: {correlationId}");
+        return 0;
+    }
     return Usage();
 }
 
@@ -311,6 +331,6 @@ static void PrintItems(string heading, IEnumerable<string> items)
     Console.WriteLine($"{heading}: {(values.Length == 0 ? "none" : string.Empty)}");
     foreach (var value in values) Console.WriteLine($"  {value}");
 }
-static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|user-map-auth-subject|user-provision|suspend|activate|archive|members; tenant user-provision --tenant-key KEY --auth-subject SUBJECT --confirm KEY; tenant user-map-auth-subject --tenant-key KEY --clinical-user-id ID --auth-subject SUBJECT --confirm KEY; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list"); return 2; }
+static int Usage() { Console.Error.WriteLine("Commands: tenant list|show|create|assign-database|provision|migration-status|connection-diagnose|user-map-auth-subject|user-provision|suspend|activate|archive|members; tenant user-provision --tenant-key KEY --auth-subject SUBJECT --confirm KEY; tenant user-map-auth-subject --tenant-key KEY --clinical-user-id ID --auth-subject SUBJECT --confirm KEY; tenant migration-status --tenant-key KEY|--all; tenant connection-diagnose --tenant-key KEY; membership add|activate|suspend|revoke|set-default|clear-default|list; tenant-role add|remove|list; platform-entitlement assign|revoke --user-id ID --entitlement SecurityAudit.View --confirm ID"); return 2; }
 
 public partial class Program;
