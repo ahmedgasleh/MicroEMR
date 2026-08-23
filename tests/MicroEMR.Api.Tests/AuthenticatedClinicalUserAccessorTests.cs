@@ -67,9 +67,11 @@ public sealed class AuthenticatedClinicalUserAccessorTests
         Guid tenantUid)
     {
         var context = new DefaultHttpContext { User = principal };
+        var tenant = new TenantContextAccessor();
+        tenant.SetTenant(new StubTenantContext(tenantUid));
         return new(
             new HttpContextAccessor { HttpContext = context },
-            new StubTenantContext(tenantUid),
+            tenant,
             repository);
     }
 

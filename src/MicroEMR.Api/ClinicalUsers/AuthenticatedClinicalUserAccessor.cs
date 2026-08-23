@@ -6,7 +6,7 @@ namespace MicroEMR.Api.ClinicalUsers;
 
 public sealed class AuthenticatedClinicalUserAccessor(
     IHttpContextAccessor httpContextAccessor,
-    ITenantContext tenantContext,
+    ITenantContextAccessor tenantContextAccessor,
     IClinicalUserRepository clinicalUsers) : IAuthenticatedClinicalUserAccessor
 {
     private long? _resolvedUserId;
@@ -25,7 +25,8 @@ public sealed class AuthenticatedClinicalUserAccessor(
             ?? context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(subject))
             throw new ClinicalUserResolutionException("The authenticated account has no subject identifier.");
-        if (tenantContext.TenantUid == Guid.Empty)
+        var tenantContext = tenantContextAccessor.Current;
+        if (tenantContext is null || tenantContext.TenantUid == Guid.Empty)
             throw new ClinicalUserResolutionException("A tenant context is required for this clinical operation.");
 
         var clinicalUser = await clinicalUsers.GetByAuthSubjectIdAsync(subject, cancellationToken);
