@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Api.SecurityAudit;
+using MicroEMR.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,10 +91,7 @@ builder.Services.AddScoped<IAuthenticatedSubjectAccessor, AuthenticatedSubjectAc
 builder.Services.AddSingleton<ISecurityAuditContinuationTokenProtector, SecurityAuditContinuationTokenProtector>();
 
 builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
-builder.Services.AddScoped<ITenantContext>(serviceProvider =>
-    serviceProvider.GetRequiredService<ITenantContextAccessor>().Current
-    ?? throw new InvalidOperationException(
-        "Tenant context has not been established for the current operation."));
+builder.Services.AddScoped<ITenantContext, DeferredTenantContext>();
 
 builder.Services.AddMicroEmrApplication();
 builder.Services.AddMicroEmrInfrastructure();

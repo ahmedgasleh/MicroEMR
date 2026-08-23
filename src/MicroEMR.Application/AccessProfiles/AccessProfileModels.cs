@@ -41,7 +41,7 @@ public interface ICurrentUserPermissionService
 // Scoped lifetime makes the task a per-request cache. Profile changes are therefore
 // visible on the next request without putting tenant-specific access into OIDC claims.
 public sealed class CurrentUserPermissionService(
-    ITenantContext tenant,
+    ITenantContextAccessor tenantContextAccessor,
     IAccessProfileRepository repository,
     TenantUserAdministration.IAuthenticatedSubjectAccessor actor) : ICurrentUserPermissionService
 {
@@ -56,6 +56,9 @@ public sealed class CurrentUserPermissionService(
 
     private async Task<IReadOnlySet<string>> LoadAsync(CancellationToken token)
     {
+        var tenant = tenantContextAccessor.Current
+            ?? throw new InvalidOperationException(
+                "Tenant context has not been established for the current permission operation.");
         var effective = await repository.GetEffectiveAsync(
             tenant.TenantUid, actor.GetRequiredSubject(), token);
 

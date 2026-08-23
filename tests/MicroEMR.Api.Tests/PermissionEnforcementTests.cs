@@ -14,8 +14,10 @@ public sealed class PermissionEnforcementTests
     public async Task CurrentUserPermissionsAreLoadedOncePerRequestScope()
     {
         var repository = new Repository("Active", [PermissionKeys.PatientsView]);
+        var tenant = new TenantContextAccessor();
+        tenant.SetTenant(new TenantContext(Guid.NewGuid(), "clinic-a", "Clinic A"));
         var service = new CurrentUserPermissionService(
-            new TenantContext(Guid.NewGuid(), "clinic-a", "Clinic A"), repository, new Subject("user-1"));
+            tenant, repository, new Subject("user-1"));
 
         Assert.True(await service.HasPermissionAsync(PermissionKeys.PatientsView));
         Assert.False(await service.HasPermissionAsync(PermissionKeys.EncountersSign));
@@ -25,11 +27,25 @@ public sealed class PermissionEnforcementTests
     [Fact]
     public async Task InactiveMembershipIsThePermissionMasterSwitch()
     {
+        var tenant = new TenantContextAccessor();
+        tenant.SetTenant(new TenantContext(Guid.NewGuid(), "clinic-a", "Clinic A"));
         var service = new CurrentUserPermissionService(
-            new TenantContext(Guid.NewGuid(), "clinic-a", "Clinic A"),
+            tenant,
             new Repository("Inactive", [PermissionKeys.UsersManageAccess]), new Subject("user-1"));
 
         Assert.Empty(await service.GetEffectivePermissionsAsync());
+    }
+
+    [Fact]
+    public async Task PermissionServiceCanBeConstructedBeforeTenantResolution()
+    {
+        var tenant = new TenantContextAccessor();
+        var repository = new Repository("Active", [PermissionKeys.PatientsView]);
+        var service = new CurrentUserPermissionService(tenant, repository, new Subject("user-1"));
+
+        tenant.SetTenant(new TenantContext(Guid.NewGuid(), "clinic-a", "Clinic A"));
+
+        Assert.True(await service.HasPermissionAsync(PermissionKeys.PatientsView));
     }
 
     [Theory]
