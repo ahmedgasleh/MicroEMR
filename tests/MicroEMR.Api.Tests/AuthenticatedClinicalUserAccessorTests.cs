@@ -51,6 +51,21 @@ public sealed class AuthenticatedClinicalUserAccessorTests
     }
 
     [Fact]
+    public async Task UnresolvedTenantFailsBeforeLookup()
+    {
+        var repository = new StubRepository("subject", User(1, "subject"));
+        var context = new DefaultHttpContext { User = Principal("subject") };
+        var accessor = new AuthenticatedClinicalUserAccessor(
+            new HttpContextAccessor { HttpContext = context },
+            new TenantContextAccessor(),
+            repository);
+
+        await Assert.ThrowsAsync<ClinicalUserResolutionException>(
+            () => accessor.GetRequiredUserIdAsync());
+        Assert.Null(repository.RequestedSubject);
+    }
+
+    [Fact]
     public async Task ResolutionIsTenantScopedAndSameSubjectCanMapDifferently()
     {
         const string subject = "shared-subject";

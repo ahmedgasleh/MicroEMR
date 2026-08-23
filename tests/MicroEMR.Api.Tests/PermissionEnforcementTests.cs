@@ -48,6 +48,18 @@ public sealed class PermissionEnforcementTests
         Assert.True(await service.HasPermissionAsync(PermissionKeys.PatientsView));
     }
 
+    [Fact]
+    public async Task PermissionLoadFailsBeforeTenantResolutionWithoutRepositoryAccess()
+    {
+        var repository = new Repository("Active", [PermissionKeys.PatientsView]);
+        var service = new CurrentUserPermissionService(
+            new TenantContextAccessor(), repository, new Subject("user-1"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.GetEffectivePermissionsAsync());
+        Assert.Equal(0, repository.EffectiveCalls);
+    }
+
     [Theory]
     [InlineData(typeof(PatientEncountersController), PermissionKeys.EncountersView)]
     [InlineData(typeof(PatientDocumentsController), PermissionKeys.DocumentsView)]
