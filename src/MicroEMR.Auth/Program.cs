@@ -9,6 +9,10 @@ using MicroEMR.Auth.Services.PlatformEntitlements;
 
 
 var builder = WebApplication.CreateBuilder(args);
+var authServerConnection = builder.Configuration.GetConnectionString("AuthServerConnection");
+if (string.IsNullOrWhiteSpace(authServerConnection))
+    throw new InvalidOperationException(
+        "Required connection string 'ConnectionStrings:AuthServerConnection' is not configured.");
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -27,7 +31,7 @@ builder.Services.AddScoped<IPlatformRefreshAuthorizationService, PlatformRefresh
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("AuthServerConnection"));
+        authServerConnection);
 
     options.UseOpenIddict();
 });

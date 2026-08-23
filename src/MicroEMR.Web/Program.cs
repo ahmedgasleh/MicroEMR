@@ -31,6 +31,10 @@ using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Web.Services.SecurityAudit;
 
 var builder = WebApplication.CreateBuilder(args);
+var oidcClientSecret = builder.Configuration["Authentication:ClientSecret"];
+if (string.IsNullOrWhiteSpace(oidcClientSecret))
+    throw new InvalidOperationException(
+        "Required OpenID Connect Web client secret is not configured.");
 
 builder.Services.AddControllersWithViews();
 
@@ -157,8 +161,7 @@ builder.Services
         options.ClientId =
             builder.Configuration ["Authentication:ClientId"];
 
-        options.ClientSecret =
-            builder.Configuration ["Authentication:ClientSecret"];
+        options.ClientSecret = oidcClientSecret;
 
         options.ResponseType = OpenIdConnectResponseType.Code;
         options.UsePkce = true;

@@ -199,10 +199,10 @@ public class SeedData : IHostedService
         ?? throw new InvalidOperationException(
             "OpenIddict:WebClientId is missing.");
             
-        var clientSecret =
-        configuration["OpenIddict:WebClientSecret"]
-        ?? throw new InvalidOperationException(
-            "OpenIddict:WebClientSecret is missing.");
+        var clientSecret = configuration["OpenIddict:WebClientSecret"];
+        if (string.IsNullOrWhiteSpace(clientSecret))
+            throw new InvalidOperationException(
+                "Required OpenIddict Web client secret is not configured.");
             
         const string scopeName = "microemr_api";
         var existingScope =
