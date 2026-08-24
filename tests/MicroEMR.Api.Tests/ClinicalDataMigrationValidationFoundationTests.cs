@@ -21,7 +21,7 @@ public sealed class ClinicalDataMigrationValidationFoundationTests
         Assert.Contains("UQ_ClinicalDataMigrationBatch_SourceFingerprint",sql);Assert.Contains("UQ_ClinicalDataMigrationBatch_SourcePackage",sql);Assert.Contains("IX_ClinicalDataMigrationStagedPatient_BatchSourceObject",sql);Assert.Contains("IX_ClinicalDataMigrationStagedProblem_BatchSourceObject",sql);
         foreach(var table in new[]{"Patient","PatientProblem","PatientAllergy","PatientMedication","PatientImmunization","PatientEncounter","PatientResult","PatientDocument","PatientFile"})
         {Assert.DoesNotContain($"INSERT dbo.{table}(",sql,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain($"UPDATE dbo.{table} SET",sql,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain($"DELETE FROM dbo.{table}",sql,StringComparison.OrdinalIgnoreCase);}
-        Assert.Empty(Directory.GetFiles(Path.Combine(root,"db","platform"),"021*"));
+        Assert.Single(Directory.GetFiles(Path.Combine(root,"db","platform"),"021_prescriptions_prescribe_permission_governance.sql"));
     }
 
     [Fact]

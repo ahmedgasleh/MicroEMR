@@ -18,7 +18,7 @@ public sealed class ControlledClinicalImportFoundationTests
         Assert.Equal(1,Count(manifest,"\"migrationId\": \"0049-clinical-data-migration-import-foundation\""));Assert.False(File.Exists(Path.Combine(root,"db","tenant-clinical","migrations","0050-clinical-data-migration-import-foundation.sql")));
         Assert.Contains("ClinicalDataMigrationSourceMapping",migration);Assert.Contains("Importing",migration);Assert.Contains("Imported",migration);Assert.Contains("ImportFailed",migration);
         Assert.DoesNotContain("ALTER TABLE dbo.Patient ",migration,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain("ALTER TABLE dbo.PatientProblem ",migration,StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(Directory.GetFiles(Path.Combine(root,"db","platform"),"*.sql"),x=>Path.GetFileName(x).StartsWith("021",StringComparison.Ordinal));
+        Assert.Single(Directory.GetFiles(Path.Combine(root,"db","platform"),"021_prescriptions_prescribe_permission_governance.sql"));
     }
 
     [Fact]
