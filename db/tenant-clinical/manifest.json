@@ -45,5 +45,6 @@
   { "migrationId": "0043-patient-chart-read-audit", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0043-patient-chart-read-audit.sql" },
   { "migrationId": "0044-structured-read-audit-procedure", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0044-structured-read-audit-procedure.sql" },
   { "migrationId": "0045-structured-disclosure-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0045-structured-disclosure-audit-events.sql" },
-  { "migrationId": "0046-aggregate-report-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0046-aggregate-report-audit-events.sql" }
+  { "migrationId": "0046-aggregate-report-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0046-aggregate-report-audit-events.sql" },
+  { "migrationId": "0047-patient-immunization-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0047-patient-immunization-history.sql" }
 ]

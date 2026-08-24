@@ -68,8 +68,8 @@ public sealed class PlatformEntitlementProcedureRepairTests
         Assert.Single(platformIds, id => id == 20);
 
         var tenantIds = MigrationIds(Path.Combine(Root(), "db", "tenant-clinical", "migrations"), 4);
-        Assert.Equal(46, tenantIds.Max());
-        Assert.DoesNotContain(47, tenantIds);
+        Assert.Equal(47, tenantIds.Max());
+        Assert.Single(tenantIds, id => id == 47);
     }
 
     [Fact]

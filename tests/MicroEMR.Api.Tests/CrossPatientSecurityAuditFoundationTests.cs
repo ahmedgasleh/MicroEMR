@@ -163,7 +163,7 @@ public sealed class CrossPatientSecurityAuditFoundationTests
         Assert.Single(platformIds, id => id == 16);
 
         var tenantFiles = Directory.GetFiles(Path.Combine(Root(), "db", "tenant-clinical", "migrations"), "*.sql");
-        Assert.DoesNotContain(tenantFiles, file => Path.GetFileName(file).StartsWith("0047", StringComparison.Ordinal));
+        Assert.Single(tenantFiles, file => Path.GetFileName(file).StartsWith("0047", StringComparison.Ordinal));
         Assert.Contains(tenantFiles, file => Path.GetFileName(file).StartsWith("0046", StringComparison.Ordinal));
     }
 

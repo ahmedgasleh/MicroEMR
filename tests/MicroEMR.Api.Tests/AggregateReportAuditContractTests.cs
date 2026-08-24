@@ -68,10 +68,11 @@ public sealed class AggregateReportAuditContractTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal(47, ids.Length);
+        Assert.Equal(48, ids.Length);
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal("0045-structured-disclosure-audit-events", ids[^2]);
-        Assert.Equal("0046-aggregate-report-audit-events", ids[^1]);
+        Assert.Equal("0045-structured-disclosure-audit-events", ids[^3]);
+        Assert.Equal("0046-aggregate-report-audit-events", ids[^2]);
+        Assert.Equal("0047-patient-immunization-history", ids[^1]);
         Assert.Single(ids, x => x == "0046-aggregate-report-audit-events");
         Assert.Single(SqlBatchParser.Parse(Sql));
     }
