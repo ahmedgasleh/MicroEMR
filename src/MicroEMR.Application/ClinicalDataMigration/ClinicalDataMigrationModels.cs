@@ -148,6 +148,30 @@ public interface IClinicalDataMigrationValidationService
     Task<IReadOnlyList<ClinicalMigrationIssue>> ListIssuesAsync(Guid batchUid, int page, int pageSize, CancellationToken token = default);
 }
 
+public sealed record ClinicalMigrationImportResult(
+    Guid MigrationBatchUid, string Status, int AttemptedPatients, int CreatedPatients,
+    int ReusedPatients, int ImportedProblems, int SkippedRecords, int FailedPatients, bool Replayed);
+
+public interface IClinicalDataMigrationImportRepository
+{
+    Task<ClinicalMigrationImportResult?> ImportAsync(Guid batchUid, long initiatingOperator, CancellationToken token = default);
+}
+
+public interface IClinicalDataMigrationImportService
+{
+    Task<ClinicalMigrationImportResult?> ImportAsync(Guid batchUid, long initiatingOperator, CancellationToken token = default);
+}
+
+public sealed class ClinicalDataMigrationImportService(IClinicalDataMigrationImportRepository repository) : IClinicalDataMigrationImportService
+{
+    public Task<ClinicalMigrationImportResult?> ImportAsync(Guid batchUid,long initiatingOperator,CancellationToken token=default)
+    {
+        if(batchUid==Guid.Empty)throw new ArgumentException("A migration batch identifier is required.",nameof(batchUid));
+        if(initiatingOperator<=0)throw new ArgumentOutOfRangeException(nameof(initiatingOperator));
+        return repository.ImportAsync(batchUid,initiatingOperator,token);
+    }
+}
+
 public static class ClinicalMigrationFingerprint
 {
     public static string Calculate(ClinicalMigrationPackageV1 package)

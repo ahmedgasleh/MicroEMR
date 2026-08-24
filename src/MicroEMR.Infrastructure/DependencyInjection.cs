@@ -110,6 +110,7 @@ public static class DependencyInjection
             services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();
             services.AddScoped<IPatientImmunizationRepository, PatientImmunizationRepository>();
             services.AddScoped<IClinicalDataMigrationRepository, ClinicalDataMigrationRepository>();
+            services.AddScoped<IClinicalDataMigrationImportRepository, ClinicalDataMigrationRepository>();
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();

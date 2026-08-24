@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<IPlatformSecurityAuditReviewService, PlatformSecurityAuditReviewService>();
         services.AddOptions<ClinicalDataMigrationOptions>();
         services.AddScoped<IClinicalDataMigrationValidationService, ClinicalDataMigrationValidationService>();
+        services.AddScoped<IClinicalDataMigrationImportService, ClinicalDataMigrationImportService>();
 
         return services;
     }
