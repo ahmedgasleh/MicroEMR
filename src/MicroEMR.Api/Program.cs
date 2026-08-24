@@ -21,6 +21,7 @@ using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Api.SecurityAudit;
 using MicroEMR.Api;
+using MicroEMR.Application.ClinicalDataMigration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,6 +95,11 @@ builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext, DeferredTenantContext>();
 
 builder.Services.AddMicroEmrApplication();
+builder.Services.AddOptions<ClinicalDataMigrationOptions>()
+    .Bind(builder.Configuration.GetSection("ClinicalDataMigration"))
+    .Validate(x => x.MaxPatients is > 0 and <= 10_000 && x.MaxProblems is > 0 and <= 50_000,
+        "Clinical data migration validation limits are outside the supported range.")
+    .ValidateOnStart();
 builder.Services.AddMicroEmrInfrastructure();
 builder.Services.AddDbContext<AdministrationIdentityDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("AuthDatabase")
