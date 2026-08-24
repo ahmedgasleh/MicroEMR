@@ -1,0 +1,22 @@
+using System.Text.RegularExpressions;
+using MicroEMR.Application.AccessProfiles;
+using Xunit;
+
+namespace MicroEMR.Api.Tests;
+public sealed class PrescribingPermissionGovernanceTests
+{
+ private const string Key="Prescriptions.Prescribe";
+ private static string Root()=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..","..","..",".."));
+ private static string Read(params string[] parts)=>File.ReadAllText(Path.Combine([Root(),..parts]));
+ private static string Migration()=>Read("db","platform","021_prescriptions_prescribe_permission_governance.sql");
+ [Fact]public void Platform021ExistsExactlyOnceAndTenant0050DoesNot(){var files=Directory.GetFiles(Path.Combine(Root(),"db","platform"),"021*.sql");Assert.Single(files);Assert.EndsWith("021_prescriptions_prescribe_permission_governance.sql",files[0]);Assert.False(File.Exists(Path.Combine(Root(),"db","tenant-clinical","migrations","0050-patient-prescription-foundation.sql")));}
+ [Fact]public void ApplicationCatalogExposesExactGovernedPermission(){Assert.Equal(Key,PermissionKeys.PrescriptionsPrescribe);var item=Assert.Single(PermissionCatalog.All,x=>x.Key==Key);Assert.Equal("Prescribe medications",item.DisplayName);Assert.Contains("finalize",item.Description,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain("transmission",item.Description,StringComparison.OrdinalIgnoreCase);}
+ [Fact]public void SuccessorPreservesEveryPriorExplicitKeyAndAddsExactlyOne(){var old=Keys(Read("db","platform","012_user_permission_overrides.sql"));var current=Keys(Migration());Assert.Subset(current,old);Assert.Equal([Key],current.Except(old).Order().ToArray());}
+ [Fact]public void CheckConstraintRemainsExplicitAndTrusted(){var s=Migration();Assert.Contains("DROP CONSTRAINT CK_UserPermissionOverride_Key",s);Assert.Contains("WITH CHECK ADD CONSTRAINT CK_UserPermissionOverride_Key CHECK",s);Assert.Contains("CHECK CONSTRAINT CK_UserPermissionOverride_Key",s);Assert.Contains($"N'{Key}'",s);}
+ [Fact]public void ProfileAndOverrideProceduresRetainValidationConcurrencyAndAudit(){var s=Migration();Assert.Contains("CREATE OR ALTER PROCEDURE dbo.AccessProfile_ReplacePermissions",s);Assert.Contains("NOT IN",s);Assert.Contains("THROW 51403,'Unknown permission.'",s);Assert.Contains("@ExpectedRowVersion",s);Assert.Contains("WITH(UPDLOCK,HOLDLOCK)",s);Assert.Contains("AccessProfilePermissionsChanged",s);Assert.Contains("CREATE OR ALTER PROCEDURE dbo.UserPermissionOverride_Set",s);Assert.Contains("THROW 51503,'Unknown permission.'",s);Assert.Contains("UserPermissionOverrideChanged",s);Assert.Equal(2,Regex.Matches(s,"sys.sp_getapplock").Count);Assert.True(Regex.Matches(s,"AccessManagementAdministrator").Count>=2);Assert.Contains("THROW 51602",s);}
+ [Fact]public void ExistingEffectivePermissionProcedureRequiresNoSpecialCase(){var s=Migration();Assert.DoesNotContain("CREATE OR ALTER PROCEDURE dbo.AccessProfile_GetEffective",s);var existing=Read("db","platform","012_user_permission_overrides.sql");Assert.Contains("pp.PermissionKey",existing);Assert.Contains("o.PermissionKey",existing);}
+ [Fact]public void OnlyBuiltInPhysicianIsSeeded(){var s=Migration();Assert.Contains("p.IsBuiltIn=1 AND p.Name=N'Physician'",s);var profileBlock=s[s.IndexOf("CREATE OR ALTER PROCEDURE dbo.AccessProfile_SeedDefaults",StringComparison.Ordinal)..s.IndexOf("INSERT dbo.AccessProfilePermission(AccessProfileUid,PermissionKey)",StringComparison.Ordinal)];Assert.Contains($"ClinicalData.Manage,{Key},Referrals.View",profileBlock);Assert.DoesNotContain($"Users.ManageAccess,{Key}",profileBlock);Assert.DoesNotContain($"N'Nurse',N'Clinical care without encounter signing.',N'Patients.View,{Key}",profileBlock);}
+ [Fact]public void PermissionDoesNotCreateOrActivateProviders(){var s=Migration();Assert.DoesNotContain("dbo.Provider",s);Assert.DoesNotContain("ApplicationUser",s);Assert.DoesNotContain("UPDATE dbo.Provider",s);Assert.DoesNotContain("INSERT dbo.Provider",s);}
+ [Fact]public void HistoricalMigrationsRemainReferencedOnlyNotReplayed(){var s=Migration();Assert.DoesNotContain(":r",s);Assert.DoesNotContain("010_access_profiles.sql",s);Assert.DoesNotContain("012_user_permission_overrides.sql",s);Assert.Contains("OBJECT_ID(N'dbo.AccessManagementAdministrator') IS NULL",s);}
+ private static HashSet<string> Keys(string sql)=>Regex.Matches(sql,"N'([A-Za-z]+\\.[A-Za-z]+)'").Select(x=>x.Groups[1].Value).Where(x=>x.Contains('.')&&!x.StartsWith("dbo.",StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal);
+}

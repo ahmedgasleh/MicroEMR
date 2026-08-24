@@ -18,6 +18,7 @@ public static class PermissionKeys
     public const string TemplatesUse = "Templates.Use";
     public const string TemplatesManage = "Templates.Manage";
     public const string ClinicalDataManage = "ClinicalData.Manage";
+    public const string PrescriptionsPrescribe = "Prescriptions.Prescribe";
     public const string ReferralsView = "Referrals.View";
     public const string ReferralsManage = "Referrals.Manage";
     public const string ResultsView = "Results.View";
@@ -78,6 +79,7 @@ public static class PermissionCatalog
         P("Documents.View","View documents","Documents","View patient documents."), P("Documents.Manage","Manage documents","Documents","Create and update patient documents."),
         P("Templates.Use","Use templates","Templates","Use published document templates."), P("Templates.Manage","Manage templates","Templates","Create, publish, and administer templates."),
         P("ClinicalData.Manage","Manage clinical data","Clinical Data","Manage allergies, problems, medications, and vitals."),
+        P("Prescriptions.Prescribe","Prescribe medications","Clinical Data","Create, finalize, cancel, and correct local prescriptions."),
         P("Referrals.View","View referrals","Referrals","View patient referrals."), P("Referrals.Manage","Manage referrals","Referrals","Create and update referrals."),
         P("Results.View","View results","Results","View patient results."), P("Results.Review","Review results","Results","Review and acknowledge results."),
         P("Tasks.View","View tasks","Tasks","View patient and clinic tasks."), P("Tasks.Manage","Manage tasks","Tasks","Create and update tasks."),

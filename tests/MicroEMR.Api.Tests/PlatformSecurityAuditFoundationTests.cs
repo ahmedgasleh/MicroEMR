@@ -157,7 +157,7 @@ public sealed class PlatformSecurityAuditFoundationTests
 
         Assert.Equal(ids.Length, ids.Distinct().Count());
         Assert.Contains(14, ids);
-        Assert.Equal(20, ids.Max());
+        Assert.Equal(21, ids.Max());
         Assert.Single(ids, id => id == 16);
         Assert.Single(ids, id => id == 17);
         Assert.Single(ids, id => id == 18);
