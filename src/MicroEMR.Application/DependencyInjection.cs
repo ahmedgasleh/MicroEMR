@@ -2,6 +2,7 @@ using MicroEMR.Application.PatientAllergies.Services;
 using MicroEMR.Application.PatientDocuments.Services;
 using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Application.PatientMedications.Services;
+using MicroEMR.Application.PatientPrescriptions;
 using MicroEMR.Application.PatientProblems.Services;
 using MicroEMR.Application.PatientVitals.Services;
 using MicroEMR.Application.Patients.Services;
@@ -40,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentTemplateVersionService, DocumentTemplateVersionService>();
         services.AddScoped<IPatientEncounterService, PatientEncounterService>();
         services.AddScoped<IPatientMedicationService, PatientMedicationService>();
+        services.AddScoped<IPatientPrescriptionService, PatientPrescriptionService>();
         services.AddScoped<IPatientProblemService, PatientProblemService>();
         services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
         services.AddScoped<IPatientImmunizationService, PatientImmunizationService>();

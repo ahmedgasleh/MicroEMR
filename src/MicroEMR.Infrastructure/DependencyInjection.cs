@@ -10,6 +10,8 @@ using MicroEMR.Infrastructure.PatientAllergies;
 using MicroEMR.Infrastructure.PatientDocuments;
 using MicroEMR.Infrastructure.PatientEncounters;
 using MicroEMR.Infrastructure.PatientMedications;
+using MicroEMR.Application.PatientPrescriptions;
+using MicroEMR.Infrastructure.PatientPrescriptions;
 using MicroEMR.Infrastructure.PatientProblems;
 using MicroEMR.Application.PatientClinicalHistory;
 using MicroEMR.Infrastructure.PatientClinicalHistory;
@@ -106,6 +108,7 @@ public static class DependencyInjection
             services.AddScoped<ITemplateAdministrationRepository, TemplateAdministrationRepository>();
             services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();
             services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
+            services.AddScoped<IPatientPrescriptionRepository, PatientPrescriptionRepository>();
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
             services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();
             services.AddScoped<IPatientImmunizationRepository, PatientImmunizationRepository>();

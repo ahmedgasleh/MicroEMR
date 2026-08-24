@@ -951,7 +951,7 @@
          role="tabpanel">
 
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <h5 class="mb-0">Patient Medications</h5>
+            <h5 class="mb-0">Current Medications</h5>
             <div class="d-flex align-items-center gap-2">
                 <label for="medicationStatusFilter" class="form-label mb-0">Show</label>
                 <select id="medicationStatusFilter" class="form-select form-select-sm" aria-label="Filter medications by status">
@@ -1101,6 +1101,20 @@
                 </table>
             </div>
         }
+        <hr class="my-4" />
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div><h5 class="mb-1">Prescriptions</h5><div class="text-muted small">Local structured prescriptions are maintained separately from the medication list.</div></div>
+            @if (Model.CanPrescribe) { <a asp-controller="PatientPrescriptions" asp-action="Create" asp-route-patientUid="@patient.PatientUid" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>New Prescription</a> }
+            else { <button class="btn btn-primary" disabled title="Prescriptions.Prescribe permission is required.">New Prescription</button> }
+        </div>
+        @if (Model.Prescriptions.Count == 0) { <div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-prescription2"></i></div><div class="microemr-empty-state__title">No prescriptions recorded</div></div> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Date</th><th>Medication</th><th>Directions</th><th>Quantity</th><th>Repeats</th><th>Prescriber</th><th>Status</th><th class="text-end">Actions</th></tr></thead><tbody>
+        @foreach(var rx in Model.Prescriptions) { <tr><td>@rx.PrescribedDate.ToString("MMM d, yyyy")</td><td><strong>@(rx.ProductDisplaySnapshot ?? rx.ProductDisplayText)</strong></td><td>@rx.Directions</td><td>@rx.Quantity.ToString("0.###") @rx.QuantityUnit</td><td>@rx.AuthorizedRepeats</td><td>@(rx.PrescriberDisplayNameSnapshot ?? "Draft")</td><td><span class="badge text-bg-@(rx.Status=="Finalized"?"success":rx.Status=="Draft"?"secondary":"warning")">@rx.Status</span></td><td class="text-end text-nowrap">
+          @if(rx.Status=="Draft" && Model.CanPrescribe){<a asp-controller="PatientPrescriptions" asp-action="Edit" asp-route-patientUid="@patient.PatientUid" asp-route-prescriptionUid="@rx.PrescriptionUid" class="btn btn-sm btn-outline-secondary">Edit</a><form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Finalize" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><button class="btn btn-sm btn-primary" onclick="return confirm('Finalize this prescription? It cannot be edited afterward.');">Finalize Prescription</button></form>}
+          @if(rx.ArtifactUid.HasValue){<a asp-controller="PatientPrescriptions" asp-action="Artifact" asp-route-patientUid="@patient.PatientUid" asp-route-prescriptionUid="@rx.PrescriptionUid" class="btn btn-sm btn-outline-primary">View/Print</a>}
+          @if(rx.Status=="Finalized" && Model.CanPrescribe){<form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Correction" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><button class="btn btn-sm btn-outline-secondary">Create Correction</button></form><form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Cancel" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><input type="hidden" name="reason" value="Cancelled by prescriber"/><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Cancel this prescription? The record and artifact will be retained.');">Cancel Prescription</button></form>}
+        </td></tr> }
+        </tbody></table></div> }
     </div>
     <div class="tab-pane fade @(vitalsActive ? "show active" : null)" id="vitals" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="mb-0">Vitals</h5><button type="button" id="addVitalButton" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Add Vitals</button></div>

@@ -1,0 +1,4 @@
+@using MicroEMR.Application.PatientPrescriptions
+@model CreatePrescriptionDraftRequest
+@{ViewData["Title"]="New Prescription Draft";var patientUid=Context.Request.Query["patientUid"].ToString();}
+<div class="container py-4"><h1 class="h3">New Prescription Draft</h1><p class="text-muted">Saving creates a draft only. Finalization is a separate action.</p><form method="post" asp-route-patientUid="@patientUid">@Html.AntiForgeryToken()<partial name="_Form" model="Model"/><div class="mt-4"><button class="btn btn-primary">Save Draft</button><a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@patientUid" asp-route-tab="medications" class="btn btn-outline-secondary">Cancel</a></div></form></div>

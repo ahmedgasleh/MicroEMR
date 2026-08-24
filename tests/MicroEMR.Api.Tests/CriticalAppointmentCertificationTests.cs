@@ -37,14 +37,15 @@ public sealed class CriticalAppointmentCertificationTests
             .ToArray();
 
         Assert.Contains("0041-patient-clinical-history", migrationIds);
-        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^8]);
-        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^7]);
-        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^6]);
-        Assert.Equal("0045-structured-disclosure-audit-events", migrationIds[^5]);
-        Assert.Equal("0046-aggregate-report-audit-events", migrationIds[^4]);
-        Assert.Equal("0047-patient-immunization-history", migrationIds[^3]);
-        Assert.Equal("0048-clinical-data-migration-validation-foundation", migrationIds[^2]);
-        Assert.Equal("0049-clinical-data-migration-import-foundation", migrationIds[^1]);
+        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^9]);
+        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^8]);
+        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^7]);
+        Assert.Equal("0045-structured-disclosure-audit-events", migrationIds[^6]);
+        Assert.Equal("0046-aggregate-report-audit-events", migrationIds[^5]);
+        Assert.Equal("0047-patient-immunization-history", migrationIds[^4]);
+        Assert.Equal("0048-clinical-data-migration-validation-foundation", migrationIds[^3]);
+        Assert.Equal("0049-clinical-data-migration-import-foundation", migrationIds[^2]);
+        Assert.Equal("0050-patient-prescription-foundation", migrationIds[^1]);
         Assert.Equal(migrationIds.Length, migrationIds.Distinct(StringComparer.Ordinal).Count());
     }
 
