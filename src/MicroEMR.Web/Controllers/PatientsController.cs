@@ -12,6 +12,7 @@ using MicroEMR.Web.Services.Patients;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Services.PatientMedications;
+using MicroEMR.Web.Services.PatientPrescriptions;
 using MicroEMR.Web.Services.PatientProblems;
 using MicroEMR.Web.Services.PatientVitals;
 using MicroEMR.Web.Models.PatientVitals;
@@ -31,6 +32,8 @@ public sealed class PatientsController : Controller
     private readonly IPatientEncounterApiClient _patientEncounterApiClient;
     private readonly IPatientMedicationApiClient _patientMedicationApiClient;
     private readonly IPatientProblemApiClient _patientProblemApiClient;
+    private readonly IPatientPrescriptionApiClient _patientPrescriptionApiClient;
+    private readonly IWebPermissionService _permissionService;
     private readonly IPatientVitalApiClient _patientVitalApiClient;
     private readonly ILogger<PatientsController> _logger;
     private readonly ICurrentPatientContext _currentPatientContext;
@@ -41,10 +44,11 @@ public sealed class PatientsController : Controller
         IPatientDocumentApiClient patientDocumentApiClient,
         IPatientEncounterApiClient patientEncounterApiClient,
         IPatientMedicationApiClient patientMedicationApiClient,
+        IPatientPrescriptionApiClient patientPrescriptionApiClient,
         IPatientProblemApiClient patientProblemApiClient,
         IPatientVitalApiClient patientVitalApiClient,
         ILogger<PatientsController> logger,
-        ICurrentPatientContext currentPatientContext)
+        ICurrentPatientContext currentPatientContext,IWebPermissionService permissionService)
     {
         _patientApiClient = patientApiClient;
         _patientAllergyApiClient = patientAllergyApiClient;
@@ -52,6 +56,8 @@ public sealed class PatientsController : Controller
         _patientDocumentApiClient = patientDocumentApiClient;
         _patientEncounterApiClient = patientEncounterApiClient;
         _patientMedicationApiClient = patientMedicationApiClient;
+        _patientPrescriptionApiClient=patientPrescriptionApiClient;
+        _permissionService=permissionService;
         _patientProblemApiClient = patientProblemApiClient;
         _patientVitalApiClient = patientVitalApiClient;
         _currentPatientContext = currentPatientContext;
@@ -397,6 +403,8 @@ public sealed class PatientsController : Controller
             await LoadMedicationsForChartAsync(
                 patientUid,
                 cancellationToken);
+        IReadOnlyList<MicroEMR.Application.PatientPrescriptions.PatientPrescriptionResponse> prescriptions=[];
+        try { prescriptions=await _patientPrescriptionApiClient.ListAsync(patientUid,cancellationToken); } catch(Exception exception) when(exception is HttpRequestException or UnauthorizedAccessException) { _logger.LogWarning(exception,"Unable to load prescriptions for patient {PatientUid}.",patientUid); }
 
         var problems = await LoadProblemsForChartAsync(patientUid, cancellationToken);
         var vitals = await LoadVitalsForChartAsync(patientUid, cancellationToken);
@@ -411,6 +419,8 @@ public sealed class PatientsController : Controller
             Encounters = encounters,
             Allergies = allergies,
             Medications = medications,
+            Prescriptions=prescriptions,
+            CanPrescribe=await _permissionService.HasAsync(PermissionKeys.PrescriptionsPrescribe,cancellationToken),
             Problems = problems,
             Vitals = vitals,
             ActiveTab = NormalizePatientChartTab(tab)

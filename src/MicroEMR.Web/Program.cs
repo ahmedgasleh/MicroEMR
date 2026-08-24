@@ -8,6 +8,7 @@ using MicroEMR.Web.Services.PatientAllergies;
 using MicroEMR.Web.Services.PatientDocuments;
 using MicroEMR.Web.Services.PatientEncounters;
 using MicroEMR.Web.Services.PatientMedications;
+using MicroEMR.Web.Services.PatientPrescriptions;
 using MicroEMR.Web.Services.PatientProblems;
 using MicroEMR.Web.Services.PatientClinicalHistory;
 using MicroEMR.Web.Services.PatientVitals;
@@ -112,6 +113,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientMedicationApiClient,
     PatientMedicationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientPrescriptionApiClient,PatientPrescriptionApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientProblemApiClient,

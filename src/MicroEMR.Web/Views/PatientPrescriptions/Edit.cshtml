@@ -1,0 +1,4 @@
+@using MicroEMR.Application.PatientPrescriptions
+@model PrescriptionDraftRequest
+@{ViewData["Title"]="Edit Prescription Draft";var patientUid=Context.Request.Query["patientUid"].ToString();var uid=Context.Request.Query["prescriptionUid"].ToString();}
+<div class="container py-4"><h1 class="h3">Edit Prescription Draft</h1><div class="alert alert-info">Finalized prescriptions cannot be edited. Use Create Correction after finalization.</div><form method="post" asp-route-patientUid="@patientUid" asp-route-prescriptionUid="@uid">@Html.AntiForgeryToken()<partial name="_Form" model="Model"/><div class="mt-4"><button class="btn btn-primary">Save Draft</button><a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@patientUid" asp-route-tab="medications" class="btn btn-outline-secondary">Cancel</a></div></form></div>
