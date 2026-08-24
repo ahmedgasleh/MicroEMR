@@ -25,6 +25,7 @@ using MicroEMR.Application.PatientClinicalHistory;
 using MicroEMR.Application.ReadAudit;
 using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Application.PatientImmunizations;
+using MicroEMR.Application.ClinicalDataMigration;
 
 namespace MicroEMR.Application;
 
@@ -70,6 +71,8 @@ public static class DependencyInjection
         services.AddScoped<IPatientChartReadAuditService, PatientChartReadAuditService>();
         services.AddScoped<IStructuredReadAuditService, StructuredReadAuditService>();
         services.AddScoped<IPlatformSecurityAuditReviewService, PlatformSecurityAuditReviewService>();
+        services.AddOptions<ClinicalDataMigrationOptions>();
+        services.AddScoped<IClinicalDataMigrationValidationService, ClinicalDataMigrationValidationService>();
 
         return services;
     }

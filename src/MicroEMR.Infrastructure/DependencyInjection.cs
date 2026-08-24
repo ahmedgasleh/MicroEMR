@@ -50,6 +50,8 @@ using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Infrastructure.PlatformEntitlements;
 using MicroEMR.Application.PatientImmunizations;
 using MicroEMR.Infrastructure.PatientImmunizations;
+using MicroEMR.Application.ClinicalDataMigration;
+using MicroEMR.Infrastructure.ClinicalDataMigration;
 
 namespace MicroEMR.Infrastructure;
 
@@ -107,6 +109,7 @@ public static class DependencyInjection
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
             services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();
             services.AddScoped<IPatientImmunizationRepository, PatientImmunizationRepository>();
+            services.AddScoped<IClinicalDataMigrationRepository, ClinicalDataMigrationRepository>();
             services.AddScoped<IPatientVitalRepository, PatientVitalRepository>();
             services.AddScoped<ISchedulingReadRepository, SchedulingReadRepository>();
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();
