@@ -29,6 +29,7 @@ using MicroEMR.Infrastructure;
 using MicroEMR.Web.Authentication;
 using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Web.Services.SecurityAudit;
+using MicroEMR.Web.Services.PatientImmunizations;
 
 var builder = WebApplication.CreateBuilder(args);
 var oidcClientSecret = builder.Configuration["Authentication:ClientSecret"];
@@ -116,6 +117,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientProblemApiClient,
     PatientProblemApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientClinicalHistoryApiClient,PatientClinicalHistoryApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientImmunizationApiClient,PatientImmunizationApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient));
 

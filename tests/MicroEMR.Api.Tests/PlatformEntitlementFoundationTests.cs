@@ -181,8 +181,8 @@ public sealed class PlatformEntitlementFoundationTests
         Assert.Single(platformIds, id => id == 18);
         Assert.Single(platformIds, id => id == 19);
         var tenantIds = MigrationIds("db", "tenant-clinical", "migrations", 4);
-        Assert.Equal(46, tenantIds.Max());
-        Assert.DoesNotContain(47, tenantIds);
+        Assert.Equal(47, tenantIds.Max());
+        Assert.Single(tenantIds, id => id == 47);
     }
 
     [Fact]

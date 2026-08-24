@@ -24,6 +24,7 @@ using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.PatientClinicalHistory;
 using MicroEMR.Application.ReadAudit;
 using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Application.PatientImmunizations;
 
 namespace MicroEMR.Application;
 
@@ -40,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientMedicationService, PatientMedicationService>();
         services.AddScoped<IPatientProblemService, PatientProblemService>();
         services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
+        services.AddScoped<IPatientImmunizationService, PatientImmunizationService>();
         services.AddScoped<IPatientVitalService, PatientVitalService>();
         services.AddScoped<IPatientReferralService, PatientReferralService>();
         services.AddScoped<IReferralStatusTransitionService, ReferralStatusTransitionService>();
