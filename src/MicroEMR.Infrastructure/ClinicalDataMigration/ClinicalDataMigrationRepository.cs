@@ -5,7 +5,7 @@ using MicroEMR.Infrastructure.Tenancy;
 
 namespace MicroEMR.Infrastructure.ClinicalDataMigration;
 
-public sealed class ClinicalDataMigrationRepository(ITenantSqlConnectionFactory connections) : IClinicalDataMigrationRepository
+public sealed class ClinicalDataMigrationRepository(ITenantSqlConnectionFactory connections) : IClinicalDataMigrationRepository,IClinicalDataMigrationImportRepository
 {
     public async Task<ClinicalMigrationBatchStart> BeginValidationAsync(ClinicalMigrationPackageV1 package,string fingerprint,long actor,CancellationToken token=default)
     {
@@ -50,6 +50,11 @@ public sealed class ClinicalDataMigrationRepository(ITenantSqlConnectionFactory 
 
     public async Task<IReadOnlyList<ClinicalMigrationIssue>> ListIssuesAsync(Guid batchUid,int skip,int take,CancellationToken token=default)
     {var result=new List<ClinicalMigrationIssue>();await using var c=await connections.OpenConnectionAsync(token);await using var x=Command(c,"dbo.ClinicalDataMigration_ListIssues");Add(x,"@MigrationBatchUid",SqlDbType.UniqueIdentifier,batchUid);Add(x,"@Skip",SqlDbType.Int,skip);Add(x,"@Take",SqlDbType.Int,take);await using var r=await x.ExecuteReaderAsync(token);while(await r.ReadAsync(token))result.Add(new(r.GetString(0),r.GetString(1),r.GetString(2),r.IsDBNull(3)?null:r.GetString(3),r.GetString(4),new DateTimeOffset(DateTime.SpecifyKind(r.GetDateTime(5),DateTimeKind.Utc))));return result;}
+
+    public async Task<ClinicalMigrationImportResult?> ImportAsync(Guid batchUid,long initiatingOperator,CancellationToken token=default)
+    {
+        await using var c=await connections.OpenConnectionAsync(token);await using var x=Command(c,"dbo.ClinicalDataMigration_ImportValidatedBatch");Add(x,"@MigrationBatchUid",SqlDbType.UniqueIdentifier,batchUid);Add(x,"@InitiatingOperator",SqlDbType.BigInt,initiatingOperator);await using var r=await x.ExecuteReaderAsync(token);if(!await r.ReadAsync(token))return null;return new(r.GetGuid(0),r.GetString(1),r.GetInt32(2),r.GetInt32(3),r.GetInt32(4),r.GetInt32(5),r.GetInt32(6),r.GetInt32(7),r.GetBoolean(8));
+    }
 
     private static SqlCommand Command(SqlConnection c,string name)=>new(name,c){CommandType=CommandType.StoredProcedure};
     private static void Add(SqlCommand c,string name,SqlDbType type,object? value)=>c.Parameters.Add(name,type).Value=value??DBNull.Value;

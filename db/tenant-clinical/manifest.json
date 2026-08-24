@@ -47,5 +47,6 @@
   { "migrationId": "0045-structured-disclosure-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0045-structured-disclosure-audit-events.sql" },
   { "migrationId": "0046-aggregate-report-audit-events", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0046-aggregate-report-audit-events.sql" },
   { "migrationId": "0047-patient-immunization-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0047-patient-immunization-history.sql" },
-  { "migrationId": "0048-clinical-data-migration-validation-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0048-clinical-data-migration-validation-foundation.sql" }
+  { "migrationId": "0048-clinical-data-migration-validation-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0048-clinical-data-migration-validation-foundation.sql" },
+  { "migrationId": "0049-clinical-data-migration-import-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0049-clinical-data-migration-import-foundation.sql" }
 ]

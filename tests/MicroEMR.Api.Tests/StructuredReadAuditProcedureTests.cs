@@ -74,14 +74,15 @@ public sealed class StructuredReadAuditProcedureTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal(49, ids.Length);
+        Assert.Equal(50, ids.Length);
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal("0043-patient-chart-read-audit", ids[^6]);
-        Assert.Equal("0044-structured-read-audit-procedure", ids[^5]);
-        Assert.Equal("0045-structured-disclosure-audit-events", ids[^4]);
-        Assert.Equal("0046-aggregate-report-audit-events", ids[^3]);
-        Assert.Equal("0047-patient-immunization-history", ids[^2]);
-        Assert.Equal("0048-clinical-data-migration-validation-foundation", ids[^1]);
+        Assert.Equal("0043-patient-chart-read-audit", ids[^7]);
+        Assert.Equal("0044-structured-read-audit-procedure", ids[^6]);
+        Assert.Equal("0045-structured-disclosure-audit-events", ids[^5]);
+        Assert.Equal("0046-aggregate-report-audit-events", ids[^4]);
+        Assert.Equal("0047-patient-immunization-history", ids[^3]);
+        Assert.Equal("0048-clinical-data-migration-validation-foundation", ids[^2]);
+        Assert.Equal("0049-clinical-data-migration-import-foundation", ids[^1]);
         Assert.NotEmpty(MicroEMR.Infrastructure.Provisioning.SqlBatchParser.Parse(Sql));
     }
 
