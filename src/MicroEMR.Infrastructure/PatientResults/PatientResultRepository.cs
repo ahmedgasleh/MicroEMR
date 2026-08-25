@@ -14,6 +14,35 @@ public sealed class PatientResultRepository(ITenantSqlConnectionFactory connecti
         return checked((int)Convert.ToInt64(await command.ExecuteScalarAsync(token)));
     }
 
+    public async Task<IReadOnlyList<UnreviewedPatientResultResponse>> ListUnreviewed(CancellationToken token = default)
+    {
+        var results = new List<UnreviewedPatientResultResponse>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(token);
+        await using var command = Command(connection, "dbo.PatientResult_GetUnreviewed");
+        await using var reader = await command.ExecuteReaderAsync(token);
+        while (await reader.ReadAsync(token))
+        {
+            results.Add(new UnreviewedPatientResultResponse
+            {
+                PatientResultUid = reader.GetGuid(reader.GetOrdinal("PatientResultUid")),
+                PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+                PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
+                ChartNumber = reader.GetString(reader.GetOrdinal("ChartNumber")),
+                ResultType = reader.GetString(reader.GetOrdinal("ResultType")),
+                ResultName = reader.GetString(reader.GetOrdinal("ResultName")),
+                ResultDate = reader.GetDateTime(reader.GetOrdinal("ResultDate")),
+                ResultSummary = String(reader, "ResultSummary"),
+                ResultValue = String(reader, "ResultValue"),
+                ResultUnit = String(reader, "ResultUnit"),
+                ReferenceRange = String(reader, "ReferenceRange"),
+                ResultStatus = reader.GetString(reader.GetOrdinal("ResultStatus")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                RowVersion = Convert.ToBase64String((byte[])reader["RowVersion"])
+            });
+        }
+        return results;
+    }
+
     public async Task<IReadOnlyList<PatientResultResponse>> List(Guid patientUid, string status, CancellationToken token = default)
     {
         var results = new List<PatientResultResponse>();
@@ -52,7 +81,11 @@ public sealed class PatientResultRepository(ITenantSqlConnectionFactory connecti
             Parameter(command, "@ResultUnit", SqlDbType.NVarChar, request.ResultUnit, 100);
             Parameter(command, "@ReferenceRange", SqlDbType.NVarChar, request.ReferenceRange, 200);
         }
-        if (review is not null) Parameter(command, "@ReviewNote", SqlDbType.NVarChar, review.ReviewNote, 1000);
+        if (review is not null)
+        {
+            Parameter(command, "@ReviewNote", SqlDbType.NVarChar, review.ReviewNote, 1000);
+            Parameter(command, "@ExpectedRowVersion", SqlDbType.Binary, Convert.FromBase64String(review.ExpectedRowVersion), 8);
+        }
         if (request is not null || review is not null)
             Parameter(command, procedure.EndsWith("Create") ? "@CreatedBy" : procedure.EndsWith("Reviewed") ? "@ReviewedBy" : "@UpdatedBy", SqlDbType.BigInt, user);
         await using var reader = await command.ExecuteReaderAsync(token);
@@ -68,9 +101,10 @@ public sealed class PatientResultRepository(ITenantSqlConnectionFactory connecti
         ResultType=reader.GetString(reader.GetOrdinal("ResultType")),ResultName=reader.GetString(reader.GetOrdinal("ResultName")),ResultDate=reader.GetDateTime(reader.GetOrdinal("ResultDate")),
         ResultSummary=String(reader,"ResultSummary"),ResultValue=String(reader,"ResultValue"),ResultUnit=String(reader,"ResultUnit"),ReferenceRange=String(reader,"ReferenceRange"),
         ResultStatus=reader.GetString(reader.GetOrdinal("ResultStatus")),ReviewedAt=Date(reader,"ReviewedAt"),ReviewedBy=Long(reader,"ReviewedBy"),ReviewedByDisplayName=String(reader,"ReviewedByDisplayName"),ReviewNote=String(reader,"ReviewNote"),
-        CreatedAt=reader.GetDateTime(reader.GetOrdinal("CreatedAt")),CreatedBy=Long(reader,"CreatedBy"),CreatedByDisplayName=String(reader,"CreatedByDisplayName"),UpdatedAt=Date(reader,"UpdatedAt"),UpdatedBy=Long(reader,"UpdatedBy"),UpdatedByDisplayName=String(reader,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])reader["RowVersion"])
+        CreatedAt=reader.GetDateTime(reader.GetOrdinal("CreatedAt")),CreatedBy=Long(reader,"CreatedBy"),CreatedByDisplayName=String(reader,"CreatedByDisplayName"),UpdatedAt=Date(reader,"UpdatedAt"),UpdatedBy=Long(reader,"UpdatedBy"),UpdatedByDisplayName=String(reader,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])reader["RowVersion"]),ReviewWasApplied=Boolean(reader,"ReviewWasApplied")
     };
     private static string? String(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetString(ordinal);}
     private static long? Long(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetInt64(ordinal);}
     private static DateTime? Date(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetDateTime(ordinal);}
+    private static bool Boolean(SqlDataReader reader,string name){for(var ordinal=0;ordinal<reader.FieldCount;ordinal++)if(string.Equals(reader.GetName(ordinal),name,StringComparison.OrdinalIgnoreCase))return !reader.IsDBNull(ordinal)&&reader.GetBoolean(ordinal);return false;}
 }

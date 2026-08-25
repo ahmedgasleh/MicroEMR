@@ -139,7 +139,7 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void MigrationSixteenIsUniqueAndTenantSequenceRemainsAtFortySix()
+    public void MigrationSixteenIsUniqueAndTenantSequenceReachesFiftyOne()
     {
         var platformIds = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileNameWithoutExtension)
@@ -155,7 +155,7 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 4 && int.TryParse(name[..4], out _))
             .Select(name => int.Parse(name![..4])).ToArray();
-        Assert.Equal(50, tenantIds.Max());
+        Assert.Equal(51, tenantIds.Max());
     }
 
     private static string Procedure() => Migration[Migration.IndexOf(

@@ -163,7 +163,7 @@ public sealed class InvalidTenantMembershipSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void MigrationSeventeenIsUniqueAndTenantSequenceRemainsAtFortySix()
+    public void MigrationSeventeenIsUniqueAndTenantSequenceReachesFiftyOne()
     {
         var platformIds = Directory.GetFiles(Path.Combine(Root(), "db", "platform"), "*.sql")
             .Select(Path.GetFileNameWithoutExtension)
@@ -179,7 +179,7 @@ public sealed class InvalidTenantMembershipSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 4 && int.TryParse(name[..4], out _))
             .Select(name => int.Parse(name![..4])).ToArray();
-        Assert.Equal(50, tenantIds.Max());
+        Assert.Equal(51, tenantIds.Max());
     }
 
     private static string Shape(string startMarker, string endMarker)
