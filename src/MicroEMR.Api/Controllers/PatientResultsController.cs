@@ -15,6 +15,10 @@ public sealed class PatientResultsController(IPatientResultRepository repository
     public async Task<IActionResult> UnreviewedCount(CancellationToken token) =>
         Ok(new { count = await repository.GetUnreviewedCount(token) });
 
+    [HttpGet("~/api/results/unreviewed")]
+    public async Task<IActionResult> Unreviewed(CancellationToken token) =>
+        Ok(await repository.ListUnreviewed(token));
+
     [HttpGet] public async Task<IActionResult> List(Guid patientUid,string status="New",CancellationToken token=default)=>Ok(await repository.List(patientUid,status,token));
     [HttpGet("{uid:guid}")] public async Task<IActionResult> Get(Guid patientUid,Guid uid,CancellationToken token)=>await repository.Get(patientUid,uid,token)is{}result?Ok(result):NotFound();
     [HttpPost, RequirePermission(PermissionKeys.ResultsReview)] public Task<IActionResult> Create(Guid patientUid,CreatePatientResultRequest request,CancellationToken token)=>Mutate(()=>repository.Create(patientUid,request,UserId(),token),true);
@@ -29,6 +33,7 @@ public sealed class PatientResultsController(IPatientResultRepository repository
             return result is null?NotFound():created?CreatedAtAction(nameof(Get),new{patientUid=result.PatientUid,uid=result.PatientResultUid},result):Ok(result);
         }
         catch(SqlException exception)when(exception.Number==51302){return Conflict(new{message="Reviewed results cannot be edited."});}
+        catch(SqlException exception)when(exception.Number==51304){return Conflict(new{message="The result changed before it could be reviewed. Reload and try again."});}
         catch(Exception exception){logger.LogError(exception,"Patient result operation failed.");return StatusCode(500,new{message="The result operation could not be completed."});}
     }
     private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);

@@ -173,7 +173,7 @@ public sealed class PlatformEntitlementFoundationTests
     }
 
     [Fact]
-    public void MigrationEighteenIsUniqueAndTenantSequenceRemainsFortySix()
+    public void MigrationEighteenIsUniqueAndTenantSequenceReachesFiftyOne()
     {
         var platformIds = MigrationIds("db", "platform", 3);
         Assert.Equal(platformIds.Length, platformIds.Distinct().Count());
@@ -181,7 +181,7 @@ public sealed class PlatformEntitlementFoundationTests
         Assert.Single(platformIds, id => id == 18);
         Assert.Single(platformIds, id => id == 19);
         var tenantIds = MigrationIds("db", "tenant-clinical", "migrations", 4);
-        Assert.Equal(50, tenantIds.Max());
+        Assert.Equal(51, tenantIds.Max());
         Assert.Single(tenantIds, id => id == 47);
         Assert.Single(tenantIds, id => id == 48);
     }
