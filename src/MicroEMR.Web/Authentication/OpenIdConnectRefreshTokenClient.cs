@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MicroEMR.Application.OperationalTelemetry;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 
@@ -58,12 +59,14 @@ public sealed class OpenIdConnectRefreshTokenClient(
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("The OpenID Connect token refresh request timed out.");
+            logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.AuthTokenRefreshFailed,
+                "Oidc.Refresh", "DependencyTimeout");
             throw new TokenRefreshTemporarilyUnavailableException();
         }
         catch (HttpRequestException exception)
         {
-            logger.LogWarning(exception, "The OpenID Connect token refresh request failed.");
+            logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.AuthTokenRefreshFailed,
+                "Oidc.Refresh", "AuthenticationDependencyFailure");
             throw new TokenRefreshTemporarilyUnavailableException(exception);
         }
 

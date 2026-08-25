@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientDocuments;
 using MicroEMR.Web.Services.PatientDocuments;
+using MicroEMR.Web.Services;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.SecurityAudit;
@@ -124,7 +125,7 @@ public sealed class PatientDocumentsController : Controller
                 model.PatientUid);
 
             AddApiValidationErrors(
-                exception.Message,
+                SafeApiResponseException.ValidationBody(exception),
                 "The document could not be saved. Review the document fields and try again.");
 
             model.Templates = await LoadTemplatesAsync(cancellationToken);
@@ -273,7 +274,7 @@ public sealed class PatientDocumentsController : Controller
                 documentUid);
             if (current?.IsStructured == true)
             {
-                AddApiValidationErrors(exception.Message, "The draft could not be saved. Review the document fields and try again.");
+                AddApiValidationErrors(SafeApiResponseException.ValidationBody(exception), "The draft could not be saved. Review the document fields and try again.");
                 current.StructuredDataJson = request.StructuredDataJson;
                 return View(nameof(Details), current);
             }

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using MicroEMR.Application.OperationalTelemetry;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.WebUtilities;
@@ -311,10 +312,7 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogWarning(
-                "MicroEMR API appointment status update conflicted. Status: {StatusCode}. Response: {ResponseBody}",
-                (int)response.StatusCode,
-                responseBody);
+            _logger.HttpDependencyFailed("SchedulingApi.UpdateAppointmentStatus", (int)response.StatusCode);
             throw new AppointmentStatusConflictException();
         }
 
@@ -521,10 +519,7 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
 
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        _logger.LogWarning(
-            "MicroEMR API scheduling request failed. Status: {StatusCode}. Response: {ResponseBody}",
-            (int)response.StatusCode,
-            responseBody);
+        _logger.HttpDependencyFailed("SchedulingApi", (int)response.StatusCode);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {

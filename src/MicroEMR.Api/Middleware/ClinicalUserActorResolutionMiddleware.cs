@@ -6,6 +6,7 @@ using MicroEMR.Application.Tenancy;
 using System.Security.Claims;
 using System.Text.Json;
 using MicroEMR.Api.Authorization;
+using MicroEMR.Application.OperationalTelemetry;
 
 namespace MicroEMR.Api.Middleware;
 
@@ -42,9 +43,9 @@ public sealed class ClinicalUserActorResolutionMiddleware(
             if (exception.IsCompletedUnresolved)
                 await TryRecordUnresolvedActorAsync(context, tenantContext, securityAudit);
 
-            logger.LogWarning(
-                "Clinical mutation actor resolution rejected. TenantUid: {TenantUid}; Path: {Path}; TraceIdentifier: {TraceIdentifier}; Reason: {Reason}",
-                tenantContext.TenantUid, context.Request.Path, context.TraceIdentifier, exception.Message);
+            logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.TenantResolutionFailed,
+                "ClinicalActor.Resolve", "ClinicalActorUnavailable",
+                tenantContext.TenantUid, context.TraceIdentifier);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             context.Response.ContentType = "application/problem+json";
             await JsonSerializer.SerializeAsync(context.Response.Body, new

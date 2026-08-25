@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
+using MicroEMR.Application.OperationalTelemetry;
+using MicroEMR.Web.Services;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using MicroEMR.Web.Models.PatientDocuments;
@@ -307,10 +309,7 @@ public sealed class PatientDocumentApiClient
             await response.Content.ReadAsStringAsync(
                 cancellationToken);
 
-        _logger.LogWarning(
-            "MicroEMR API document request failed. Status: {StatusCode}. Response: {ResponseBody}",
-            (int)response.StatusCode,
-            responseBody);
+        _logger.HttpDependencyFailed("PatientDocumentApi", (int)response.StatusCode);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -324,11 +323,6 @@ public sealed class PatientDocumentApiClient
                 "You do not have permission to perform this action.");
         }
 
-        throw new HttpRequestException(
-            $"MicroEMR API request failed with status " +
-            $"{(int)response.StatusCode} ({response.ReasonPhrase}). " +
-            $"{responseBody}",
-            inner: null,
-            statusCode: response.StatusCode);
+        throw new SafeApiResponseException(response.StatusCode, responseBody);
     }
 }

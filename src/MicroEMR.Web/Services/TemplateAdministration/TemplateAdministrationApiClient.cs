@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using MicroEMR.Application.OperationalTelemetry;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
@@ -51,7 +52,7 @@ public sealed class TemplateAdministrationApiClient(HttpClient http,IHttpContext
     private async Task<T?> Read<T>(HttpResponseMessage response,CancellationToken token)
     {
         if(response.IsSuccessStatusCode)return await response.Content.ReadFromJsonAsync<T>(JsonOptions,token);
-        var body=await response.Content.ReadAsStringAsync(token);logger.LogWarning("Template administration API failed with {StatusCode}: {ResponseBody}",(int)response.StatusCode,body);
+        var body=await response.Content.ReadAsStringAsync(token);logger.HttpDependencyFailed("TemplateAdministrationApi",(int)response.StatusCode);
         throw new TemplateAdministrationApiException((int)response.StatusCode,body);
     }
     private async Task Authorize(HttpRequestMessage request)

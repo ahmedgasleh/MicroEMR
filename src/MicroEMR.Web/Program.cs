@@ -31,6 +31,7 @@ using MicroEMR.Web.Authentication;
 using MicroEMR.Application.PlatformEntitlements;
 using MicroEMR.Web.Services.SecurityAudit;
 using MicroEMR.Web.Services.PatientImmunizations;
+using MicroEMR.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 var oidcClientSecret = builder.Configuration["Authentication:ClientSecret"];
@@ -241,6 +242,8 @@ var app = builder.Build();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseMiddleware<SafeRequestTelemetryMiddleware>();
 
 app.UseAuthentication();
 app.UseMiddleware<WebSessionReauthenticationMiddleware>();

@@ -82,5 +82,13 @@ public sealed class TemplateAdministrationController(ITemplateAdministrationApiC
     {try{var result=await client.UpdateMetadataAsync(model,token);return result is null?NotFound():Json(new{success=true,template=result});}catch(TemplateAdministrationApiException ex){return ApiFailure(ex);}}
 
     private IActionResult ApiFailure(TemplateAdministrationApiException exception)
-    {logger.LogWarning("Template administration request failed with status {StatusCode}.",exception.StatusCode);return new ContentResult{StatusCode=exception.StatusCode,ContentType="application/json",Content=exception.ResponseBody};}
+    {
+        logger.LogWarning("Template administration request failed with status {StatusCode}.", exception.StatusCode);
+        return new ContentResult
+        {
+            StatusCode = exception.StatusCode,
+            ContentType = "application/json",
+            Content = exception.ResponseBody
+        };
+    }
 }

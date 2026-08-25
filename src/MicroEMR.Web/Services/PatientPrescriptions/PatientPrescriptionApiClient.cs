@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MicroEMR.Application.PatientPrescriptions;
+using MicroEMR.Web.Services;
 
 namespace MicroEMR.Web.Services.PatientPrescriptions;
 public interface IPatientPrescriptionApiClient
@@ -15,5 +16,5 @@ public sealed class PatientPrescriptionApiClient(HttpClient http):IPatientPrescr
  public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,CancellationToken t=default){var x=await http.PutAsJsonAsync($"api/patients/{p}/prescriptions/{u}",r,t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t);}
  public async Task<PatientPrescriptionResponse?> ActionAsync(Guid p,Guid u,string a,PrescriptionTransitionRequest r,CancellationToken t=default){var x=await http.PostAsJsonAsync($"api/patients/{p}/prescriptions/{u}/{a}",r,t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t);}
  public async Task<byte[]?> ArtifactAsync(Guid p,Guid u,CancellationToken t=default){var x=await http.GetAsync($"api/patients/{p}/prescriptions/{u}/artifact",t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadAsByteArrayAsync(t);}
- private static async Task Ensure(HttpResponseMessage x,CancellationToken t){if(x.IsSuccessStatusCode)return;var b=await x.Content.ReadAsStringAsync(t);throw new HttpRequestException(b,null,x.StatusCode);}
+ private static async Task Ensure(HttpResponseMessage x,CancellationToken t){if(x.IsSuccessStatusCode)return;var b=await x.Content.ReadAsStringAsync(t);throw new SafeApiResponseException(x.StatusCode,b);}
 }

@@ -3,6 +3,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using MicroEMR.Web.Models.PatientProblems;
+using MicroEMR.Application.OperationalTelemetry;
+using MicroEMR.Web.Services;
 
 namespace MicroEMR.Web.Services.PatientProblems;
 
@@ -46,7 +48,7 @@ public sealed class PatientProblemApiClient(HttpClient httpClient, IHttpContextA
     {
         if (response.IsSuccessStatusCode) return;
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogWarning("MicroEMR API problem request failed with status {StatusCode}.", (int)response.StatusCode);
-        throw new HttpRequestException($"MicroEMR API request failed with status {(int)response.StatusCode}. {body}", null, response.StatusCode);
+        logger.HttpDependencyFailed("PatientProblemApi", (int)response.StatusCode);
+        throw new SafeApiResponseException(response.StatusCode, body);
     }
 }
