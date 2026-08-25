@@ -4,6 +4,7 @@ using MicroEMR.Application.Tenancy;
 using MicroEMR.Core.Tenancy;
 using System.Text.Json;
 using MicroEMR.Api.Authorization;
+using MicroEMR.Application.OperationalTelemetry;
 
 namespace MicroEMR.Api.Middleware;
 
@@ -48,11 +49,8 @@ public sealed class TenantResolutionMiddleware
             !Guid.TryParse(tenantClaims[0], out var tenantUid) ||
             tenantUid == Guid.Empty)
         {
-            _logger.LogWarning(
-                "Tenant claim validation failed. Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: InvalidTenantClaim",
-                subject,
-                httpContext.TraceIdentifier,
-                httpContext.Request.Path);
+            _logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.TenantResolutionFailed,
+                "Tenant.Resolve", "InvalidTenantClaim", fallbackTraceIdentifier: httpContext.TraceIdentifier);
             await WriteProblemAsync(httpContext, StatusCodes.Status403Forbidden, UnassignedMessage);
             return;
         }
@@ -69,12 +67,8 @@ public sealed class TenantResolutionMiddleware
                 string.IsNullOrWhiteSpace(tenant.TenantKey) ||
                 string.IsNullOrWhiteSpace(tenant.DisplayName))
             {
-                _logger.LogWarning(
-                    "Tenant is unavailable or inactive. TenantUid: {TenantUid}; Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: TenantUnavailable",
-                    tenantUid,
-                    subject,
-                    httpContext.TraceIdentifier,
-                    httpContext.Request.Path);
+                _logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.TenantResolutionFailed,
+                    "Tenant.Resolve", "TenantUnavailable", tenantUid, httpContext.TraceIdentifier);
                 await WriteProblemAsync(httpContext, StatusCodes.Status403Forbidden, UnavailableMessage);
                 return;
             }
@@ -91,12 +85,8 @@ public sealed class TenantResolutionMiddleware
                 membership.TenantUid != tenantUid ||
                 !string.Equals(membership.MembershipStatus, "Active", StringComparison.Ordinal))
             {
-                _logger.LogWarning(
-                    "Active tenant membership was not found. TenantUid: {TenantUid}; Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: MembershipInactive",
-                    tenantUid,
-                    subject,
-                    httpContext.TraceIdentifier,
-                    httpContext.Request.Path);
+                _logger.SafeFailure(LogLevel.Warning, OperationalEventCodes.TenantResolutionFailed,
+                    "Tenant.Resolve", "MembershipInactive", tenantUid, httpContext.TraceIdentifier);
                 await WriteProblemAsync(httpContext, StatusCodes.Status403Forbidden, UnavailableMessage);
                 return;
             }
@@ -108,26 +98,17 @@ public sealed class TenantResolutionMiddleware
                 tenant.TenantKey,
                 tenant.DisplayName));
 
-            _logger.LogInformation(
-                "Tenant context established. TenantUid: {TenantUid}; Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: Resolved",
-                tenantUid,
-                subject,
-                httpContext.TraceIdentifier,
-                httpContext.Request.Path);
+            // Successful resolution is intentionally not logged per request; request telemetry
+            // and governed audit events provide correlation without operational noise.
         }
         catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            _logger.LogError(
-                exception,
-                "Platform tenant resolution failed. TenantUid: {TenantUid}; Subject: {Subject}; TraceIdentifier: {TraceIdentifier}; Path: {Path}; Outcome: PlatformUnavailable",
-                tenantUid,
-                subject,
-                httpContext.TraceIdentifier,
-                httpContext.Request.Path);
+            _logger.SafeFailure(LogLevel.Error, OperationalEventCodes.PlatformDatabaseUnavailable,
+                "Tenant.Resolve", "PlatformDatabaseUnavailable", tenantUid, httpContext.TraceIdentifier);
             await WriteProblemAsync(
                 httpContext,
                 StatusCodes.Status503ServiceUnavailable,

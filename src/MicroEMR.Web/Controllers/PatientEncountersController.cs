@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientEncounters;
 using MicroEMR.Web.Services.PatientEncounters;
+using MicroEMR.Web.Services;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.SecurityAudit;
@@ -591,7 +592,7 @@ public sealed class PatientEncountersController : Controller
                 model.PatientUid);
 
             AddApiValidationErrors(
-                exception.Message,
+                SafeApiResponseException.ValidationBody(exception),
                 "The encounter could not be created. Review the fields and try again.");
 
             return View(model);

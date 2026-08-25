@@ -128,6 +128,8 @@ app.UseSwaggerUI(options =>
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<SafeRequestTelemetryMiddleware>();
+
 app.UseAuthentication();
 app.UseMiddleware<TenantDatabaseExceptionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();

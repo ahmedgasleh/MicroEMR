@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientAllergies;
 using MicroEMR.Web.Services.PatientAllergies;
+using MicroEMR.Web.Services;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -141,7 +142,7 @@ public sealed class PatientAllergiesController : Controller
                 model.PatientUid);
 
             AddApiValidationErrors(
-                exception.Message,
+                SafeApiResponseException.ValidationBody(exception),
                 "The allergy could not be added. Review the fields and try again.");
 
             return View(model);
@@ -253,7 +254,7 @@ public sealed class PatientAllergiesController : Controller
         {
             _logger.LogWarning(exception, "The allergy API rejected an update request.");
             AddApiValidationErrors(
-                exception.Message,
+                SafeApiResponseException.ValidationBody(exception),
                 exception.StatusCode == HttpStatusCode.Conflict
                     ? "The allergy was changed by another user. Reload and try again."
                     : "The allergy could not be updated. Review the fields and try again.");

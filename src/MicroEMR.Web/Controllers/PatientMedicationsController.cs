@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MicroEMR.Web.Models.PatientMedications;
 using MicroEMR.Web.Services.PatientMedications;
+using MicroEMR.Web.Services;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -146,7 +147,7 @@ public sealed class PatientMedicationsController : Controller
                 model.PatientUid);
 
             AddApiValidationErrors(
-                exception.Message,
+                SafeApiResponseException.ValidationBody(exception),
                 "The medication could not be added. Review the fields and try again.");
 
             return View(model);
@@ -218,7 +219,7 @@ public sealed class PatientMedicationsController : Controller
             return RedirectToAction("Details", "Patients", new { patientUid=model.PatientUid, tab="medications" });
         }
         catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict) {
-            AddApiValidationErrors(exception.Message, exception.StatusCode == HttpStatusCode.Conflict
+            AddApiValidationErrors(SafeApiResponseException.ValidationBody(exception), exception.StatusCode == HttpStatusCode.Conflict
                 ? "The medication was changed by another user. Reload and try again."
                 : "The medication could not be updated. Review the fields and try again.");
             return View(model);

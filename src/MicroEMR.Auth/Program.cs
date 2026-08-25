@@ -6,6 +6,7 @@ using MicroEMR.Auth.Services.Tenancy;
 using MicroEMR.Auth.Services.SecurityAudit;
 using MicroEMR.Infrastructure;
 using MicroEMR.Auth.Services.PlatformEntitlements;
+using MicroEMR.Auth;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -106,6 +107,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+app.UseMiddleware<SafeRequestTelemetryMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

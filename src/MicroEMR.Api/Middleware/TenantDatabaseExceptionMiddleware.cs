@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Infrastructure.Tenancy;
+using MicroEMR.Application.OperationalTelemetry;
 
 namespace MicroEMR.Api.Middleware;
 
@@ -25,15 +26,11 @@ public sealed class TenantDatabaseExceptionMiddleware
         {
             await _next(context);
         }
-        catch (TenantDatabaseConnectionException exception)
+        catch (TenantDatabaseConnectionException)
         {
-            _logger.LogError(
-                exception,
-                "Tenant database operation rejected. TenantUid: {TenantUid}; Subject: {Subject}; Path: {Path}; TraceIdentifier: {TraceIdentifier}; Outcome: DatabaseUnavailable",
-                tenantContextAccessor.Current?.TenantUid,
-                context.User.FindFirst("sub")?.Value,
-                context.Request.Path,
-                context.TraceIdentifier);
+            _logger.SafeFailure(LogLevel.Error, OperationalEventCodes.TenantDatabaseUnavailable,
+                "TenantDatabase.Open", "DatabaseUnavailable",
+                tenantContextAccessor.Current?.TenantUid, context.TraceIdentifier);
 
             if (context.Response.HasStarted)
                 throw;
