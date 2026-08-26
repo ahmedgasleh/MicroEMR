@@ -13,6 +13,7 @@ public static class OperationalEventCodes
     public const string FileStorageUnavailable = "FILE_STORAGE_UNAVAILABLE";
     public const string UnexpectedApplicationError = "UNEXPECTED_APPLICATION_ERROR";
     public const string HttpRequestCompleted = "HTTP_REQUEST_COMPLETED";
+    public const string CdsRuleEvaluationFailed = "CDS_RULE_EVALUATION_FAILED";
 }
 
 public readonly record struct OperationalTrace(string TraceId, string SpanId)
@@ -31,6 +32,15 @@ public readonly record struct OperationalTrace(string TraceId, string SpanId)
 
 public static class SafeOperationalLog
 {
+    public static void CdsRuleEvaluationFailed(this ILogger logger, string ruleKey, int ruleVersion)
+    {
+        var trace = OperationalTrace.Capture();
+        logger.LogWarning(
+            "Operational event {EventCode}. RuleKey: {RuleKey}; RuleVersion: {RuleVersion}; Outcome: {Outcome}; ErrorCategory: {ErrorCategory}; TraceId: {TraceId}; SpanId: {SpanId}",
+            OperationalEventCodes.CdsRuleEvaluationFailed, ruleKey, ruleVersion, "Failed",
+            "RuleEvaluationFailure", trace.TraceId, trace.SpanId);
+    }
+
     public static void HttpDependencyFailed(this ILogger logger, string operation,
         int statusCode, string? fallbackTraceIdentifier = null)
     {

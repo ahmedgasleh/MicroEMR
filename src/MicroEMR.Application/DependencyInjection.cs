@@ -27,6 +27,7 @@ using MicroEMR.Application.ReadAudit;
 using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Application.PatientImmunizations;
 using MicroEMR.Application.ClinicalDataMigration;
+using MicroEMR.Application.Cds;
 
 namespace MicroEMR.Application;
 
@@ -76,6 +77,8 @@ public static class DependencyInjection
         services.AddOptions<ClinicalDataMigrationOptions>();
         services.AddScoped<IClinicalDataMigrationValidationService, ClinicalDataMigrationValidationService>();
         services.AddScoped<IClinicalDataMigrationImportService, ClinicalDataMigrationImportService>();
+        services.AddSingleton<ICdsRuleRegistry, CdsRuleRegistry>();
+        services.AddScoped<ICdsEvaluationService, CdsEvaluationService>();
 
         return services;
     }

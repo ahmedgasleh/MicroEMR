@@ -204,7 +204,7 @@ public sealed class PlatformSecurityAuditReviewTests
         Assert.Equal(21, platform.Max(x => int.Parse(x![..3])));
         var tenant = Directory.GetFiles(Path.Combine(Root(), "db", "tenant-clinical", "migrations"), "*.sql")
             .Max(x => int.Parse(Path.GetFileName(x)[..4]));
-        Assert.Equal(51, tenant);
+        Assert.Equal(52, tenant);
         Assert.Equal("59191CC39EACA18C81303B72FFA7A99DB1C728B682612917C3E3A668E211615A",
             Hash("db", "platform", "018_platform_entitlement_foundation.sql"));
     }
