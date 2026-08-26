@@ -29,6 +29,7 @@ using MicroEMR.Application.PatientImmunizations;
 using MicroEMR.Application.ClinicalDataMigration;
 using MicroEMR.Application.Cds;
 using MicroEMR.Application.Cdm;
+using MicroEMR.Application.PatientCpp;
 
 namespace MicroEMR.Application;
 
@@ -82,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<ICdsEvaluationService, CdsEvaluationService>();
         services.AddSingleton<ICdmProgramRegistry, CdmProgramRegistry>();
         services.AddScoped<ICdmEnrollmentService, CdmEnrollmentService>();
+        services.AddScoped<IPatientCppService, PatientCppService>();
 
         return services;
     }

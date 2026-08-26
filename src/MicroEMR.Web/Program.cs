@@ -127,6 +127,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientClinicalHistoryApiClie
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientImmunizationApiClient,PatientImmunizationApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientCppApiClient, PatientCppApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     ISchedulingApiClient,

@@ -113,12 +113,15 @@ public sealed class PatientChartReadAuditTests
     public void TriggerIsCentralChartActionAndChildFeedsDoNotAudit()
     {
         var source = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Controllers", "PatientsController.cs"));
-        Assert.Equal(1, source.Split("RecordChartOpenedAsync", StringSplitOptions.None).Length - 1);
         var details = source[source.IndexOf("Task<IActionResult> Details", StringComparison.Ordinal)..];
         Assert.True(details.IndexOf("GetByUidAsync", StringComparison.Ordinal) <
-                    details.IndexOf("RecordChartOpenedAsync", StringComparison.Ordinal));
-        Assert.True(details.IndexOf("RecordChartOpenedAsync", StringComparison.Ordinal) <
+                    details.IndexOf("_patientCppApiClient.GetAsync", StringComparison.Ordinal));
+        Assert.True(details.IndexOf("_patientCppApiClient.GetAsync", StringComparison.Ordinal) <
                     details.IndexOf("GetByPatientUidAsync", StringComparison.Ordinal));
+        Assert.DoesNotContain("RecordChartOpenedAsync", details);
+
+        var cpp = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Application", "PatientCpp", "PatientCppService.cs"));
+        Assert.Equal(1, cpp.Split("readAudit.RecordOpenedAsync", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
