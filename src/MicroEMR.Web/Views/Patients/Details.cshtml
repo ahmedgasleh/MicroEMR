@@ -153,6 +153,19 @@
 </section>
 <form id="patientCdsAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
 
+<section id="patientCdmRoot" class="card mb-3" data-summary-url="@Url.Action("Summary","PatientCdm",new{patientUid=patient.PatientUid})" data-can-manage="@canManageClinicalData.ToString().ToLowerInvariant()" aria-labelledby="patientCdmHeading">
+    <div class="card-header"><h2 id="patientCdmHeading" class="h6 mb-0">Chronic Disease</h2><small class="text-body-secondary">Explicit program enrollment only; clinical Problems remain the diagnosis source of truth.</small></div>
+    <div class="card-body">
+        <div id="patientCdmContent"><span class="text-body-secondary">Loading chronic disease enrollment...</span></div>
+        <div id="patientCdmEnrollmentForm" class="row g-2 mt-2 d-none">
+            <div class="col-md-5"><label class="form-label" for="patientCdmProgram">Approved program</label><select id="patientCdmProgram" class="form-select"></select></div>
+            <div class="col-md-5"><label class="form-label" for="patientCdmProblem">Clinical Problem</label><select id="patientCdmProblem" class="form-select">@foreach(var problem in Model.Problems.Where(x=>x.ProblemStatus=="Active")){<option value="@problem.PatientProblemUid">@problem.ProblemName</option>}</select></div>
+            <div class="col-md-2 d-flex align-items-end"><button id="patientCdmEnroll" type="button" class="btn btn-primary w-100">Enroll</button></div>
+        </div>
+    </div>
+</section>
+<form id="patientCdmAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
+
 <div class="modal fade" id="patientSearchModal" tabindex="-1" aria-labelledby="patientSearchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1454,6 +1467,7 @@
 <script type="module" src="~/dist/patients/patient-referrals.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-results.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-cds.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-cdm.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-files.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patient-encounters/templates.js" asp-append-version="true"></script>
 <script>
