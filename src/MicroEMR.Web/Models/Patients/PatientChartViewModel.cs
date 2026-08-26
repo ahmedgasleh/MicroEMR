@@ -5,11 +5,13 @@ using MicroEMR.Web.Models.PatientMedications;
 using MicroEMR.Web.Models.PatientProblems;
 using MicroEMR.Web.Models.PatientVitals;
 using MicroEMR.Application.PatientPrescriptions;
+using MicroEMR.Application.PatientCpp;
 
 namespace MicroEMR.Web.Models.Patients;
 
 public sealed class PatientChartViewModel
 {
+    public PatientCppSummaryResponse Cpp { get; set; } = null!;
     public PatientChartSummaryViewModel Summary { get; set; } = new();
     public PatientTimelineViewModel Timeline { get; set; } = new();
     public PatientDetailsResponse Patient { get; set; } = new();

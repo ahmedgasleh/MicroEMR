@@ -27,6 +27,7 @@ namespace MicroEMR.Web.Controllers;
 public sealed class PatientsController : Controller
 {
     private readonly IPatientApiClient _patientApiClient;
+    private readonly IPatientCppApiClient _patientCppApiClient;
     private readonly IPatientAllergyApiClient _patientAllergyApiClient;
     private readonly IPatientDocumentApiClient _patientDocumentApiClient;
     private readonly IPatientEncounterApiClient _patientEncounterApiClient;
@@ -40,6 +41,7 @@ public sealed class PatientsController : Controller
 
     public PatientsController(
         IPatientApiClient patientApiClient,
+        IPatientCppApiClient patientCppApiClient,
         IPatientAllergyApiClient patientAllergyApiClient,
         IPatientDocumentApiClient patientDocumentApiClient,
         IPatientEncounterApiClient patientEncounterApiClient,
@@ -51,6 +53,7 @@ public sealed class PatientsController : Controller
         ICurrentPatientContext currentPatientContext,IWebPermissionService permissionService)
     {
         _patientApiClient = patientApiClient;
+        _patientCppApiClient = patientCppApiClient;
         _patientAllergyApiClient = patientAllergyApiClient;
         _logger = logger;
         _patientDocumentApiClient = patientDocumentApiClient;
@@ -361,23 +364,21 @@ public sealed class PatientsController : Controller
             return NotFound();
         }
 
+        MicroEMR.Application.PatientCpp.PatientCppSummaryResponse? cpp;
         try
         {
-            await _patientApiClient.RecordChartOpenedAsync(
-                patient.PatientUid, cancellationToken);
+            // GET /cpp owns the one fail-closed PatientChartOpened audit for this chart load.
+            cpp = await _patientCppApiClient.GetAsync(patient.PatientUid, cancellationToken);
+            if (cpp is null) return NotFound();
         }
         catch (UnauthorizedAccessException exception)
         {
-            _logger.LogWarning(exception,
-                "Patient chart access audit was denied for patient {PatientUid}; chart access was prevented.",
-                patient.PatientUid);
+            _logger.LogWarning(exception, "Patient CPP access was denied; chart access was prevented.");
             return Forbid();
         }
         catch (HttpRequestException exception)
         {
-            _logger.LogError(exception,
-                "Patient chart access audit failed for patient {PatientUid}; chart access was prevented.",
-                patient.PatientUid);
+            _logger.LogError(exception, "Patient CPP or chart access audit failed; chart access was prevented.");
             return StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
 
@@ -411,6 +412,7 @@ public sealed class PatientsController : Controller
 
         var model = new PatientChartViewModel
         {
+            Cpp = cpp,
             Summary = BuildSummary(patient, problems, allergies, medications, vitals, encounters, documents),
             Timeline = BuildTimeline(patientUid, encounters, documents, vitals, problems, allergies, medications),
             Patient = patient,
