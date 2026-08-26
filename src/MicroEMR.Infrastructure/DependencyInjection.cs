@@ -54,6 +54,8 @@ using MicroEMR.Application.PatientImmunizations;
 using MicroEMR.Infrastructure.PatientImmunizations;
 using MicroEMR.Application.ClinicalDataMigration;
 using MicroEMR.Infrastructure.ClinicalDataMigration;
+using MicroEMR.Application.Cds;
+using MicroEMR.Infrastructure.Cds;
 
 namespace MicroEMR.Infrastructure;
 
@@ -96,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();
+        services.AddScoped<ICdsRepository, CdsRepository>();
         services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
         services.AddScoped<IPatientReferralRepository, PatientReferralRepository>();
         services.AddScoped<IReferralDocumentRepository, ReferralDocumentRepository>();

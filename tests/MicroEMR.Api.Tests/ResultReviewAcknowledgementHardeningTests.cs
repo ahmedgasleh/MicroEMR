@@ -18,9 +18,10 @@ public sealed class ResultReviewAcknowledgementHardeningTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal("0050-patient-prescription-foundation", ids[^2]);
-        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[^1]);
-        Assert.Single(ids, x => x == ids[^1]);
+        Assert.Equal("0050-patient-prescription-foundation", ids[^3]);
+        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[^2]);
+        Assert.Equal("0052-cds-foundation", ids[^1]);
+        Assert.Single(ids, x => x == "0051-result-review-acknowledgement-hardening");
         Assert.False(File.Exists(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0052-result-review-acknowledgement-hardening.sql")));
     }
 

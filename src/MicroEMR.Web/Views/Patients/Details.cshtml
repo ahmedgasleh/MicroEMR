@@ -132,6 +132,27 @@
     </nav>
 </section>
 
+<section id="patientCdsRoot" class="card mb-3"
+         data-patient-uid="@patient.PatientUid"
+         data-evaluate-url="@Url.Action("Evaluate", "PatientCds", new { patientUid = patient.PatientUid })"
+         data-can-respond="@canManageClinicalData.ToString().ToLowerInvariant()"
+         aria-labelledby="patientCdsHeading">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 id="patientCdsHeading" class="h6 mb-0">Clinical Decision Support</h2>
+            <small class="text-body-secondary">Transparent, deterministic findings only. Clinical judgment remains authoritative.</small>
+        </div>
+        <span class="badge text-bg-secondary" id="patientCdsCount">0</span>
+    </div>
+    <div class="card-body">
+        <div id="patientCdsMessage" class="alert d-none" role="alert"></div>
+        <div id="patientCdsList" aria-live="polite">
+            <span class="text-body-secondary">Loading clinical decision support...</span>
+        </div>
+    </div>
+</section>
+<form id="patientCdsAntiforgery" class="d-none">@Html.AntiForgeryToken()</form>
+
 <div class="modal fade" id="patientSearchModal" tabindex="-1" aria-labelledby="patientSearchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -1432,6 +1453,7 @@
 <script type="module" src="~/dist/patients/patient-tasks.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-referrals.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-results.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-cds.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-files.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patient-encounters/templates.js" asp-append-version="true"></script>
 <script>
