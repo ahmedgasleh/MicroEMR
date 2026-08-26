@@ -1,47 +1,25 @@
-const patient = document.querySelector("#patientChartBanner")?.dataset.patientUid ?? "";
-const list = document.querySelector("#patientResultList");
-const filter = document.querySelector("#patientResultFilter");
-const form = document.querySelector("#patientResultForm");
-const reviewForm = document.querySelector("#reviewPatientResultForm");
-const modal = new bootstrap.Modal(document.querySelector("#patientResultModal"));
-const reviewModal = new bootstrap.Modal(document.querySelector("#reviewPatientResultModal"));
-const token = document.querySelector('#patientResultAntiforgery input[name="__RequestVerificationToken"]');
+const patient = document.querySelector("#patientChartBanner")?.dataset.patientUid ?? "", list = document.querySelector("#patientResultList"), filter = document.querySelector("#patientResultFilter"), form = document.querySelector("#patientResultForm"), reviewForm = document.querySelector("#reviewPatientResultForm"), errorForm = document.querySelector("#resultErrorForm"), modal = new bootstrap.Modal(document.querySelector("#patientResultModal")), reviewModal = new bootstrap.Modal(document.querySelector("#reviewPatientResultModal")), errorModal = new bootstrap.Modal(document.querySelector("#resultErrorModal")), historyModal = new bootstrap.Modal(document.querySelector("#resultHistoryModal")), token = document.querySelector('#patientResultAntiforgery input[name="__RequestVerificationToken"]'), canManage = list.dataset.canManage === "true";
 let items = [];
-const esc = (v) => { const d = document.createElement("div"); d.textContent = v ?? ""; return d.innerHTML; };
-function render() {
-    if (!items.length) {
-        list.innerHTML = `<div class="alert alert-light border">No ${filter.value.toLowerCase()} results recorded.</div>`;
-        return;
-    }
-    list.innerHTML = items.map(x => `<div class="card mb-2"><div class="card-body"><div class="d-flex justify-content-between"><div><span class="badge ${x.resultStatus === "New" ? "text-bg-info" : "text-bg-secondary"}">${esc(x.resultStatus)}</span> <strong>${esc(x.resultName)}</strong><div class="small text-body-secondary">${esc(x.resultType)} · ${new Date(x.resultDate).toLocaleString()}</div>${x.resultValue ? `<div class="mt-2"><strong>Value:</strong> ${esc(x.resultValue)} ${esc(x.resultUnit)} ${x.referenceRange ? `<span class="text-body-secondary">(Ref: ${esc(x.referenceRange)})</span>` : ""}</div>` : ""}${x.resultSummary ? `<p class="mb-0 mt-2">${esc(x.resultSummary)}</p>` : ""}<div class="small mt-2">${x.resultStatus === "Reviewed" ? `<strong>Reviewed</strong> · Reviewed by ${esc(x.reviewedByDisplayName ?? "Unknown clinical user")} · ${x.reviewedAt ? new Date(x.reviewedAt).toLocaleString() : "Time unavailable"}` : "<strong>Not reviewed</strong>"}</div>${x.reviewNote ? `<div class="small">Review note: ${esc(x.reviewNote)}</div>` : ""}</div><div>${x.resultStatus === "New" ? `<button class="btn btn-sm btn-outline-primary edit-result" data-id="${x.patientResultUid}">Edit</button> <button class="btn btn-sm btn-outline-success review-result" data-id="${x.patientResultUid}">Mark Reviewed</button>` : ""}</div></div></div></div>`).join("");
-    list.querySelectorAll(".edit-result").forEach(b => b.onclick = () => open(items.find(x => x.patientResultUid === b.dataset.id)));
-    list.querySelectorAll(".review-result").forEach(b => b.onclick = () => { const item = items.find(x => x.patientResultUid === b.dataset.id); reviewForm.reset(); reviewForm.elements.namedItem("PatientResultUid").value = b.dataset.id ?? ""; reviewForm.elements.namedItem("ExpectedRowVersion").value = item?.rowVersion ?? ""; reviewModal.show(); });
-}
-async function load() { list.setAttribute("aria-busy", "true"); try {
-    const r = await fetch(`/PatientResults/List?patientUid=${patient}&status=${encodeURIComponent(filter.value)}`);
-    const x = await r.json();
-    if (!r.ok)
-        throw new Error(x.message ?? "Results could not be loaded.");
-    items = x.results ?? [];
-    render();
-}
-catch (error) {
-    list.replaceChildren();
-    throw error;
-}
-finally {
-    list.setAttribute("aria-busy", "false");
-} }
-function localValue(value) { const d = new Date(value), offset = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - offset).toISOString().slice(0, 16); }
-function open(x) { form.reset(); form.elements.namedItem("PatientUid").value = patient; form.elements.namedItem("PatientResultUid").value = x?.patientResultUid ?? ""; form.elements.namedItem("ResultType").value = x?.resultType ?? "Lab"; form.elements.namedItem("ResultName").value = x?.resultName ?? ""; form.elements.namedItem("ResultDate").value = x ? localValue(x.resultDate) : localValue(new Date().toISOString()); for (const n of ["ResultSummary", "ResultValue", "ResultUnit", "ReferenceRange"]) {
-    form.elements.namedItem(n).value = String(x?.[(n[0].toLowerCase() + n.slice(1))] ?? "");
-} modal.show(); }
-async function post(url, target) { const body = new FormData(target); body.set("__RequestVerificationToken", token.value); const r = await fetch(url, { method: "POST", body }); const x = await r.json(); if (!r.ok || !x.success)
+const esc = (v) => { const d = document.createElement("div"); d.textContent = v ?? ""; return d.innerHTML; }, field = (f, n) => f.elements.namedItem(n), local = (v) => { const d = new Date(v), o = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - o).toISOString().slice(0, 16); }, provenance = (x) => x.sourceType === "External" ? `External — ${x.sourceOrganization || x.sourceSystem || "source recorded"}` : "Manual";
+function render() { if (!items.length) {
+    list.innerHTML = `<div class="alert alert-light border">No ${filter.value.toLowerCase()} current results recorded.</div>`;
+    return;
+} list.innerHTML = items.map(x => `<div class="card mb-2"><div class="card-body"><div class="d-flex justify-content-between gap-3"><div><span class="badge text-bg-secondary">${esc(x.resultStatus)}</span> <span class="badge text-bg-light border">${esc(x.abnormality)}</span> <strong>${esc(x.resultName)}</strong><div class="small text-body-secondary">${esc(x.resultType)} · ${new Date(x.resultDate).toLocaleString()} · ${esc(provenance(x))}</div>${x.resultValue ? `<div><strong>Value:</strong> ${esc(x.resultValue)} ${esc(x.resultUnit)}</div>` : ""}${x.resultSummary ? `<p class="mb-0">${esc(x.resultSummary)}</p>` : ""}<div class="small">${x.resultStatus === "Reviewed" ? `Reviewed by ${esc(x.reviewedByDisplayName || "Unknown clinical user")} · ${x.reviewedAt ? new Date(x.reviewedAt).toLocaleString() : "Time unavailable"}` : "Not reviewed"}</div>${x.previousResultUid ? '<span class="badge text-bg-light border">Corrected version</span> ' : ""}</div><div class="d-flex gap-1 flex-wrap">${canManage && x.resultStatus === "New" ? `<button class="btn btn-sm btn-outline-primary edit-result" data-id="${x.patientResultUid}">Edit</button><button class="btn btn-sm btn-outline-success review-result" data-id="${x.patientResultUid}">Mark Reviewed</button>` : ""}${canManage && x.resultStatus === "Reviewed" ? `<button class="btn btn-sm btn-outline-primary correct-result" data-id="${x.patientResultUid}">Correct</button>` : ""}${canManage ? `<button class="btn btn-sm btn-outline-danger error-result" data-id="${x.patientResultUid}">Mark entered in error</button>` : ""}<button class="btn btn-sm btn-outline-secondary history-result" data-id="${x.patientResultUid}">View history</button></div></div></div></div>`).join(""); list.querySelectorAll(".edit-result").forEach(b => b.onclick = () => open(items.find(x => x.patientResultUid === b.dataset.id), "Update")); list.querySelectorAll(".correct-result").forEach(b => b.onclick = () => open(items.find(x => x.patientResultUid === b.dataset.id), "Correct")); list.querySelectorAll(".review-result").forEach(b => b.onclick = () => openAction(reviewForm, items.find(x => x.patientResultUid === b.dataset.id), reviewModal)); list.querySelectorAll(".error-result").forEach(b => b.onclick = () => openAction(errorForm, items.find(x => x.patientResultUid === b.dataset.id), errorModal)); list.querySelectorAll(".history-result").forEach(b => b.onclick = () => void history(b.dataset.id ?? "")); }
+function openAction(f, x, m) { f.reset(); field(f, "PatientResultUid").value = x?.patientResultUid ?? ""; field(f, "ExpectedRowVersion").value = x?.rowVersion ?? ""; m.show(); }
+function open(x, operation = "Create") { form.reset(); field(form, "PatientUid").value = patient; field(form, "PatientResultUid").value = x?.patientResultUid ?? ""; field(form, "ExpectedRowVersion").value = x?.rowVersion ?? ""; field(form, "Operation").value = operation; field(form, "ResultType").value = x?.resultType ?? "Lab"; field(form, "ResultName").value = x?.resultName ?? ""; field(form, "ResultDate").value = x ? local(x.resultDate) : local(new Date().toISOString()); for (const n of ["ResultSummary", "ResultValue", "ResultUnit", "ReferenceRange", "SourceOrganization", "SourceSystem", "ExternalResultId"]) {
+    const k = (n[0].toLowerCase() + n.slice(1));
+    field(form, n).value = String(x?.[k] ?? "");
+} field(form, "SourceType").value = x?.sourceType ?? "Manual"; field(form, "Abnormality").value = x?.abnormality ?? "Unknown"; field(form, "ReceivedAtUtc").value = x?.receivedAtUtc ? local(x.receivedAtUtc) : ""; document.querySelector("#patientResultModalTitle").textContent = operation === "Correct" ? "Correct Reviewed Result" : "Patient Result"; modal.show(); }
+async function load() { const r = await fetch(`/PatientResults/List?patientUid=${patient}&status=${encodeURIComponent(filter.value)}`), x = await r.json(); if (!r.ok)
+    throw new Error(x.message); items = x.results ?? []; render(); }
+async function post(url, f) { const body = new FormData(f); body.set("__RequestVerificationToken", token.value); const r = await fetch(url, { method: "POST", body }), x = await r.json(); if (!r.ok || !x.success)
     throw new Error(x.message ?? "Result operation failed."); location.reload(); }
+async function history(id) { const r = await fetch(`/PatientResults/History?patientUid=${patient}&resultUid=${id}`), x = await r.json(); const target = document.querySelector("#resultHistoryContent"); target.innerHTML = (x.results ?? []).map(v => `<article class="border rounded p-3 mb-2"><strong>${esc(v.resultName)}</strong> <span class="badge text-bg-secondary">${esc(v.lifecycleStatus)}</span> <span class="badge text-bg-light border">${esc(v.resultStatus)}</span> <span class="badge text-bg-light border">${esc(v.abnormality)}</span><div>${esc(provenance(v))}</div><div class="small">Created ${new Date(v.createdAt).toLocaleString()} by ${esc(v.createdByDisplayName || "Unknown")}</div>${v.reviewedAt ? `<div class="small">Reviewed ${new Date(v.reviewedAt).toLocaleString()} by ${esc(v.reviewedByDisplayName)}</div>` : ""}${v.enteredInErrorAtUtc ? `<div class="alert alert-warning mt-2 mb-0">Entered in error: ${esc(v.enteredInErrorReason)}</div>` : ""}</article>`).join(""); historyModal.show(); }
 document.querySelector("#addPatientResult")?.addEventListener("click", () => open());
-filter.onchange = () => void load().catch(e => alert(e.message));
-document.querySelector("#savePatientResult")?.addEventListener("click", () => void post(form.elements.namedItem("PatientResultUid").value ? "/PatientResults/Update" : "/PatientResults/Create", form).catch(e => alert(e.message)));
+filter.onchange = () => void load();
+document.querySelector("#savePatientResult")?.addEventListener("click", () => { const op = field(form, "Operation").value; void post(`/PatientResults/${op}`, form).catch(e => alert(e.message)); });
 document.querySelector("#confirmReviewPatientResult")?.addEventListener("click", () => void post("/PatientResults/Review", reviewForm).catch(e => alert(e.message)));
-void load().catch(e => console.error("Results could not be loaded.", e));
+document.querySelector("#confirmResultError")?.addEventListener("click", () => void post("/PatientResults/EnteredInError", errorForm).catch(e => alert(e.message)));
+void load();
 export {};
 //# sourceMappingURL=patient-results.js.map

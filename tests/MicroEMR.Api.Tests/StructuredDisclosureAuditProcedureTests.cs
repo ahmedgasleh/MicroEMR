@@ -55,16 +55,17 @@ public sealed class StructuredDisclosureAuditProcedureTests
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal("0044-structured-read-audit-procedure", ids[^10]);
-        Assert.Equal("0045-structured-disclosure-audit-events", ids[^9]);
-        Assert.Equal("0046-aggregate-report-audit-events", ids[^8]);
-        Assert.Equal("0047-patient-immunization-history", ids[^7]);
-        Assert.Equal("0048-clinical-data-migration-validation-foundation", ids[^6]);
-        Assert.Equal("0049-clinical-data-migration-import-foundation", ids[^5]);
-        Assert.Equal("0050-patient-prescription-foundation", ids[^4]);
-        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[^3]);
-        Assert.Equal("0052-cds-foundation", ids[^2]);
-        Assert.Equal("0053-cdm-enrollment-foundation", ids[^1]);
+        Assert.Equal("0044-structured-read-audit-procedure", ids[^11]);
+        Assert.Equal("0045-structured-disclosure-audit-events", ids[^10]);
+        Assert.Equal("0046-aggregate-report-audit-events", ids[^9]);
+        Assert.Equal("0047-patient-immunization-history", ids[^8]);
+        Assert.Equal("0048-clinical-data-migration-validation-foundation", ids[^7]);
+        Assert.Equal("0049-clinical-data-migration-import-foundation", ids[^6]);
+        Assert.Equal("0050-patient-prescription-foundation", ids[^5]);
+        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[^4]);
+        Assert.Equal("0052-cds-foundation", ids[^3]);
+        Assert.Equal("0053-cdm-enrollment-foundation", ids[^2]);
+        Assert.Equal("0054-results-provenance-correction-foundation", ids[^1]);
         Assert.Single(ids, x => x == "0045-structured-disclosure-audit-events");
         Assert.Single(SqlBatchParser.Parse(Sql));
     }
