@@ -18,9 +18,8 @@ public sealed class CdsTechnicalFoundationTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var entries = manifest.RootElement.EnumerateArray().ToArray();
-        Assert.Equal("0051-result-review-acknowledgement-hardening", entries[^2].GetProperty("migrationId").GetString());
-        Assert.Equal("0052-cds-foundation", entries[^1].GetProperty("migrationId").GetString());
-        Assert.Equal("tenant-clinical/migrations/0052-cds-foundation.sql", entries[^1].GetProperty("script").GetString());
+        Assert.Equal("0052-cds-foundation", entries[^2].GetProperty("migrationId").GetString());
+        Assert.Equal("tenant-clinical/migrations/0052-cds-foundation.sql", entries[^2].GetProperty("script").GetString());
         Assert.Single(entries, x => x.GetProperty("migrationId").GetString() == "0052-cds-foundation");
         Assert.False(File.Exists(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0053-cds-foundation.sql")));
     }
