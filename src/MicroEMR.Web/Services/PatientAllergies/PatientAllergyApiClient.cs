@@ -77,6 +77,36 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
                 cancellationToken: cancellationToken);
     }
 
+    public async Task<AllergyDocumentationStateResponse?> GetDocumentationStateAsync(Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/patients/{patientUid}/allergies/documentation-state");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<AllergyDocumentationStateResponse>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<NoKnownAllergiesAssertionResponse> AssertNoKnownAllergiesAsync(Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/allergies/no-known-allergies") { Content = JsonContent.Create(new { }) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<NoKnownAllergiesAssertionResponse>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The API returned no NKA assertion.");
+    }
+
+    public async Task<NoKnownAllergiesAssertionResponse?> RevokeNoKnownAllergiesAsync(Guid patientUid, RevokeNoKnownAllergiesRequest revokeRequest, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/allergies/no-known-allergies/revoke") { Content = JsonContent.Create(revokeRequest) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<NoKnownAllergiesAssertionResponse>(cancellationToken: cancellationToken);
+    }
+
     public async Task<PatientAllergyDetailsResponse> CreateAsync(
         Guid patientUid,
         CreatePatientAllergyRequest allergyRequest,

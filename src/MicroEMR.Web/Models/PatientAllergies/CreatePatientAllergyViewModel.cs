@@ -6,6 +6,8 @@ public sealed class CreatePatientAllergyViewModel
 {
     public Guid PatientUid { get; set; }
     public string? ReturnTab { get; set; }
+    public bool NoKnownAllergiesActive { get; set; }
+    public bool ConfirmReplaceNoKnownAllergies { get; set; }
 
     [Required]
     [StringLength(200)]

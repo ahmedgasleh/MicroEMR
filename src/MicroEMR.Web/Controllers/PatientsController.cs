@@ -399,6 +399,7 @@ public sealed class PatientsController : Controller
             await LoadAllergiesForChartAsync(
                 patientUid,
                 cancellationToken);
+        var allergyDocumentationState = await _patientAllergyApiClient.GetDocumentationStateAsync(patientUid, cancellationToken);
 
         var medications =
             await LoadMedicationsForChartAsync(
@@ -420,6 +421,8 @@ public sealed class PatientsController : Controller
             DocumentTemplates = documentTemplates,
             Encounters = encounters,
             Allergies = allergies,
+            AllergyDocumentationState = allergyDocumentationState,
+            CanManageClinicalData = await _permissionService.HasAsync(PermissionKeys.ClinicalDataManage, cancellationToken),
             Medications = medications,
             Prescriptions=prescriptions,
             CanPrescribe=await _permissionService.HasAsync(PermissionKeys.PrescriptionsPrescribe,cancellationToken),

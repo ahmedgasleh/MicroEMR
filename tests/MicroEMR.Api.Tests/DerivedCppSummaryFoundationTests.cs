@@ -114,7 +114,7 @@ public sealed class DerivedCppSummaryFoundationTests
         Assert.Contains("Allergy status not documented.", view);
         Assert.Contains("Medication status not documented.", view);
         Assert.Contains("No active problem records documented.", view);
-        Assert.DoesNotContain("No Known Allergies", view);
+        Assert.Contains("No Known Allergies", view);
         Assert.DoesNotContain("No Current Medications", view);
         foreach (var tab in new[] { "problems", "allergies", "medications", "results", "vitals", "immunizations", "encounters", "referrals", "documents" })
             Assert.Contains($"data-tab-target=\"{tab}\"", view);
@@ -125,7 +125,7 @@ public sealed class DerivedCppSummaryFoundationTests
     {
         var manifest = Source("db", "tenant-clinical", "manifest.json");
         Assert.Contains("0054-results-provenance-correction-foundation", manifest);
-        Assert.DoesNotContain("0055-", manifest);
+        Assert.Contains("0055-verified-negative-allergy-assertion", manifest);
         Assert.False(File.Exists(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0055-cpp.sql")));
         var model = Source("src", "MicroEMR.Application", "PatientCpp", "PatientCppModels.cs");
         Assert.DoesNotContain("Cds", model, StringComparison.OrdinalIgnoreCase);

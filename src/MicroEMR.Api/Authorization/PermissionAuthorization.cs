@@ -13,6 +13,13 @@ public sealed class PermissionAuthorizationHandler(
     protected override async Task HandleRequirementAsync(
         AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
+        // RequireAuthenticatedUser owns the challenge. Do not resolve tenant permissions
+        // when authentication/tenant resolution has not established a subject.
+        if (context.User.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
         if (await permissions.HasPermissionAsync(requirement.PermissionKey))
         {
             context.Succeed(requirement);

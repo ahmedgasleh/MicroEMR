@@ -254,7 +254,7 @@
                     <button class="btn btn-primary btn-sm" type="button" id="summaryNewEncounterButton" data-bs-toggle="modal" data-bs-target="#createEncounterModal" data-return-tab="summary" disabled="@(!canEditEncounters)" aria-disabled="@(!canEditEncounters)" title="@(canEditEncounters ? null : "Read-only access")"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>New Encounter</button>
                     <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addVitalButton"><i class="bi bi-heart-pulse me-1" aria-hidden="true"></i>Add Vitals</button>
                     <button class="btn btn-outline-primary btn-sm summary-direct-action" type="button" data-action-target="addProblemButton"><i class="bi bi-clipboard2-plus me-1" aria-hidden="true"></i>Add Problem</button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="summary"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="summary" disabled="@(!canManageClinicalData)" aria-disabled="@(!canManageClinicalData)" title="@(canManageClinicalData ? null : "Read-only access")"><i class="bi bi-exclamation-diamond me-1" aria-hidden="true"></i>Add Allergy</button>
                     <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryMedicationModal" data-return-tab="summary"><i class="bi bi-capsule me-1" aria-hidden="true"></i>Add Medication</button>
                     <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#summaryDocumentModal" data-return-tab="summary" disabled="@(!canManageDocuments)" aria-disabled="@(!canManageDocuments)" title="@(canManageDocuments ? null : "Read-only access")"><i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>New Document</button>
                 </div>
@@ -263,7 +263,7 @@
         </div>
         <div class="row g-3" id="cppSummaryCards">
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if(cpp.Problems.State=="Unavailable"){<p class="text-muted mb-0">Problem information is temporarily unavailable.</p>}else if(cpp.Problems.Items.Count==0){<p class="text-muted mb-0">No active problem records documented.</p>}else{@foreach(var item in cpp.Problems.Items){<div class="border-top py-2"><div class="fw-semibold">@item.DisplayName</div>@if(item.OnsetDate.HasValue){<small class="text-muted">Onset @item.OnsetDate.Value.ToString("MMM d, yyyy")</small>}</div>}@if(cpp.Problems.TotalCount>cpp.Problems.Items.Count){<small class="text-muted">+ @(cpp.Problems.TotalCount-cpp.Problems.Items.Count) more</small>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View all problems</button></div></div></div>
-            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if(cpp.Allergies.State=="Unavailable"){<p class="text-muted mb-0">Allergy information is temporarily unavailable.</p>}else if(cpp.Allergies.Items.Count==0){<p class="text-muted mb-0">Allergy status not documented.</p>}else{@foreach(var item in cpp.Allergies.Items){<div class="border-top py-2"><div class="fw-semibold">@item.DisplayName</div><small>@string.Join(" · ",new[]{item.Reaction,item.Severity}.Where(x=>!string.IsNullOrWhiteSpace(x)))</small></div>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View all allergies</button></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if(cpp.Allergies.State=="Unavailable"){<p class="text-muted mb-0">Allergy information is temporarily unavailable.</p>}else if(cpp.Allergies.State=="ExplicitlyNone"){<p class="mb-0"><strong>No Known Allergies</strong></p>}else if(cpp.Allergies.Items.Count==0){<p class="text-muted mb-0">Allergy status not documented.</p>}else{@foreach(var item in cpp.Allergies.Items){<div class="border-top py-2"><div class="fw-semibold">@item.DisplayName</div><small>@string.Join(" · ",new[]{item.Reaction,item.Severity}.Where(x=>!string.IsNullOrWhiteSpace(x)))</small></div>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View all allergies</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Medications</h4>@if(cpp.Medications.State=="Unavailable"){<p class="text-muted mb-0">Medication information is temporarily unavailable.</p>}else if(cpp.Medications.Items.Count==0){<p class="text-muted mb-0">Medication status not documented.</p>}else{@foreach(var item in cpp.Medications.Items){<div class="border-top py-2"><div class="fw-semibold">@item.DisplayName @item.Strength</div><small>@string.Join(" · ",new[]{item.Frequency,item.Route}.Where(x=>!string.IsNullOrWhiteSpace(x)))</small></div>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View medication list</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Current Prescriptions</h4><p class="small text-muted">Finalized prescribing records; not a reconciled medication list.</p>@if(cpp.Prescriptions.State=="Unavailable"){<p class="text-muted mb-0">Prescription information is temporarily unavailable.</p>}else if(cpp.Prescriptions.Items.Count==0){<p class="text-muted mb-0">No current finalized prescription records.</p>}else{@foreach(var item in cpp.Prescriptions.Items){<div class="border-top py-2"><div class="fw-semibold">@item.DisplayName</div><small>@item.PrescribedDate.ToString("MMM d, yyyy") · @item.Directions</small></div>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View prescriptions</button></div></div></div>
             <div class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Results</h4>@if(cpp.Results.State=="NotAuthorized"){<p class="text-muted mb-0">Restricted.</p>}else if(cpp.Results.State=="Unavailable"){<p class="text-muted mb-0">Result information is temporarily unavailable.</p>}else if(cpp.Results.Items.Count==0){<p class="text-muted mb-0">No current result records documented.</p>}else{@foreach(var item in cpp.Results.Items){<div class="border-top py-2"><div class="d-flex justify-content-between"><span class="fw-semibold">@item.Name</span><span class="badge text-bg-secondary">@item.Abnormality</span></div><small>@item.ResultDate.ToLocalTime().ToString("MMM d, yyyy") · @item.ReviewStatus · @item.Provenance</small></div>}}</div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="results">View all results</button></div></div></div>
@@ -766,6 +766,7 @@
                 </button>
             </div>
         </div>
+
         <div id="problemPageMessage" class="alert d-none" role="alert"></div>
         <div id="problemEmptyState" class="microemr-empty-state d-none">
             <div class="microemr-empty-state__icon"><i class="bi bi-clipboard2-pulse"></i></div>
@@ -824,12 +825,38 @@
                     <option value="All">All</option>
                 </select>
                 <button type="button" id="addAllergyButton" class="btn btn-primary text-nowrap"
-                        data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="allergies">
+                        data-bs-toggle="modal" data-bs-target="#summaryAllergyModal" data-return-tab="allergies"
+                        disabled="@(!canManageClinicalData)" aria-disabled="@(!canManageClinicalData)" title="@(canManageClinicalData ? null : "Read-only access")">
                     <i class="bi bi-plus-circle me-1"></i>
                     Add Allergy
                 </button>
             </div>
         </div>
+
+        @if (Model.AllergyDocumentationState?.State == "ExplicitlyNone" && Model.AllergyDocumentationState.NoKnownAllergies is { } nka)
+        {
+            <div class="alert alert-success d-flex justify-content-between align-items-center gap-3">
+                <div><strong>No Known Allergies</strong><br /><span class="small">Verified by @nka.VerifiedByDisplayName on @nka.VerifiedAtUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</span></div>
+                <form asp-controller="PatientAllergies" asp-action="RevokeNoKnownAllergies" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="patientUid" value="@Model.Patient.PatientUid" />
+                    <input type="hidden" name="rowVersion" value="@nka.RowVersion" />
+                    <input type="hidden" name="reason" value="Revoked from Patient Chart" />
+                    <button class="btn btn-sm btn-outline-danger" disabled="@(!Model.CanManageClinicalData)">Revoke NKA</button>
+                </form>
+            </div>
+        }
+        else if (Model.AllergyDocumentationState?.State == "NotDocumented")
+        {
+            <div class="alert alert-secondary d-flex justify-content-between align-items-center">
+                <span>Allergy status not documented</span>
+                <form asp-controller="PatientAllergies" asp-action="AssertNoKnownAllergies" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="patientUid" value="@Model.Patient.PatientUid" />
+                    <button class="btn btn-sm btn-outline-primary" disabled="@(!Model.CanManageClinicalData)">Document No Known Allergies</button>
+                </form>
+            </div>
+        }
 
         <div id="allergyEmptyState" class="microemr-empty-state d-none">
             <div class="microemr-empty-state__icon"><i class="bi bi-exclamation-triangle"></i></div>

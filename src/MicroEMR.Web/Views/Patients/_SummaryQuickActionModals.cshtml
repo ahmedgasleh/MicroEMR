@@ -5,7 +5,14 @@
  <div class="modal-dialog modal-lg"><div class="modal-content"><form asp-controller="PatientAllergies" asp-action="Create" method="post" id="summaryAllergyForm">
   @Html.AntiForgeryToken()<input type="hidden" name="PatientUid" value="@patientUid" /><input type="hidden" name="ReturnTab" value="summary" />
   <div class="modal-header"><h2 class="modal-title fs-5" id="summaryAllergyModalLabel">Add Allergy</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-  <div class="modal-body"><div class="row g-3">
+  <div class="modal-body">
+  @if (Model.AllergyDocumentationState?.State == "ExplicitlyNone")
+  {
+   <div class="alert alert-warning"><strong>No Known Allergies is currently documented.</strong> Adding this allergy will replace that assertion.
+    <div class="form-check mt-2"><input id="summaryConfirmReplaceNka" name="ConfirmReplaceNoKnownAllergies" value="true" type="checkbox" class="form-check-input" required /><label for="summaryConfirmReplaceNka" class="form-check-label">I confirm this replacement.</label></div>
+   </div>
+  }
+  <div class="row g-3">
    <div class="col-12 col-md-6"><label for="summaryAllergenName" class="form-label">Allergen name</label><input id="summaryAllergenName" name="AllergenName" class="form-control" maxlength="200" required /></div>
    <div class="col-12 col-md-3"><label for="summaryAllergenType" class="form-label">Allergen type</label><select id="summaryAllergenType" name="AllergenType" class="form-select"><option value="">Select</option><option>Medication</option><option>Food</option><option>Environmental</option><option>Latex</option><option>Contrast</option><option>Other</option></select></div>
    <div class="col-12 col-md-3"><label for="summaryAllergySeverity" class="form-label">Severity</label><select id="summaryAllergySeverity" name="Severity" class="form-select"><option value="">Select</option><option>Unknown</option><option>Mild</option><option>Moderate</option><option>Severe</option></select></div>

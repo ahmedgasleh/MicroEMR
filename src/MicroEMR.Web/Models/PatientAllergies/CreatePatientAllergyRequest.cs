@@ -4,6 +4,7 @@ namespace MicroEMR.Web.Models.PatientAllergies;
 
 public sealed class CreatePatientAllergyRequest
 {
+    public bool ConfirmReplaceNoKnownAllergies { get; set; }
     [Required]
     [StringLength(200)]
     public string AllergenName { get; set; } = string.Empty;
