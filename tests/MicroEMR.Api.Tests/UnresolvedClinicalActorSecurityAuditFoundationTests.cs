@@ -145,7 +145,7 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 3 && int.TryParse(name[..3], out _))
             .Select(name => int.Parse(name![..3])).ToArray();
-        Assert.Equal(21, platformIds.Max());
+        Assert.Equal(22, platformIds.Max());
         Assert.Single(platformIds, id => id == 16);
         Assert.Single(platformIds, id => id == 17);
         Assert.Single(platformIds, id => id == 18);

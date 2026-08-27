@@ -29,6 +29,16 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 10. `010_access_profiles.sql`
 11. `011_access_profile_assignment_nonclustered_key.sql`
 12. `012_user_permission_overrides.sql`
+13. `013_access_security_stabilization.sql`
+14. `014_platform_security_denial_audit.sql`
+15. `015_platform_cross_patient_security_audit.sql`
+16. `016_platform_unresolved_actor_security_audit.sql`
+17. `017_platform_tenant_security_audit.sql`
+18. `018_platform_entitlement_foundation.sql`
+19. `019_platform_security_audit_review.sql`
+20. `020_platform_entitlement_procedure_repair.sql`
+21. `021_prescriptions_prescribe_permission_governance.sql`
+22. `022_membership_initial_access_profile_resolution.sql`
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one
@@ -46,6 +56,11 @@ optimistic concurrency. Apply it after 009; applications do not apply it at star
 Script 011 converts the access-profile assignment composite primary key to a
 nonclustered key, avoiding SQL Server's 900-byte clustered-index key limit for
 the `NVARCHAR(450)` Auth user identifier. Apply it after 010.
+
+Script 022 repairs initial membership provisioning by mapping each supported
+tenant role to its established profile name and resolving the tenant-specific,
+active `AccessProfileUid` from `dbo.AccessProfile`. It must be applied after 021
+to both existing and newly provisioned platform databases.
 
 If the platform tables were created before the membership primary keys were
 changed to nonclustered indexes, run `004_make_membership_keys_nonclustered.sql`
