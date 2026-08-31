@@ -23,6 +23,9 @@ public sealed record PatientCppSection<T>(
 
     public static PatientCppSection<T> Unavailable() =>
         new(PatientCppSectionStates.Unavailable, [], null);
+
+    public static PatientCppSection<T> ExplicitlyNone() =>
+        new(PatientCppSectionStates.ExplicitlyNone, [], 0);
 }
 
 public sealed record PatientCppDemographics(

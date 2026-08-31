@@ -30,6 +30,8 @@ public sealed class PatientChartViewModel
     public IReadOnlyList<PatientAllergyListItemResponse> Allergies
         { get; set; } =
         Array.Empty<PatientAllergyListItemResponse>();
+    public AllergyDocumentationStateResponse? AllergyDocumentationState { get; set; }
+    public bool CanManageClinicalData { get; set; }
 
     public IReadOnlyList<PatientMedicationListItemResponse> Medications
         { get; set; } =

@@ -31,6 +31,18 @@
 
         <input asp-for="PatientUid"
                type="hidden" />
+        <input asp-for="NoKnownAllergiesActive" type="hidden" />
+
+        @if (Model.NoKnownAllergiesActive)
+        {
+            <div class="alert alert-warning">
+                <strong>No Known Allergies is currently documented.</strong> Adding this allergy will replace that assertion.
+                <div class="form-check mt-2">
+                    <input asp-for="ConfirmReplaceNoKnownAllergies" class="form-check-input" required />
+                    <label asp-for="ConfirmReplaceNoKnownAllergies" class="form-check-label">I confirm that this allergy should replace No Known Allergies.</label>
+                </div>
+            </div>
+        }
 
         @if (!ViewData.ModelState.IsValid)
         {

@@ -65,17 +65,19 @@ public sealed class PatientAllergiesController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create(
-        Guid patientUid)
+    public async Task<IActionResult> Create(
+        Guid patientUid, CancellationToken cancellationToken)
     {
         if (patientUid == Guid.Empty)
         {
             return BadRequest();
         }
 
+        var state = await _allergyApiClient.GetDocumentationStateAsync(patientUid, cancellationToken);
         return View(new CreatePatientAllergyViewModel
         {
-            PatientUid = patientUid
+            PatientUid = patientUid,
+            NoKnownAllergiesActive = state?.State == "ExplicitlyNone"
         });
     }
 
@@ -110,6 +112,7 @@ public sealed class PatientAllergiesController : Controller
             Severity = model.Severity,
             OnsetDate = model.OnsetDate,
             Notes = model.Notes
+            ,ConfirmReplaceNoKnownAllergies = model.ConfirmReplaceNoKnownAllergies
         };
 
         try
@@ -183,6 +186,37 @@ public sealed class PatientAllergiesController : Controller
 
             return View(model);
         }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssertNoKnownAllergies(Guid patientUid, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty) return BadRequest();
+        try
+        {
+            await _allergyApiClient.AssertNoKnownAllergiesAsync(patientUid, cancellationToken);
+            TempData["SuccessMessage"] = "No Known Allergies documented.";
+        }
+        catch (HttpRequestException exception) { _logger.LogWarning(exception, "Unable to document NKA for {PatientUid}.", patientUid); TempData["WarningMessage"] = "No Known Allergies could not be documented."; }
+        return RedirectToAction("Details", "Patients", new { patientUid, tab = "allergies" });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeNoKnownAllergies(Guid patientUid, string rowVersion, string? reason, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || string.IsNullOrWhiteSpace(rowVersion)) return BadRequest();
+        try
+        {
+            await _allergyApiClient.RevokeNoKnownAllergiesAsync(patientUid,
+                new RevokeNoKnownAllergiesRequest { RowVersion = rowVersion, Reason = reason }, cancellationToken);
+            TempData["SuccessMessage"] = "No Known Allergies revoked.";
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "Unable to revoke NKA for {PatientUid}.", patientUid);
+            TempData["WarningMessage"] = "No Known Allergies could not be revoked.";
+        }
+        return RedirectToAction("Details", "Patients", new { patientUid, tab = "allergies" });
     }
 
     [HttpGet]

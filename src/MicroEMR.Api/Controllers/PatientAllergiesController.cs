@@ -47,6 +47,37 @@ public sealed class PatientAllergiesController : ControllerBase
         return Ok(allergies);
     }
 
+    [HttpGet("api/patients/{patientUid:guid}/allergies/documentation-state")]
+    public async Task<ActionResult<AllergyDocumentationStateResponse>> GetDocumentationState(Guid patientUid, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty) return BadRequest();
+        try { return Ok(await _allergyService.GetDocumentationStateAsync(patientUid, cancellationToken)); }
+        catch (InvalidOperationException) { return NotFound(); }
+    }
+
+    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public async Task<ActionResult<NoKnownAllergiesAssertionResponse>> AssertNoKnownAllergies(Guid patientUid, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty) return BadRequest();
+        try { return Ok(await _allergyService.AssertNoKnownAllergiesAsync(patientUid, GetAuthenticatedUserId(), cancellationToken)); }
+        catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
+    }
+
+    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies/revoke")]
+    [RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public async Task<ActionResult<NoKnownAllergiesAssertionResponse>> RevokeNoKnownAllergies(Guid patientUid, [FromBody] RevokeNoKnownAllergiesRequest request, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty || string.IsNullOrWhiteSpace(request.RowVersion)) return BadRequest();
+        try
+        {
+            var result = await _allergyService.RevokeNoKnownAllergiesAsync(patientUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
+        catch (PatientAllergyConcurrencyException exception) { return Conflict(new { message = exception.Message }); }
+    }
+
     [HttpGet("api/patient-allergies/{allergyUid:guid}")]
     [ProducesResponseType<PatientAllergyDetailsResponse>(
         StatusCodes.Status200OK)]
@@ -192,6 +223,10 @@ public sealed class PatientAllergiesController : ControllerBase
         catch (PatientAllergyConcurrencyException)
         {
             return Conflict(new { message = "The allergy was changed by another user. Reload and try again." });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
         }
     }
 

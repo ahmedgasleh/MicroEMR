@@ -109,8 +109,13 @@ public sealed class PatientCppService(
         {
             var rows = (await allergies.GetByPatientUidAsync(patientUid, token))
                 .Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
-            return PatientCppSection<PatientCppAllergy>.From(rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
-                .Take(ClinicalLimit).Select(x => new PatientCppAllergy(x.AllergyUid, x.AllergenName, x.Status, x.Reaction, x.Severity)).ToArray(), rows.Length);
+            var items = rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
+                .Take(ClinicalLimit).Select(x => new PatientCppAllergy(x.AllergyUid, x.AllergenName, x.Status, x.Reaction, x.Severity)).ToArray();
+            if (rows.Length > 0) return PatientCppSection<PatientCppAllergy>.From(items, rows.Length);
+            var documentation = await allergies.GetDocumentationStateAsync(patientUid, token);
+            return documentation.State == PatientCppSectionStates.ExplicitlyNone
+                ? PatientCppSection<PatientCppAllergy>.ExplicitlyNone()
+                : PatientCppSection<PatientCppAllergy>.From([], 0);
         });
 
     private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token) =>

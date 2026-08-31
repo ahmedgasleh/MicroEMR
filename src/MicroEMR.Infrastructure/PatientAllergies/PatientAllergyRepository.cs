@@ -186,6 +186,11 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
             200,
             createdByDisplayName);
 
+        command.Parameters.Add(new SqlParameter("@ConfirmReplaceNoKnownAllergies", SqlDbType.Bit)
+        {
+            Value = request.ConfirmReplaceNoKnownAllergies
+        });
+
 
 
         try
@@ -201,6 +206,10 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
 
             return MapDetails(reader);
         }
+        catch (SqlException exception) when (exception.Number == 51058)
+        {
+            throw new InvalidOperationException(exception.Message, exception);
+        }
         catch (SqlException exception)
         {
             _logger.LogError(
@@ -211,6 +220,48 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
             throw;
         }
     }
+
+    public async Task<AllergyDocumentationStateResponse> GetDocumentationStateAsync(Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientAllergy_GetDocumentationState", connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) throw new InvalidOperationException("Patient not found.");
+        var state = reader.GetString(reader.GetOrdinal("DocumentationState"));
+        return new AllergyDocumentationStateResponse(state,
+            reader.IsDBNull(reader.GetOrdinal("AssertionUid")) ? null : MapAssertion(reader));
+    }
+
+    public async Task<NoKnownAllergiesAssertionResponse> AssertNoKnownAllergiesAsync(Guid patientUid, long verifiedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientAllergy_AssertNoKnownAllergies", connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@VerifiedBy", SqlDbType.BigInt) { Value = verifiedBy });
+        try { await using var reader = await command.ExecuteReaderAsync(cancellationToken); if (await reader.ReadAsync(cancellationToken)) return MapAssertion(reader); }
+        catch (SqlException ex) when (ex.Number is 51055 or 51056) { throw new InvalidOperationException(ex.Message, ex); }
+        throw new InvalidOperationException("Patient not found.");
+    }
+
+    public async Task<NoKnownAllergiesAssertionResponse?> RevokeNoKnownAllergiesAsync(Guid patientUid, RevokeNoKnownAllergiesRequest request, long revokedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientAllergy_RevokeNoKnownAllergies", connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
+        command.Parameters.Add(new SqlParameter("@ExpectedRowVersion", SqlDbType.Timestamp) { Value = Convert.FromBase64String(request.RowVersion) });
+        command.Parameters.Add(new SqlParameter("@RevokedBy", SqlDbType.BigInt) { Value = revokedBy });
+        AddNullableString(command, "@Reason", SqlDbType.NVarChar, 500, request.Reason);
+        try { await using var reader = await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken) ? MapAssertion(reader) : null; }
+        catch (SqlException ex) when (ex.Number == 51057) { throw new PatientAllergyConcurrencyException(ex.Message, ex); }
+    }
+
+    private static NoKnownAllergiesAssertionResponse MapAssertion(SqlDataReader reader) => new(
+        reader.GetGuid(reader.GetOrdinal("AssertionUid")), reader.GetGuid(reader.GetOrdinal("PatientUid")),
+        reader.GetString(reader.GetOrdinal("Status")), reader.GetInt64(reader.GetOrdinal("VerifiedBy")),
+        reader.GetString(reader.GetOrdinal("VerifiedByDisplayName")), reader.GetDateTime(reader.GetOrdinal("VerifiedAtUtc")),
+        GetNullableInt64(reader, "RevokedBy"), GetNullableDateTime(reader, "RevokedAtUtc"),
+        GetNullableString(reader, "RevocationReason"), GetRowVersion(reader, "RowVersion"));
 
     public async Task<PatientAllergyDetailsResponse?> UpdateAsync(
         Guid patientUid,
@@ -256,6 +307,10 @@ public sealed class PatientAllergyRepository : IPatientAllergyRepository
         {
             throw new PatientAllergyConcurrencyException(
                 "The allergy was changed by another user.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 51058)
+        {
+            throw new InvalidOperationException(exception.Message, exception);
         }
         catch (SqlException exception)
         {

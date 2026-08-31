@@ -23,6 +23,15 @@ public sealed class PatientAllergyService : IPatientAllergyService
             cancellationToken);
     }
 
+    public Task<AllergyDocumentationStateResponse> GetDocumentationStateAsync(Guid patientUid, CancellationToken cancellationToken = default) =>
+        _repository.GetDocumentationStateAsync(patientUid, cancellationToken);
+
+    public Task<NoKnownAllergiesAssertionResponse> AssertNoKnownAllergiesAsync(Guid patientUid, long verifiedBy, CancellationToken cancellationToken = default) =>
+        _repository.AssertNoKnownAllergiesAsync(patientUid, verifiedBy, cancellationToken);
+
+    public Task<NoKnownAllergiesAssertionResponse?> RevokeNoKnownAllergiesAsync(Guid patientUid, RevokeNoKnownAllergiesRequest request, long revokedBy, CancellationToken cancellationToken = default) =>
+        _repository.RevokeNoKnownAllergiesAsync(patientUid, request, revokedBy, cancellationToken);
+
     public Task<PatientAllergyDetailsResponse?> GetByUidAsync(
         Guid allergyUid,
         CancellationToken cancellationToken = default)
