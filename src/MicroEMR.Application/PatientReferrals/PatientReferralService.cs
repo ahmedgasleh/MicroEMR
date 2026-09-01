@@ -130,6 +130,44 @@ public sealed class PatientReferralService(
         TransitionAsync(patientUid, referralUid, request, ReferralStatus.ResponseReceived,
             referrals.MarkResponseReceivedAsync, cancellationToken);
 
+    public async Task<PatientReferralDetailsResponse?> SetFollowUpDueAsync(Guid patientUid, Guid referralUid,
+        SetReferralFollowUpRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await EnsurePatientExistsAsync(patientUid, cancellationToken);
+        var current = await referrals.GetByUidAsync(patientUid, referralUid, cancellationToken);
+        if (current is null) return null;
+        if (current.Status is ReferralStatus.ResponseReceived or ReferralStatus.Closed)
+            throw new PatientReferralTransitionException("Follow-up can only be scheduled for a Draft or Sent referral.");
+        var actor = await clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
+        var updated = await referrals.SetFollowUpDueAsync(patientUid, referralUid,
+            request.FollowUpDueAtUtc, request.RowVersion, actor, cancellationToken);
+        return updated is null ? null : MapDetails(updated);
+    }
+
+    public async Task<PatientReferralDetailsResponse?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        ReferralResponseDocumentRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.DocumentUid == Guid.Empty) throw new ArgumentException("DocumentUid is required.");
+        return await MutateResponseDocumentAsync(patientUid, referralUid, request.DocumentUid,
+            request.RowVersion, cancellationToken);
+    }
+
+    public Task<PatientReferralDetailsResponse?> ClearResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default) =>
+        MutateResponseDocumentAsync(patientUid, referralUid, null, request.RowVersion, cancellationToken);
+
+    private async Task<PatientReferralDetailsResponse?> MutateResponseDocumentAsync(Guid patientUid,
+        Guid referralUid, Guid? documentUid, string rowVersion, CancellationToken cancellationToken)
+    {
+        await EnsurePatientExistsAsync(patientUid, cancellationToken);
+        var actor = await clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
+        var updated = await referrals.SetResponseDocumentAsync(patientUid, referralUid, documentUid,
+            rowVersion, actor, cancellationToken);
+        return updated is null ? null : MapDetails(updated);
+    }
+
     public Task<PatientReferralDetailsResponse?> CloseAsync(
         Guid patientUid, Guid referralUid, ReferralStatusTransitionRequest request,
         CancellationToken cancellationToken = default) =>
@@ -248,11 +286,14 @@ public sealed class PatientReferralService(
         Status = referral.Status.ToString(),
         CreatedAtUtc = referral.CreatedAt,
         SentAtUtc = referral.SentAt,
+        FollowUpDueAtUtc = referral.FollowUpDueAt,
+        IsFollowUpOverdue = ReferralFollowUpRule.IsOverdue(referral.FollowUpDueAt, referral.Status, DateTime.UtcNow),
         ResponseReceivedAtUtc = referral.ResponseReceivedAt,
         ClosedAtUtc = referral.ClosedAt,
         RowVersion = referral.RowVersion
         ,ReferringProviderUid=referral.ReferringProviderUid,ReferringProviderDisplayName=referral.ReferringProviderDisplayNameSnapshot,
-        ArtifactUid=referral.ArtifactUid
+        ArtifactUid=referral.ArtifactUid,ResponseDocumentUid=referral.ResponseDocumentUid,
+        ResponseDocumentTitle=referral.ResponseDocumentTitle
     };
 
     private static PatientReferralDetailsResponse MapDetails(PatientReferral referral) => new()
@@ -271,11 +312,14 @@ public sealed class PatientReferralService(
         UpdatedAtUtc = referral.UpdatedAt,
         UpdatedBy = referral.UpdatedBy,
         SentAtUtc = referral.SentAt,
+        FollowUpDueAtUtc = referral.FollowUpDueAt,
+        IsFollowUpOverdue = ReferralFollowUpRule.IsOverdue(referral.FollowUpDueAt, referral.Status, DateTime.UtcNow),
         ResponseReceivedAtUtc = referral.ResponseReceivedAt,
         ClosedAtUtc = referral.ClosedAt,
         RowVersion = referral.RowVersion
         ,ReferringProviderUid=referral.ReferringProviderUid,ReferringProviderDisplayName=referral.ReferringProviderDisplayNameSnapshot,
-        ReferringProviderCredential=referral.ReferringProviderCredentialSnapshot,ArtifactUid=referral.ArtifactUid
+        ReferringProviderCredential=referral.ReferringProviderCredentialSnapshot,ArtifactUid=referral.ArtifactUid,
+        ResponseDocumentUid=referral.ResponseDocumentUid,ResponseDocumentTitle=referral.ResponseDocumentTitle
     };
 }
 

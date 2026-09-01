@@ -9,9 +9,9 @@ using MicroEMR.Web.Services.Providers;
 namespace MicroEMR.Web.Controllers;
 
 [Authorize,RequireWebPermission(PermissionKeys.ProvidersView)]
-public sealed class ProvidersController(IProviderAdministrationApiClient client,ICurrentUserPermissionService permissions,ILogger<ProvidersController> logger):Controller
+public sealed class ProvidersController(IProviderAdministrationApiClient client,IWebPermissionService permissions,ILogger<ProvidersController> logger):Controller
 {
- [HttpGet]public async Task<IActionResult>Index(string status="Active",CancellationToken token=default){if(status is not("Active" or "Inactive" or "All"))status="Active";return View(new ProviderIndexViewModel(status,await client.List(status,token),await permissions.HasPermissionAsync(PermissionKeys.ProvidersManage,token)));}
+ [HttpGet]public async Task<IActionResult>Index(string status="Active",CancellationToken token=default){if(status is not("Active" or "Inactive" or "All"))status="Active";return View(new ProviderIndexViewModel(status,await client.List(status,token),await permissions.HasAsync(PermissionKeys.ProvidersManage,token)));}
  [HttpGet,RequireWebPermission(PermissionKeys.ProvidersManage)]public IActionResult Add()=>View("Edit",new ProviderEditViewModel(null,new SaveProviderRequest()));
  [HttpGet,RequireWebPermission(PermissionKeys.ProvidersManage)]public async Task<IActionResult>Edit(Guid uid,CancellationToken token)=>await client.Get(uid,token)is{}x?View(new ProviderEditViewModel(uid,new(){FirstName=x.FirstName,LastName=x.LastName,DisplayName=x.DisplayName,ProviderType=x.ProviderType,BillingNumber=x.BillingNumber,Specialty=x.Specialty,RowVersion=x.RowVersion})):NotFound();
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ProvidersManage)]public async Task<IActionResult>Save(Guid? uid,SaveProviderRequest request,CancellationToken token){if(!ModelState.IsValid)return View("Edit",new ProviderEditViewModel(uid,request));try{if(uid.HasValue)await client.Update(uid.Value,request,token);else await client.Create(request,token);TempData["SuccessMessage"]="Provider saved.";return RedirectToAction(nameof(Index));}catch(HttpRequestException e){logger.LogWarning(e,"Provider save rejected.");ModelState.AddModelError("",e.Message);return View("Edit",new ProviderEditViewModel(uid,request));}}

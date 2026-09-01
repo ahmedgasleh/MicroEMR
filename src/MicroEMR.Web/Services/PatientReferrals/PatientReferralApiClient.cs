@@ -32,6 +32,10 @@ public interface IPatientReferralApiClient
         string rowVersion, CancellationToken cancellationToken = default);
     Task<PatientReferralDetailsViewModel?> CloseAsync(Guid patientUid, Guid referralUid,
         string rowVersion, CancellationToken cancellationToken = default);
+    Task<PatientReferralDetailsViewModel?> SetFollowUpAsync(Guid patientUid, Guid referralUid,
+        DateTime? followUpDueAtUtc, string rowVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    Task<PatientReferralDetailsViewModel?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        Guid? documentUid, string rowVersion, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task<IReadOnlyList<ReferralSupportingDocumentViewModel>> GetLinkedDocumentsAsync(
         Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default);
     Task LinkDocumentAsync(Guid patientUid, Guid referralUid, Guid documentUid,
@@ -137,6 +141,25 @@ public sealed class PatientReferralApiClient(
         Guid patientUid, Guid referralUid, string rowVersion,
         CancellationToken cancellationToken = default) =>
         TransitionAsync(patientUid, referralUid, "close", rowVersion, cancellationToken);
+
+    public async Task<PatientReferralDetailsViewModel?> SetFollowUpAsync(Guid patientUid, Guid referralUid,
+        DateTime? followUpDueAtUtc, string rowVersion, CancellationToken cancellationToken = default)
+    {
+        using var message=await CreateRequestAsync(HttpMethod.Put,$"api/patients/{patientUid}/referrals/{referralUid}/follow-up");
+        message.Content=JsonContent.Create(new{followUpDueAtUtc,rowVersion});
+        using var response=await client.SendAsync(message,cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;
+        await EnsureSuccessAsync(response);return await response.Content.ReadFromJsonAsync<PatientReferralDetailsViewModel>(cancellationToken:cancellationToken);
+    }
+
+    public async Task<PatientReferralDetailsViewModel?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        Guid? documentUid, string rowVersion, CancellationToken cancellationToken = default)
+    {
+        using var message=await CreateRequestAsync(documentUid.HasValue?HttpMethod.Put:HttpMethod.Delete,
+            $"api/patients/{patientUid}/referrals/{referralUid}/response-document");
+        message.Content=JsonContent.Create(documentUid.HasValue?new{documentUid=documentUid.Value,rowVersion}:(object)new{rowVersion});
+        using var response=await client.SendAsync(message,cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;
+        await EnsureSuccessAsync(response);return await response.Content.ReadFromJsonAsync<PatientReferralDetailsViewModel>(cancellationToken:cancellationToken);
+    }
 
     public async Task<IReadOnlyList<ReferralSupportingDocumentViewModel>> GetLinkedDocumentsAsync(
         Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default)

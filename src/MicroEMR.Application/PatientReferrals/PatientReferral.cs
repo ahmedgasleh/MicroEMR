@@ -20,7 +20,10 @@ public sealed class PatientReferral
     public DateTime? UpdatedAt { get; init; }
     public long? UpdatedBy { get; init; }
     public DateTime? SentAt { get; init; }
+    public DateTime? FollowUpDueAt { get; init; }
     public DateTime? ResponseReceivedAt { get; init; }
     public DateTime? ClosedAt { get; init; }
+    public Guid? ResponseDocumentUid { get; init; }
+    public string? ResponseDocumentTitle { get; init; }
     public required string RowVersion { get; init; }
 }

@@ -1,5 +1,7 @@
 @model MicroEMR.Web.Controllers.ProviderEditViewModel
-@{ViewData["Title"]=Model.ProviderUid.HasValue?"Edit Provider":"Add Provider";}
+@{ViewData["Title"]=Model.ProviderUid.HasValue?"Edit Provider":"Add Provider";ViewData["Subtitle"]="Maintain the provider identity used by clinical workflows.";Layout="_AppLayout";}
+<div class="content-panel">
 <h1 class="h3">@ViewData["Title"]</h1><form asp-action="Save" method="post" class="row g-3"><input type="hidden" name="uid" value="@Model.ProviderUid"/><input asp-for="Provider.RowVersion" type="hidden" name="RowVersion"/><div asp-validation-summary="ModelOnly" class="text-danger"></div>
 @foreach(var f in new[]{("FirstName","First Name",Model.Provider.FirstName),("LastName","Last Name",Model.Provider.LastName),("DisplayName","Display Name",Model.Provider.DisplayName),("ProviderType","Provider Type",Model.Provider.ProviderType),("BillingNumber","Billing Number",Model.Provider.BillingNumber),("Specialty","Specialty",Model.Provider.Specialty)}){<div class="col-md-6"><label class="form-label" for="@f.Item1">@f.Item2</label><input class="form-control" id="@f.Item1" name="@f.Item1" value="@f.Item3" maxlength="@(f.Item1 is "FirstName" or "LastName" or "Specialty"?100:f.Item1=="DisplayName"?200:50)" @(f.Item1 is "FirstName" or "LastName" or "DisplayName" or "ProviderType"?"required":null)/></div>}
 <div class="col-12"><button class="btn btn-primary">Save</button> <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a></div></form>
+</div>

@@ -37,20 +37,21 @@ public sealed class CriticalAppointmentCertificationTests
             .ToArray();
 
         Assert.Contains("0041-patient-clinical-history", migrationIds);
-        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^15]);
-        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^14]);
-        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^13]);
-        Assert.Equal("0045-structured-disclosure-audit-events", migrationIds[^12]);
-        Assert.Equal("0046-aggregate-report-audit-events", migrationIds[^11]);
-        Assert.Equal("0047-patient-immunization-history", migrationIds[^10]);
-        Assert.Equal("0048-clinical-data-migration-validation-foundation", migrationIds[^9]);
-        Assert.Equal("0049-clinical-data-migration-import-foundation", migrationIds[^8]);
-        Assert.Equal("0050-patient-prescription-foundation", migrationIds[^7]);
-        Assert.Equal("0051-result-review-acknowledgement-hardening", migrationIds[^6]);
-        Assert.Equal("0052-cds-foundation", migrationIds[^5]);
-        Assert.Equal("0053-cdm-enrollment-foundation", migrationIds[^4]);
-        Assert.Equal("0055-verified-negative-allergy-assertion", migrationIds[^2]);
-        Assert.Equal("0056-referral-letter-artifact", migrationIds[^1]);
+        Assert.Equal("0042-scheduling-critical-appointments", migrationIds[^17]);
+        Assert.Equal("0043-patient-chart-read-audit", migrationIds[^16]);
+        Assert.Equal("0044-structured-read-audit-procedure", migrationIds[^15]);
+        Assert.Equal("0045-structured-disclosure-audit-events", migrationIds[^14]);
+        Assert.Equal("0046-aggregate-report-audit-events", migrationIds[^13]);
+        Assert.Equal("0047-patient-immunization-history", migrationIds[^12]);
+        Assert.Equal("0048-clinical-data-migration-validation-foundation", migrationIds[^11]);
+        Assert.Equal("0049-clinical-data-migration-import-foundation", migrationIds[^10]);
+        Assert.Equal("0050-patient-prescription-foundation", migrationIds[^9]);
+        Assert.Equal("0051-result-review-acknowledgement-hardening", migrationIds[^8]);
+        Assert.Equal("0052-cds-foundation", migrationIds[^7]);
+        Assert.Equal("0053-cdm-enrollment-foundation", migrationIds[^6]);
+        Assert.Equal("0055-verified-negative-allergy-assertion", migrationIds[^4]);
+        Assert.Equal("0056-referral-letter-artifact", migrationIds[^3]);
+        Assert.Equal("0058-referral-followup-response-tracking", migrationIds[^1]);
         Assert.Equal(migrationIds.Length, migrationIds.Distinct(StringComparer.Ordinal).Count());
     }
 

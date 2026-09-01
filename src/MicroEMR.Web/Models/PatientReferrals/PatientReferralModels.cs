@@ -12,12 +12,16 @@ public sealed class PatientReferralListItemViewModel
     public string Status { get; set; } = "Draft";
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? SentAtUtc { get; set; }
+    public DateTime? FollowUpDueAtUtc { get; set; }
+    public bool IsFollowUpOverdue { get; set; }
     public DateTime? ResponseReceivedAtUtc { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
     public string RowVersion { get; set; } = string.Empty;
     public Guid? ReferringProviderUid { get; set; }
     public string? ReferringProviderDisplayName { get; set; }
     public Guid? ArtifactUid { get; set; }
+    public Guid? ResponseDocumentUid { get; set; }
+    public string? ResponseDocumentTitle { get; set; }
 }
 
 public sealed class PatientReferralDetailsViewModel
@@ -36,6 +40,8 @@ public sealed class PatientReferralDetailsViewModel
     public DateTime? UpdatedAtUtc { get; set; }
     public long? UpdatedBy { get; set; }
     public DateTime? SentAtUtc { get; set; }
+    public DateTime? FollowUpDueAtUtc { get; set; }
+    public bool IsFollowUpOverdue { get; set; }
     public DateTime? ResponseReceivedAtUtc { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
     public string RowVersion { get; set; } = string.Empty;
@@ -43,6 +49,8 @@ public sealed class PatientReferralDetailsViewModel
     public string? ReferringProviderDisplayName { get; set; }
     public string? ReferringProviderCredential { get; set; }
     public Guid? ArtifactUid { get; set; }
+    public Guid? ResponseDocumentUid { get; set; }
+    public string? ResponseDocumentTitle { get; set; }
 }
 
 public class CreatePatientReferralViewModel
@@ -85,13 +93,23 @@ public sealed class ReferralProviderViewModel
     public string? Specialty { get; set; }
 }
 
-public sealed class ReferralStatusTransitionViewModel
+public class ReferralStatusTransitionViewModel
 {
     public Guid PatientUid { get; set; }
     public Guid ReferralUid { get; set; }
 
     [Required]
     public string RowVersion { get; set; } = string.Empty;
+}
+
+public sealed class ReferralFollowUpViewModel : ReferralStatusTransitionViewModel
+{
+    public DateTime? FollowUpDueAtUtc { get; set; }
+}
+
+public sealed class ReferralResponseDocumentViewModel : ReferralStatusTransitionViewModel
+{
+    public Guid DocumentUid { get; set; }
 }
 
 public sealed class ReferralSupportingDocumentViewModel

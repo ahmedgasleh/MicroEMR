@@ -168,7 +168,7 @@
                 </li>
             }
 
-            @if (Can(PermissionKeys.UsersView) || Can(PermissionKeys.ClinicSettingsManage) || Can(PermissionKeys.ReportsView))
+            @if (Can(PermissionKeys.UsersView) || Can(PermissionKeys.ProvidersView) || Can(PermissionKeys.ClinicSettingsManage) || Can(PermissionKeys.ReportsView))
             {
                 <li class="sidebar-section">
                     <span class="sidebar-section-text">Clinic Administration</span>
@@ -180,6 +180,16 @@
                        data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="User Administration">
                         <span class="sidebar-icon"><i class="bi bi-person-lines-fill"></i></span>
                         <span class="sidebar-text">User Administration</span>
+                    </a>
+                </li>
+                }
+                @if (Can(PermissionKeys.ProvidersView))
+                {
+                <li class="sidebar-menu-item">
+                    <a asp-controller="Providers" asp-action="Index" class="sidebar-link"
+                       data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Providers">
+                        <span class="sidebar-icon"><i class="bi bi-person-badge"></i></span>
+                        <span class="sidebar-text">Providers</span>
                     </a>
                 </li>
                 }

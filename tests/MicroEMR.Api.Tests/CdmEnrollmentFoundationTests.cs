@@ -16,8 +16,8 @@ public sealed class CdmEnrollmentFoundationTests
     {
         using var json=JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(),"db","tenant-clinical","manifest.json")));
         var entries=json.RootElement.EnumerateArray().ToArray();
-        Assert.Equal("0053-cdm-enrollment-foundation",entries[^4].GetProperty("migrationId").GetString());
-        Assert.Equal("0054-results-provenance-correction-foundation",entries[^3].GetProperty("migrationId").GetString());
+        Assert.Equal("0053-cdm-enrollment-foundation",entries[^6].GetProperty("migrationId").GetString());
+        Assert.Equal("0054-results-provenance-correction-foundation",entries[^5].GetProperty("migrationId").GetString());
         Assert.Single(entries,x=>x.GetProperty("migrationId").GetString()=="0053-cdm-enrollment-foundation");
         Assert.False(File.Exists(Path.Combine(Root(),"db","tenant-clinical","migrations","0054-cdm-enrollment-foundation.sql")));
     }
