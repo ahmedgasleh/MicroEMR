@@ -29,6 +29,15 @@ public interface IPatientReferralService
     Task<PatientReferralDetailsResponse?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid,
         ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
 
+    Task<PatientReferralDetailsResponse?> SetFollowUpDueAsync(Guid patientUid, Guid referralUid,
+        SetReferralFollowUpRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    Task<PatientReferralDetailsResponse?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        ReferralResponseDocumentRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    Task<PatientReferralDetailsResponse?> ClearResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
     Task<PatientReferralDetailsResponse?> CloseAsync(Guid patientUid, Guid referralUid,
         ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
 }

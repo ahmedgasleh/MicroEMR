@@ -149,6 +149,54 @@ public sealed class PatientReferralsController(
         CancellationToken cancellationToken = default) =>
         TransitionAsync(patientUid, referralUid, request, service.MarkResponseReceivedAsync, cancellationToken);
 
+    [HttpPut("{referralUid:guid}/follow-up")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
+    public async Task<ActionResult<PatientReferralDetailsResponse>> SetFollowUp(
+        Guid patientUid, Guid referralUid, [FromBody] SetReferralFollowUpRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await service.SetFollowUpDueAsync(patientUid, referralUid, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (PatientReferralConcurrencyException e) { return Conflict(new { message=e.Message,code="referral_concurrency_conflict" }); }
+        catch (PatientReferralTransitionException e) { return Conflict(new { message=e.Message,code="referral_followup_rule" }); }
+        catch (ArgumentException e) { return BadRequest(new { message=e.Message }); }
+    }
+
+    [HttpPut("{referralUid:guid}/response-document")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
+    public async Task<ActionResult<PatientReferralDetailsResponse>> SetResponseDocument(
+        Guid patientUid, Guid referralUid, [FromBody] ReferralResponseDocumentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await service.SetResponseDocumentAsync(patientUid, referralUid, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (PatientReferralConcurrencyException e) { return Conflict(new { message=e.Message,code="referral_concurrency_conflict" }); }
+        catch (PatientReferralTransitionException e) { return Conflict(new { message=e.Message,code="referral_response_document_rule" }); }
+        catch (ArgumentException e) { return BadRequest(new { message=e.Message }); }
+    }
+
+    [HttpDelete("{referralUid:guid}/response-document")]
+    [RequirePermission(PermissionKeys.ReferralsManage)]
+    public async Task<ActionResult<PatientReferralDetailsResponse>> ClearResponseDocument(
+        Guid patientUid, Guid referralUid, [FromBody] ReferralStatusTransitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await service.ClearResponseDocumentAsync(patientUid, referralUid, request, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (PatientReferralConcurrencyException e) { return Conflict(new { message=e.Message,code="referral_concurrency_conflict" }); }
+        catch (PatientReferralTransitionException e) { return Conflict(new { message=e.Message,code="referral_response_document_rule" }); }
+        catch (ArgumentException e) { return BadRequest(new { message=e.Message }); }
+    }
+
     [HttpPost("{referralUid:guid}/close")]
     [RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<ActionResult<PatientReferralDetailsResponse>> Close(

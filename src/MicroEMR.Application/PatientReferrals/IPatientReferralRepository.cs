@@ -37,6 +37,12 @@ public interface IPatientReferralRepository
     Task<PatientReferral?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid, string rowVersion,
         long updatedBy, CancellationToken cancellationToken = default);
 
+    Task<PatientReferral?> SetFollowUpDueAsync(Guid patientUid, Guid referralUid, DateTime? followUpDueAtUtc,
+        string rowVersion, long updatedBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    Task<PatientReferral?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid, Guid? documentUid,
+        string rowVersion, long updatedBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
     Task<PatientReferral?> CloseAsync(Guid patientUid, Guid referralUid, string rowVersion,
         long updatedBy, CancellationToken cancellationToken = default);
 }

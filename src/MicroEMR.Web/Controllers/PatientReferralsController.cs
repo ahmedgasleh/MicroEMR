@@ -141,6 +141,29 @@ public sealed class PatientReferralsController(
         ReferralStatusTransitionViewModel model, CancellationToken cancellationToken = default) =>
         TransitionAsync(model, client.CloseAsync, "Referral closed.", cancellationToken);
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetFollowUp(ReferralFollowUpViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var referral=await client.SetFollowUpAsync(model.PatientUid,model.ReferralUid,model.FollowUpDueAtUtc,model.RowVersion,cancellationToken);
+            return referral is null?NotFound(new{success=false,message="Referral was not found."}):Json(new{success=true,referral,message=model.FollowUpDueAtUtc.HasValue?"Referral follow-up updated.":"Referral follow-up cleared."});
+        }
+        catch(HttpRequestException e){return ApiFailure(e,"The follow-up date could not be changed.");}
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetResponseDocument(ReferralResponseDocumentViewModel model, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var referral=await client.SetResponseDocumentAsync(model.PatientUid,model.ReferralUid,
+                model.DocumentUid==Guid.Empty?null:model.DocumentUid,model.RowVersion,cancellationToken);
+            return referral is null?NotFound(new{success=false,message="Referral was not found."}):Json(new{success=true,referral,message=model.DocumentUid==Guid.Empty?"Response document unlinked.":"Response document linked."});
+        }
+        catch(HttpRequestException e){return ApiFailure(e,"The response document could not be changed.");}
+    }
+
     private async Task<IActionResult> TransitionAsync(
         ReferralStatusTransitionViewModel model,
         Func<Guid, Guid, string, CancellationToken, Task<PatientReferralDetailsViewModel?>> transition,

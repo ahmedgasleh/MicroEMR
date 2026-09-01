@@ -168,6 +168,30 @@ public sealed class PatientReferralRepository(
         CancellationToken cancellationToken = default) =>
         TransitionAsync("dbo.PatientReferral_MarkResponseReceived", patientUid, referralUid, rowVersion, updatedBy, cancellationToken);
 
+    public async Task<PatientReferral?> SetFollowUpDueAsync(Guid patientUid, Guid referralUid,
+        DateTime? followUpDueAtUtc, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_SetFollowUpDue");
+        AddMutationParameters(command, patientUid, referralUid, rowVersion, updatedBy);
+        command.Parameters.Add("@FollowUpDueAt", SqlDbType.DateTime2).Value =
+            followUpDueAtUtc.HasValue ? followUpDueAtUtc.Value : DBNull.Value;
+        return await ExecuteMutationAsync(command, cancellationToken);
+    }
+
+    public async Task<PatientReferral?> SetResponseDocumentAsync(Guid patientUid, Guid referralUid,
+        Guid? documentUid, string rowVersion, long updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_SetResponseDocument");
+        AddMutationParameters(command, patientUid, referralUid, rowVersion, updatedBy);
+        command.Parameters.Add("@DocumentUid", SqlDbType.UniqueIdentifier).Value =
+            documentUid.HasValue ? documentUid.Value : DBNull.Value;
+        return await ExecuteMutationAsync(command, cancellationToken);
+    }
+
     public Task<PatientReferral?> CloseAsync(
         Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
         CancellationToken cancellationToken = default) =>
@@ -189,6 +213,21 @@ public sealed class PatientReferralRepository(
         command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
         command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp, 8).Value = expectedRowVersion;
         command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+        return await ExecuteMutationAsync(command, cancellationToken);
+    }
+
+    private static void AddMutationParameters(SqlCommand command, Guid patientUid, Guid referralUid,
+        string rowVersion, long updatedBy)
+    {
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp, 8).Value = ParseVersion(rowVersion);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+    }
+
+    private static async Task<PatientReferral?> ExecuteMutationAsync(SqlCommand command,
+        CancellationToken cancellationToken)
+    {
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -206,6 +245,12 @@ public sealed class PatientReferralRepository(
         catch (SqlException exception) when (exception.Number == 51512)
         {
             throw new PatientReferralConcurrencyException();
+        }
+        catch (SqlException exception) when (exception.Number is 51514 or 51515)
+        {
+            throw new PatientReferralTransitionException(exception.Number == 51515
+                ? "The response document must belong to this patient."
+                : "The referral change is not allowed in its current status.");
         }
     }
 
@@ -248,8 +293,11 @@ public sealed class PatientReferralRepository(
         UpdatedAt = GetNullableDateTime(reader, "UpdatedAt"),
         UpdatedBy = GetNullableInt64(reader, "UpdatedBy"),
         SentAt = GetNullableDateTime(reader, "SentAt"),
+        FollowUpDueAt = GetNullableDateTime(reader, "FollowUpDueAt"),
         ResponseReceivedAt = GetNullableDateTime(reader, "ResponseReceivedAt"),
         ClosedAt = GetNullableDateTime(reader, "ClosedAt"),
+        ResponseDocumentUid = GetNullableGuid(reader, "ResponseDocumentUid"),
+        ResponseDocumentTitle = GetNullableString(reader, "ResponseDocumentTitle"),
         RowVersion = Convert.ToBase64String((byte[])reader["RowVersion"])
     };
 

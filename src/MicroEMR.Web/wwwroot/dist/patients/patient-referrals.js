@@ -64,7 +64,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <tbody>${referrals.map(referral => `<tr>
           <td><div class="fw-semibold">${escapeHtml(referral.recipientName)}</div>${referral.recipientOrganization ? `<div class="small text-body-secondary">${escapeHtml(referral.recipientOrganization)}</div>` : ""}</td>
           <td><div class="text-break">${escapeHtml(referral.reason)}</div></td>
-          <td><span class="badge ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span></td>
+          <td><span class="badge ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span>${referral.isFollowUpOverdue ? `<span class="badge text-bg-danger ms-1">Follow-up overdue</span>` : ""}</td>
           <td class="small text-body-secondary text-nowrap">${escapeHtml(relevantDate(referral))}</td>
           <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary referral-details" data-referral-uid="${referral.referralUid}">View</button></td>
         </tr>`).join("")}</tbody>
@@ -189,15 +189,48 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="col-12"><div class="small text-body-secondary">Clinical Summary</div><div class="text-break" style="white-space: pre-wrap">${escapeHtml(referral.clinicalSummary || "—")}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Created</div><div>${escapeHtml(formatDate(referral.createdAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Sent</div><div>${escapeHtml(formatDate(referral.sentAtUtc))}</div></div>
+        <div class="col-12 col-sm-6"><div class="small text-body-secondary">Follow-up Due</div><div>${escapeHtml(formatDate(referral.followUpDueAtUtc))}${referral.isFollowUpOverdue ? ` <span class="badge text-bg-danger">Overdue</span>` : ""}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Response Received</div><div>${escapeHtml(formatDate(referral.responseReceivedAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Closed</div><div>${escapeHtml(formatDate(referral.closedAtUtc))}</div></div>
+        <div class="col-12"><div class="small text-body-secondary">Response Document</div><div>${referral.responseDocumentUid ? `<a href="/PatientDocuments/Details?documentUid=${encodeURIComponent(referral.responseDocumentUid)}" target="_blank" rel="noopener">${escapeHtml(referral.responseDocumentTitle || "Open response document")}</a>` : "â€”"}</div></div>
+        ${canManage && (referral.status === "Draft" || referral.status === "Sent") ? `<div class="col-12 border-top pt-3"><label class="form-label" for="referralFollowUpDue">Follow-up due</label><div class="input-group"><input class="form-control" type="datetime-local" id="referralFollowUpDue" value="${referral.followUpDueAtUtc ? new Date(referral.followUpDueAtUtc).toISOString().slice(0, 16) : ""}"><button class="btn btn-outline-primary" id="saveReferralFollowUp">Save</button>${referral.followUpDueAtUtc ? `<button class="btn btn-outline-secondary" id="clearReferralFollowUp">Clear</button>` : ""}</div><div class="form-text">Entered manually; no clinical interval is inferred.</div></div>` : ""}
         <div class="col-12 border-top pt-3"><div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h6 class="mb-0">Supporting Documents</h6></div><div id="referralSupportingDocuments"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading supporting documents...</span></div></div></div>
         <div class="col-12 border-top pt-3 d-flex flex-wrap gap-2">${referral.status === "Draft" && canManage ? `<button type="button" class="btn btn-outline-secondary" id="editReferralDraft">Edit Draft</button><a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}&preview=true">Preview Letter</a>` : ""}${referral.artifactUid ? `<a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}">View Referral Letter</a>` : ""}${action && canManage ? `<button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button>` : ""}<div class="alert alert-danger d-none mt-3 mb-0 w-100" id="patientReferralActionMessage" role="alert"></div></div>
       </div>`;
         document.querySelector("#patientReferralLifecycleAction")
             ?.addEventListener("click", event => void transitionReferral(event.currentTarget));
         document.querySelector("#editReferralDraft")?.addEventListener("click", () => openEdit(referral));
+        document.querySelector("#saveReferralFollowUp")?.addEventListener("click", () => void saveFollowUp(false));
+        document.querySelector("#clearReferralFollowUp")?.addEventListener("click", () => void saveFollowUp(true));
         void loadSupportingDocuments(referral);
+    }
+    async function saveFollowUp(clear) {
+        if (!selectedReferral)
+            return;
+        const input = document.querySelector("#referralFollowUpDue");
+        if (!clear && !input?.value) {
+            showPageMessage("Select a follow-up date and time.", "danger");
+            return;
+        }
+        const body = new FormData();
+        body.set("PatientUid", patientUid);
+        body.set("ReferralUid", selectedReferral.referralUid);
+        body.set("RowVersion", selectedReferral.rowVersion);
+        body.set("FollowUpDueAtUtc", clear ? "" : new Date(input.value).toISOString());
+        body.set("__RequestVerificationToken", token.value);
+        try {
+            const response = await fetch("/PatientReferrals/SetFollowUp", { method: "POST", body });
+            const result = await response.json();
+            if (!response.ok || !result.success || !result.referral)
+                throw new Error(result.message ?? "Follow-up could not be changed.");
+            selectedReferral = result.referral;
+            renderDetails(selectedReferral);
+            await loadReferrals();
+            showPageMessage(result.message ?? "Follow-up updated.", "success");
+        }
+        catch (error) {
+            showPageMessage(error instanceof Error ? error.message : "Follow-up could not be changed.", "danger");
+        }
     }
     async function loadSupportingDocuments(referral) {
         const root = document.querySelector("#referralSupportingDocuments");
@@ -218,7 +251,10 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
                     ? `<div class="row g-2 align-items-end"><div class="col-12 col-sm"><label class="form-label small" for="availableReferralDocument">Existing patient document</label><select class="form-select form-select-sm" id="availableReferralDocument"><option value="">Select a document</option>${available.map(x => `<option value="${x.documentUid}">${escapeHtml(x.title)} — ${escapeHtml(x.documentType)} (${escapeHtml(x.documentStatus)})</option>`).join("")}</select></div><div class="col-12 col-sm-auto"><button class="btn btn-sm btn-primary w-100" id="linkReferralDocument">Add Supporting Document</button></div></div>`
                     : `<p class="small text-body-secondary mb-0">${(result.available ?? []).length ? "All available patient documents are already linked." : "No patient documents are available to link."}</p>`;
             }
-            root.innerHTML = linkedMarkup + addMarkup + `<div class="alert alert-danger d-none mt-2 mb-0" id="referralDocumentMessage"></div>`;
+            const allDocuments = [...linked, ...available].filter((item, index, items) => items.findIndex(x => x.documentUid === item.documentUid) === index);
+            const responseMarkup = referral.status === "ResponseReceived" && canManage
+                ? `<div class="border-top pt-3 mt-3"><label class="form-label small" for="referralResponseDocument">Received response document</label><div class="input-group input-group-sm"><select class="form-select" id="referralResponseDocument"><option value="">No linked response</option>${allDocuments.map(x => `<option value="${x.documentUid}"${x.documentUid === referral.responseDocumentUid ? " selected" : ""}>${escapeHtml(x.title)} â€” ${escapeHtml(x.documentType)}</option>`).join("")}</select><button class="btn btn-outline-primary" id="saveReferralResponseDocument">Save response link</button></div></div>` : "";
+            root.innerHTML = linkedMarkup + addMarkup + responseMarkup + `<div class="alert alert-danger d-none mt-2 mb-0" id="referralDocumentMessage"></div>`;
             root.querySelector("#linkReferralDocument")?.addEventListener("click", event => {
                 const uid = root.querySelector("#availableReferralDocument")?.value ?? "";
                 if (uid)
@@ -228,9 +264,34 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
                 if (window.confirm("Remove this supporting-document link? The patient document will not be deleted."))
                     void mutateSupportingDocument("Unlink", button.dataset.documentUid ?? "", button);
             }));
+            root.querySelector("#saveReferralResponseDocument")?.addEventListener("click", () => void saveResponseDocument(root));
         }
         catch (error) {
             root.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(error instanceof Error ? error.message : "Supporting documents could not be loaded.")}</div>`;
+        }
+    }
+    async function saveResponseDocument(root) {
+        if (!selectedReferral)
+            return;
+        const documentUid = root.querySelector("#referralResponseDocument")?.value ?? "";
+        const body = new FormData();
+        body.set("PatientUid", patientUid);
+        body.set("ReferralUid", selectedReferral.referralUid);
+        body.set("DocumentUid", documentUid);
+        body.set("RowVersion", selectedReferral.rowVersion);
+        body.set("__RequestVerificationToken", token.value);
+        try {
+            const response = await fetch("/PatientReferrals/SetResponseDocument", { method: "POST", body });
+            const result = await response.json();
+            if (!response.ok || !result.success || !result.referral)
+                throw new Error(result.message ?? "Response document could not be changed.");
+            selectedReferral = result.referral;
+            renderDetails(selectedReferral);
+            await loadReferrals();
+            showPageMessage(result.message ?? "Response document updated.", "success");
+        }
+        catch (error) {
+            showPageMessage(error instanceof Error ? error.message : "Response document could not be changed.", "danger");
         }
     }
     async function mutateSupportingDocument(action, documentUid, button) {
