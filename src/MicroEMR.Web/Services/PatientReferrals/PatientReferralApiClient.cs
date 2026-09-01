@@ -21,6 +21,10 @@ public interface IPatientReferralApiClient
         Guid patientUid,
         CreatePatientReferralViewModel request,
         CancellationToken cancellationToken = default);
+    Task<PatientReferralDetailsViewModel?> UpdateDraftAsync(Guid patientUid,Guid referralUid,
+        UpdatePatientReferralDraftViewModel request,CancellationToken cancellationToken=default) => throw new NotSupportedException();
+    Task<IReadOnlyList<ReferralProviderViewModel>> GetProvidersAsync(CancellationToken cancellationToken=default) => Task.FromResult<IReadOnlyList<ReferralProviderViewModel>>([]);
+    Task<byte[]?> GetLetterAsync(Guid patientUid,Guid referralUid,bool preview,CancellationToken cancellationToken=default) => Task.FromResult<byte[]?>(null);
 
     Task<PatientReferralDetailsViewModel?> MarkSentAsync(Guid patientUid, Guid referralUid,
         string rowVersion, CancellationToken cancellationToken = default);
@@ -79,6 +83,7 @@ public sealed class PatientReferralApiClient(
         message.Content = JsonContent.Create(new
         {
             request.RecipientName,
+            request.ReferringProviderUid,
             request.RecipientOrganization,
             request.RecipientPhone,
             request.RecipientFax,
@@ -91,6 +96,31 @@ public sealed class PatientReferralApiClient(
         await EnsureSuccessAsync(response);
         return await response.Content.ReadFromJsonAsync<PatientReferralDetailsViewModel>(
             cancellationToken: cancellationToken);
+    }
+
+    public async Task<PatientReferralDetailsViewModel?> UpdateDraftAsync(Guid patientUid,Guid referralUid,
+        UpdatePatientReferralDraftViewModel request,CancellationToken cancellationToken=default)
+    {
+        using var message=await CreateRequestAsync(HttpMethod.Put,$"api/patients/{patientUid}/referrals/{referralUid}");
+        message.Content=JsonContent.Create(new{request.ReferringProviderUid,request.RecipientName,request.RecipientOrganization,
+            request.RecipientPhone,request.RecipientFax,request.Reason,request.ClinicalSummary,request.RowVersion});
+        using var response=await client.SendAsync(message,cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;
+        await EnsureSuccessAsync(response);return await response.Content.ReadFromJsonAsync<PatientReferralDetailsViewModel>(cancellationToken:cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ReferralProviderViewModel>> GetProvidersAsync(CancellationToken cancellationToken=default)
+    {
+        using var request=await CreateRequestAsync(HttpMethod.Get,"api/patients/00000000-0000-0000-0000-000000000000/referrals/providers");
+        using var response=await client.SendAsync(request,cancellationToken);await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<List<ReferralProviderViewModel>>(cancellationToken:cancellationToken)??[];
+    }
+
+    public async Task<byte[]?> GetLetterAsync(Guid patientUid,Guid referralUid,bool preview,CancellationToken cancellationToken=default)
+    {
+        var suffix=preview?"/letter/preview":"/letter";
+        using var request=await CreateRequestAsync(HttpMethod.Get,$"api/patients/{patientUid}/referrals/{referralUid}{suffix}");
+        using var response=await client.SendAsync(request,cancellationToken);if(response.StatusCode==HttpStatusCode.NotFound)return null;
+        await EnsureSuccessAsync(response);return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     public Task<PatientReferralDetailsViewModel?> MarkSentAsync(

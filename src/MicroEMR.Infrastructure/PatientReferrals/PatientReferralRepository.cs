@@ -59,6 +59,7 @@ public sealed class PatientReferralRepository(
         AddNullableString(command, "@RecipientFax", 30, request.RecipientFax);
         AddRequiredString(command, "@Reason", 1000, request.Reason);
         AddNullableString(command, "@ClinicalSummary", -1, request.ClinicalSummary);
+        command.Parameters.Add("@ReferringProviderUid", SqlDbType.UniqueIdentifier).Value = request.ReferringProviderUid;
         command.Parameters.Add("@CreatedBy", SqlDbType.BigInt).Value = createdBy;
 
         try
@@ -82,10 +83,85 @@ public sealed class PatientReferralRepository(
         }
     }
 
-    public Task<PatientReferral?> MarkSentAsync(
-        Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
+    public async Task<PatientReferral?> UpdateDraftAsync(Guid patientUid, Guid referralUid,
+        UpdatePatientReferralDraftRequest request, long updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_UpdateDraft");
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
+        AddRequiredString(command, "@RecipientName", 200, request.RecipientName);
+        AddNullableString(command, "@RecipientOrganization", 200, request.RecipientOrganization);
+        AddNullableString(command, "@RecipientPhone", 30, request.RecipientPhone);
+        AddNullableString(command, "@RecipientFax", 30, request.RecipientFax);
+        AddRequiredString(command, "@Reason", 1000, request.Reason);
+        AddNullableString(command, "@ClinicalSummary", -1, request.ClinicalSummary);
+        command.Parameters.Add("@ReferringProviderUid", SqlDbType.UniqueIdentifier).Value = request.ReferringProviderUid;
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp, 8).Value = ParseVersion(request.RowVersion);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+        try { await using var reader = await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken) ? Map(reader) : null; }
+        catch (SqlException e) when (e.Number == 51510) { return null; }
+        catch (SqlException e) when (e.Number == 51512) { throw new PatientReferralConcurrencyException(); }
+        catch (SqlException e) when (e.Number == 51504) { throw new ArgumentException("The referring provider is unavailable."); }
+    }
+
+    public async Task<IReadOnlyList<ReferralProviderListItem>> GetActiveProvidersAsync(CancellationToken cancellationToken = default)
+    {
+        var results = new List<ReferralProviderListItem>();
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_GetActiveProviders");
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken)) results.Add(new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
+        return results;
+    }
+
+    public async Task<ReferralProvider?> GetProviderAsync(Guid providerUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_GetProvider");
+        command.Parameters.Add("@ProviderUid", SqlDbType.UniqueIdentifier).Value = providerUid;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3), reader.IsDBNull(4) ? null : reader.GetString(4)) : null;
+    }
+
+    public async Task<ReferralArtifactContent?> GetArtifactAsync(Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferralArtifact_Get");
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? new(reader.GetGuid(0), reader.GetString(1), reader.GetString(2),
+            (byte[])reader["PdfContent"], reader.GetInt64(4), reader.GetString(5), reader.GetString(6), reader.GetDateTime(7)) : null;
+    }
+
+    public Task<PatientReferral?> MarkSentAsync(Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
         CancellationToken cancellationToken = default) =>
-        TransitionAsync("dbo.PatientReferral_MarkSent", patientUid, referralUid, rowVersion, updatedBy, cancellationToken);
+        TransitionAsync("dbo.PatientReferral_MarkSent",patientUid,referralUid,rowVersion,updatedBy,cancellationToken);
+
+    public async Task<PatientReferral?> SendWithArtifactAsync(Guid patientUid, Guid referralUid, string rowVersion,
+        long updatedBy, ReferralArtifactWrite artifact, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, "dbo.PatientReferral_Send");
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@ReferralUid", SqlDbType.UniqueIdentifier).Value = referralUid;
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Timestamp, 8).Value = ParseVersion(rowVersion);
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+        command.Parameters.Add("@ArtifactUid", SqlDbType.UniqueIdentifier).Value = artifact.ArtifactUid;
+        command.Parameters.Add("@SentAt", SqlDbType.DateTime2).Value = artifact.SentAtUtc;
+        command.Parameters.Add("@PdfContent", SqlDbType.VarBinary, -1).Value = artifact.PdfContent;
+        AddRequiredString(command, "@FileName", 260, artifact.FileName);
+        command.Parameters.Add("@Sha256", SqlDbType.Char, 64).Value = artifact.Sha256;
+        AddRequiredString(command, "@SnapshotJson", -1, artifact.SnapshotJson);
+        AddRequiredString(command, "@ProviderDisplayName", 200, artifact.ProviderDisplayName);
+        AddNullableString(command, "@ProviderCredential", 200, artifact.ProviderCredential);
+        try { await using var reader = await command.ExecuteReaderAsync(cancellationToken); return await reader.ReadAsync(cancellationToken) ? Map(reader) : null; }
+        catch (SqlException e) when (e.Number == 51510) { return null; }
+        catch (SqlException e) when (e.Number == 51511) { throw new PatientReferralTransitionException("The referral is no longer Draft. Refresh and try again."); }
+        catch (SqlException e) when (e.Number == 51512) { throw new PatientReferralConcurrencyException(); }
+    }
 
     public Task<PatientReferral?> MarkResponseReceivedAsync(
         Guid patientUid, Guid referralUid, string rowVersion, long updatedBy,
@@ -133,6 +209,15 @@ public sealed class PatientReferralRepository(
         }
     }
 
+    private static byte[] ParseVersion(string rowVersion)
+    {
+        byte[] value;
+        try { value = Convert.FromBase64String(rowVersion); }
+        catch (FormatException e) { throw new ArgumentException("RowVersion is invalid.", nameof(rowVersion), e); }
+        if (value.Length != 8) throw new ArgumentException("RowVersion is invalid.", nameof(rowVersion));
+        return value;
+    }
+
     private static SqlCommand CreateCommand(SqlConnection connection, string procedure) =>
         new(procedure, connection) { CommandType = CommandType.StoredProcedure };
 
@@ -153,6 +238,10 @@ public sealed class PatientReferralRepository(
         RecipientFax = GetNullableString(reader, "RecipientFax"),
         Reason = reader.GetString(reader.GetOrdinal("Reason")),
         ClinicalSummary = GetNullableString(reader, "ClinicalSummary"),
+        ReferringProviderUid = GetNullableGuid(reader, "ReferringProviderUid"),
+        ReferringProviderDisplayNameSnapshot = GetNullableString(reader, "ReferringProviderDisplayNameSnapshot"),
+        ReferringProviderCredentialSnapshot = GetNullableString(reader, "ReferringProviderCredentialSnapshot"),
+        ArtifactUid = GetNullableGuid(reader, "ArtifactUid"),
         Status = Enum.Parse<ReferralStatus>(reader.GetString(reader.GetOrdinal("Status")), true),
         CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
         CreatedBy = reader.GetInt64(reader.GetOrdinal("CreatedBy")),
@@ -163,6 +252,9 @@ public sealed class PatientReferralRepository(
         ClosedAt = GetNullableDateTime(reader, "ClosedAt"),
         RowVersion = Convert.ToBase64String((byte[])reader["RowVersion"])
     };
+
+    private static Guid? GetNullableGuid(SqlDataReader reader, string name)
+    { var ordinal = reader.GetOrdinal(name); return reader.IsDBNull(ordinal) ? null : reader.GetGuid(ordinal); }
 
     private static string? GetNullableString(SqlDataReader reader, string name)
     {

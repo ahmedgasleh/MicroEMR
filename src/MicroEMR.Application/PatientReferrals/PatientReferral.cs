@@ -10,6 +10,10 @@ public sealed class PatientReferral
     public string? RecipientFax { get; init; }
     public required string Reason { get; init; }
     public string? ClinicalSummary { get; init; }
+    public Guid? ReferringProviderUid { get; init; }
+    public string? ReferringProviderDisplayNameSnapshot { get; init; }
+    public string? ReferringProviderCredentialSnapshot { get; init; }
+    public Guid? ArtifactUid { get; init; }
     public ReferralStatus Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public long CreatedBy { get; init; }

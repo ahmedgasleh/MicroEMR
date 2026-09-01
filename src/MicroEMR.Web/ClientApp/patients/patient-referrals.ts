@@ -10,6 +10,9 @@ interface ReferralListItem {
   responseReceivedAtUtc?: string;
   closedAtUtc?: string;
   rowVersion: string;
+  referringProviderUid?: string;
+  referringProviderDisplayName?: string;
+  artifactUid?: string;
 }
 
 interface ReferralDetails extends ReferralListItem {
@@ -27,6 +30,9 @@ interface ReferralReply {
   referral?: ReferralDetails;
   message?: string;
 }
+
+interface ReferralProvider { providerUid: string; displayName: string; providerType: string; specialty?: string; }
+interface ProviderReply { success: boolean; providers?: ReferralProvider[]; }
 
 interface SupportingDocument { documentUid: string; title: string; documentType: string; documentStatus: string; createdAtUtc?: string; createdAt?: string; }
 interface SupportingDocumentsReply { success: boolean; linked?: SupportingDocument[]; available?: SupportingDocument[]; message?: string; }
@@ -51,6 +57,8 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
   const detailsModal = new bootstrap.Modal(document.querySelector("#patientReferralDetailsModal")!);
   let referrals: ReferralListItem[] = [];
   let selectedReferral: ReferralDetails | null = null;
+  let providers: ReferralProvider[] = [];
+  const canManage = createForm.dataset.canManage === "true";
 
   const escapeHtml = (value?: string): string => {
     const node = document.createElement("div");
@@ -98,7 +106,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="microemr-empty-state__icon"><i class="bi bi-send"></i></div>
         <div class="microemr-empty-state__title">No referrals recorded.</div>
         <div class="microemr-empty-state__text">Outgoing referrals added to this chart will appear here.</div>
-        <div class="microemr-empty-state__actions"><button type="button" class="btn btn-primary btn-sm" id="emptyAddPatientReferral">Add Referral</button></div>
+        ${canManage?`<div class="microemr-empty-state__actions"><button type="button" class="btn btn-primary btn-sm" id="emptyAddPatientReferral">Add Referral</button></div>`:""}
       </div>`;
       document.querySelector("#emptyAddPatientReferral")?.addEventListener("click", openCreate);
       return;
@@ -144,10 +152,22 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     createForm.reset();
     createForm.classList.remove("was-validated");
     (createForm.elements.namedItem("PatientUid") as HTMLInputElement).value = patientUid;
+    (createForm.elements.namedItem("ReferralUid") as HTMLInputElement).value = "";
+    (createForm.elements.namedItem("RowVersion") as HTMLInputElement).value = "";
     modalMessage.classList.add("d-none");
     saveButton.disabled = false;
     saveButton.textContent = "Save Referral";
     createModal.show();
+  }
+
+  function openEdit(referral: ReferralDetails): void {
+    createForm.reset();
+    const set=(name:string,value?:string):void=>{(createForm.elements.namedItem(name) as HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement).value=value??"";};
+    set("PatientUid",patientUid);set("ReferralUid",referral.referralUid);set("RowVersion",referral.rowVersion);
+    set("ReferringProviderUid",referral.referringProviderUid);set("RecipientName",referral.recipientName);
+    set("RecipientOrganization",referral.recipientOrganization);set("RecipientPhone",referral.recipientPhone);
+    set("RecipientFax",referral.recipientFax);set("Reason",referral.reason);set("ClinicalSummary",referral.clinicalSummary);
+    saveButton.textContent="Save Draft";createModal.show();
   }
 
   async function saveReferral(): Promise<void> {
@@ -163,13 +183,14 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     try {
       const body = new FormData(createForm);
       body.set("__RequestVerificationToken", token.value);
-      const response = await fetch("/PatientReferrals/Create", { method: "POST", body });
+      const isEdit=Boolean(body.get("ReferralUid"));
+      const response = await fetch(isEdit?"/PatientReferrals/UpdateDraft":"/PatientReferrals/Create", { method: "POST", body });
       const result = await response.json() as ReferralReply;
       if (!response.ok || !result.success)
         throw new Error(result.message ?? "The referral could not be created.");
       createModal.hide();
       await loadReferrals();
-      showPageMessage("Referral created as Draft.", "success");
+      showPageMessage(isEdit?"Referral Draft updated.":"Referral created as Draft.", "success");
     } catch (error: unknown) {
       showModalMessage(error instanceof Error ? error.message : "The referral could not be created.");
     } finally {
@@ -215,16 +236,18 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Phone</div><div>${escapeHtml(referral.recipientPhone || "—")}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Fax</div><div>${escapeHtml(referral.recipientFax || "—")}</div></div>
         <div class="col-12"><div class="small text-body-secondary">Reason</div><div class="text-break">${escapeHtml(referral.reason)}</div></div>
+        <div class="col-12"><div class="small text-body-secondary">Referring Provider</div><div>${escapeHtml(referral.referringProviderDisplayName)}</div></div>
         <div class="col-12"><div class="small text-body-secondary">Clinical Summary</div><div class="text-break" style="white-space: pre-wrap">${escapeHtml(referral.clinicalSummary || "—")}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Created</div><div>${escapeHtml(formatDate(referral.createdAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Sent</div><div>${escapeHtml(formatDate(referral.sentAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Response Received</div><div>${escapeHtml(formatDate(referral.responseReceivedAtUtc))}</div></div>
         <div class="col-12 col-sm-6"><div class="small text-body-secondary">Closed</div><div>${escapeHtml(formatDate(referral.closedAtUtc))}</div></div>
         <div class="col-12 border-top pt-3"><div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h6 class="mb-0">Supporting Documents</h6></div><div id="referralSupportingDocuments"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading supporting documents...</span></div></div></div>
-        ${action ? `<div class="col-12 border-top pt-3"><button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button><div class="alert alert-danger d-none mt-3 mb-0" id="patientReferralActionMessage" role="alert"></div></div>` : ""}
+        <div class="col-12 border-top pt-3 d-flex flex-wrap gap-2">${referral.status==="Draft"&&canManage?`<button type="button" class="btn btn-outline-secondary" id="editReferralDraft">Edit Draft</button><a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}&preview=true">Preview Letter</a>`:""}${referral.artifactUid?`<a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}">View Referral Letter</a>`:""}${action&&canManage?`<button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button>`:""}<div class="alert alert-danger d-none mt-3 mb-0 w-100" id="patientReferralActionMessage" role="alert"></div></div>
       </div>`;
       document.querySelector<HTMLButtonElement>("#patientReferralLifecycleAction")
         ?.addEventListener("click", event => void transitionReferral(event.currentTarget as HTMLButtonElement));
+      document.querySelector<HTMLButtonElement>("#editReferralDraft")?.addEventListener("click",()=>openEdit(referral));
       void loadSupportingDocuments(referral);
   }
 
@@ -318,7 +341,9 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
 
   document.querySelector("#addPatientReferral")?.addEventListener("click", openCreate);
   saveButton.addEventListener("click", () => void saveReferral());
-  void loadReferrals();
+  void (async()=>{try{const response=await fetch("/PatientReferrals/Providers");const result=await response.json() as ProviderReply;providers=result.providers??[];
+    const select=createForm.elements.namedItem("ReferringProviderUid") as HTMLSelectElement;select.innerHTML='<option value="">Select a provider</option>'+providers.map(x=>`<option value="${x.providerUid}">${escapeHtml(x.displayName)}${x.specialty?` — ${escapeHtml(x.specialty)}`:""}</option>`).join("");
+  }catch{showPageMessage("Referring providers could not be loaded.","danger");}await loadReferrals();})();
 }
 
 export {};

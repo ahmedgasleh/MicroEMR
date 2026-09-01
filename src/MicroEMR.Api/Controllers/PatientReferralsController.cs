@@ -107,6 +107,34 @@ public sealed class PatientReferralsController(
         }
     }
 
+    [HttpGet("providers")]
+    public async Task<ActionResult<IReadOnlyList<ReferralProviderListItem>>> Providers(CancellationToken cancellationToken) =>
+        Ok(await service.GetActiveProvidersAsync(cancellationToken));
+
+    [HttpPut("{referralUid:guid}"), RequirePermission(PermissionKeys.ReferralsManage)]
+    public async Task<ActionResult<PatientReferralDetailsResponse>> UpdateDraft(Guid patientUid, Guid referralUid,
+        [FromBody] UpdatePatientReferralDraftRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try { var result=await service.UpdateDraftAsync(patientUid,referralUid,request,cancellationToken);return result is null?NotFound():Ok(result); }
+        catch(PatientReferralConcurrencyException e){return Conflict(new{message=e.Message,code="referral_concurrency_conflict"});}
+        catch(ArgumentException e){return BadRequest(new{message=e.Message});}
+    }
+
+    [HttpGet("{referralUid:guid}/letter/preview"), RequirePermission(PermissionKeys.ReferralsManage)]
+    public async Task<IActionResult> PreviewLetter(Guid patientUid,Guid referralUid,CancellationToken cancellationToken)
+    {
+        try { var bytes=await service.PreviewLetterAsync(patientUid,referralUid,cancellationToken);return bytes is null?NotFound():File(bytes,"application/pdf"); }
+        catch(PatientReferralTransitionException e){return Conflict(new{message=e.Message});}
+    }
+
+    [HttpGet("{referralUid:guid}/letter")]
+    public async Task<IActionResult> Letter(Guid patientUid,Guid referralUid,CancellationToken cancellationToken)
+    {
+        var artifact=await service.OpenArtifactAsync(patientUid,referralUid,cancellationToken);
+        return artifact is null?NotFound():File(artifact.Content,artifact.MimeType,artifact.FileName);
+    }
+
     [HttpPost("{referralUid:guid}/send")]
     [RequirePermission(PermissionKeys.ReferralsManage)]
     public Task<ActionResult<PatientReferralDetailsResponse>> MarkSent(

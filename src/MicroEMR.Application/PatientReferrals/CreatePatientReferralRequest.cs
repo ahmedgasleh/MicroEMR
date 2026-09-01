@@ -4,6 +4,8 @@ namespace MicroEMR.Application.PatientReferrals;
 
 public sealed class CreatePatientReferralRequest
 {
+    [Required]
+    public Guid ReferringProviderUid { get; init; }
     [Required, StringLength(200)]
     public required string RecipientName { get; init; }
 
@@ -20,4 +22,16 @@ public sealed class CreatePatientReferralRequest
     public required string Reason { get; init; }
 
     public string? ClinicalSummary { get; init; }
+}
+
+public sealed class UpdatePatientReferralDraftRequest
+{
+    [Required] public Guid ReferringProviderUid { get; init; }
+    [Required, StringLength(200)] public required string RecipientName { get; init; }
+    [StringLength(200)] public string? RecipientOrganization { get; init; }
+    [StringLength(30)] public string? RecipientPhone { get; init; }
+    [StringLength(30)] public string? RecipientFax { get; init; }
+    [Required, StringLength(1000)] public required string Reason { get; init; }
+    public string? ClinicalSummary { get; init; }
+    [Required] public required string RowVersion { get; init; }
 }

@@ -179,7 +179,7 @@ public sealed class InvalidTenantMembershipSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 4 && int.TryParse(name[..4], out _))
             .Select(name => int.Parse(name![..4])).ToArray();
-        Assert.Equal(55, tenantIds.Max());
+        Assert.Equal(56, tenantIds.Max());
     }
 
     private static string Shape(string startMarker, string endMarker)

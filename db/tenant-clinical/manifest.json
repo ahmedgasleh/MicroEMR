@@ -54,5 +54,7 @@
   { "migrationId": "0052-cds-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0052-cds-foundation.sql" },
   { "migrationId": "0053-cdm-enrollment-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0053-cdm-enrollment-foundation.sql" },
   { "migrationId": "0054-results-provenance-correction-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0054-results-provenance-correction-foundation.sql" },
-  { "migrationId": "0055-verified-negative-allergy-assertion", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0055-verified-negative-allergy-assertion.sql" }
+  { "migrationId": "0055-verified-negative-allergy-assertion", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0055-verified-negative-allergy-assertion.sql" },
+  { "migrationId": "0056-referral-letter-artifact", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0056-referral-letter-artifact.sql" },
+  { "migrationId": "0057-provider-management-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0057-provider-management-foundation.sql" }
 ]

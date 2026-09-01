@@ -12,6 +12,9 @@ public sealed class PatientReferralListItemResponse
     public DateTime? SentAtUtc { get; init; }
     public DateTime? ResponseReceivedAtUtc { get; init; }
     public DateTime? ClosedAtUtc { get; init; }
+    public Guid? ReferringProviderUid { get; init; }
+    public string? ReferringProviderDisplayName { get; init; }
+    public Guid? ArtifactUid { get; init; }
     public required string RowVersion { get; init; }
 }
 
@@ -33,5 +36,9 @@ public sealed class PatientReferralDetailsResponse
     public DateTime? SentAtUtc { get; init; }
     public DateTime? ResponseReceivedAtUtc { get; init; }
     public DateTime? ClosedAtUtc { get; init; }
+    public Guid? ReferringProviderUid { get; init; }
+    public string? ReferringProviderDisplayName { get; init; }
+    public string? ReferringProviderCredential { get; init; }
+    public Guid? ArtifactUid { get; init; }
     public required string RowVersion { get; init; }
 }
