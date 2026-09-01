@@ -28,6 +28,8 @@ public static class PermissionKeys
     public const string ReportsView = "Reports.View";
     public const string ReportsExport = "Reports.Export";
     public const string ClinicSettingsManage = "ClinicSettings.Manage";
+    public const string ProvidersView = "Providers.View";
+    public const string ProvidersManage = "Providers.Manage";
     public const string UsersView = "Users.View";
     public const string UsersManage = "Users.Manage";
     public const string UsersManageAccess = "Users.ManageAccess";
@@ -85,6 +87,7 @@ public static class PermissionCatalog
         P("Tasks.View","View tasks","Tasks","View patient and clinic tasks."), P("Tasks.Manage","Manage tasks","Tasks","Create and update tasks."),
         P("Reports.View","View reports","Reports","View clinic reports."), P("Reports.Export","Export reports","Reports","Export report data."),
         P("ClinicSettings.Manage","Manage clinic settings","Administration","Change clinic configuration."),
+        P("Providers.View","View providers","Administration","View active and inactive clinical providers."), P("Providers.Manage","Manage providers","Administration","Create, update, activate, deactivate, and link clinical providers."),
         P("Users.View","View users","Administration","View clinic users."), P("Users.Manage","Manage users","Administration","Add and activate clinic users."), P("Users.ManageAccess","Manage user access","Administration","Configure profiles and user access."),
     ];
     public static readonly IReadOnlySet<string> Keys = All.Select(x => x.Key).ToHashSet(StringComparer.Ordinal);
