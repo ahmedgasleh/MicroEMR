@@ -423,6 +423,7 @@ public sealed class PatientsController : Controller
             Allergies = allergies,
             AllergyDocumentationState = allergyDocumentationState,
             CanManageClinicalData = await _permissionService.HasAsync(PermissionKeys.ClinicalDataManage, cancellationToken),
+            CanManageReferrals = await _permissionService.HasAsync(PermissionKeys.ReferralsManage, cancellationToken),
             Medications = medications,
             Prescriptions=prescriptions,
             CanPrescribe=await _permissionService.HasAsync(PermissionKeys.PrescriptionsPrescribe,cancellationToken),

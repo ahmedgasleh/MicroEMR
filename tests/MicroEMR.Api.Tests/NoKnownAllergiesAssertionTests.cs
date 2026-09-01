@@ -17,8 +17,9 @@ public sealed class NoKnownAllergiesAssertionTests
     {
         using var json = JsonDocument.Parse(Source("db", "tenant-clinical", "manifest.json"));
         var ids = json.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal("0054-results-provenance-correction-foundation", ids[^2]);
-        Assert.Equal("0055-verified-negative-allergy-assertion", ids[^1]);
+        Assert.Equal("0054-results-provenance-correction-foundation", ids[^3]);
+        Assert.Equal("0055-verified-negative-allergy-assertion", ids[^2]);
+        Assert.Equal("0056-referral-letter-artifact", ids[^1]);
         Assert.Single(ids, x => x == "0055-verified-negative-allergy-assertion");
     }
 

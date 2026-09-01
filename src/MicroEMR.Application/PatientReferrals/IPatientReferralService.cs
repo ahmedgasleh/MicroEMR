@@ -16,6 +16,13 @@ public interface IPatientReferralService
         CreatePatientReferralRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PatientReferralDetailsResponse?> UpdateDraftAsync(Guid patientUid, Guid referralUid,
+        UpdatePatientReferralDraftRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    Task<IReadOnlyList<ReferralProviderListItem>> GetActiveProvidersAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ReferralProviderListItem>>([]);
+    Task<byte[]?> PreviewLetterAsync(Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default) => Task.FromResult<byte[]?>(null);
+    Task<ReferralArtifactDownload?> OpenArtifactAsync(Guid patientUid, Guid referralUid,
+        CancellationToken cancellationToken = default) => Task.FromResult<ReferralArtifactDownload?>(null);
+
     Task<PatientReferralDetailsResponse?> MarkSentAsync(Guid patientUid, Guid referralUid,
         ReferralStatusTransitionRequest request, CancellationToken cancellationToken = default);
 

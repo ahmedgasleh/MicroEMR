@@ -15,6 +15,9 @@ public sealed class PatientReferralListItemViewModel
     public DateTime? ResponseReceivedAtUtc { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
     public string RowVersion { get; set; } = string.Empty;
+    public Guid? ReferringProviderUid { get; set; }
+    public string? ReferringProviderDisplayName { get; set; }
+    public Guid? ArtifactUid { get; set; }
 }
 
 public sealed class PatientReferralDetailsViewModel
@@ -36,12 +39,19 @@ public sealed class PatientReferralDetailsViewModel
     public DateTime? ResponseReceivedAtUtc { get; set; }
     public DateTime? ClosedAtUtc { get; set; }
     public string RowVersion { get; set; } = string.Empty;
+    public Guid? ReferringProviderUid { get; set; }
+    public string? ReferringProviderDisplayName { get; set; }
+    public string? ReferringProviderCredential { get; set; }
+    public Guid? ArtifactUid { get; set; }
 }
 
-public sealed class CreatePatientReferralViewModel
+public class CreatePatientReferralViewModel
 {
     [Required]
     public Guid PatientUid { get; set; }
+
+    [Required]
+    public Guid ReferringProviderUid { get; set; }
 
     [Required, StringLength(200)]
     public string RecipientName { get; set; } = string.Empty;
@@ -59,6 +69,20 @@ public sealed class CreatePatientReferralViewModel
     public string Reason { get; set; } = string.Empty;
 
     public string? ClinicalSummary { get; set; }
+}
+
+public sealed class UpdatePatientReferralDraftViewModel : CreatePatientReferralViewModel
+{
+    public Guid ReferralUid { get; set; }
+    [Required] public string RowVersion { get; set; } = string.Empty;
+}
+
+public sealed class ReferralProviderViewModel
+{
+    public Guid ProviderUid { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string ProviderType { get; set; } = string.Empty;
+    public string? Specialty { get; set; }
 }
 
 public sealed class ReferralStatusTransitionViewModel

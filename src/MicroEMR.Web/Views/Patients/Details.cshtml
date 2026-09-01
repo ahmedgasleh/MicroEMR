@@ -324,7 +324,7 @@
                 <h5 class="mb-1">Referrals</h5>
                 <p class="text-body-secondary mb-0">Outgoing referrals recorded for this patient.</p>
             </div>
-            <button id="addPatientReferral" class="btn btn-primary" type="button">
+            <button id="addPatientReferral" class="btn btn-primary" type="button" disabled="@(!Model.CanManageReferrals)">
                 <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Add Referral
             </button>
         </div>
@@ -1207,9 +1207,12 @@
             <div class="modal-header"><h2 class="modal-title fs-5" id="patientReferralModalTitle">Add Referral</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <div class="modal-body">
                 <div id="patientReferralModalMessage" class="alert alert-danger d-none" role="alert"></div>
-                <form id="patientReferralForm" novalidate>
+                <form id="patientReferralForm" data-can-manage="@Model.CanManageReferrals.ToString().ToLowerInvariant()" novalidate>
                     <input type="hidden" name="PatientUid" value="@patient.PatientUid" />
+                    <input type="hidden" name="ReferralUid" />
+                    <input type="hidden" name="RowVersion" />
                     <div class="row g-3">
+                        <div class="col-12"><label for="referringProviderUid" class="form-label">Referring Provider <span class="text-danger">*</span></label><select id="referringProviderUid" name="ReferringProviderUid" class="form-select" required><option value="">Loading providers...</option></select><div class="invalid-feedback">A referring provider is required.</div></div>
                         <div class="col-12 col-md-6"><label for="referralRecipientName" class="form-label">Recipient Name <span class="text-danger">*</span></label><input id="referralRecipientName" name="RecipientName" class="form-control" maxlength="200" required autocomplete="off" /><div class="invalid-feedback">Recipient name is required.</div></div>
                         <div class="col-12 col-md-6"><label for="referralOrganization" class="form-label">Organization</label><input id="referralOrganization" name="RecipientOrganization" class="form-control" maxlength="200" autocomplete="organization" /></div>
                         <div class="col-12 col-md-6"><label for="referralPhone" class="form-label">Phone</label><input id="referralPhone" name="RecipientPhone" type="tel" class="form-control" maxlength="30" autocomplete="tel" /></div>

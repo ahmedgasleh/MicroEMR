@@ -137,8 +137,9 @@ public sealed class PatientReferralWebTests
         Assert.Equal($"api/patients/{patientUid}/referrals", handler.RequestUri);
         using var payload = JsonDocument.Parse(handler.RequestBody!);
         var names = payload.RootElement.EnumerateObject().Select(property => property.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.Equal(6, names.Count);
+        Assert.Equal(7, names.Count);
         Assert.Contains("recipientName", names);
+        Assert.Contains("referringProviderUid", names);
         Assert.Contains("clinicalSummary", names);
         Assert.DoesNotContain("patientUid", names);
         Assert.DoesNotContain("status", names);

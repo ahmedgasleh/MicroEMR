@@ -101,6 +101,27 @@ public sealed class PatientReferralsController(
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Providers(CancellationToken cancellationToken) =>
+        Json(new { success=true, providers=await client.GetProvidersAsync(cancellationToken) });
+
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateDraft(UpdatePatientReferralDraftViewModel model,CancellationToken cancellationToken)
+    {
+        if(!ModelState.IsValid)return BadRequest(new{success=false,message="Please correct the referral information."});
+        try { var referral=await client.UpdateDraftAsync(model.PatientUid,model.ReferralUid,model,cancellationToken);
+            return referral is null?NotFound(new{success=false,message="Referral was not found."}):Json(new{success=true,referral}); }
+        catch(HttpRequestException e){return ApiFailure(e,"The referral could not be updated.");}
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Letter(Guid patientUid,Guid referralUid,bool preview,CancellationToken cancellationToken)
+    {
+        try { var bytes=await client.GetLetterAsync(patientUid,referralUid,preview,cancellationToken);
+            return bytes is null?NotFound():File(bytes,"application/pdf",preview?null:$"referral-{referralUid:N}.pdf"); }
+        catch(HttpRequestException e){return ApiFailure(e,"The referral letter could not be opened.");}
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> MarkSent(
