@@ -349,6 +349,10 @@ Named owners and retained redacted evidence are needed for production topology/r
 
 ## 26. Fresh build/test baseline and review disposition
 
+Reverified on 2026-09-15 after Step 37P was incorporated into `main`. Current branch is `feature/ontariomd_certification_step37_readiness_reassessment`; HEAD and comparison base `main` are `356f45a1f987867ec760a67e9234b19a95f5be49`. The branch already contained the merge when this continuation began; no merge was performed here. Section 2 records the original assessment revision.
+
+Repository maxima are reconfirmed as tenant `0058-referral-followup-response-tracking` and platform `024_access_management_administrator_repair.sql`. Step 37P repaired seven platform max/tail assertions and five tenant maximum assertions while preserving historical migration references. The fresh green suites below close B01 and satisfy the baseline-repair prerequisite discussed in sections 20-22. Those earlier failure descriptions are historical; product readiness conclusions and the Step 38 recommendation remain unchanged.
+
 SDK observed: `.NET 10.0.203`. Release solution build ran from current source before `--no-build` test execution. No stale assembly was substituted and no source was modified to address environment issues.
 
 ```powershell
@@ -357,21 +361,23 @@ dotnet test tests/MicroEMR.Api.Tests/MicroEMR.Api.Tests.csproj -c Release --no-b
 dotnet test tests/MicroEMR.Auth.Tests/MicroEMR.Auth.Tests.csproj -c Release --no-build --no-restore --nologo --disable-build-servers -m:1
 ```
 
-The full API rerun used the same fresh binaries and settings, with Chromium launch permission and `--logger "trx;LogFileName=step37-api.trx" --results-directory artifacts/step37`. Local TRX output is an ignored verification artifact, not a production or tracked source change.
+The full API rerun used the same fresh binaries and command shown above with Chromium launch permission. The first execution passed 823 tests and failed only the PDF renderer test with `spawn EPERM`; the permitted rerun passed all 824, establishing that failure as environment-only. The earlier `artifacts/step37/step37-api.trx` belongs to the original assessment and is not evidence of this continuation's results.
 
 | Gate | Result |
 |---|---|
-| Release solution build | PASS: 0 warnings, 0 errors; 1m 16.26s |
-| Full API suite, sandbox | FAIL: 816 passed, 8 failed, 0 skipped, 824 total |
-| Full API suite, approved rerun | FAIL: 817 passed, 7 failed, 0 skipped, 824 total |
+| Release solution build | PASS: 0 warnings, 0 errors; 50.53s |
+| Full API suite, sandbox | 823 passed, 1 environment-only Playwright launch failure, 0 skipped, 824 total |
+| Full API suite, approved rerun | PASS: 824 passed, 0 failed, 0 skipped |
 | Playwright PDF renderer | PASS on rerun; first-run `spawn EPERM` was an environment restriction |
 | Full Auth suite | PASS: 30 passed, 0 failed, 0 skipped |
-| git diff --check | PASS; new untracked document also checked separately with git diff --no-index --check |
-| Non-documentation tracked changes | None |
+| git diff --check | PASS |
+| Changes relative to updated main | Only this Step 37 documentation file; no production, test, permission, manifest or migration changes |
 | Live SQL/browser clinical verification this step | Not performed; user stability report retained separately |
-| SAFE TO COMMIT | NO under the requested passing-baseline gate: seven existing API test assertions remain red. Documentation is ready for review; no production change is needed to finish this report. |
+| SAFE TO COMMIT | YES: documentation-only change with fresh green Release/API/Auth baseline; certification and live-runtime evidence limitations remain as documented. |
 
-Remaining failures all assert platform 022 as maximum, while the source contains 023 and 024:
+### Historical failures, resolved by Step 37P
+
+The original permitted run passed 817 tests and failed these seven at platform 022 maximum/tail assertions. Further inspection found five stale tenant maximum assertions (56 instead of 58) behind those first failures. Step 37P repaired both sets; none remains failing in the current full suite. The locations below describe the original assessment, not current expected values:
 
 | Test class | Failing method | Assertion location |
 |---|---|---|
@@ -383,4 +389,4 @@ Remaining failures all assert platform 022 as maximum, while the source contains
 | PlatformEntitlementProcedureRepairTests | PlatformMigrationTwentyIsUniqueAndTenantSequenceReachesFiftyOne | line 67: expects max 22 |
 | PlatformEntitlementFoundationTests | MigrationEighteenIsUniqueAndTenantSequenceReachesFiftyOne | line 180: expects max 22 |
 
-Locations are under `tests/MicroEMR.Api.Tests` at the base revision. These failures predate this documentation-only change. No test expectation, production code, migration, permission, CDS/CDM, referral or Provider behavior was changed. No commit, merge or push was performed. Stop for review.
+Locations are under `tests/MicroEMR.Api.Tests` at the original base revision. Step 37P's test changes are now part of comparison base `main`; this Step 37 continuation changes only this document's verification section. No test expectation, production code, migration, permission, CDS/CDM, referral or Provider behavior was changed here. Step 38 was not implemented. No commit, merge or push was performed. Stop for review.
