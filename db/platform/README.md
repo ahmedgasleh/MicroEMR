@@ -39,6 +39,8 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 20. `020_platform_entitlement_procedure_repair.sql`
 21. `021_prescriptions_prescribe_permission_governance.sql`
 22. `022_membership_initial_access_profile_resolution.sql`
+23. `023_provider_management_permissions.sql`
+24. `024_access_management_administrator_repair.sql`
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one
