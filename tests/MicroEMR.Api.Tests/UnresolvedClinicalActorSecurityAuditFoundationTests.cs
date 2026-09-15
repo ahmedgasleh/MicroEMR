@@ -145,7 +145,7 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 3 && int.TryParse(name[..3], out _))
             .Select(name => int.Parse(name![..3])).ToArray();
-        Assert.Equal(22, platformIds.Max());
+        Assert.Equal(24, platformIds.Max());
         Assert.Single(platformIds, id => id == 16);
         Assert.Single(platformIds, id => id == 17);
         Assert.Single(platformIds, id => id == 18);
@@ -155,7 +155,7 @@ public sealed class UnresolvedClinicalActorSecurityAuditFoundationTests
             .Select(Path.GetFileNameWithoutExtension)
             .Where(name => name?.Length >= 4 && int.TryParse(name[..4], out _))
             .Select(name => int.Parse(name![..4])).ToArray();
-        Assert.Equal(56, tenantIds.Max());
+        Assert.Equal(58, tenantIds.Max());
     }
 
     private static string Procedure() => Migration[Migration.IndexOf(

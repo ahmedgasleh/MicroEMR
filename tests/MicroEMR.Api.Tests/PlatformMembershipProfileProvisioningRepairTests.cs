@@ -15,7 +15,7 @@ public sealed class PlatformMembershipProfileProvisioningRepairTests
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal("022_membership_initial_access_profile_resolution.sql", platformFiles[^1]);
+        Assert.Equal("024_access_management_administrator_repair.sql", platformFiles[^1]);
         Assert.Contains("CREATE OR ALTER PROCEDURE dbo.PlatformMembership_CreateWithInitialRole", Migration);
         Assert.Contains("DECLARE @ProfileUid UNIQUEIDENTIFIER;", Migration);
         Assert.DoesNotContain("END,@ProfileUid UNIQUEIDENTIFIER", Migration, StringComparison.OrdinalIgnoreCase);
