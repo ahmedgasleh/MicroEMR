@@ -196,18 +196,19 @@ public sealed class PatientMedicationsController : Controller
         if (medicationUid == Guid.Empty) return BadRequest();
         var item = await _medicationApiClient.GetByUidAsync(medicationUid, cancellationToken);
         if (item is null) return NotFound();
-        return View(new EditPatientMedicationViewModel {
+        var model = new EditPatientMedicationViewModel {
             PatientUid=item.PatientUid, MedicationUid=item.MedicationUid, MedicationName=item.MedicationName,
             Strength=item.Strength, DosageForm=item.DosageForm, Route=item.Route, Directions=item.Directions,
             Frequency=item.Frequency, StartDate=item.StartDate, EndDate=item.EndDate, Indication=item.Indication,
-            PrescriberName=item.PrescriberName, Status=item.Status, Notes=item.Notes, RowVersion=item.RowVersion });
+            PrescriberName=item.PrescriberName, Status=item.Status, Notes=item.Notes, RowVersion=item.RowVersion };
+        return IsModalRequest() ? Json(model) : View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(EditPatientMedicationViewModel model, CancellationToken cancellationToken)
     {
         if (model.PatientUid == Guid.Empty || model.MedicationUid == Guid.Empty) return BadRequest();
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) return IsModalRequest() ? BadRequest(new { errors = ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() }) : View(model);
         try {
             var result = await _medicationApiClient.UpdateAsync(model.PatientUid, model.MedicationUid,
                 new UpdatePatientMedicationRequest { MedicationName=model.MedicationName, Strength=model.Strength,
@@ -216,20 +217,26 @@ public sealed class PatientMedicationsController : Controller
                     PrescriberName=model.PrescriberName, Status=model.Status, Notes=model.Notes, RowVersion=model.RowVersion }, cancellationToken);
             if (result is null) return NotFound();
             TempData["SuccessMessage"] = "Medication updated successfully.";
-            return RedirectToAction("Details", "Patients", new { patientUid=model.PatientUid, tab="medications" });
+            return IsModalRequest()
+                ? Json(new { success = true, redirectUrl = Url.Action("Details", "Patients", new { patientUid=model.PatientUid, tab="medications" }) })
+                : RedirectToAction("Details", "Patients", new { patientUid=model.PatientUid, tab="medications" });
         }
         catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict) {
             AddApiValidationErrors(SafeApiResponseException.ValidationBody(exception), exception.StatusCode == HttpStatusCode.Conflict
                 ? "The medication was changed by another user. Reload and try again."
                 : "The medication could not be updated. Review the fields and try again.");
-            return View(model);
+            return IsModalRequest() ? BadRequest(new { errors = new[] { exception.StatusCode == HttpStatusCode.Conflict
+                ? "The medication was changed by another user. Reload the chart and try again."
+                : "The medication could not be updated. Review the fields and try again." } }) : View(model);
         }
         catch (Exception exception) {
             _logger.LogError(exception, "Unable to update medication.");
             ModelState.AddModelError(string.Empty, "The medication could not be updated. Please try again.");
-            return View(model);
+            return IsModalRequest() ? StatusCode(StatusCodes.Status503ServiceUnavailable, new { errors = new[] { "The medication could not be updated. Please try again." } }) : View(model);
         }
     }
+
+    private bool IsModalRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DiscontinueMedication(
@@ -242,10 +249,22 @@ public sealed class PatientMedicationsController : Controller
         try
         {
             var result = await _medicationApiClient.DiscontinueAsync(model.PatientUid, model.MedicationUid,
-                new DiscontinuePatientMedicationRequest { DiscontinueReason = model.DiscontinueReason }, cancellationToken);
+                new DiscontinuePatientMedicationRequest { DiscontinueReason = model.DiscontinueReason, RowVersion = model.RowVersion }, cancellationToken);
             return result is null
                 ? NotFound(new { success = false, message = "Medication was not found." })
                 : Json(new { success = true, message = "Medication discontinued." });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return Conflict(new { success = false, message = "The medication was changed by another user. Refresh the patient chart and review the latest medication before discontinuing it." });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        {
+            return BadRequest(new { success = false, message = "The medication information is invalid. Refresh the patient chart and review the medication." });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "You do not have permission to discontinue medication." });
         }
         catch (Exception exception)
         {

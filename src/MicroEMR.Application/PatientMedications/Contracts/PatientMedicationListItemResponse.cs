@@ -37,4 +37,6 @@ public sealed class PatientMedicationListItemResponse
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+
+    public string RowVersion { get; set; } = string.Empty;
 }

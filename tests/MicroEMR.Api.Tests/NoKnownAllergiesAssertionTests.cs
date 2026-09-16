@@ -20,7 +20,7 @@ public sealed class NoKnownAllergiesAssertionTests
         Assert.Equal("0054-results-provenance-correction-foundation", ids[^5]);
         Assert.Equal("0055-verified-negative-allergy-assertion", ids[^4]);
         Assert.Equal("0056-referral-letter-artifact", ids[^3]);
-        Assert.Equal("0058-referral-followup-response-tracking", ids[^1]);
+        Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
         Assert.Single(ids, x => x == "0055-verified-negative-allergy-assertion");
     }
 

@@ -51,7 +51,7 @@ public sealed class CriticalAppointmentCertificationTests
         Assert.Equal("0053-cdm-enrollment-foundation", migrationIds[^6]);
         Assert.Equal("0055-verified-negative-allergy-assertion", migrationIds[^4]);
         Assert.Equal("0056-referral-letter-artifact", migrationIds[^3]);
-        Assert.Equal("0058-referral-followup-response-tracking", migrationIds[^1]);
+        Assert.Equal("0059-medication-discontinuation-concurrency", migrationIds[^1]);
         Assert.Equal(migrationIds.Length, migrationIds.Distinct(StringComparer.Ordinal).Count());
     }
 

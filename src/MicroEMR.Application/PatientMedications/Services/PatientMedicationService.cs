@@ -59,6 +59,7 @@ public sealed class PatientMedicationService : IPatientMedicationService
         long? discontinuedBy, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        request.GetRowVersionBytes();
         return _repository.DiscontinueAsync(patientUid, medicationUid, request, discontinuedBy, cancellationToken);
     }
 }

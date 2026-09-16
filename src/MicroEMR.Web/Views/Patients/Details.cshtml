@@ -1,4 +1,4 @@
-﻿@model MicroEMR.Web.Models.Patients.PatientChartViewModel
+@model MicroEMR.Web.Models.Patients.PatientChartViewModel
 
 @using MicroEMR.Application.AccessProfiles
 @using MicroEMR.Web.Authorization
@@ -1144,13 +1144,12 @@
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-danger discontinue-medication-button"
                                                 data-patient-uid="@medication.PatientUid"
-                                                data-medication-uid="@medication.MedicationUid">
+                                                data-medication-uid="@medication.MedicationUid"
+                                                data-row-version="@medication.RowVersion">
                                             Discontinue
                                         </button>
-                                        <a asp-controller="PatientMedications"
-                                           asp-action="Edit"
-                                           asp-route-medicationUid="@medication.MedicationUid"
-                                           class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary edit-medication-button"
+                                                data-edit-url="@Url.Action("Edit", "PatientMedications", new { medicationUid = medication.MedicationUid })">Edit</button>
                                     }
                                     <a asp-controller="PatientMedications"
                                        asp-action="Details"
@@ -1168,13 +1167,13 @@
         <hr class="my-4" />
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div><h5 class="mb-1">Prescriptions</h5><div class="text-muted small">Local structured prescriptions are maintained separately from the medication list.</div></div>
-            @if (Model.CanPrescribe) { <a asp-controller="PatientPrescriptions" asp-action="Create" asp-route-patientUid="@patient.PatientUid" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>New Prescription</a> }
+            @if (Model.CanPrescribe) { <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPrescriptionModal"><i class="bi bi-plus-circle me-1"></i>New Prescription</button> }
             else { <button class="btn btn-primary" disabled title="Prescriptions.Prescribe permission is required.">New Prescription</button> }
         </div>
         @if (Model.Prescriptions.Count == 0) { <div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-prescription2"></i></div><div class="microemr-empty-state__title">No prescriptions recorded</div></div> }
         else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Date</th><th>Medication</th><th>Directions</th><th>Quantity</th><th>Repeats</th><th>Prescriber</th><th>Status</th><th class="text-end">Actions</th></tr></thead><tbody>
         @foreach(var rx in Model.Prescriptions) { <tr><td>@rx.PrescribedDate.ToString("MMM d, yyyy")</td><td><strong>@(rx.ProductDisplaySnapshot ?? rx.ProductDisplayText)</strong></td><td>@rx.Directions</td><td>@rx.Quantity.ToString("0.###") @rx.QuantityUnit</td><td>@rx.AuthorizedRepeats</td><td>@(rx.PrescriberDisplayNameSnapshot ?? "Draft")</td><td><span class="badge text-bg-@(rx.Status=="Finalized"?"success":rx.Status=="Draft"?"secondary":"warning")">@rx.Status</span></td><td class="text-end text-nowrap">
-          @if(rx.Status=="Draft" && Model.CanPrescribe){<a asp-controller="PatientPrescriptions" asp-action="Edit" asp-route-patientUid="@patient.PatientUid" asp-route-prescriptionUid="@rx.PrescriptionUid" class="btn btn-sm btn-outline-secondary">Edit</a><form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Finalize" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><button class="btn btn-sm btn-primary" onclick="return confirm('Finalize this prescription? It cannot be edited afterward.');">Finalize Prescription</button></form>}
+          @if(rx.Status=="Draft" && Model.CanPrescribe){<button type="button" class="btn btn-sm btn-outline-secondary edit-prescription-button" data-edit-url="@Url.Action("Edit", "PatientPrescriptions", new { patientUid = patient.PatientUid, prescriptionUid = rx.PrescriptionUid })">Edit</button><form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Finalize" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><button class="btn btn-sm btn-primary" onclick="return confirm('Finalize this prescription? It cannot be edited afterward.');">Finalize Prescription</button></form>}
           @if(rx.ArtifactUid.HasValue){<a asp-controller="PatientPrescriptions" asp-action="Artifact" asp-route-patientUid="@patient.PatientUid" asp-route-prescriptionUid="@rx.PrescriptionUid" class="btn btn-sm btn-outline-primary">View/Print</a>}
           @if(rx.Status=="Finalized" && Model.CanPrescribe){<form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Correction" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><button class="btn btn-sm btn-outline-secondary">Create Correction</button></form><form class="d-inline" asp-controller="PatientPrescriptions" asp-action="Cancel" method="post"><input type="hidden" name="patientUid" value="@patient.PatientUid"/><input type="hidden" name="prescriptionUid" value="@rx.PrescriptionUid"/><input type="hidden" name="rowVersion" value="@rx.RowVersion"/><input type="hidden" name="reason" value="Cancelled by prescriber"/><button class="btn btn-sm btn-outline-danger" onclick="return confirm('Cancel this prescription? The record and artifact will be retained.');">Cancel Prescription</button></form>}
         </td></tr> }
@@ -1241,6 +1240,32 @@
 <div class="modal fade" id="resultErrorModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Mark Result Entered in Error</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="resultErrorForm"><input type="hidden" name="PatientUid" value="@patient.PatientUid"/><input type="hidden" name="PatientResultUid"/><input type="hidden" name="ExpectedRowVersion"/><label class="form-label">Reason</label><textarea name="Reason" required maxlength="500" class="form-control"></textarea></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button id="confirmResultError" class="btn btn-danger">Mark entered in error</button></div></div></div></div>
 <div class="modal fade" id="resultHistoryModal" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5">Result History</h2><button class="btn-close" data-bs-dismiss="modal"></button></div><div id="resultHistoryContent" class="modal-body"></div></div></div></div>
 <partial name="_SummaryQuickActionModals" model="Model" />
+<partial name="_EditMedicationModal" model="Model" />
+@if (Model.CanPrescribe)
+{
+    <div class="modal fade" id="newPrescriptionModal" tabindex="-1" aria-labelledby="newPrescriptionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <form asp-controller="PatientPrescriptions" asp-action="Create" asp-route-patientUid="@patient.PatientUid" method="post" id="newPrescriptionForm">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-header">
+                        <h2 class="modal-title fs-5" id="newPrescriptionModalLabel">New Prescription Draft</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small">Saving creates a draft. Finalization is a separate action.</p>
+                        <div id="newPrescriptionMessage" class="alert alert-danger d-none" role="alert"></div>
+                        @await Html.PartialAsync("~/Views/PatientPrescriptions/_Form.cshtml", new MicroEMR.Application.PatientPrescriptions.CreatePrescriptionDraftRequest { PrescribedDate = DateOnly.FromDateTime(DateTime.Today) })
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="savePrescriptionDraftButton">Save Draft</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="modal fade" id="createEncounterModal" tabindex="-1" aria-labelledby="createEncounterModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -1489,6 +1514,144 @@
 <div class="modal fade" id="patientFileDetailsModal" tabindex="-1" aria-labelledby="patientFileDetailsTitle" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="patientFileDetailsTitle">File details</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="patientFileDetailsBody" aria-live="polite"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div></div></div></div>
 
 @section Scripts {
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("newPrescriptionModal");
+    const form = document.getElementById("newPrescriptionForm");
+    if (!modal || !form) return;
+
+    const message = document.getElementById("newPrescriptionMessage");
+    const saveButton = document.getElementById("savePrescriptionDraftButton");
+    const title = document.getElementById("newPrescriptionModalLabel");
+    const createAction = form.action;
+    const showError = errors => {
+        message.textContent = errors.filter(Boolean).join(" ") || "The prescription draft could not be saved.";
+        message.classList.remove("d-none");
+        modal.querySelector(".modal-body").scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    modal.addEventListener("show.bs.modal", event => {
+        if (event.relatedTarget?.matches('[data-bs-target="#newPrescriptionModal"]')) {
+            form.reset();
+            form.action = createAction;
+            title.textContent = "New Prescription Draft";
+            saveButton.textContent = "Save Draft";
+        }
+        message.classList.add("d-none");
+        saveButton.disabled = false;
+    });
+
+    document.querySelectorAll(".edit-prescription-button").forEach(button => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+            const response = await fetch(button.dataset.editUrl, { headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" } });
+            if (!response.ok) throw new Error("The prescription draft could not be loaded. Refresh the chart and try again.");
+            const draft = await response.json();
+            form.reset();
+            for (const field of ["ProductName", "ProductDisplayText", "ProductIdentifierNamespace", "ProductIdentifierValue", "StrengthValue", "StrengthUnit", "DoseAmount", "DoseUnit", "Route", "FrequencyCode", "Directions", "Quantity", "QuantityUnit", "AuthorizedRepeats", "PrescribedDate", "StartDate", "Indication", "RowVersion"]) {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (input) input.value = draft[field.charAt(0).toLowerCase() + field.slice(1)] ?? "";
+            }
+            form.querySelector('input[type="checkbox"][name="Prn"]').checked = draft.prn === true;
+            form.action = button.dataset.editUrl;
+            title.textContent = "Edit Prescription Draft";
+            saveButton.textContent = "Save Changes";
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        } catch (error) {
+            window.alert(error instanceof Error ? error.message : "The prescription draft could not be loaded.");
+        } finally {
+            button.disabled = false;
+        }
+    }));
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        message.classList.add("d-none");
+        saveButton.disabled = true;
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+                body: new FormData(form)
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                showError(Array.isArray(result.errors) ? result.errors : []);
+                return;
+            }
+            window.location.assign(result.redirectUrl);
+        } catch {
+            showError(["The prescription draft could not be saved. Please try again."]);
+        } finally {
+            saveButton.disabled = false;
+        }
+    });
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("editMedicationModal");
+    const form = document.getElementById("editMedicationForm");
+    if (!modal || !form) return;
+
+    const message = document.getElementById("editMedicationMessage");
+    const saveButton = document.getElementById("saveMedicationEditButton");
+    const showError = errors => {
+        message.textContent = errors.filter(Boolean).join(" ") || "The medication could not be updated.";
+        message.classList.remove("d-none");
+        modal.querySelector(".modal-body").scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    document.querySelectorAll(".edit-medication-button").forEach(button => button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+            const response = await fetch(button.dataset.editUrl, { headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" } });
+            if (!response.ok) throw new Error("The medication could not be loaded. Refresh the chart and try again.");
+            const medication = await response.json();
+            form.reset();
+            for (const field of ["PatientUid", "MedicationUid", "RowVersion", "MedicationName", "Strength", "DosageForm", "Route", "Frequency", "Directions", "Status", "Indication", "PrescriberName", "Notes"]) {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (input) input.value = medication[field.charAt(0).toLowerCase() + field.slice(1)] ?? "";
+            }
+            for (const field of ["StartDate", "EndDate"]) {
+                form.querySelector(`[name="${field}"]`).value = medication[field.charAt(0).toLowerCase() + field.slice(1)]?.slice(0, 10) ?? "";
+            }
+            message.classList.add("d-none");
+            saveButton.disabled = false;
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        } catch (error) {
+            window.alert(error instanceof Error ? error.message : "The medication could not be loaded.");
+        } finally {
+            button.disabled = false;
+        }
+    }));
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        message.classList.add("d-none");
+        saveButton.disabled = true;
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+                body: new FormData(form)
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                showError(Array.isArray(result.errors) ? result.errors : []);
+                return;
+            }
+            window.location.assign(result.redirectUrl);
+        } catch {
+            showError(["The medication could not be updated. Please try again."]);
+        } finally {
+            saveButton.disabled = false;
+        }
+    });
+});
+</script>
 <script type="module" src="~/dist/patients/patient-chart-header.js" asp-append-version="true"></script>
 <div class="modal fade" id="clinicalHistoryModal" tabindex="-1" aria-labelledby="clinicalHistoryModalTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="clinicalHistoryModalTitle">Add History</h2><button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="clinicalHistoryForm">@Html.AntiForgeryToken()<input type="hidden" name="HistoryUid"/><input type="hidden" name="RowVersion"/><div class="mb-3"><label class="form-label" for="clinicalHistoryType">History type</label><select class="form-select" id="clinicalHistoryType" name="HistoryType" required><option value="Medical">Medical</option><option value="Surgical">Surgical</option></select></div><div class="mb-3"><label class="form-label" for="clinicalHistoryDescription">Description</label><textarea class="form-control" id="clinicalHistoryDescription" name="Description" maxlength="1000" required rows="3"></textarea></div><div><label class="form-label" for="clinicalHistoryDate">Relevant date</label><input class="form-control" id="clinicalHistoryDate" name="RelevantDate" type="date"/></div><div id="clinicalHistoryEditorMessage" class="alert alert-danger d-none mt-3"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveClinicalHistoryButton" type="button">Save</button></div></div></div></div>
 <div class="modal fade" id="immunizationModal" tabindex="-1" aria-labelledby="immunizationModalTitle" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="immunizationModalTitle">Add Immunization</h2><button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="immunizationForm">@Html.AntiForgeryToken()<input type="hidden" name="RowVersion"/><div id="immunizationEditorMessage" class="alert alert-danger d-none"></div><div class="row g-3"><div class="col-md-8"><label class="form-label">Vaccine name</label><input class="form-control" name="VaccineName" maxlength="200" required/></div><div class="col-md-4"><label class="form-label">Administration date</label><input class="form-control" name="AdministrationDate" type="date" required/></div><div class="col-md-6"><label class="form-label">Source</label><select class="form-select" name="SourceType" required><option value="ClinicAdministered">Clinic administered</option><option value="HistoricalExternal">Historical / external</option></select></div><div class="col-md-6"><label class="form-label">Administered by</label><input class="form-control" name="AdministeredByName" maxlength="200"/></div><div class="col-md-3"><label class="form-label">Dose number</label><input class="form-control" name="DoseNumber" type="number" min="1"/></div><div class="col-md-3"><label class="form-label">Route</label><input class="form-control" name="Route" maxlength="100"/></div><div class="col-md-3"><label class="form-label">Site</label><input class="form-control" name="Site" maxlength="100"/></div><div class="col-md-3"><label class="form-label">Lot number</label><input class="form-control" name="LotNumber" maxlength="100"/></div><div class="col-md-6"><label class="form-label">Source description</label><input class="form-control" name="SourceDescription" maxlength="500"/></div><div class="col-md-6"><label class="form-label">Encounter UID</label><input class="form-control" name="EncounterUid" placeholder="Optional"/></div><div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" name="Notes" maxlength="1000" rows="3"></textarea></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" id="saveImmunizationButton" type="button">Save</button></div></div></div></div>
@@ -2206,6 +2369,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let medicationUid = null;
     document.querySelectorAll(".discontinue-medication-button").forEach(button => button.addEventListener("click", () => {
         patientUid = button.dataset.patientUid; medicationUid = button.dataset.medicationUid;
+        modalElement.dataset.rowVersion = button.dataset.rowVersion;
         reason.value = ""; message.classList.add("d-none"); modal.show();
     }));
     confirmButton.addEventListener("click", async () => {
@@ -2213,6 +2377,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.disabled = true; message.classList.add("d-none");
         try {
             const data = new FormData(); data.append("PatientUid", patientUid); data.append("MedicationUid", medicationUid); data.append("DiscontinueReason", reason.value);
+            data.append("RowVersion", modalElement.dataset.rowVersion || "");
             const token = document.querySelector('#medicationAntiforgeryForm input[name="__RequestVerificationToken"]').value;
             const response = await fetch('@Url.Action("DiscontinueMedication", "PatientMedications")', { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
             const result = await response.json().catch(() => ({}));

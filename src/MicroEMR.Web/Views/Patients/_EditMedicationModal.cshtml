@@ -1,0 +1,39 @@
+@model MicroEMR.Web.Models.Patients.PatientChartViewModel
+
+<div class="modal fade" id="editMedicationModal" tabindex="-1" aria-labelledby="editMedicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-controller="PatientMedications" asp-action="Edit" method="post" id="editMedicationForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="PatientUid" value="@Model.Patient.PatientUid" />
+                <input type="hidden" name="MedicationUid" />
+                <input type="hidden" name="RowVersion" />
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="editMedicationModalLabel">Edit Medication</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="editMedicationMessage" class="alert alert-danger d-none" role="alert"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label for="editMedicationName" class="form-label">Medication name</label><input id="editMedicationName" name="MedicationName" class="form-control" maxlength="200" required /></div>
+                        <div class="col-md-3"><label for="editMedicationStrength" class="form-label">Strength</label><input id="editMedicationStrength" name="Strength" class="form-control" maxlength="100" /></div>
+                        <div class="col-md-3"><label for="editMedicationDosageForm" class="form-label">Dosage form</label><input id="editMedicationDosageForm" name="DosageForm" class="form-control" maxlength="100" /></div>
+                        <div class="col-md-3"><label for="editMedicationRoute" class="form-label">Route</label><input id="editMedicationRoute" name="Route" class="form-control" maxlength="100" /></div>
+                        <div class="col-md-3"><label for="editMedicationFrequency" class="form-label">Frequency</label><input id="editMedicationFrequency" name="Frequency" class="form-control" maxlength="100" /></div>
+                        <div class="col-md-3"><label for="editMedicationStartDate" class="form-label">Start date</label><input id="editMedicationStartDate" name="StartDate" type="date" class="form-control" /></div>
+                        <div class="col-md-3"><label for="editMedicationEndDate" class="form-label">End date</label><input id="editMedicationEndDate" name="EndDate" type="date" class="form-control" /></div>
+                        <div class="col-md-8"><label for="editMedicationDirections" class="form-label">Directions</label><input id="editMedicationDirections" name="Directions" class="form-control" maxlength="500" /></div>
+                        <div class="col-md-4"><label for="editMedicationStatus" class="form-label">Status</label><select id="editMedicationStatus" name="Status" class="form-select"><option>Active</option><option>Inactive</option><option>Discontinued</option><option>EnteredInError</option></select></div>
+                        <div class="col-md-6"><label for="editMedicationIndication" class="form-label">Indication</label><input id="editMedicationIndication" name="Indication" class="form-control" maxlength="300" /></div>
+                        <div class="col-md-6"><label for="editMedicationPrescriber" class="form-label">Prescriber</label><input id="editMedicationPrescriber" name="PrescriberName" class="form-control" maxlength="200" /></div>
+                        <div class="col-12"><label for="editMedicationNotes" class="form-label">Notes</label><textarea id="editMedicationNotes" name="Notes" class="form-control" maxlength="1000" rows="3"></textarea></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveMedicationEditButton">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
