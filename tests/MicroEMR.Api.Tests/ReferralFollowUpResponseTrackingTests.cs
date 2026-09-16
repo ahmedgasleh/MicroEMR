@@ -14,12 +14,13 @@ public sealed class ReferralFollowUpResponseTrackingTests
     private static readonly string Sql = File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0058-referral-followup-response-tracking.sql"));
 
     [Fact]
-    public void Migration0058IsUniqueAndLast()
+    public void Migration0058IsUniqueAndFollowedBy0059()
     {
         using var manifest=JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(),"db","tenant-clinical","manifest.json")));
         var ids=manifest.RootElement.EnumerateArray().Select(x=>x.GetProperty("migrationId").GetString()).ToArray();
         Assert.Equal(60,ids.Length);
-        Assert.Equal("0057-provider-management-foundation",ids[^2]);
+        Assert.Equal("0057-provider-management-foundation",ids[57]);
+        Assert.Equal("0058-referral-followup-response-tracking",ids[58]);
         Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
         Assert.Single(ids,x=>x=="0058-referral-followup-response-tracking");
     }

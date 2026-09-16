@@ -18,12 +18,12 @@ public sealed class ResultReviewAcknowledgementHardeningTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal("0050-patient-prescription-foundation", ids[^9]);
-        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[^8]);
-        Assert.Equal("0052-cds-foundation", ids[^7]);
-        Assert.Equal("0053-cdm-enrollment-foundation", ids[^6]);
-        Assert.Equal("0055-verified-negative-allergy-assertion", ids[^4]);
-        Assert.Equal("0056-referral-letter-artifact", ids[^3]);
+        Assert.Equal("0050-patient-prescription-foundation", ids[50]);
+        Assert.Equal("0051-result-review-acknowledgement-hardening", ids[51]);
+        Assert.Equal("0052-cds-foundation", ids[52]);
+        Assert.Equal("0053-cdm-enrollment-foundation", ids[53]);
+        Assert.Equal("0055-verified-negative-allergy-assertion", ids[55]);
+        Assert.Equal("0056-referral-letter-artifact", ids[56]);
         Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
         Assert.Single(ids, x => x == "0051-result-review-acknowledgement-hardening");
         Assert.False(File.Exists(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0052-result-review-acknowledgement-hardening.sql")));
