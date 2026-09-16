@@ -44,11 +44,10 @@ public sealed class IdentityUserAdministration(
             // A concurrent request may have won the unique-email race.
             existing = await users.FindByEmailAsync(email);
             if (existing is not null) return new(ToProfile(existing), false);
-            var safeErrors = string.Join(" ", result.Errors.Select(x => x.Description));
-            logger.LogWarning("Auth identity creation failed for normalized email {Email}: {Errors}", email, safeErrors);
-            throw new ArgumentException($"The Auth account could not be created. {safeErrors}");
+            logger.LogWarning("Auth identity creation was rejected. ErrorCategory={ErrorCategory}", "IdentityValidation");
+            throw new ArgumentException(SafeIdentityError(result.Errors, "The Auth account could not be created."));
         }
-        logger.LogInformation("Auth identity {UserId} created with an administrator-supplied temporary password.", user.Id);
+        logger.LogInformation("Auth identity created with an administrator-supplied temporary password.");
         return new(ToProfile(user), true);
     }
 
@@ -61,18 +60,28 @@ public sealed class IdentityUserAdministration(
         var result=await users.ResetPasswordAsync(user,token,temporaryPassword);
         if(!result.Succeeded)
         {
-            var errors=string.Join(" ",result.Errors.Select(x=>x.Description));
-            logger.LogWarning("Temporary password reset failed for Auth identity {UserId}: {Errors}",userId,errors);
-            throw new ArgumentException($"The temporary password was rejected. {errors}");
+            logger.LogWarning("Temporary password reset was rejected. ErrorCategory={ErrorCategory}", "IdentityValidation");
+            throw new ArgumentException(SafeIdentityError(result.Errors, "The temporary password was rejected."));
         }
         await users.SetLockoutEndDateAsync(user,null);
         await users.ResetAccessFailedCountAsync(user);
-        logger.LogInformation("Temporary password reset completed for Auth identity {UserId}.",userId);
+        logger.LogInformation("Temporary password reset completed for an Auth identity.");
     }
 
     private static IdentityUserProfile ToProfile(AdministrationIdentityUser user) =>
         new(user.Id, user.UserName ?? user.Email ?? string.Empty, user.FullName ?? user.UserName ?? string.Empty,
             user.Email, user.IsActive);
+
+    private static string SafeIdentityError(IEnumerable<IdentityError> errors, string fallback)
+    {
+        var codes = errors.Select(error => error.Code).ToHashSet(StringComparer.Ordinal);
+        if (codes.Contains("PasswordTooShort")) return "The temporary password is too short.";
+        if (codes.Contains("PasswordRequiresDigit")) return "The temporary password requires a digit.";
+        if (codes.Contains("PasswordRequiresUpper")) return "The temporary password requires an uppercase letter.";
+        if (codes.Contains("PasswordRequiresLower")) return "The temporary password requires a lowercase letter.";
+        if (codes.Contains("PasswordRequiresNonAlphanumeric")) return "The temporary password requires a symbol.";
+        return fallback;
+    }
 
     private static string NormalizeEmail(string value)
     {

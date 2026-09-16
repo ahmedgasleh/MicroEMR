@@ -9,7 +9,7 @@ namespace MicroEMR.Api.Controllers;
 
 [ApiController, Authorize, Route("api/patients/{patientUid:guid}/results")]
 [RequirePermission(PermissionKeys.ResultsView)]
-public sealed class PatientResultsController(IPatientResultRepository repository, ILogger<PatientResultsController> logger) : ControllerBase
+public sealed class PatientResultsController(IPatientResultRepository repository) : ControllerBase
 {
     [HttpGet("~/api/results/unreviewed-count")]
     public async Task<IActionResult> UnreviewedCount(CancellationToken token) =>
@@ -38,8 +38,18 @@ public sealed class PatientResultsController(IPatientResultRepository repository
         catch(SqlException exception)when(exception.Number==51302){return Conflict(new{message="Reviewed results cannot be edited."});}
         catch(SqlException exception)when(exception.Number==51304){return Conflict(new{message="The result changed before it could be reviewed. Reload and try again."});}
         catch(SqlException exception)when(exception.Number is 51314 or 51315 or 51316 or 51318 or 51319 or 51320){return Conflict(new{message="The result changed or is no longer current. Reload and try again."});}
-        catch(SqlException exception)when(exception.Number is 51310 or 51311 or 51312 or 51313 or 51317){return BadRequest(new{message=exception.Message});}
-        catch(Exception exception){logger.LogError(exception,"Patient result operation failed.");return StatusCode(500,new{message="The result operation could not be completed."});}
+        catch(SqlException exception)when(exception.Number is 51310 or 51311 or 51312 or 51313 or 51317)
+        {
+            var message = exception.Number switch
+            {
+                51310 => "Result source type is invalid.",
+                51311 => "Result abnormality is invalid.",
+                51312 => "An external result ID requires a source system.",
+                51313 => "External results require received time and source identity.",
+                _ => "A reason is required to mark a result entered in error."
+            };
+            return BadRequest(new { message });
+        }
     }
     private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);
 }

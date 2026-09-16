@@ -28,13 +28,12 @@ public class AppointmentsController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var appointment = await _appointmentService.CreateAppointmentAsync(request, userId, cancellationToken);
-            _logger.LogInformation("Appointment created for patient {PatientId} with provider {ProviderId}", request.PatientId, request.ProviderId);
+            _logger.LogInformation("Scheduling appointment created.");
             return CreatedAtAction(nameof(GetAppointment), new { id = appointment.Id }, appointment);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error creating appointment");
-            return BadRequest(new { message = "Error creating appointment", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -55,13 +54,12 @@ public class AppointmentsController : ControllerBase
             request.AppointmentId = id;
             var userId = GetCurrentUserId();
             var appointment = await _appointmentService.RescheduleAppointmentAsync(request, userId, cancellationToken);
-            _logger.LogInformation("Appointment {AppointmentId} rescheduled", id);
+            _logger.LogInformation("Scheduling appointment rescheduled.");
             return Ok(appointment);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error rescheduling appointment");
-            return BadRequest(new { message = "Error rescheduling appointment", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -73,13 +71,12 @@ public class AppointmentsController : ControllerBase
             request.AppointmentId = id;
             var userId = GetCurrentUserId();
             var result = await _appointmentService.CancelAppointmentAsync(request, userId, cancellationToken);
-            _logger.LogInformation("Appointment {AppointmentId} cancelled", id);
+            _logger.LogInformation("Scheduling appointment cancelled.");
             return Ok(result);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error cancelling appointment");
-            return BadRequest(new { message = "Error cancelling appointment", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -92,13 +89,12 @@ public class AppointmentsController : ControllerBase
             var result = await _appointmentService.ConfirmAppointmentAsync(id, userId, cancellationToken);
             if (!result)
                 return NotFound();
-            _logger.LogInformation("Appointment {AppointmentId} confirmed", id);
+            _logger.LogInformation("Scheduling appointment confirmed.");
             return Ok(new { message = "Appointment confirmed" });
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error confirming appointment");
-            return BadRequest(new { message = "Error confirming appointment", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 

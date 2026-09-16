@@ -42,10 +42,9 @@ public class CalendarController : ControllerBase
             var calendars = await _calendarService.GetMultiProviderCalendarAsync(request.ProviderIds, request.ViewDate, cancellationToken);
             return Ok(calendars);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error retrieving multi-provider calendar");
-            return BadRequest(new { message = "Error retrieving multi-provider calendar", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -60,10 +59,9 @@ public class CalendarController : ControllerBase
             var calendars = await _calendarService.GetMultiResourceCalendarAsync(providerId, viewDate, cancellationToken);
             return Ok(calendars);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error retrieving multi-resource calendar");
-            return BadRequest(new { message = "Error retrieving multi-resource calendar", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -82,10 +80,9 @@ public class CalendarController : ControllerBase
                 cancellationToken);
             return Ok(slots);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error finding available slots");
-            return BadRequest(new { message = "Error finding available slots", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 }

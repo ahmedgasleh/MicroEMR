@@ -22,10 +22,15 @@ using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Api.SecurityAudit;
 using MicroEMR.Api;
 using MicroEMR.Application.ClinicalDataMigration;
+using MicroEMR.Application.OperationalTelemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+    context.ProblemDetails.Extensions["traceId"] =
+        OperationalTrace.Capture(context.HttpContext.TraceIdentifier).TraceId);
+builder.Services.AddExceptionHandler<SafeApiExceptionHandler>();
 builder.Services.AddOptions<PatientFileUploadOptions>()
     .Bind(builder.Configuration.GetSection("PatientFileUpload"))
     .Validate(x => x.MaxFileSizeBytes > 0 && x.MaxFileSizeBytes <= 26_214_400,
@@ -115,6 +120,7 @@ builder.Services.AddScoped<IIdentityUserAdministration, IdentityUserAdministrati
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseSwagger();
 
 app.UseSwaggerUI(options =>

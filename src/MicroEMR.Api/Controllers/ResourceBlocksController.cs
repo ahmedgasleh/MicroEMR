@@ -28,13 +28,12 @@ public class ResourceBlocksController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var block = await _resourceBlockService.CreateBlockAsync(request, userId, cancellationToken);
-            _logger.LogInformation("Resource block created for resource {ResourceId}", request.ResourceId);
+            _logger.LogInformation("Scheduling resource block created.");
             return CreatedAtAction(nameof(GetBlock), new { id = block.Id }, block);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error creating resource block");
-            return BadRequest(new { message = "Error creating resource block", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -78,13 +77,12 @@ public class ResourceBlocksController : ControllerBase
             var result = await _resourceBlockService.DeleteBlockAsync(id, userId, cancellationToken);
             if (!result)
                 return NotFound();
-            _logger.LogInformation("Resource block {BlockId} deleted", id);
+            _logger.LogInformation("Scheduling resource block deleted.");
             return Ok(new { message = "Resource block deleted" });
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error deleting resource block");
-            return BadRequest(new { message = "Error deleting resource block", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 

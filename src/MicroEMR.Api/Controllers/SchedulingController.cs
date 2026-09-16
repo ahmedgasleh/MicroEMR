@@ -9,6 +9,7 @@ using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Application.AccessProfiles;
+using Microsoft.Data.SqlClient;
 
 namespace MicroEMR.Api.Controllers;
 
@@ -73,9 +74,9 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { code = "blocked_time", message = "This resource is blocked during the selected time." });
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            return BadRequest(new { message = exception.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -336,7 +337,7 @@ public sealed class SchedulingController : ControllerBase
         {
             return BadRequest(new { message = "Invalid appointment status." });
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException exception) when (exception.InnerException is SqlException { Number: 51068 })
         {
             return BadRequest(new { message = "Invalid appointment status." });
         }
@@ -419,9 +420,9 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { code = "appointment_cancelled", message = "Cancelled appointments cannot be edited." });
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            return BadRequest(new { message = "The appointment update request is invalid." });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -467,9 +468,9 @@ public sealed class SchedulingController : ControllerBase
         {
             return Conflict(new { code = "appointment_cancelled", message = "Cancelled appointments cannot be rescheduled." });
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            return BadRequest(new { message = "The appointment reschedule request is invalid." });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 }
