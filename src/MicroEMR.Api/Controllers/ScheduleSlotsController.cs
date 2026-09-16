@@ -27,13 +27,12 @@ public class ScheduleSlotsController : ControllerBase
         try
         {
             var slots = await _scheduleSlotService.GenerateSlotsAsync(request, cancellationToken);
-            _logger.LogInformation("Generated {SlotCount} slots for provider {ProviderId}", slots.Count, request.ProviderId);
+            _logger.LogInformation("Generated {SlotCount} scheduling slots.", slots.Count);
             return Ok(slots);
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error generating schedule slots");
-            return BadRequest(new { message = "Error generating schedule slots", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -66,13 +65,12 @@ public class ScheduleSlotsController : ControllerBase
             var result = await _scheduleSlotService.BlockSlotAsync(id, request.Reason, cancellationToken);
             if (!result)
                 return NotFound();
-            _logger.LogInformation("Slot {SlotId} blocked", id);
+            _logger.LogInformation("Scheduling slot blocked.");
             return Ok(new { message = "Slot blocked" });
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error blocking slot");
-            return BadRequest(new { message = "Error blocking slot", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 
@@ -84,13 +82,12 @@ public class ScheduleSlotsController : ControllerBase
             var result = await _scheduleSlotService.UnblockSlotAsync(id, cancellationToken);
             if (!result)
                 return NotFound();
-            _logger.LogInformation("Slot {SlotId} unblocked", id);
+            _logger.LogInformation("Scheduling slot unblocked.");
             return Ok(new { message = "Slot unblocked" });
         }
-        catch (Exception ex)
+        catch (Exception exception) when (SchedulingExceptionResponses.IsExpected(exception))
         {
-            _logger.LogError(ex, "Error unblocking slot");
-            return BadRequest(new { message = "Error unblocking slot", error = ex.Message });
+            return SchedulingExceptionResponses.ToResult(exception);
         }
     }
 }

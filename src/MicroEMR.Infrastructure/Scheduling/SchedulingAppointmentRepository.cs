@@ -4,21 +4,17 @@ using MicroEMR.Application.Scheduling;
 using MicroEMR.Application.Scheduling.Repositories;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Infrastructure.Tenancy;
-using Microsoft.Extensions.Logging;
 
 namespace MicroEMR.Infrastructure.Scheduling;
 
 public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepository
 {
     private readonly ITenantSqlConnectionFactory _connectionFactory;
-    private readonly ILogger<SchedulingAppointmentRepository> _logger;
 
     public SchedulingAppointmentRepository(
-        ITenantSqlConnectionFactory connectionFactory,
-        ILogger<SchedulingAppointmentRepository> logger)
+        ITenantSqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
-        _logger = logger;
     }
 
     public async Task<ScheduleAppointmentListItemResponse> CreateAsync(
@@ -81,11 +77,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         {
             throw new InvalidOperationException(exception.Message, exception);
         }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to create a scheduling appointment.");
-            throw;
-        }
     }
 
     public async Task<CancelScheduleAppointmentResponse?> CancelAsync(
@@ -126,11 +117,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         catch (SqlException exception) when (exception.Number == 51066)
         {
             throw new AppointmentAlreadyCancelledException("The appointment is already cancelled.", exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to cancel a scheduling appointment.");
-            throw;
         }
     }
 
@@ -211,11 +197,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         {
             throw new InvalidOperationException("The appointment update request is invalid.", exception);
         }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to update a scheduling appointment.");
-            throw;
-        }
     }
 
     public async Task<ScheduleAppointmentDetailsResponse?> RescheduleAsync(
@@ -269,11 +250,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         {
             throw new InvalidOperationException("The appointment reschedule request is invalid.", exception);
         }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to reschedule a scheduling appointment.");
-            throw;
-        }
     }
 
     public async Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
@@ -316,11 +292,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         catch (SqlException exception) when (exception.Number == 51068)
         {
             throw new InvalidOperationException("Invalid appointment status.", exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to update a scheduling appointment status.");
-            throw;
         }
     }
 
@@ -387,11 +358,6 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
             throw new AppointmentStatusConcurrencyException(
                 "The appointment status changed before it could be marked Arrived.",
                 exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to mark a scheduling appointment as Arrived.");
-            throw;
         }
     }
 

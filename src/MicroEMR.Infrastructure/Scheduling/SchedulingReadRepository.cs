@@ -236,20 +236,9 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             when (IsMissingSchedulingReadObject(exception))
         {
             _logger.LogWarning(
-                exception,
                 "Scheduling appointment events were not loaded because the read-only scheduling event schema is incomplete.");
 
             return appointments;
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(
-                exception,
-                "Failed to load scheduling appointments from {StartUtc} to {EndUtc}.",
-                startUtc,
-                endUtc);
-
-            throw;
         }
 
         return appointments;
