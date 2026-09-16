@@ -74,7 +74,7 @@ public sealed class StructuredReadAuditProcedureTests
     {
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(), "db", "tenant-clinical", "manifest.json")));
         var ids = manifest.RootElement.EnumerateArray().Select(x => x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal(59, ids.Length);
+        Assert.Equal(60, ids.Length);
         Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal("0043-patient-chart-read-audit", ids[^16]);
         Assert.Equal("0044-structured-read-audit-procedure", ids[^15]);
@@ -89,7 +89,7 @@ public sealed class StructuredReadAuditProcedureTests
         Assert.Equal("0053-cdm-enrollment-foundation", ids[^6]);
         Assert.Equal("0055-verified-negative-allergy-assertion", ids[^4]);
         Assert.Equal("0056-referral-letter-artifact", ids[^3]);
-        Assert.Equal("0058-referral-followup-response-tracking", ids[^1]);
+        Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
         Assert.NotEmpty(MicroEMR.Infrastructure.Provisioning.SqlBatchParser.Parse(Sql));
     }
 

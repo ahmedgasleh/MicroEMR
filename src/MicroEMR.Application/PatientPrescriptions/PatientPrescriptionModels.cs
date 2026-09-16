@@ -70,3 +70,4 @@ public sealed class PatientPrescriptionService(IPatientPrescriptionRepository re
  private static void Normalize(PrescriptionDraftRequest r){r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
 }
 public sealed class PatientPrescriptionConcurrencyException(string message,Exception? inner=null):Exception(message,inner);
+public sealed class PrescriberProviderMappingException(Exception? inner=null):Exception("Your account must be linked to an active Provider before you can prescribe. Ask a clinic administrator to link your user in Providers.",inner);

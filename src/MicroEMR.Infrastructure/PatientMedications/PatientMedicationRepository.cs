@@ -289,6 +289,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
+        command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Binary, 8) { Value = request.GetRowVersionBytes() });
         AddNullableString(command, "@DiscontinueReason", SqlDbType.NVarChar, 500, request.DiscontinueReason);
         command.Parameters.Add(new SqlParameter("@DiscontinuedBy", SqlDbType.BigInt)
         { Value = (object?)discontinuedBy ?? DBNull.Value });
@@ -297,6 +298,10 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51057)
+        {
+            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
         }
         catch (SqlException exception)
         {
@@ -327,7 +332,8 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             CreatedBy = GetNullableInt64(reader, "CreatedBy"),
             CreatedByDisplayName = GetNullableString(reader, "CreatedByDisplayName"),
             CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-            UpdatedAt = GetNullableDateTime(reader, "UpdatedAt")
+            UpdatedAt = GetNullableDateTime(reader, "UpdatedAt"),
+            RowVersion = GetRowVersion(reader, "RowVersion")
         };
     }
 

@@ -183,9 +183,19 @@ public sealed class PatientMedicationsController : ControllerBase
         request.DiscontinueReason = request.DiscontinueReason?.Trim();
         if (request.DiscontinueReason?.Length > 500)
             return BadRequest(new { message = "Discontinue reason cannot exceed 500 characters." });
-        var result = await _medicationService.DiscontinueAsync(
-            patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        try
+        {
+            request.GetRowVersionBytes();
+            var result = await _medicationService.DiscontinueAsync(
+                patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
+        catch (PatientMedicationConcurrencyException)
+        {
+            return Conflict(new { message = "The medication was changed by another user. Refresh the patient chart and review the latest medication before discontinuing it." });
+        }
     }
 
     private long GetAuthenticatedUserId() =>
