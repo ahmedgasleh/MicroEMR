@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Application.PatientResults;
 using MicroEMR.Infrastructure.Tenancy;
@@ -60,7 +61,7 @@ public sealed class PatientResultRepository(ITenantSqlConnectionFactory connecti
 
     public Task<PatientResultResponse?> Get(Guid patientUid, Guid uid, CancellationToken token = default) =>
         Run("dbo.PatientResult_GetByUid", patientUid, uid, null, null, null, token);
-    public async Task<IReadOnlyList<PatientResultResponse>> History(Guid patientUid,Guid uid,CancellationToken token=default){var result=new List<PatientResultResponse>();await using var connection=await connectionFactory.OpenConnectionAsync(token);await using var command=Command(connection,"dbo.PatientResult_GetHistory");Parameter(command,"@PatientUid",SqlDbType.UniqueIdentifier,patientUid);Parameter(command,"@PatientResultUid",SqlDbType.UniqueIdentifier,uid);await using var reader=await command.ExecuteReaderAsync(token);while(await reader.ReadAsync(token))result.Add(Map(reader));return result;}
+    public async Task<IReadOnlyList<PatientResultResponse>> History(Guid patientUid,Guid uid,CancellationToken token=default){var result=new List<PatientResultResponse>();await using var connection=await connectionFactory.OpenConnectionAsync(token);await using var command=Command(connection,"dbo.PatientResult_GetHistory");Parameter(command,"@PatientUid",SqlDbType.UniqueIdentifier,patientUid);Parameter(command,"@PatientResultUid",SqlDbType.UniqueIdentifier,uid);await using var reader=await command.ExecuteReaderAsync(token);while(await reader.ReadAsync(token))result.Add(MapHistory(reader));return result;}
     public Task<PatientResultResponse?> Create(Guid patientUid, CreatePatientResultRequest request, long user, CancellationToken token = default) =>
         Run("dbo.PatientResult_Create", patientUid, null, request, null, user, token);
     public Task<PatientResultResponse?> Update(Guid patientUid, Guid uid, UpdatePatientResultRequest request, long user, CancellationToken token = default) =>
@@ -104,17 +105,19 @@ public sealed class PatientResultRepository(ITenantSqlConnectionFactory connecti
     private static SqlCommand Command(SqlConnection connection, string procedure) => new(procedure, connection) { CommandType = CommandType.StoredProcedure };
     private static void Parameter(SqlCommand command, string name, SqlDbType type, object? value, int size = 0) =>
         command.Parameters.Add(new SqlParameter(name, type, size) { Value = value ?? DBNull.Value });
-    private static PatientResultResponse Map(SqlDataReader reader) => new()
+    // GetHistory returns actor IDs/timestamps but does not select UpdatedByDisplayName.
+    internal static PatientResultResponse MapHistory(DbDataReader reader) => Map(reader, history: true);
+    private static PatientResultResponse Map(DbDataReader reader, bool history = false) => new()
     {
         PatientResultUid=reader.GetGuid(reader.GetOrdinal("PatientResultUid")),PatientUid=reader.GetGuid(reader.GetOrdinal("PatientUid")),
         ResultType=reader.GetString(reader.GetOrdinal("ResultType")),ResultName=reader.GetString(reader.GetOrdinal("ResultName")),ResultDate=reader.GetDateTime(reader.GetOrdinal("ResultDate")),
         ResultSummary=String(reader,"ResultSummary"),ResultValue=String(reader,"ResultValue"),ResultUnit=String(reader,"ResultUnit"),ReferenceRange=String(reader,"ReferenceRange"),
         ResultStatus=reader.GetString(reader.GetOrdinal("ResultStatus")),LifecycleStatus=reader.GetString(reader.GetOrdinal("LifecycleStatus")),SourceType=reader.GetString(reader.GetOrdinal("SourceType")),SourceOrganization=String(reader,"SourceOrganization"),SourceSystem=String(reader,"SourceSystem"),ExternalResultId=String(reader,"ExternalResultId"),ReceivedAtUtc=Date(reader,"ReceivedAtUtc"),Abnormality=reader.GetString(reader.GetOrdinal("Abnormality")),PreviousResultUid=GuidValue(reader,"PreviousResultUid"),EnteredInErrorAtUtc=Date(reader,"EnteredInErrorAtUtc"),EnteredInErrorBy=Long(reader,"EnteredInErrorBy"),EnteredInErrorByDisplayName=String(reader,"EnteredInErrorByDisplayName"),EnteredInErrorReason=String(reader,"EnteredInErrorReason"),ReviewedAt=Date(reader,"ReviewedAt"),ReviewedBy=Long(reader,"ReviewedBy"),ReviewedByDisplayName=String(reader,"ReviewedByDisplayName"),ReviewNote=String(reader,"ReviewNote"),
-        CreatedAt=reader.GetDateTime(reader.GetOrdinal("CreatedAt")),CreatedBy=Long(reader,"CreatedBy"),CreatedByDisplayName=String(reader,"CreatedByDisplayName"),UpdatedAt=Date(reader,"UpdatedAt"),UpdatedBy=Long(reader,"UpdatedBy"),UpdatedByDisplayName=String(reader,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])reader["RowVersion"]),ReviewWasApplied=Boolean(reader,"ReviewWasApplied")
+        CreatedAt=reader.GetDateTime(reader.GetOrdinal("CreatedAt")),CreatedBy=Long(reader,"CreatedBy"),CreatedByDisplayName=String(reader,"CreatedByDisplayName"),UpdatedAt=Date(reader,"UpdatedAt"),UpdatedBy=Long(reader,"UpdatedBy"),UpdatedByDisplayName=history?null:String(reader,"UpdatedByDisplayName"),RowVersion=Convert.ToBase64String((byte[])reader["RowVersion"]),ReviewWasApplied=Boolean(reader,"ReviewWasApplied")
     };
-    private static string? String(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetString(ordinal);}
-    private static long? Long(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetInt64(ordinal);}
-    private static DateTime? Date(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetDateTime(ordinal);}
-    private static Guid? GuidValue(SqlDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetGuid(ordinal);}
-    private static bool Boolean(SqlDataReader reader,string name){for(var ordinal=0;ordinal<reader.FieldCount;ordinal++)if(string.Equals(reader.GetName(ordinal),name,StringComparison.OrdinalIgnoreCase))return !reader.IsDBNull(ordinal)&&reader.GetBoolean(ordinal);return false;}
+    private static string? String(DbDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetString(ordinal);}
+    private static long? Long(DbDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetInt64(ordinal);}
+    private static DateTime? Date(DbDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetDateTime(ordinal);}
+    private static Guid? GuidValue(DbDataReader reader,string name){var ordinal=reader.GetOrdinal(name);return reader.IsDBNull(ordinal)?null:reader.GetGuid(ordinal);}
+    private static bool Boolean(DbDataReader reader,string name){for(var ordinal=0;ordinal<reader.FieldCount;ordinal++)if(string.Equals(reader.GetName(ordinal),name,StringComparison.OrdinalIgnoreCase))return !reader.IsDBNull(ordinal)&&reader.GetBoolean(ordinal);return false;}
 }
