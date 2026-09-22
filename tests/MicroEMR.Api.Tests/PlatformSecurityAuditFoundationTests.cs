@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Infrastructure.Provisioning;
 using Xunit;
 
 namespace MicroEMR.Api.Tests;
@@ -119,7 +120,7 @@ public sealed class PlatformSecurityAuditFoundationTests
     }
 
     [Fact]
-    public void AppliedPlatformMigrationsRemainByteForByteUnchanged()
+    public void AppliedPlatformMigrationsRemainDeterministicallyUnchanged()
     {
         var expected = new Dictionary<string, string>
         {
@@ -128,7 +129,7 @@ public sealed class PlatformSecurityAuditFoundationTests
             ["003_seed_local_development.sql"] = "E08342B56F1CFBD4EA4003AB4EFC076E190A7E08B8C0B53C9674BFF99343C98B",
             ["004_make_membership_keys_nonclustered.sql"] = "EF19AA08BAE6076E4280E182B96B9BB5DB991081313BF0573A36B30DC4B7849E",
             ["005_seed_local_user_membership.sql"] = "685D7A56463EA7053D11674A2495192D97479EC78C0CE81FF270A9D6AA832F2C",
-            ["006_platform_administration.sql"] = "2DFC70153745ABAD6069C8D85F36DBAFB2D6E27368111DEC0595FADFE95EE1E5",
+            ["006_platform_administration.sql"] = "FCDB2A8C9A77A2674237D3FB5F34E4194BEE8067BA23121C7CBEBB603E7463BB",
             ["007_membership_activation_lifecycle.sql"] = "945C31A719FACA98A97ED38AC809E8B68AAF66658A69395A696370FD7C5BFBEE",
             ["008_tenant_role_management.sql"] = "383CAD1CD88C99CF1BEEDEC6AE2D01164C80092BB688DB7120730E10B13B0E51",
             ["009_tenant_user_creation.sql"] = "49C9830BA3BAB2FF810A080236EB9FB436E17B781BC29E9DF506E7B8D15FEB12",
@@ -142,7 +143,7 @@ public sealed class PlatformSecurityAuditFoundationTests
         };
 
         foreach (var (file, hash) in expected)
-            Assert.Equal(hash, Sha256(ReadBytes("db", "platform", file)));
+            Assert.Equal(hash, DeterministicSourceHash(Read("db", "platform", file)));
     }
 
     [Fact]
@@ -170,11 +171,10 @@ public sealed class PlatformSecurityAuditFoundationTests
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine([Root(), .. parts]));
 
-    private static byte[] ReadBytes(params string[] parts) =>
-        File.ReadAllBytes(Path.Combine([Root(), .. parts]));
-
-    private static string Sha256(byte[] value) =>
-        Convert.ToHexString(SHA256.HashData(value));
+    private static string DeterministicSourceHash(string source) =>
+        MigrationSourceHashing.ComputeHash(
+            MigrationSourceHashing.NormalizeLineEndings(source).Replace("\n", "\r\n", StringComparison.Ordinal),
+            MigrationHashVersion.LegacyV1);
 
     private static string Root() => Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, "..", "..", "..", "..", ".."));

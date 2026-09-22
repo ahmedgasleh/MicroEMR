@@ -42,6 +42,8 @@ public sealed record TenantMigrationStatusReport(
     bool IsCurrent,
     string? InspectionError)
 {
+    public IReadOnlyList<string> ApprovedLegacyMigrationIds { get; init; } = [];
+
     public string LastFailure =>
         string.Equals(Tenant.DatabaseStatus, "MigrationFailed", StringComparison.OrdinalIgnoreCase)
             ? "No persisted migration failure detail available."

@@ -318,6 +318,7 @@ static void PrintMigrationStatus(TenantMigrationStatusReport report)
     Console.WriteLine($"Current: {(report.IsCurrent ? "YES" : "NO")}");
     PrintItems("Missing", report.MissingMigrationIds);
     PrintItems("Unexpected applied", report.UnexpectedMigrationIds);
+    PrintItems("Approved legacy matches", report.ApprovedLegacyMigrationIds);
     PrintItems("Hash mismatches", report.HashMismatches.Select(
         x => $"{x.MigrationId} (expected {x.ExpectedHash}; applied {x.AppliedHash})"));
     Console.WriteLine($"Latest applied: {report.LatestAppliedMigration?.MigrationId ?? "none"}");

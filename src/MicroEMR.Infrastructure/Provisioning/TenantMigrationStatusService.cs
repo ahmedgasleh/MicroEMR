@@ -46,18 +46,32 @@ public sealed class TenantMigrationStatusService(
         var applied = snapshot.AppliedMigrations.ToDictionary(x => x.MigrationId, StringComparer.Ordinal);
         var missing = expected.Keys.Except(applied.Keys, StringComparer.Ordinal).Order().ToArray();
         var unexpected = applied.Keys.Except(expected.Keys, StringComparer.Ordinal).Order().ToArray();
-        var mismatches = expected.Keys.Intersect(applied.Keys, StringComparer.Ordinal)
-            .Where(id => !string.Equals(expected[id].ScriptHash, applied[id].ScriptHash, StringComparison.OrdinalIgnoreCase))
-            .Order()
-            .Select(id => new TenantMigrationHashMismatch(id, expected[id].ScriptHash, applied[id].ScriptHash))
+        var comparisons = expected.Keys.Intersect(applied.Keys, StringComparer.Ordinal)
+            .ToDictionary(
+                id => id,
+                id => TenantMigrationHashPolicy.Validate(expected[id], applied[id].ScriptHash),
+                StringComparer.Ordinal);
+        var mismatches = comparisons
+            .Where(item => item.Value == TenantMigrationHashMatch.Mismatch)
+            .OrderBy(item => item.Key, StringComparer.Ordinal)
+            .Select(item => new TenantMigrationHashMismatch(
+                item.Key, expected[item.Key].ScriptHash, applied[item.Key].ScriptHash))
             .ToArray();
-        var matching = expected.Keys.Intersect(applied.Keys, StringComparer.Ordinal)
-            .Where(id => string.Equals(expected[id].ScriptHash, applied[id].ScriptHash, StringComparison.OrdinalIgnoreCase))
+        var matching = comparisons
+            .Where(item => item.Value != TenantMigrationHashMatch.Mismatch)
+            .Select(item => item.Key)
+            .Order().ToArray();
+        var approvedLegacy = comparisons
+            .Where(item => item.Value == TenantMigrationHashMatch.ApprovedLegacyV1)
+            .Select(item => item.Key)
             .Order().ToArray();
         var latest = snapshot.AppliedMigrations.OrderByDescending(x => x.AppliedAt).FirstOrDefault();
         var failed = string.Equals(request.DatabaseStatus, "MigrationFailed", StringComparison.OrdinalIgnoreCase);
         var current = missing.Length == 0 && unexpected.Length == 0 && mismatches.Length == 0 && !failed;
         return new(request, manifest.Count, true, true, matching, missing, unexpected, mismatches, latest,
-            latest?.SchemaVersion ?? request.PlatformSchemaVersion, current, null);
+            latest?.SchemaVersion ?? request.PlatformSchemaVersion, current, null)
+        {
+            ApprovedLegacyMigrationIds = approvedLegacy
+        };
     }
 }

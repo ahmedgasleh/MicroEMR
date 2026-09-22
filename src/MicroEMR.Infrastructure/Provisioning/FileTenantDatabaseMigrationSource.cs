@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
@@ -54,8 +52,7 @@ public sealed class FileTenantDatabaseMigrationSource
                 throw new InvalidOperationException(
                     $"Tenant migration script '{entry.Script}' is empty.");
 
-            var hash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(script)));
+            var hash = MigrationSourceHashing.ComputeCanonicalV2(script);
             migrations.Add(new TenantDatabaseMigration(
                 entry.MigrationId,
                 entry.SchemaVersion,

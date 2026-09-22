@@ -58,15 +58,12 @@ public sealed class TenantDatabaseMigrationRunner
                 await ValidateOrCreateIdentityAsync(connection, request, cancellationToken);
 
                 var applied = await ReadAppliedMigrationsAsync(connection, cancellationToken);
-                ValidateAppliedHashes(applied, migrations);
+                var pendingMigrations = GetPendingMigrations(applied, migrations);
                 var initiallyAppliedCount = applied.Count;
                 var newlyApplied = new List<string>();
 
-                foreach (var migration in migrations)
+                foreach (var migration in pendingMigrations)
                 {
-                    if (applied.ContainsKey(migration.MigrationId))
-                        continue;
-
                     await ApplyMigrationAsync(connection, migration, cancellationToken);
                     newlyApplied.Add(migration.MigrationId);
                     _logger.LogInformation(
@@ -247,10 +244,18 @@ public sealed class TenantDatabaseMigrationRunner
         foreach (var item in applied)
         {
             if (!availableById.TryGetValue(item.Key, out var migration) ||
-                !string.Equals(item.Value, migration.ScriptHash, StringComparison.OrdinalIgnoreCase))
+                TenantMigrationHashPolicy.Validate(migration, item.Value) == TenantMigrationHashMatch.Mismatch)
                 throw new TenantDatabaseConnectionException(
                     $"Applied tenant migration '{item.Key}' does not match the controlled migration asset.");
         }
+    }
+
+    internal static IReadOnlyList<TenantDatabaseMigration> GetPendingMigrations(
+        IReadOnlyDictionary<string, string> applied,
+        IReadOnlyList<TenantDatabaseMigration> available)
+    {
+        ValidateAppliedHashes(applied, available);
+        return available.Where(migration => !applied.ContainsKey(migration.MigrationId)).ToArray();
     }
 
     private static async Task ApplyMigrationAsync(

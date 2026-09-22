@@ -31,6 +31,25 @@ public sealed class TenantDatabaseMigrationSourceTests : IDisposable
     }
 
     [Fact]
+    public async Task FutureMigrationIsRecordedWithCanonicalV2Hash()
+    {
+        const string lf = "SELECT 60;\nGO\n";
+        Write("future.sql", lf.Replace("\n", "\r\n", StringComparison.Ordinal));
+        Manifest("""
+            [
+              { "migrationId":"0060-future", "schemaVersion":"1.0.0", "script":"future.sql" }
+            ]
+            """);
+
+        var fromCrlf = Assert.Single(await Source().GetAvailableMigrationsAsync());
+        Write("future.sql", lf);
+        var fromLf = Assert.Single(await Source().GetAvailableMigrationsAsync());
+
+        Assert.Equal(MigrationSourceHashing.ComputeCanonicalV2(lf), fromCrlf.ScriptHash);
+        Assert.Equal(fromCrlf.ScriptHash, fromLf.ScriptHash);
+    }
+
+    [Fact]
     public async Task DuplicateIdEmptyAndMissingScriptsAreRejected()
     {
         Write("empty.sql", " ");

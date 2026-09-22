@@ -5,6 +5,7 @@ using MicroEMR.Application.SecurityAudit;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.PlatformEntitlements;
+using MicroEMR.Infrastructure.Provisioning;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
 
@@ -272,8 +273,11 @@ public sealed class PlatformSecurityAuditReviewTests
         }
     }
 
-    private static string Hash(params string[] parts) => Convert.ToHexString(
-        SHA256.HashData(File.ReadAllBytes(Path.Combine([Root(), .. parts]))));
+    private static string Hash(params string[] parts) => MigrationSourceHashing.ComputeHash(
+        MigrationSourceHashing.NormalizeLineEndings(
+                File.ReadAllText(Path.Combine([Root(), .. parts])))
+            .Replace("\n", "\r\n", StringComparison.Ordinal),
+        MigrationHashVersion.LegacyV1);
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine([Root(), .. parts]));
     private static string Root() => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
         "..", "..", "..", "..", ".."));

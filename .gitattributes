@@ -1,1 +1,3 @@
+db/tenant-clinical/*.sql text eol=lf
 db/tenant-clinical/migrations/*.sql text eol=lf
+db/platform/*.sql text eol=lf
