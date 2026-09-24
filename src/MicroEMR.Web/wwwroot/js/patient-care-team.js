@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!root) return;
 
     const list = document.getElementById("careTeamList");
+    const header = document.getElementById("patientCareTeamHeader");
     const pageMessage = document.getElementById("careTeamMessage");
     const editorElement = document.getElementById("careTeamEditorModal");
     const editor = bootstrap.Modal.getOrCreateInstance(editorElement);
@@ -69,14 +70,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${canManage ? `<button type="button" class="btn btn-link btn-sm px-1 care-team-edit" data-uid="${escapeHtml(item.relationshipUid)}">Edit</button><button type="button" class="btn btn-link btn-sm px-1 care-team-end" data-uid="${escapeHtml(item.relationshipUid)}">End</button>` : "—"}</td>
             </tr>`).join("")}</tbody></table></div>`;
     };
+    const renderHeader = members => {
+        header.replaceChildren();
+        for (const member of members) {
+            const line = document.createElement("span");
+            line.className = "me-3 d-inline-block";
+            const label = document.createElement("strong");
+            label.textContent = `${member.label}: `;
+            line.append(label, document.createTextNode(member.providerDisplayName));
+            header.append(line);
+        }
+        header.classList.toggle("d-none", !members.length);
+    };
     const refresh = async () => {
         clearError(pageMessage);
         try {
             const data = await request(root.dataset.listUrl);
             relationships = data.relationships || [];
             providerItems = data.providers || [];
+            renderHeader(data.header || []);
             render();
         } catch (error) {
+            renderHeader([]);
             list.textContent = "Care team could not be loaded.";
             showError(pageMessage, error.message);
         }
