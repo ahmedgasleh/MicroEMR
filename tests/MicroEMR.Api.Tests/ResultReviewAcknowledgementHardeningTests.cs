@@ -24,7 +24,7 @@ public sealed class ResultReviewAcknowledgementHardeningTests
         Assert.Equal("0053-cdm-enrollment-foundation", ids[53]);
         Assert.Equal("0055-verified-negative-allergy-assertion", ids[55]);
         Assert.Equal("0056-referral-letter-artifact", ids[56]);
-        Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
+        Assert.Equal("0059-medication-discontinuation-concurrency", ids[59]);
         Assert.Single(ids, x => x == "0051-result-review-acknowledgement-hardening");
         Assert.False(File.Exists(Path.Combine(Root(), "db", "tenant-clinical", "migrations", "0052-result-review-acknowledgement-hardening.sql")));
     }

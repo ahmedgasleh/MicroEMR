@@ -58,5 +58,6 @@
   { "migrationId": "0056-referral-letter-artifact", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0056-referral-letter-artifact.sql" },
   { "migrationId": "0057-provider-management-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0057-provider-management-foundation.sql" },
   { "migrationId": "0058-referral-followup-response-tracking", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0058-referral-followup-response-tracking.sql" },
-  { "migrationId": "0059-medication-discontinuation-concurrency", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0059-medication-discontinuation-concurrency.sql" }
+  { "migrationId": "0059-medication-discontinuation-concurrency", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0059-medication-discontinuation-concurrency.sql" },
+  { "migrationId": "0060-patient-care-team-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0060-patient-care-team-foundation.sql" }
 ]

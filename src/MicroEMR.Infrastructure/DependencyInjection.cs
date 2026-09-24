@@ -60,6 +60,8 @@ using MicroEMR.Application.Cdm;
 using MicroEMR.Infrastructure.Cdm;
 using MicroEMR.Application.Providers;
 using MicroEMR.Infrastructure.Providers;
+using MicroEMR.Application.PatientCareTeam;
+using MicroEMR.Infrastructure.PatientCareTeam;
 
 namespace MicroEMR.Infrastructure;
 
@@ -100,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantUserCreationRepository, SqlTenantUserCreationRepository>();
         services.AddScoped<IAccessProfileRepository, SqlAccessProfileRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IPatientCareTeamRepository, PatientCareTeamRepository>();
         services.AddScoped<IPatientChartAlertRepository, PatientChartAlertRepository>();
         services.AddScoped<IPatientResultRepository, PatientResultRepository>();
         services.AddScoped<ICdsRepository, CdsRepository>();

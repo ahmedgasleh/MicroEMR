@@ -35,6 +35,7 @@ using MicroEMR.Web;
 using MicroEMR.Web.Services.Cds;
 using MicroEMR.Web.Services.Cdm;
 using MicroEMR.Web.Services.Providers;
+using MicroEMR.Web.Services.PatientCareTeam;
 
 var builder = WebApplication.CreateBuilder(args);
 var oidcClientSecret = builder.Configuration["Authentication:ClientSecret"];
@@ -104,6 +105,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<IAppointmentStatusReportApiCli
 AddApiTokenRefresh(builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<ISecurityAuditApiClient, SecurityAuditApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IProviderAdministrationApiClient, ProviderAdministrationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientCareTeamApiClient, PatientCareTeamApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientAllergyApiClient,

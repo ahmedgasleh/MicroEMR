@@ -13,6 +13,8 @@
     var canSignEncounters = effectivePermissions.Contains(PermissionKeys.EncountersSign);
     var canManageDocuments = effectivePermissions.Contains(PermissionKeys.DocumentsManage);
     var canManageClinicalData = effectivePermissions.Contains(PermissionKeys.ClinicalDataManage);
+    var canManageCareTeam = canEditPatients && effectivePermissions.Contains(PermissionKeys.ProvidersView);
+    var careTeamActive = Model.ActiveTab == "care-team";
 
     ViewData ["Title"] = "Patient Chart";
     ViewData ["Subtitle"] = patient.ChartNumber;
@@ -178,6 +180,7 @@
 
 <ul class="nav nav-tabs mb-3 patient-chart-tabs" aria-label="Patient chart sections">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
+    <li class="nav-item"><button class="nav-link @(careTeamActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#care-team" type="button">Care Team</button></li>
     <li class="nav-item">
         <button class="nav-link @(demographicsActive ? "active" : null)"
                 data-bs-toggle="tab"
@@ -246,6 +249,22 @@
 </ul>
 
 <div class="tab-content patient-chart-content">
+    <div class="tab-pane fade @(careTeamActive ? "show active" : null)" id="care-team" role="tabpanel">
+        <section id="patientCareTeamRoot" data-patient-uid="@patient.PatientUid"
+                 data-list-url="@Url.Action("List", "PatientCareTeam", new { patientUid = patient.PatientUid })"
+                 data-form-url="@Url.Action("FormData", "PatientCareTeam", new { patientUid = patient.PatientUid })"
+                 data-add-url="@Url.Action("Add", "PatientCareTeam")"
+                 data-update-url="@Url.Action("Update", "PatientCareTeam")"
+                 data-end-url="@Url.Action("End", "PatientCareTeam")"
+                 data-can-manage="@canManageCareTeam.ToString().ToLowerInvariant()">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 mb-0">Care Team</h2>
+                @if (canManageCareTeam) { <button id="careTeamAddButton" type="button" class="btn btn-primary btn-sm">Add Provider</button> }
+            </div>
+            <div id="careTeamMessage" class="alert alert-danger d-none" role="alert"></div>
+            <div id="careTeamList" aria-live="polite">Loading care team...</div>
+        </section>
+    </div>
     <div class="tab-pane fade patient-chart-summary @(summaryActive ? "show active" : null)" id="summary" role="tabpanel">
         <div class="card mb-3">
             <div class="card-body py-3">
@@ -1513,7 +1532,37 @@
 </div>
 <div class="modal fade" id="patientFileDetailsModal" tabindex="-1" aria-labelledby="patientFileDetailsTitle" aria-hidden="true"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="patientFileDetailsTitle">File details</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="patientFileDetailsBody" aria-live="polite"></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div></div></div></div>
 
+<div class="modal fade" id="careTeamEditorModal" tabindex="-1" aria-labelledby="careTeamEditorTitle" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="careTeamEditorTitle">Add Provider</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <form id="careTeamEditorForm">
+                <div id="careTeamProviderFields" class="mb-3">
+                    <label for="careTeamProviderSearch" class="form-label">Provider</label>
+                    <input id="careTeamProviderSearch" type="search" class="form-control mb-2" placeholder="Search active providers" autocomplete="off" />
+                    <select id="careTeamProvider" name="ProviderUid" class="form-select" required><option value="">Select a provider</option></select>
+                </div>
+                <div id="careTeamExistingProvider" class="mb-3 d-none"></div>
+                <div class="mb-3"><label for="careTeamRole" class="form-label">Relationship Type</label><select id="careTeamRole" name="RelationshipTypeCode" class="form-select" required><option value="">Select a role</option></select><div id="careTeamExistingRole" class="form-control-plaintext d-none"></div></div>
+                <div class="form-check mb-3"><input id="careTeamPrimary" name="IsPrimary" type="checkbox" class="form-check-input" value="true"/><label for="careTeamPrimary" class="form-check-label">Primary for this role</label></div>
+                <div class="mb-3"><label for="careTeamStartDate" class="form-label">Start Date</label><input id="careTeamStartDate" name="StartDate" type="date" class="form-control" required/></div>
+            </form>
+            <div id="careTeamEditorMessage" class="alert alert-danger d-none" role="alert"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="careTeamSaveButton" class="btn btn-primary">Add Provider</button></div>
+    </div></div>
+</div>
+<div class="modal fade" id="careTeamEndModal" tabindex="-1" aria-labelledby="careTeamEndTitle" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="careTeamEndTitle">End Relationship</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body"><p id="careTeamEndPrompt"></p><label for="careTeamEndDate" class="form-label">End Date</label><input id="careTeamEndDate" type="date" class="form-control" required/><div id="careTeamEndMessage" class="alert alert-danger d-none mt-3" role="alert"></div></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" id="careTeamEndButton" class="btn btn-warning">End Relationship</button></div>
+    </div></div>
+</div>
+<form id="careTeamAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
+
 @section Scripts {
+<script src="~/js/patient-care-team.js" asp-append-version="true"></script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const modal = document.getElementById("newPrescriptionModal");

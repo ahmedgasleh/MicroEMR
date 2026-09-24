@@ -18,10 +18,10 @@ public sealed class ReferralFollowUpResponseTrackingTests
     {
         using var manifest=JsonDocument.Parse(File.ReadAllText(Path.Combine(Root(),"db","tenant-clinical","manifest.json")));
         var ids=manifest.RootElement.EnumerateArray().Select(x=>x.GetProperty("migrationId").GetString()).ToArray();
-        Assert.Equal(60,ids.Length);
+        Assert.Equal(61,ids.Length);
         Assert.Equal("0057-provider-management-foundation",ids[57]);
         Assert.Equal("0058-referral-followup-response-tracking",ids[58]);
-        Assert.Equal("0059-medication-discontinuation-concurrency", ids[^1]);
+        Assert.Equal("0059-medication-discontinuation-concurrency", ids[59]);
         Assert.Single(ids,x=>x=="0058-referral-followup-response-tracking");
     }
 

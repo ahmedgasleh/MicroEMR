@@ -31,6 +31,7 @@ using MicroEMR.Application.Cds;
 using MicroEMR.Application.Cdm;
 using MicroEMR.Application.PatientCpp;
 using MicroEMR.Application.Providers;
+using MicroEMR.Application.PatientCareTeam;
 
 namespace MicroEMR.Application;
 
@@ -40,6 +41,7 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<IPatientService, PatientService>();
+        services.AddScoped<IPatientCareTeamService, PatientCareTeamService>();
         services.AddScoped<IPatientAllergyService, PatientAllergyService>();
         services.AddScoped<IPatientDocumentService, PatientDocumentService>();
         services.AddScoped<IDocumentTemplateVersionService, DocumentTemplateVersionService>();
