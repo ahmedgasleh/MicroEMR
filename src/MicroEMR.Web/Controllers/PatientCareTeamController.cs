@@ -17,6 +17,7 @@ public sealed class PatientCareTeamController(
     ILogger<PatientCareTeamController> logger) : Controller
 {
     [HttpGet]
+    [RequireWebPermission(PermissionKeys.ProvidersView)]
     public async Task<IActionResult> List(Guid patientUid, CancellationToken token)
     {
         if (patientUid == Guid.Empty) return BadRequest(new { message = "Patient is required." });
@@ -30,7 +31,7 @@ public sealed class PatientCareTeamController(
         catch (HttpRequestException exception) { return Failure(exception); }
     }
 
-    [HttpGet, RequireWebPermission(PermissionKeys.PatientsEdit)]
+    [HttpGet, RequireWebPermission(PermissionKeys.PatientsEdit), RequireWebPermission(PermissionKeys.ProvidersView)]
     public async Task<IActionResult> FormData(Guid patientUid, CancellationToken token)
     {
         if (patientUid == Guid.Empty) return BadRequest(new { message = "Patient is required." });
@@ -44,7 +45,7 @@ public sealed class PatientCareTeamController(
         catch (HttpRequestException exception) { return Failure(exception); }
     }
 
-    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit)]
+    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit), RequireWebPermission(PermissionKeys.ProvidersView)]
     public async Task<IActionResult> Add(Guid patientUid, AddPatientCareTeamRelationshipRequest request, CancellationToken token)
     {
         if (!await permissions.HasAsync(PermissionKeys.ProvidersView, token)) return Forbid();
@@ -55,7 +56,7 @@ public sealed class PatientCareTeamController(
         catch (HttpRequestException exception) { return Failure(exception); }
     }
 
-    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit)]
+    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit), RequireWebPermission(PermissionKeys.ProvidersView)]
     public async Task<IActionResult> Update(Guid patientUid, Guid relationshipUid, UpdatePatientCareTeamRelationshipRequest request, CancellationToken token)
     {
         if (patientUid == Guid.Empty || relationshipUid == Guid.Empty || !ModelState.IsValid || request.StartDate == default || string.IsNullOrWhiteSpace(request.RowVersion))
@@ -64,7 +65,7 @@ public sealed class PatientCareTeamController(
         catch (HttpRequestException exception) { return Failure(exception); }
     }
 
-    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit)]
+    [HttpPost, ValidateAntiForgeryToken, RequireWebPermission(PermissionKeys.PatientsEdit), RequireWebPermission(PermissionKeys.ProvidersView)]
     public async Task<IActionResult> End(Guid patientUid, Guid relationshipUid, EndPatientCareTeamRelationshipRequest request, CancellationToken token)
     {
         if (patientUid == Guid.Empty || relationshipUid == Guid.Empty || !ModelState.IsValid || request.EndDate == default || string.IsNullOrWhiteSpace(request.RowVersion))

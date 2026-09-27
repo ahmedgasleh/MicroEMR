@@ -13,14 +13,15 @@
     var canSignEncounters = effectivePermissions.Contains(PermissionKeys.EncountersSign);
     var canManageDocuments = effectivePermissions.Contains(PermissionKeys.DocumentsManage);
     var canManageClinicalData = effectivePermissions.Contains(PermissionKeys.ClinicalDataManage);
-    var canManageCareTeam = canEditPatients && effectivePermissions.Contains(PermissionKeys.ProvidersView);
-    var careTeamActive = Model.ActiveTab == "care-team";
+    var canViewCareTeam = effectivePermissions.Contains(PermissionKeys.ProvidersView);
+    var canManageCareTeam = canEditPatients && canViewCareTeam;
+    var careTeamActive = canViewCareTeam && Model.ActiveTab == "care-team";
 
     ViewData ["Title"] = "Patient Chart";
     ViewData ["Subtitle"] = patient.ChartNumber;
     Layout = "_AppLayout";
 
-    var summaryActive = Model.ActiveTab == "summary";
+    var summaryActive = Model.ActiveTab == "summary" || (!canViewCareTeam && Model.ActiveTab == "care-team");
 
     var demographicsActive =
         Model.ActiveTab == "demographics";
@@ -181,7 +182,10 @@
 
 <ul class="nav nav-tabs mb-3 patient-chart-tabs" aria-label="Patient chart sections">
     <li class="nav-item"><button class="nav-link @(summaryActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#summary" type="button">Summary</button></li>
-    <li class="nav-item"><button class="nav-link @(careTeamActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#care-team" type="button">Care Team</button></li>
+    @if (canViewCareTeam)
+    {
+        <li class="nav-item"><button class="nav-link @(careTeamActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#care-team" type="button">Care Team</button></li>
+    }
     <li class="nav-item">
         <button class="nav-link @(demographicsActive ? "active" : null)"
                 data-bs-toggle="tab"
@@ -250,6 +254,8 @@
 </ul>
 
 <div class="tab-content patient-chart-content">
+    @if (canViewCareTeam)
+    {
     <div class="tab-pane fade @(careTeamActive ? "show active" : null)" id="care-team" role="tabpanel">
         <section id="patientCareTeamRoot" data-patient-uid="@patient.PatientUid"
                  data-list-url="@Url.Action("List", "PatientCareTeam", new { patientUid = patient.PatientUid })"
@@ -266,6 +272,7 @@
             <div id="careTeamList" aria-live="polite">Loading care team...</div>
         </section>
     </div>
+    }
     <div class="tab-pane fade patient-chart-summary @(summaryActive ? "show active" : null)" id="summary" role="tabpanel">
         <div class="card mb-3">
             <div class="card-body py-3">

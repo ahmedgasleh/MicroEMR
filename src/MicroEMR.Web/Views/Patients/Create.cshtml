@@ -1,9 +1,15 @@
 ﻿@model MicroEMR.Web.Models.Patients.CreatePatientRequest
 
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
+
 @{
     ViewData["Title"] = "Register Patient";
     ViewData["Subtitle"] = "Create a new patient record";
     Layout = "_AppLayout";
+    var canAssignCareTeam = await Permissions.HasAsync(PermissionKeys.PatientsView, Context.RequestAborted)
+        && await Permissions.HasAsync(PermissionKeys.ProvidersView, Context.RequestAborted);
 }
 
 <div class="content-panel">
@@ -343,6 +349,39 @@
 
         </div>
 
+        @if (canAssignCareTeam)
+        {
+            <hr class="my-4" />
+            <section id="registrationCareTeam" data-providers-url="@Url.Action("List", "PatientRegistrationProviders")">
+                <h5 class="mb-1">Care Team <span class="text-body-secondary fw-normal">(Optional)</span></h5>
+                <p class="text-body-secondary small mb-3">Providers can also be added or changed later from the patient's Care Team.</p>
+                <div id="registrationCareTeamMessage" class="alert alert-warning d-none" role="alert"></div>
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label asp-for="ReferringProviderUid" class="form-label"></label>
+                        <select asp-for="ReferringProviderUid" class="form-select registration-provider-select" data-selected="@Model.ReferringProviderUid" disabled>
+                            <option value="">Select a provider (optional)</option>
+                        </select>
+                        <span asp-validation-for="ReferringProviderUid" class="text-danger"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="AttendingProviderUid" class="form-label"></label>
+                        <select asp-for="AttendingProviderUid" class="form-select registration-provider-select" data-selected="@Model.AttendingProviderUid" disabled>
+                            <option value="">Select a provider (optional)</option>
+                        </select>
+                        <span asp-validation-for="AttendingProviderUid" class="text-danger"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="PrimaryCareProviderUid" class="form-label"></label>
+                        <select asp-for="PrimaryCareProviderUid" class="form-select registration-provider-select" data-selected="@Model.PrimaryCareProviderUid" disabled>
+                            <option value="">Select a provider (optional)</option>
+                        </select>
+                        <span asp-validation-for="PrimaryCareProviderUid" class="text-danger"></span>
+                    </div>
+                </div>
+            </section>
+        }
+
         <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
 
             <a asp-action="Search"
@@ -364,6 +403,36 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const section = document.getElementById("registrationCareTeam");
+            if (!section) return;
+            const fields = section.querySelectorAll(".registration-provider-select");
+            try {
+                const response = await fetch(section.dataset.providersUrl, { headers: { Accept: "application/json" } });
+                if (!response.ok) throw new Error();
+                const providers = await response.json();
+                let unavailableSelection = false;
+                for (const field of fields) {
+                    for (const provider of providers)
+                        field.add(new Option(`${provider.displayName}${provider.specialty ? ` — ${provider.specialty}` : ""}`, provider.providerUid));
+                    field.value = field.dataset.selected || "";
+                    if (field.dataset.selected && !field.value) unavailableSelection = true;
+                    field.disabled = false;
+                }
+                if (unavailableSelection) {
+                    const message = document.getElementById("registrationCareTeamMessage");
+                    message.textContent = "A previously selected provider is no longer active. Select another provider or add one later from the Care Team.";
+                    message.classList.remove("d-none");
+                }
+            } catch {
+                const message = document.getElementById("registrationCareTeamMessage");
+                message.textContent = "Providers could not be loaded. You can register the patient now and assign the Care Team later.";
+                message.classList.remove("d-none");
+            }
+        });
+    </script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {

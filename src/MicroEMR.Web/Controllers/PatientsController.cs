@@ -128,6 +128,12 @@ public sealed class PatientsController : Controller
         CreatePatientRequest model,
         CancellationToken cancellationToken)
     {
+        if ((model.ReferringProviderUid.HasValue || model.AttendingProviderUid.HasValue ||
+             model.PrimaryCareProviderUid.HasValue) &&
+            (!await _permissionService.HasAsync(PermissionKeys.PatientsView, cancellationToken) ||
+             !await _permissionService.HasAsync(PermissionKeys.ProvidersView, cancellationToken)))
+            return Forbid();
+
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -135,13 +141,17 @@ public sealed class PatientsController : Controller
 
         try
         {
-            var patient =
-                await _patientApiClient.CreateAsync(
+            var registration =
+                await _patientApiClient.RegisterAsync(
                     model,
                     cancellationToken);
+            var patient = registration.Patient;
 
             TempData["SuccessMessage"] =
                 $"Patient {patient.FullName} was registered successfully.";
+            if (registration.FailedCareTeamRoles.Count > 0)
+                TempData["WarningMessage"] =
+                    $"Patient was created, but these Care Team assignments could not be saved: {string.Join(", ", registration.FailedCareTeamRoles)}. Add them from the Care Team tab.";
 
             return RedirectToAction(
                 nameof(Details),

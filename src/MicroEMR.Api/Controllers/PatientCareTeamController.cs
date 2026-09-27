@@ -12,22 +12,24 @@ namespace MicroEMR.Api.Controllers;
 public sealed class PatientCareTeamController(IPatientCareTeamService service, ILogger<PatientCareTeamController> logger) : ControllerBase
 {
     [HttpGet]
+    [RequirePermission(PermissionKeys.ProvidersView)]
     public Task<ActionResult<IReadOnlyList<PatientCareTeamRelationship>>> List(Guid patientUid, CancellationToken token) =>
         Read(async () => await service.ListAsync(patientUid, token));
 
     [HttpGet("types")]
+    [RequirePermission(PermissionKeys.ProvidersView)]
     public Task<ActionResult<IReadOnlyList<CareTeamRelationshipType>>> Types(Guid patientUid, CancellationToken token) =>
         Read(async () => { await service.ListAsync(patientUid, token); return await service.ListActiveTypesAsync(token); });
 
-    [HttpPost, RequirePermission(PermissionKeys.PatientsEdit)]
+    [HttpPost, RequirePermission(PermissionKeys.PatientsEdit), RequirePermission(PermissionKeys.ProvidersView)]
     public Task<ActionResult<PatientCareTeamRelationship>> Add(Guid patientUid, AddPatientCareTeamRelationshipRequest request, CancellationToken token) =>
         Write(() => service.AddAsync(patientUid, request, token));
 
-    [HttpPut("{relationshipUid:guid}"), RequirePermission(PermissionKeys.PatientsEdit)]
+    [HttpPut("{relationshipUid:guid}"), RequirePermission(PermissionKeys.PatientsEdit), RequirePermission(PermissionKeys.ProvidersView)]
     public Task<ActionResult<PatientCareTeamRelationship>> Update(Guid patientUid, Guid relationshipUid, UpdatePatientCareTeamRelationshipRequest request, CancellationToken token) =>
         Write(() => service.UpdateAsync(patientUid, relationshipUid, request, token));
 
-    [HttpPost("{relationshipUid:guid}/end"), RequirePermission(PermissionKeys.PatientsEdit)]
+    [HttpPost("{relationshipUid:guid}/end"), RequirePermission(PermissionKeys.PatientsEdit), RequirePermission(PermissionKeys.ProvidersView)]
     public Task<ActionResult<PatientCareTeamRelationship>> End(Guid patientUid, Guid relationshipUid, EndPatientCareTeamRelationshipRequest request, CancellationToken token) =>
         Write(() => service.EndAsync(patientUid, relationshipUid, request, token));
 

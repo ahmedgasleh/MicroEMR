@@ -121,6 +121,27 @@ public sealed class PatientApiClient : IPatientApiClient
                    "The API created the patient but returned no patient data.");
     }
 
+    public async Task<PatientRegistrationResult> RegisterAsync(
+        CreatePatientRequest patientRequest,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/patients/registration")
+        {
+            Content = JsonContent.Create(new
+            {
+                Patient = patientRequest,
+                patientRequest.ReferringProviderUid,
+                patientRequest.AttendingProviderUid,
+                patientRequest.PrimaryCareProviderUid
+            })
+        };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientRegistrationResult>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The API registered the patient but returned no result.");
+    }
+
     public async Task RecordChartOpenedAsync(
         Guid patientUid,
         CancellationToken cancellationToken = default)

@@ -63,6 +63,15 @@ public sealed class CreatePatientRequest : IValidatableObject
     [StringLength(2)]
     public string CountryCode { get; set; } = "CA";
 
+    [Display(Name = "Referring Physician")]
+    public Guid? ReferringProviderUid { get; set; }
+
+    [Display(Name = "Attending Physician")]
+    public Guid? AttendingProviderUid { get; set; }
+
+    [Display(Name = "Primary Care Physician")]
+    public Guid? PrimaryCareProviderUid { get; set; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (string.IsNullOrWhiteSpace(FirstName))
