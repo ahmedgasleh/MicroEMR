@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MicroEMR.Application.Providers;
 
-public sealed record ProviderAdministrationItem(Guid ProviderUid,string FirstName,string LastName,string DisplayName,string ProviderType,string? BillingNumber,string? Specialty,bool IsActive,DateTime CreatedAt,long? CreatedBy,DateTime? UpdatedAt,long? UpdatedBy,Guid? LinkedApplicationUserUid,string? LinkedApplicationUserDisplayName,string? LinkedApplicationUserEmail,string RowVersion);
+public sealed record ProviderAdministrationItem(Guid ProviderUid,string FirstName,string LastName,string DisplayName,string ProviderType,string? BillingNumber,string? Specialty,string? OrganizationName,string? Phone,string? Fax,bool IsActive,DateTime CreatedAt,long? CreatedBy,DateTime? UpdatedAt,long? UpdatedBy,Guid? LinkedApplicationUserUid,string? LinkedApplicationUserDisplayName,string? LinkedApplicationUserEmail,string RowVersion);
 public sealed record EligibleApplicationUser(Guid ApplicationUserUid,string DisplayName,string? Email);
 public sealed class SaveProviderRequest
 {
@@ -12,6 +12,9 @@ public sealed class SaveProviderRequest
     [Required,StringLength(50)]public string ProviderType{get;set;}="";
     [StringLength(50)]public string? BillingNumber{get;set;}
     [StringLength(100)]public string? Specialty{get;set;}
+    [StringLength(200)]public string? OrganizationName{get;set;}
+    [StringLength(30)]public string? Phone{get;set;}
+    [StringLength(30)]public string? Fax{get;set;}
     public string? RowVersion{get;set;}
 }
 public sealed record ProviderVersionRequest([Required]string RowVersion);
@@ -52,9 +55,10 @@ public sealed class ProviderAdministrationService(IProviderAdministrationReposit
     public Task<IReadOnlyList<EligibleApplicationUser>>EligibleUsersAsync(Guid? uid,CancellationToken token=default)=>repository.EligibleUsersAsync(uid,token);
     public Task<ProviderAdministrationItem?>LinkAsync(Guid uid,ProviderLinkRequest request,long actor,CancellationToken token=default){Link(request);return repository.LinkAsync(Required(uid),request,Actor(actor),token);}
     public Task<ProviderAdministrationItem?>UnlinkAsync(Guid uid,ProviderLinkRequest request,long actor,CancellationToken token=default){Link(request);return repository.UnlinkAsync(Required(uid),request,Actor(actor),token);}
-    private static void Normalize(SaveProviderRequest x,bool version){x.FirstName=Need(x.FirstName,nameof(x.FirstName));x.LastName=Need(x.LastName,nameof(x.LastName));x.DisplayName=Need(x.DisplayName,nameof(x.DisplayName));x.ProviderType=Need(x.ProviderType,nameof(x.ProviderType));x.BillingNumber=Optional(x.BillingNumber);x.Specialty=Optional(x.Specialty);if(version)Version(x.RowVersion);}
+    private static void Normalize(SaveProviderRequest x,bool version){x.FirstName=Need(x.FirstName,nameof(x.FirstName));x.LastName=Need(x.LastName,nameof(x.LastName));x.DisplayName=Need(x.DisplayName,nameof(x.DisplayName));x.ProviderType=Need(x.ProviderType,nameof(x.ProviderType));x.BillingNumber=Optional(x.BillingNumber);x.Specialty=Optional(x.Specialty);x.OrganizationName=Optional(x.OrganizationName);x.Phone=Optional(x.Phone);x.Fax=Optional(x.Fax);CheckLength(x.OrganizationName,200,nameof(x.OrganizationName));CheckLength(x.Phone,30,nameof(x.Phone));CheckLength(x.Fax,30,nameof(x.Fax));if(version)Version(x.RowVersion);}
     private static string Need(string? x,string name)=>string.IsNullOrWhiteSpace(x)?throw new ArgumentException($"{name} is required."):x.Trim();
     private static string? Optional(string? x)=>string.IsNullOrWhiteSpace(x)?null:x.Trim();
+    private static void CheckLength(string? x,int length,string name){if(x?.Length>length)throw new ArgumentException($"{name} cannot exceed {length} characters.");}
     private static void Version(string? x){if(string.IsNullOrWhiteSpace(x))throw new ArgumentException("RowVersion is required.");try{if(Convert.FromBase64String(x).Length!=8)throw new FormatException();}catch(FormatException){throw new ArgumentException("RowVersion is invalid.");}}
     private static void Link(ProviderLinkRequest x){if(x.ApplicationUserUid==Guid.Empty)throw new ArgumentException("ApplicationUserUid is required.");Version(x.RowVersion);}
     private static Guid Required(Guid x)=>x==Guid.Empty?throw new ArgumentException("ProviderUid is required."):x;

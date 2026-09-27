@@ -26,7 +26,7 @@ public sealed class PatientCareTeamController(
             var relationships = await client.List(patientUid, token);
             var canViewProviders = await permissions.HasAsync(PermissionKeys.ProvidersView, token);
             var providerItems = canViewProviders ? await providers.List("All", token) : [];
-            return Json(new { relationships, header = PatientCareTeamHeaderSummary.Select(relationships), providers = providerItems.Select(x => new { x.ProviderUid, x.DisplayName, x.Specialty, x.IsActive }) });
+            return Json(new { relationships, header = PatientCareTeamHeaderSummary.Select(relationships), providers = providerItems.Select(x => new { x.ProviderUid, x.DisplayName, x.Specialty, x.OrganizationName, x.Phone, x.Fax, x.IsActive }) });
         }
         catch (HttpRequestException exception) { return Failure(exception); }
     }

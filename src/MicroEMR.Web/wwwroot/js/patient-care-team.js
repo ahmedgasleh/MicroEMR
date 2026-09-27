@@ -61,10 +61,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         const specialties = new Map(providerItems.map(item => [item.providerUid.toLowerCase(), item.specialty]));
+        const contacts = new Map(providerItems.map(item => [item.providerUid.toLowerCase(), item]));
         list.innerHTML = `<div class="table-responsive"><table class="table table-sm table-hover align-middle">
             <thead><tr><th scope="col">Provider</th><th scope="col">Role</th><th scope="col">Specialty</th><th scope="col">Primary</th><th scope="col">Start Date</th><th scope="col">Actions</th></tr></thead>
             <tbody>${active.map(item => `<tr>
-                <td>${escapeHtml(item.providerDisplayName)}</td><td>${escapeHtml(item.relationshipTypeDisplayName)}</td>
+                <td>${escapeHtml(item.providerDisplayName)}${(() => {
+                    const contact = contacts.get(item.providerUid.toLowerCase());
+                    return contact ? `${contact.organizationName ? `<div class="small text-body-secondary">${escapeHtml(contact.organizationName)}</div>` : ""}${contact.phone ? `<div class="small">Tel: ${escapeHtml(contact.phone)}</div>` : ""}${contact.fax ? `<div class="small">Fax: ${escapeHtml(contact.fax)}</div>` : ""}` : "";
+                })()}</td><td>${escapeHtml(item.relationshipTypeDisplayName)}</td>
                 <td>${escapeHtml(specialties.get(item.providerUid.toLowerCase()) || "—")}</td>
                 <td>${item.isPrimary ? "Yes" : "No"}</td><td>${escapeHtml(item.startDate)}</td>
                 <td>${canManage ? `<button type="button" class="btn btn-link btn-sm px-1 care-team-edit" data-uid="${escapeHtml(item.relationshipUid)}">Edit</button><button type="button" class="btn btn-link btn-sm px-1 care-team-end" data-uid="${escapeHtml(item.relationshipUid)}">End</button>` : "—"}</td>
