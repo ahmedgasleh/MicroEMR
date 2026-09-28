@@ -5,12 +5,40 @@ using MicroEMR.Web.Services;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authentication;
 using MicroEMR.Web.Models.PatientDocuments;
+using ConsultationRecipientState = MicroEMR.Application.PatientDocuments.Contracts.ConsultationRecipientState;
+using PatientDocumentRecipientsResponse = MicroEMR.Application.PatientDocuments.Contracts.PatientDocumentRecipientsResponse;
+using ReplacePatientDocumentRecipientsRequest = MicroEMR.Application.PatientDocuments.Contracts.ReplacePatientDocumentRecipientsRequest;
 
 namespace MicroEMR.Web.Services.PatientDocuments;
 
 public sealed class PatientDocumentApiClient
     : IPatientDocumentApiClient
 {
+    public async Task<ConsultationRecipientState?> GetConsultationRecipientsAsync(Guid patientUid,
+        Guid documentUid, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/patients/{patientUid}/documents/{documentUid}/consultation-recipients");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<ConsultationRecipientState>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<PatientDocumentRecipientsResponse?> ReplaceConsultationRecipientsAsync(Guid patientUid,
+        Guid documentUid, ReplacePatientDocumentRecipientsRequest recipients,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put,
+            $"api/patients/{patientUid}/documents/{documentUid}/consultation-recipients")
+        { Content = JsonContent.Create(recipients) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<PatientDocumentRecipientsResponse>(cancellationToken: cancellationToken);
+    }
     public async Task<byte[]> PreviewPdfAsync(Guid documentUid, string structuredDataJson, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patient-documents/{documentUid}/pdf-preview")

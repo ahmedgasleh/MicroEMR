@@ -4,6 +4,8 @@ namespace MicroEMR.Application.PatientDocuments.Repositories;
 
 public interface IPatientDocumentRepository
 {
+    Task<bool> HasRecipientReplacementAsync(Guid patientUid, Guid documentUid,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientDocumentListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,

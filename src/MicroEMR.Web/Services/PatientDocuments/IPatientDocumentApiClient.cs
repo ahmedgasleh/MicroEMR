@@ -1,9 +1,16 @@
 using MicroEMR.Web.Models.PatientDocuments;
+using ConsultationRecipientState = MicroEMR.Application.PatientDocuments.Contracts.ConsultationRecipientState;
+using PatientDocumentRecipientsResponse = MicroEMR.Application.PatientDocuments.Contracts.PatientDocumentRecipientsResponse;
+using ReplacePatientDocumentRecipientsRequest = MicroEMR.Application.PatientDocuments.Contracts.ReplacePatientDocumentRecipientsRequest;
 
 namespace MicroEMR.Web.Services.PatientDocuments;
 
 public interface IPatientDocumentApiClient
 {
+    Task<ConsultationRecipientState?> GetConsultationRecipientsAsync(Guid patientUid, Guid documentUid,
+        CancellationToken cancellationToken = default);
+    Task<PatientDocumentRecipientsResponse?> ReplaceConsultationRecipientsAsync(Guid patientUid, Guid documentUid,
+        ReplacePatientDocumentRecipientsRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientDocumentListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,

@@ -22,6 +22,7 @@ public sealed class PatientDocumentDetailsResponse
     public bool IsStructured => StructuredDataJson is not null;
     public TemplateDefinition? TemplateDefinition { get; set; }
     public string? TemplateName { get; set; }
+    public bool IsConsultationReport { get; set; }
     public int? TemplateVersionNumber { get; set; }
 
     public long? CreatedBy { get; set; }

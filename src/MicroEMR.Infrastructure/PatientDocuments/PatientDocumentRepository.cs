@@ -114,6 +114,29 @@ public sealed class PatientDocumentRepository
         return await ReadRecipientsAsync(reader, cancellationToken);
     }
 
+    public async Task<bool> HasRecipientReplacementAsync(
+        Guid patientUid, Guid documentUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("""
+            SELECT CASE WHEN EXISTS
+            (
+                SELECT 1 FROM dbo.PatientDocument AS document
+                JOIN dbo.Patient AS patient ON patient.PatientId = document.PatientId
+                JOIN dbo.AuditLog AS audit ON audit.PatientId = document.PatientId
+                    AND audit.EntityName = N'PatientDocument'
+                    AND audit.ActionName = N'ReplaceDraftRecipients'
+                    AND audit.EntityId = CONVERT(NVARCHAR(100), document.PatientDocumentUid)
+                WHERE patient.PatientUid = @PatientUid AND patient.IsDeleted = 0
+                    AND document.PatientDocumentUid = @DocumentUid
+                    AND document.PatientUid = @PatientUid AND document.IsDeleted = 0
+            ) THEN 1 ELSE 0 END
+            """, connection);
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@DocumentUid", SqlDbType.UniqueIdentifier).Value = documentUid;
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
     public async Task<PatientDocumentRecipientsResponse?> ReplaceDraftRecipientsAsync(
         Guid patientUid, Guid documentUid, ReplacePatientDocumentRecipientsRequest request,
         long updatedBy, CancellationToken cancellationToken = default)

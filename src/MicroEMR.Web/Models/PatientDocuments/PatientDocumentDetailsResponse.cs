@@ -23,7 +23,10 @@ public sealed class PatientDocumentDetailsResponse
     public bool IsStructured { get; set; }
     public TemplateDefinition? TemplateDefinition { get; set; }
     public string? TemplateName { get; set; }
+    public bool IsConsultationReport { get; set; }
     public int? TemplateVersionNumber { get; set; }
+    public MicroEMR.Application.PatientDocuments.Contracts.ConsultationRecipientState? ConsultationRecipients { get; set; }
+    public IReadOnlyList<MicroEMR.Application.Providers.ProviderAdministrationItem> ActiveRecipientProviders { get; set; } = [];
 
     public long? CreatedBy { get; set; }
 

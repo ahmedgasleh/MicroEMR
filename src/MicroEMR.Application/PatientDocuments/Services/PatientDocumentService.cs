@@ -183,7 +183,11 @@ public sealed class PatientDocumentService(
         document.TemplateDefinition = RequireDefinition(version.DefinitionJson);
         document.TemplateVersionNumber = version.VersionNumber;
         if (document.TemplateUid.HasValue)
-            document.TemplateName = (await _repository.GetTemplateByUidAsync(document.TemplateUid.Value, token))?.TemplateName;
+        {
+            var template = await _repository.GetTemplateByUidAsync(document.TemplateUid.Value, token);
+            document.TemplateName = template?.TemplateName;
+            document.IsConsultationReport = template?.DocumentType == "CONSULTATION_REPORT";
+        }
         return document;
     }
 

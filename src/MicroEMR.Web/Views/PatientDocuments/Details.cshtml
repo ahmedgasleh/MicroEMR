@@ -47,6 +47,14 @@
     {
         <div class="alert alert-warning mt-3" role="alert">@errorMessage</div>
     }
+    @if (ViewData["RecipientLoadError"] is string recipientLoadError)
+    {
+        <div class="alert alert-warning mt-3" role="alert">@recipientLoadError</div>
+    }
+    @if (isDraft && Model.ConsultationRecipients is not null)
+    {
+        <partial name="_ConsultationRecipients" model="Model" />
+    }
 
     <div id="documentReadView" class="row g-4 mt-1 @(showEditor ? "d-none" : "")">
         <div class="col-12 col-lg-4">
@@ -185,6 +193,10 @@
     }
     @if (isDraft)
     {
+        @if (Model.ConsultationRecipients is not null)
+        {
+            <script type="module" src="~/dist/patient-documents/recipients.js" asp-append-version="true"></script>
+        }
         <script>
             document.addEventListener("DOMContentLoaded", function () {
                 const readView = document.getElementById("documentReadView");

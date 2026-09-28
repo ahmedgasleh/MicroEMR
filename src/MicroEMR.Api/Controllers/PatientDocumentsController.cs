@@ -25,19 +25,54 @@ public sealed class PatientDocumentsController : ControllerBase
     private readonly IAuthorizationService _authorization;
     private readonly IClinicalPdfPreviewService _pdfPreview;
     private readonly IStructuredReadAuditService _readAudit;
+    private readonly IConsultationRecipientService _consultationRecipients;
 
     public PatientDocumentsController(
         IPatientDocumentService documentService,
         ILogger<PatientDocumentsController> logger,
         IAuthorizationService authorization,
         IClinicalPdfPreviewService pdfPreview,
-        IStructuredReadAuditService readAudit)
+        IStructuredReadAuditService readAudit,
+        IConsultationRecipientService consultationRecipients)
     {
         _documentService = documentService;
         _logger = logger;
         _authorization = authorization;
         _pdfPreview = pdfPreview;
         _readAudit = readAudit;
+        _consultationRecipients = consultationRecipients;
+    }
+
+    [HttpGet("api/patients/{patientUid:guid}/documents/{documentUid:guid}/consultation-recipients")]
+    [RequirePermission(PermissionKeys.DocumentsManage)]
+    [RequirePermission(PermissionKeys.ProvidersView)]
+    public async Task<ActionResult<ConsultationRecipientState>> GetConsultationRecipients(
+        Guid patientUid, Guid documentUid, CancellationToken cancellationToken)
+    {
+        var canReadCareTeam = (await _authorization.AuthorizeAsync(User, null,
+            PermissionPolicyProvider.Prefix + PermissionKeys.PatientsView)).Succeeded;
+        var state = await _consultationRecipients.GetAsync(patientUid, documentUid,
+            canReadCareTeam, cancellationToken);
+        return state is null ? NotFound() : Ok(state);
+    }
+
+    [HttpPut("api/patients/{patientUid:guid}/documents/{documentUid:guid}/consultation-recipients")]
+    [RequirePermission(PermissionKeys.DocumentsManage)]
+    [RequirePermission(PermissionKeys.ProvidersView)]
+    public async Task<ActionResult<PatientDocumentRecipientsResponse>> ReplaceConsultationRecipients(
+        Guid patientUid, Guid documentUid, ReplacePatientDocumentRecipientsRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var saved = await _consultationRecipients.ReplaceAsync(patientUid, documentUid, request,
+                GetAuthenticatedUserId(), cancellationToken);
+            return saved is null ? NotFound() : Ok(saved);
+        }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
+        catch (PatientDocumentNotDraftException) { return Conflict(new { message = "Only draft recipients can be edited." }); }
+        catch (PatientDocumentConcurrencyException)
+        { return Conflict(new { message = "This document changed. Reload and review it before saving recipients." }); }
     }
 
     [HttpPost("api/patient-documents/{documentUid:guid}/pdf-preview")]

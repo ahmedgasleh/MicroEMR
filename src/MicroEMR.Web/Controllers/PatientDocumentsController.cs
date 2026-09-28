@@ -8,6 +8,9 @@ using MicroEMR.Web.Services;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.SecurityAudit;
+using PatientDocumentRecipientSelection = MicroEMR.Application.PatientDocuments.Contracts.PatientDocumentRecipientSelection;
+using ReplacePatientDocumentRecipientsRequest = MicroEMR.Application.PatientDocuments.Contracts.ReplacePatientDocumentRecipientsRequest;
+using MicroEMR.Web.Services.Providers;
 
 namespace MicroEMR.Web.Controllers;
 
@@ -35,13 +38,19 @@ public sealed class PatientDocumentsController : Controller
     }
     private readonly IPatientDocumentApiClient _documentApiClient;
     private readonly ILogger<PatientDocumentsController> _logger;
+    private readonly IProviderAdministrationApiClient _providers;
+    private readonly IWebPermissionService _permissions;
 
     public PatientDocumentsController(
         IPatientDocumentApiClient documentApiClient,
-        ILogger<PatientDocumentsController> logger)
+        ILogger<PatientDocumentsController> logger,
+        IProviderAdministrationApiClient providers,
+        IWebPermissionService permissions)
     {
         _documentApiClient = documentApiClient;
         _logger = logger;
+        _providers = providers;
+        _permissions = permissions;
     }
 
     [HttpGet]
@@ -218,7 +227,61 @@ public sealed class PatientDocumentsController : Controller
             return NotFound();
         }
 
+        if (document.IsConsultationReport && document.Status == "Draft" &&
+            await _permissions.HasAsync(PermissionKeys.DocumentsManage, cancellationToken) &&
+            await _permissions.HasAsync(PermissionKeys.ProvidersView, cancellationToken))
+        {
+            try
+            {
+                document.ConsultationRecipients = await _documentApiClient.GetConsultationRecipientsAsync(
+                    document.PatientUid, document.DocumentUid, cancellationToken);
+                if (document.ConsultationRecipients is not null)
+                    document.ActiveRecipientProviders = await _providers.List("Active", cancellationToken);
+            }
+            catch (HttpRequestException exception)
+            {
+                _logger.LogWarning(exception, "Consultation recipients could not be loaded for {DocumentUid}.", documentUid);
+                ViewData["RecipientLoadError"] = "Recipients are temporarily unavailable. Reload to try again.";
+            }
+        }
+
         return View(document);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.DocumentsManage)]
+    [RequireWebPermission(PermissionKeys.ProvidersView)]
+    public async Task<IActionResult> SaveConsultationRecipients(Guid documentUid,
+        SaveConsultationRecipientsViewModel model, CancellationToken cancellationToken)
+    {
+        if (documentUid == Guid.Empty || model.PatientUid == Guid.Empty) return BadRequest();
+        var request = new ReplacePatientDocumentRecipientsRequest
+        {
+            RowVersion = model.RowVersion,
+            Recipients = model.Recipients.Select((recipient, index) =>
+                new PatientDocumentRecipientSelection(index + 1, recipient.RecipientType, recipient.ProviderUid)).ToArray()
+        };
+        try
+        {
+            var saved = await _documentApiClient.ReplaceConsultationRecipientsAsync(
+                model.PatientUid, documentUid, request, cancellationToken);
+            if (saved is null) return NotFound();
+            TempData["SuccessMessage"] = "Consultation recipients saved.";
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            TempData["ErrorMessage"] = "The document changed. Reloaded values are shown; review recipients before saving again.";
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        {
+            TempData["ErrorMessage"] = "Recipients were not saved. Choose active providers without duplicates.";
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogError(exception, "Unable to save consultation recipients for {DocumentUid}.", documentUid);
+            TempData["ErrorMessage"] = "Recipients could not be saved. Please try again.";
+        }
+        return RedirectToAction(nameof(Details), new { documentUid });
     }
 
     [HttpPost]
