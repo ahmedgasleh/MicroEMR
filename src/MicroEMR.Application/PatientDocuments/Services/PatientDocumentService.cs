@@ -41,6 +41,40 @@ public sealed class PatientDocumentService(
         return document is null ? null : await EnrichAsync(document, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PatientDocumentRecipientResponse>?> GetRecipientsAsync(
+        Guid patientUid, Guid documentUid, CancellationToken cancellationToken = default)
+    {
+        var document = await _repository.GetByUidAsync(documentUid, cancellationToken);
+        return document is null || document.PatientUid != patientUid
+            ? null : await _repository.GetRecipientsAsync(patientUid, documentUid, cancellationToken);
+    }
+
+    public async Task<PatientDocumentRecipientsResponse?> ReplaceDraftRecipientsAsync(
+        Guid patientUid, Guid documentUid, ReplacePatientDocumentRecipientsRequest request,
+        long updatedBy, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (patientUid == Guid.Empty || documentUid == Guid.Empty || updatedBy <= 0)
+            throw new ArgumentException("Patient, document, and actor are required.");
+        if (request.Recipients is null) throw new ArgumentException("Recipients are required.", nameof(request));
+        byte[] version;
+        try { version = Convert.FromBase64String(request.RowVersion); }
+        catch (FormatException) { throw new ArgumentException("Document row version is invalid.", nameof(request)); }
+        if (version.Length != 8) throw new ArgumentException("Document row version is invalid.", nameof(request));
+        if (request.Recipients.Select(x => x.RecipientOrder).Order().SequenceEqual(Enumerable.Range(1, request.Recipients.Count)) is false ||
+            request.Recipients.Any(x => x.ProviderUid == Guid.Empty || x.RecipientType is not ("TO" or "CC")) ||
+            request.Recipients.Select(x => x.ProviderUid).Distinct().Count() != request.Recipients.Count)
+            throw new ArgumentException("Recipients must have unique providers, valid types, and consecutive order.", nameof(request));
+
+        var document = await _repository.GetByUidAsync(documentUid, cancellationToken);
+        if (document is null || document.PatientUid != patientUid) return null;
+        if (document.Status != "Draft")
+            throw new PatientDocumentNotDraftException("Only draft patient document recipients can be edited.");
+        if (document.RowVersion != request.RowVersion)
+            throw new PatientDocumentConcurrencyException("The patient document was changed by another user.");
+        return await _repository.ReplaceDraftRecipientsAsync(patientUid, documentUid, request, updatedBy, cancellationToken);
+    }
+
     public async Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
         Guid documentUid,
         UpdatePatientDocumentDraftRequest request,

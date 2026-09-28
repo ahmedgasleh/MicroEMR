@@ -14,6 +14,13 @@ public interface IPatientDocumentService
         Guid documentUid,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PatientDocumentRecipientResponse>?> GetRecipientsAsync(
+        Guid patientUid, Guid documentUid, CancellationToken cancellationToken = default);
+
+    Task<PatientDocumentRecipientsResponse?> ReplaceDraftRecipientsAsync(
+        Guid patientUid, Guid documentUid, ReplacePatientDocumentRecipientsRequest request,
+        long updatedBy, CancellationToken cancellationToken = default);
+
     Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
         Guid documentUid,
         UpdatePatientDocumentDraftRequest request,

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Infrastructure.Tenancy;
 using Microsoft.Extensions.Logging;
@@ -99,6 +100,65 @@ public sealed class PatientDocumentRepository
         }
 
         return MapDetails(reader);
+    }
+
+    public async Task<IReadOnlyList<PatientDocumentRecipientResponse>> GetRecipientsAsync(
+        Guid patientUid, Guid documentUid, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientDocumentRecipient_List", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@DocumentUid", SqlDbType.UniqueIdentifier).Value = documentUid;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await ReadRecipientsAsync(reader, cancellationToken);
+    }
+
+    public async Task<PatientDocumentRecipientsResponse?> ReplaceDraftRecipientsAsync(
+        Guid patientUid, Guid documentUid, ReplacePatientDocumentRecipientsRequest request,
+        long updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientDocumentRecipient_ReplaceDraft", connection)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        command.Parameters.Add("@DocumentUid", SqlDbType.UniqueIdentifier).Value = documentUid;
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Binary, 8).Value = Convert.FromBase64String(request.RowVersion);
+        command.Parameters.Add("@RecipientsJson", SqlDbType.NVarChar, -1).Value =
+            JsonSerializer.Serialize(request.Recipients, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        command.Parameters.Add("@UpdatedBy", SqlDbType.BigInt).Value = updatedBy;
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken)) return null;
+            var updatedVersion = Convert.ToBase64String((byte[])reader["RowVersion"]);
+            await reader.NextResultAsync(cancellationToken);
+            var recipients = await ReadRecipientsAsync(reader, cancellationToken);
+            return new PatientDocumentRecipientsResponse(documentUid, updatedVersion, recipients);
+        }
+        catch (SqlException exception) when (exception.Number == 51900) { return null; }
+        catch (SqlException exception) when (exception.Number == 51901)
+        { throw new PatientDocumentNotDraftException("Only draft patient document recipients can be edited.", exception); }
+        catch (SqlException exception) when (exception.Number == 51902)
+        { throw new PatientDocumentConcurrencyException("The patient document was changed by another user.", exception); }
+        catch (SqlException exception) when (exception.Number is 51903 or 51904 or 51905 or 51906)
+        { throw new ArgumentException(exception.Message, nameof(request), exception); }
+    }
+
+    private static async Task<IReadOnlyList<PatientDocumentRecipientResponse>> ReadRecipientsAsync(
+        SqlDataReader reader, CancellationToken cancellationToken)
+    {
+        var recipients = new List<PatientDocumentRecipientResponse>();
+        while (await reader.ReadAsync(cancellationToken))
+            recipients.Add(new PatientDocumentRecipientResponse(
+                reader.GetGuid(reader.GetOrdinal("RecipientUid")),
+                reader.GetInt32(reader.GetOrdinal("RecipientOrder")),
+                reader.GetString(reader.GetOrdinal("RecipientType")),
+                reader.GetGuid(reader.GetOrdinal("ProviderUid")),
+                reader.GetString(reader.GetOrdinal("DisplayNameSnapshot")),
+                GetNullableString(reader, "OrganizationNameSnapshot"),
+                GetNullableString(reader, "FaxSnapshot")));
+        return recipients;
     }
 
     public async Task<PatientDocumentDetailsResponse?> UpdateDraftAsync(
@@ -468,6 +528,11 @@ public sealed class PatientDocumentRepository
                 ?? string.Empty,
 
             StructuredDataJson = GetOptionalString(reader, "StructuredDataJson"),
+
+            FinalizedAt = GetOptionalDateTime(reader, "FinalizedAt"),
+            FinalizedByUserId = GetOptionalInt64(reader, "FinalizedByUserId"),
+            SignerProviderUid = GetOptionalGuid(reader, "SignerProviderUid"),
+            SignerDisplayNameSnapshot = GetOptionalString(reader, "SignerDisplayNameSnapshot"),
 
             CreatedBy =
                 GetNullableInt64(

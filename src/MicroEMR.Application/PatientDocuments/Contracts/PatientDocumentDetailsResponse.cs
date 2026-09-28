@@ -32,6 +32,11 @@ public sealed class PatientDocumentDetailsResponse
 
     public DateTime? UpdatedAt { get; set; }
 
+    public DateTime? FinalizedAt { get; set; }
+    public long? FinalizedByUserId { get; set; }
+    public Guid? SignerProviderUid { get; set; }
+    public string? SignerDisplayNameSnapshot { get; set; }
+
     public string RowVersion { get; set; } = string.Empty;
 
     public string ContentRowVersion { get; set; } = string.Empty;
