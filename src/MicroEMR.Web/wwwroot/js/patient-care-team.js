@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!root) return;
 
     const list = document.getElementById("careTeamList");
+    const historySection = document.getElementById("careTeamHistorySection");
+    const historyList = document.getElementById("careTeamHistoryList");
     const header = document.getElementById("patientCareTeamHeader");
     const pageMessage = document.getElementById("careTeamMessage");
     const editorElement = document.getElementById("careTeamEditorModal");
@@ -56,13 +58,16 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const render = () => {
         const active = relationships.filter(item => item.isActive);
-        if (!active.length) {
-            list.innerHTML = '<p class="text-body-secondary mb-0">No care team providers have been assigned.</p>';
-            return;
-        }
+        const historical = relationships.filter(item => !item.isActive).sort((a, b) =>
+            (b.endDate || "").localeCompare(a.endDate || "") ||
+            b.startDate.localeCompare(a.startDate) ||
+            a.relationshipUid.localeCompare(b.relationshipUid));
         const specialties = new Map(providerItems.map(item => [item.providerUid.toLowerCase(), item.specialty]));
         const contacts = new Map(providerItems.map(item => [item.providerUid.toLowerCase(), item]));
-        list.innerHTML = `<div class="table-responsive"><table class="table table-sm table-hover align-middle">
+        if (!active.length) {
+            list.innerHTML = '<p class="text-body-secondary mb-0">No care team providers have been assigned.</p>';
+        } else {
+            list.innerHTML = `<div class="table-responsive"><table class="table table-sm table-hover align-middle">
             <thead><tr><th scope="col">Provider</th><th scope="col">Role</th><th scope="col">Specialty</th><th scope="col">Primary</th><th scope="col">Start Date</th><th scope="col">Actions</th></tr></thead>
             <tbody>${active.map(item => `<tr>
                 <td>${escapeHtml(item.providerDisplayName)}${(() => {
@@ -73,6 +78,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${item.isPrimary ? "Yes" : "No"}</td><td>${escapeHtml(item.startDate)}</td>
                 <td>${canManage ? `<button type="button" class="btn btn-link btn-sm px-1 care-team-edit" data-uid="${escapeHtml(item.relationshipUid)}">Edit</button><button type="button" class="btn btn-link btn-sm px-1 care-team-end" data-uid="${escapeHtml(item.relationshipUid)}">End</button>` : "—"}</td>
             </tr>`).join("")}</tbody></table></div>`;
+        }
+        historySection.classList.toggle("d-none", !historical.length);
+        historyList.innerHTML = historical.length ? `<div class="table-responsive"><table class="table table-sm table-hover align-middle">
+            <thead><tr><th scope="col">Provider</th><th scope="col">Role</th><th scope="col">Specialty</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Primary</th></tr></thead>
+            <tbody>${historical.map(item => `<tr>
+                <td>${escapeHtml(item.providerDisplayName)}${(() => {
+                    const organization = contacts.get(item.providerUid.toLowerCase())?.organizationName;
+                    return organization ? `<div class="small text-body-secondary">${escapeHtml(organization)}</div>` : "";
+                })()}</td><td>${escapeHtml(item.relationshipTypeDisplayName)}</td>
+                <td>${escapeHtml(specialties.get(item.providerUid.toLowerCase()) || "—")}</td>
+                <td>${escapeHtml(item.startDate)}</td><td>${escapeHtml(item.endDate || "—")}</td>
+                <td>${item.isPrimary ? "Yes" : "No"}</td>
+            </tr>`).join("")}</tbody></table></div>` : "";
     };
     const renderHeader = members => {
         header.replaceChildren();
@@ -97,6 +115,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             renderHeader([]);
             list.textContent = "Care team could not be loaded.";
+            historySection.classList.add("d-none");
+            historyList.replaceChildren();
             showError(pageMessage, error.message);
         }
     };
