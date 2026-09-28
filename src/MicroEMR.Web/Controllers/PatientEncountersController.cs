@@ -8,6 +8,8 @@ using MicroEMR.Web.Services;
 using MicroEMR.Web.Authorization;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Application.PatientCareTeam;
+using MicroEMR.Web.Services.PatientCareTeam;
 using MicroEMR.Web.Services.Patients;
 
 namespace MicroEMR.Web.Controllers;
@@ -43,15 +45,21 @@ public sealed class PatientEncountersController : Controller
     }
     private readonly IPatientEncounterApiClient _encounterApiClient;
     private readonly IPatientApiClient _patientApiClient;
+    private readonly IPatientCareTeamApiClient _careTeamApiClient;
+    private readonly IWebPermissionService _permissions;
     private readonly ILogger<PatientEncountersController> _logger;
 
     public PatientEncountersController(
         IPatientEncounterApiClient encounterApiClient,
         IPatientApiClient patientApiClient,
+        IPatientCareTeamApiClient careTeamApiClient,
+        IWebPermissionService permissions,
         ILogger<PatientEncountersController> logger)
     {
         _encounterApiClient = encounterApiClient;
         _patientApiClient = patientApiClient;
+        _careTeamApiClient = careTeamApiClient;
+        _permissions = permissions;
         _logger = logger;
     }
 
@@ -508,10 +516,27 @@ public sealed class PatientEncountersController : Controller
             return BadRequest();
         }
 
+        string? providerName = null;
+        if (await _permissions.HasAsync(PermissionKeys.PatientsView, cancellationToken) &&
+            await _permissions.HasAsync(PermissionKeys.ProvidersView, cancellationToken))
+        {
+            try
+            {
+                providerName = EncounterProviderSuggestion.Select(
+                    await _careTeamApiClient.List(patientUid, cancellationToken));
+            }
+            catch (HttpRequestException exception)
+            {
+                _logger.LogWarning(exception,
+                    "Care Team provider suggestion unavailable for patient {PatientUid}.", patientUid);
+            }
+        }
+
         return View(new CreatePatientEncounterViewModel
         {
             PatientUid = patientUid,
             EncounterDateLocal = DateTime.Now,
+            ProviderName = providerName,
             EncounterTemplates = await _encounterApiClient.GetEncounterTemplatesAsync(cancellationToken)
         });
     }
