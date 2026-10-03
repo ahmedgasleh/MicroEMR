@@ -2,6 +2,7 @@ using MicroEMR.Application.PatientCareTeam;
 using MicroEMR.Application.PatientDocuments.Contracts;
 using MicroEMR.Application.PatientDocuments.Repositories;
 using MicroEMR.Application.Providers;
+using Microsoft.Extensions.Logging;
 
 namespace MicroEMR.Application.PatientDocuments.Services;
 
@@ -19,7 +20,8 @@ public sealed class ConsultationRecipientService(
     IPatientDocumentService documents,
     IPatientDocumentRepository repository,
     IPatientCareTeamService careTeam,
-    IProviderAdministrationService providers) : IConsultationRecipientService
+    IProviderAdministrationService providers,
+    ILogger<ConsultationRecipientService> logger) : IConsultationRecipientService
 {
     private const string ConsultationReportType = "CONSULTATION_REPORT";
 
@@ -34,9 +36,20 @@ public sealed class ConsultationRecipientService(
             await repository.HasRecipientReplacementAsync(patientUid, documentUid, cancellationToken))
             return new(documentUid, patientUid, document.RowVersion, recipients, []);
 
-        var relationships = await careTeam.ListAsync(patientUid, cancellationToken);
-        var activeProviders = (await providers.ListAsync("Active", cancellationToken))
-            .Where(x => x.IsActive).ToDictionary(x => x.ProviderUid);
+        IReadOnlyList<PatientCareTeamRelationship> relationships;
+        Dictionary<Guid, ProviderAdministrationItem> activeProviders;
+        try
+        {
+            relationships = await careTeam.ListAsync(patientUid, cancellationToken);
+            activeProviders = (await providers.ListAsync("Active", cancellationToken))
+                .Where(x => x.IsActive).ToDictionary(x => x.ProviderUid);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Suggestions are optional; failure must not prevent manual recipient selection.
+            logger.LogWarning(exception, "Care Team recipient suggestions unavailable for document {DocumentUid}.", documentUid);
+            return new(documentUid, patientUid, document.RowVersion, recipients, []);
+        }
         var suggestions = new List<ConsultationRecipientSuggestion>();
         Add("REFERRING", "TO");
         Add("PCP", "CC");

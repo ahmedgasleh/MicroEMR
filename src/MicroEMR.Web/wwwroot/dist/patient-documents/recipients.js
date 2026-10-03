@@ -72,5 +72,10 @@ if (form && rows && template && addButton) {
 }
 const documentForm = document.querySelector("#documentEditForm");
 documentForm?.addEventListener("input", () => { documentForm.dataset.dirty = "true"; });
+documentForm?.addEventListener("change", () => { documentForm.dataset.dirty = "true"; });
+documentForm?.addEventListener("reset", () => {
+    documentForm.dataset.dirty = "false";
+    clearError();
+});
 export {};
 //# sourceMappingURL=recipients.js.map

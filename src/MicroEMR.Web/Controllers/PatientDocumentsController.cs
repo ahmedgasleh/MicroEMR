@@ -255,6 +255,7 @@ public sealed class PatientDocumentsController : Controller
         SaveConsultationRecipientsViewModel model, CancellationToken cancellationToken)
     {
         if (documentUid == Guid.Empty || model.PatientUid == Guid.Empty) return BadRequest();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
         var request = new ReplacePatientDocumentRecipientsRequest
         {
             RowVersion = model.RowVersion,

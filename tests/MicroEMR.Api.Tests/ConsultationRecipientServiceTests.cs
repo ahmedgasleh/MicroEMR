@@ -5,6 +5,7 @@ using MicroEMR.Application.PatientDocuments.Repositories;
 using MicroEMR.Application.PatientDocuments.Services;
 using MicroEMR.Application.Providers;
 using Xunit;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MicroEMR.Api.Tests;
 
@@ -83,6 +84,42 @@ public sealed class ConsultationRecipientServiceTests
     }
 
     [Fact]
+    public async Task UnavailableSuggestionsDoNotBlockManualRecipientEditing()
+    {
+        var state = await Service([], suggestionFailure: new InvalidOperationException("Unavailable"))
+            .GetAsync(PatientUid, DocumentUid, true);
+        Assert.NotNull(state);
+        Assert.Empty(state.Suggestions);
+        Assert.Equal(Version, state.RowVersion);
+    }
+
+    [Fact]
+    public async Task SuggestionCancellationIsNotSwallowed()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            Service([], suggestionFailure: new OperationCanceledException())
+                .GetAsync(PatientUid, DocumentUid, true));
+    }
+
+    [Fact]
+    public async Task SamePrimaryProviderForBothRolesIsSuggestedOnlyAsTo()
+    {
+        var state = await Service([Relation(ReferringUid, "REFERRING"), Relation(ReferringUid, "PCP")])
+            .GetAsync(PatientUid, DocumentUid, true);
+        Assert.Equal("TO", Assert.Single(state!.Suggestions).RecipientType);
+    }
+
+    [Fact]
+    public async Task OtherPatientAndEndedRelationshipsAreNotSuggested()
+    {
+        var state = await Service([
+            Relation(ReferringUid, "REFERRING") with { PatientUid = Guid.NewGuid() },
+            Relation(PcpUid, "PCP") with { EndDate = DateOnly.FromDateTime(DateTime.UtcNow) }
+        ]).GetAsync(PatientUid, DocumentUid, true);
+        Assert.Empty(state!.Suggestions);
+    }
+
+    [Fact]
     public async Task ReplacementUsesExistingPatientDocumentRecipientWritePath()
     {
         var request = new ReplacePatientDocumentRecipientsRequest
@@ -135,7 +172,8 @@ public sealed class ConsultationRecipientServiceTests
         IReadOnlyList<PatientDocumentRecipientResponse>? recipients = null,
         bool confirmed = false,
         Func<Guid, Guid, ReplacePatientDocumentRecipientsRequest, long, PatientDocumentRecipientsResponse>? replacement = null,
-        string templateType = "CONSULTATION_REPORT")
+        string templateType = "CONSULTATION_REPORT",
+        Exception? suggestionFailure = null)
     {
         var document = new PatientDocumentDetailsResponse
         { PatientUid = PatientUid, DocumentUid = DocumentUid, TemplateUid = TemplateUid,
@@ -158,7 +196,9 @@ public sealed class ConsultationRecipientServiceTests
         });
         var careTeam = Proxy<IPatientCareTeamService>((method, _) => method.Name switch
         {
-            nameof(IPatientCareTeamService.ListAsync) => Task.FromResult(relationships),
+            nameof(IPatientCareTeamService.ListAsync) => suggestionFailure is null
+                ? Task.FromResult(relationships)
+                : Task.FromException<IReadOnlyList<PatientCareTeamRelationship>>(suggestionFailure),
             _ => throw new NotSupportedException(method.Name)
         });
         var providers = Proxy<IProviderAdministrationService>((method, _) => method.Name switch
@@ -167,7 +207,7 @@ public sealed class ConsultationRecipientServiceTests
                 [Provider(ReferringUid), Provider(PcpUid)]),
             _ => throw new NotSupportedException(method.Name)
         });
-        return new(documents, repository, careTeam, providers);
+        return new(documents, repository, careTeam, providers, NullLogger<ConsultationRecipientService>.Instance);
     }
 
     private static PatientCareTeamRelationship Relation(Guid providerUid, string role) =>
