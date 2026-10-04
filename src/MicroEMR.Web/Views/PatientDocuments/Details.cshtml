@@ -55,6 +55,10 @@
     {
         <partial name="_ConsultationRecipients" model="Model" />
     }
+    @if (Model.IsConsultationReport)
+    {
+        <partial name="_ConsultationSigning" model="Model" />
+    }
 
     <div id="documentReadView" class="row g-4 mt-1 @(showEditor ? "d-none" : "")">
         <div class="col-12 col-lg-4">
@@ -193,7 +197,7 @@
     }
     @if (isDraft)
     {
-        @if (Model.ConsultationRecipients is not null)
+        @if (Model.IsConsultationReport)
         {
             <script type="module" src="~/dist/patient-documents/recipients.js" asp-append-version="true"></script>
         }

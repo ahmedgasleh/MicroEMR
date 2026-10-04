@@ -37,6 +37,7 @@ public sealed class PatientDocumentDetailsResponse
     public long? FinalizedByUserId { get; set; }
     public Guid? SignerProviderUid { get; set; }
     public string? SignerDisplayNameSnapshot { get; set; }
+    public IReadOnlyList<PatientDocumentRecipientResponse> FinalRecipients { get; set; } = [];
 
     public string RowVersion { get; set; } = string.Empty;
 

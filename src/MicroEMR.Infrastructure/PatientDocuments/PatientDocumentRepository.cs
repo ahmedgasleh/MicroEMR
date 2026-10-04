@@ -10,7 +10,7 @@ using MicroEMR.Application.PatientDocuments;
 
 namespace MicroEMR.Infrastructure.PatientDocuments;
 
-public sealed class PatientDocumentRepository
+public sealed partial class PatientDocumentRepository
     : IPatientDocumentRepository
 {
     private readonly ITenantSqlConnectionFactory _connectionFactory;

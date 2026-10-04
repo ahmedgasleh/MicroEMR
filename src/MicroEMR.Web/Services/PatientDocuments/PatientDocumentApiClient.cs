@@ -14,6 +14,25 @@ namespace MicroEMR.Web.Services.PatientDocuments;
 public sealed class PatientDocumentApiClient
     : IPatientDocumentApiClient
 {
+    public async Task SignConsultationAsync(Guid patientUid, Guid documentUid, string rowVersion, CancellationToken token = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/documents/{documentUid}/sign")
+        { Content = JsonContent.Create(new { rowVersion }) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, token);
+        await EnsureSuccessAsync(response, token);
+    }
+
+    public async Task<byte[]> GetFinalPdfAsync(Guid patientUid, Guid documentUid, bool download, CancellationToken token = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            $"api/patients/{patientUid}/documents/{documentUid}/final-pdf?download={download}");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, token);
+        await EnsureSuccessAsync(response, token);
+        return await response.Content.ReadAsByteArrayAsync(token);
+    }
+
     public async Task<ConsultationRecipientState?> GetConsultationRecipientsAsync(Guid patientUid,
         Guid documentUid, CancellationToken cancellationToken = default)
     {

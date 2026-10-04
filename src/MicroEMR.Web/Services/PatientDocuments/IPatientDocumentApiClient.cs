@@ -7,6 +7,8 @@ namespace MicroEMR.Web.Services.PatientDocuments;
 
 public interface IPatientDocumentApiClient
 {
+    Task SignConsultationAsync(Guid patientUid, Guid documentUid, string rowVersion, CancellationToken token = default);
+    Task<byte[]> GetFinalPdfAsync(Guid patientUid, Guid documentUid, bool download, CancellationToken token = default);
     Task<ConsultationRecipientState?> GetConsultationRecipientsAsync(Guid patientUid, Guid documentUid,
         CancellationToken cancellationToken = default);
     Task<PatientDocumentRecipientsResponse?> ReplaceConsultationRecipientsAsync(Guid patientUid, Guid documentUid,

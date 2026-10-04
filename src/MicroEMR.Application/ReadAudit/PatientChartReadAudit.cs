@@ -7,6 +7,7 @@ public static class ReadAuditActions
     public const string PatientChartOpened = "PatientChartOpened";
     public const string EncounterViewed = "EncounterViewed";
     public const string PatientDocumentViewed = "PatientDocumentViewed";
+    public const string PatientDocumentDownloaded = "PatientDocumentDownloaded";
     public const string PatientFileDownloaded = "PatientFileDownloaded";
     public const string ReportExecuted = "ReportExecuted";
     public const string CsvExported = "CsvExported";

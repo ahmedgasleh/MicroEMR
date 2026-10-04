@@ -62,5 +62,6 @@
   { "migrationId": "0060-patient-care-team-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0060-patient-care-team-foundation.sql" },
   { "migrationId": "0061-provider-contact-details", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0061-provider-contact-details.sql" },
   { "migrationId": "0062-patient-document-recipient-foundation", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0062-patient-document-recipient-foundation.sql" },
-  { "migrationId": "0063-consultation-report-template", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0063-consultation-report-template.sql" }
+  { "migrationId": "0063-consultation-report-template", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0063-consultation-report-template.sql" },
+  { "migrationId": "0064-consultation-report-signing", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0064-consultation-report-signing.sql" }
 ]

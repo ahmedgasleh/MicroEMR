@@ -83,6 +83,8 @@ public sealed class PatientDocumentService(
     {
         var current = await _repository.GetByUidAsync(documentUid, cancellationToken);
         if (current is null) return null;
+        if (current.Status != "Draft")
+            throw new PatientDocumentNotDraftException("Only draft patient documents can be edited.");
         if (current.StructuredDataJson is not null)
         {
             if (!current.TemplateVersionUid.HasValue) throw new InvalidOperationException("The structured document has no template version provenance.");
@@ -176,6 +178,12 @@ public sealed class PatientDocumentService(
 
     private async Task<PatientDocumentDetailsResponse> EnrichAsync(PatientDocumentDetailsResponse document, CancellationToken token)
     {
+        if (document.Status == "Signed" && document.FinalizedAt.HasValue)
+        {
+            document.IsConsultationReport = true;
+            document.FinalRecipients = await _repository.GetRecipientsAsync(document.PatientUid, document.DocumentUid, token);
+            return document;
+        }
         if (document.StructuredDataJson is null || !document.TemplateVersionUid.HasValue) return document;
         var version = await versions.GetByUidAsync(document.TemplateVersionUid.Value, token)
             ?? throw new InvalidOperationException("The document's historical template version is unavailable.");
@@ -187,6 +195,8 @@ public sealed class PatientDocumentService(
             var template = await _repository.GetTemplateByUidAsync(document.TemplateUid.Value, token);
             document.TemplateName = template?.TemplateName;
             document.IsConsultationReport = template?.DocumentType == "CONSULTATION_REPORT";
+            if (document.IsConsultationReport)
+                document.FinalRecipients = await _repository.GetRecipientsAsync(document.PatientUid, document.DocumentUid, token);
         }
         return document;
     }

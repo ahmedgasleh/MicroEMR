@@ -18,6 +18,7 @@ public interface IClinicalPdfPreviewService
     Task<byte[]?> PreviewPatientDocumentAsync(Guid documentUid, TemplatePreviewRequest request, CancellationToken token = default);
     Task<byte[]?> PreviewEncounterAsync(Guid encounterUid, TemplatePreviewRequest request, CancellationToken token = default);
     Task<byte[]> RenderSignedEncounterAsync(Guid encounterUid, CancellationToken token = default);
+    Task<byte[]> RenderConsultationFinalAsync(MicroEMR.Application.PatientDocuments.Contracts.ConsultationSigningContext context, CancellationToken token = default);
 }
 
 public sealed class ClinicalPdfPreviewService(
@@ -35,10 +36,46 @@ public sealed class ClinicalPdfPreviewService(
     TimeProvider timeProvider,
     ILogger<ClinicalPdfPreviewService> logger) : IClinicalPdfPreviewService
 {
+    public async Task<byte[]> RenderConsultationFinalAsync(MicroEMR.Application.PatientDocuments.Contracts.ConsultationSigningContext snapshot,
+        CancellationToken token = default)
+    {
+        var document = snapshot.Document;
+        var version = await versions.GetByUidAsync(document.TemplateVersionUid!.Value, token)
+            ?? throw new InvalidOperationException("The document template version is unavailable.");
+        EnsureProvenance(document.TemplateUid!.Value, version.TemplateUid);
+        var definition = RequireDefinition(version.DefinitionJson);
+        var processed = runtime.Process(definition, document.StructuredDataJson);
+        if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
+        var patient = await patients.GetByUidAsync(document.PatientUid, token)
+            ?? throw new InvalidOperationException("The document patient is unavailable.");
+        var clinic = await clinicConfiguration.GetAsync(token);
+        var variables = new TemplateVariableContext(patient.FullName, patient.DateOfBirth,
+            document.CreatedByDisplayName, document.CreatedAt, DateOnly.FromDateTime(snapshot.SignedAtUtc));
+        var content = htmlRenderer.Render(outputBuilder.Build(definition, processed.Data!, variables));
+        var recipients = new System.Text.StringBuilder("<section><h2>Correspondence</h2>");
+        foreach (var recipient in snapshot.Recipients.OrderBy(x => x.RecipientOrder))
+        {
+            recipients.Append("<p><strong>").Append(System.Net.WebUtility.HtmlEncode(recipient.RecipientType))
+                .Append(": </strong>").Append(System.Net.WebUtility.HtmlEncode(recipient.DisplayNameSnapshot));
+            if (!string.IsNullOrWhiteSpace(recipient.OrganizationNameSnapshot))
+                recipients.Append(" — ").Append(System.Net.WebUtility.HtmlEncode(recipient.OrganizationNameSnapshot));
+            if (!string.IsNullOrWhiteSpace(recipient.FaxSnapshot))
+                recipients.Append(" · Fax: ").Append(System.Net.WebUtility.HtmlEncode(recipient.FaxSnapshot));
+            recipients.Append("</p>");
+        }
+        recipients.Append("</section>").Append(content);
+        var printContext = CreatePrintContext(clinic, patient,
+            new("Document", document.Title, "Consultation Report", document.CreatedAt, snapshot.SignerDisplayName),
+            new("Created by", document.CreatedByDisplayName, document.CreatedAt, snapshot.SignerDisplayName, snapshot.SignedAtUtc));
+        return await pdfRenderer.RenderAsync(printLayout.Render(printContext, recipients.ToString()), token);
+    }
+
     public async Task<byte[]?> PreviewPatientDocumentAsync(Guid documentUid, TemplatePreviewRequest request, CancellationToken token = default)
     {
         var document = await documents.GetByUidAsync(documentUid, token);
         if (document is null) return null;
+        if (document.Status != "Draft")
+            throw new InvalidOperationException("Use the preserved final PDF for a signed document.");
         if (!document.TemplateUid.HasValue || !document.TemplateVersionUid.HasValue || document.StructuredDataJson is null)
             throw new InvalidOperationException("PDF preview is available only for schema-driven patient documents.");
         var version = await versions.GetByUidAsync(document.TemplateVersionUid.Value, token)

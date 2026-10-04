@@ -35,6 +35,9 @@ public sealed class PatientDocumentDetailsResponse
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    public DateTime? FinalizedAt { get; set; }
+    public string? SignerDisplayNameSnapshot { get; set; }
+    public IReadOnlyList<MicroEMR.Application.PatientDocuments.Contracts.PatientDocumentRecipientResponse> FinalRecipients { get; set; } = [];
 
     public string RowVersion { get; set; } = string.Empty;
 

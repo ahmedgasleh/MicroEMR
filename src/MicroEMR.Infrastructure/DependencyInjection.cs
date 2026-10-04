@@ -116,6 +116,7 @@ public static class DependencyInjection
         services.AddSingleton<IPatientFileStorage, LocalPatientFileStorage>();
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();
+            services.AddScoped<MicroEMR.Application.PatientDocuments.Contracts.IConsultationSigningRepository, PatientDocumentRepository>();
             services.AddScoped<IDocumentTemplateVersionRepository, DocumentTemplateVersionRepository>();
             services.AddScoped<ITemplateAdministrationRepository, TemplateAdministrationRepository>();
             services.AddScoped<IPatientEncounterRepository, PatientEncounterRepository>();

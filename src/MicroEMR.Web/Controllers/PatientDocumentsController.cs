@@ -285,6 +285,44 @@ public sealed class PatientDocumentsController : Controller
         return RedirectToAction(nameof(Details), new { documentUid });
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.DocumentsSign)]
+    public async Task<IActionResult> SignConsultation(Guid patientUid, Guid documentUid, string rowVersion, CancellationToken token)
+    {
+        if (!ModelState.IsValid || patientUid == Guid.Empty || documentUid == Guid.Empty) return BadRequest();
+        try
+        {
+            await _documentApiClient.SignConsultationAsync(patientUid, documentUid, rowVersion, token);
+            TempData["SuccessMessage"] = "Consultation signed. The final PDF has been preserved.";
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "Consultation signing failed for {DocumentUid}.", documentUid);
+            TempData["ErrorMessage"] = exception.StatusCode switch
+            {
+                HttpStatusCode.Forbidden => "Signing requires document signing permission and an active linked Provider.",
+                HttpStatusCode.Conflict => "The document changed or was already signed. Review the reloaded document.",
+                HttpStatusCode.BadRequest => "Signing requires complete consultation content and a saved TO recipient with active Providers.",
+                _ => "Signing could not be completed. Review the reloaded status before retrying."
+            };
+        }
+        return RedirectToAction(nameof(Details), new { documentUid });
+    }
+
+    [HttpGet]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientDocumentView)]
+    public async Task<IActionResult> FinalPdf(Guid patientUid, Guid documentUid, bool download, CancellationToken token)
+    {
+        try
+        {
+            var bytes = await _documentApiClient.GetFinalPdfAsync(patientUid, documentUid, download, token);
+            Response.Headers.CacheControl = "no-store";
+            return download ? File(bytes, "application/pdf", $"consultation-{documentUid:N}.pdf") : File(bytes, "application/pdf");
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound) { return NotFound(); }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden) { return Forbid(); }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [RequireWebPermission(PermissionKeys.DocumentsManage)]

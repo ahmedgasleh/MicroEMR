@@ -39,7 +39,8 @@ public sealed class EncounterDocumentReadAuditTests
         var document = ReadController("PatientDocumentsController.cs");
 
         Assert.Equal(1, Count(encounter, "ReadAuditActions.EncounterViewed"));
-        Assert.Equal(1, Count(document, "ReadAuditActions.PatientDocumentViewed"));
+        // Document details and the immutable final PDF are separate sensitive views.
+        Assert.Equal(2, Count(document, "ReadAuditActions.PatientDocumentViewed"));
         Assert.DoesNotContain("RecordAsync", Method(encounter, "GetPatientEncounters", "GetEncounter"));
         Assert.DoesNotContain("RecordAsync", Method(document, "GetPatientDocuments", "GetDocument"));
     }

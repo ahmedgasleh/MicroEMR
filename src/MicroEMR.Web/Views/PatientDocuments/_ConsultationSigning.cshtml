@@ -1,0 +1,59 @@
+@model MicroEMR.Web.Models.PatientDocuments.PatientDocumentDetailsResponse
+@using MicroEMR.Application.AccessProfiles
+@using MicroEMR.Web.Authorization
+@inject IWebPermissionService Permissions
+@if (Model.Status == "Signed" && Model.FinalizedAt.HasValue)
+{
+    <section class="border rounded-3 p-3 mt-3">
+        <h5>Signed consultation</h5>
+        <p>Signed by @Model.SignerDisplayNameSnapshot on @Model.FinalizedAt.Value.ToString("yyyy-MM-dd HH:mm") UTC.</p>
+        @foreach (var recipient in Model.FinalRecipients.OrderBy(x => x.RecipientOrder))
+        {
+            <p><strong>@recipient.RecipientType:</strong> @recipient.DisplayNameSnapshot
+                @if (!string.IsNullOrWhiteSpace(recipient.OrganizationNameSnapshot)) { <span> — @recipient.OrganizationNameSnapshot</span> }
+                @if (!string.IsNullOrWhiteSpace(recipient.FaxSnapshot)) { <span> · Fax: @recipient.FaxSnapshot</span> }
+            </p>
+        }
+        <a class="btn btn-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" target="_blank" rel="noopener">View final PDF</a>
+        <a class="btn btn-outline-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" asp-route-download="true">Download final PDF</a>
+    </section>
+}
+else if (Model.Status == "Draft" && await Permissions.HasAsync(PermissionKeys.DocumentsSign, Context.RequestAborted))
+{
+    <div class="d-flex justify-content-end mt-3">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#signConsultationModal">Sign Consultation</button>
+    </div>
+    <div class="modal fade" id="signConsultationModal" tabindex="-1" aria-labelledby="signConsultationTitle" aria-hidden="true">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="signConsultationTitle">Sign Consultation Report?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <p>This locks the document and recipients from further editing and preserves the final clinical PDF.</p>
+                <h6>Saved recipients</h6>
+                @foreach (var recipient in Model.FinalRecipients.OrderBy(x => x.RecipientOrder))
+                {
+                    <p><strong>@recipient.RecipientType:</strong> @recipient.DisplayNameSnapshot
+                        @if (!string.IsNullOrWhiteSpace(recipient.OrganizationNameSnapshot)) { <span> — @recipient.OrganizationNameSnapshot</span> }
+                        @if (!string.IsNullOrWhiteSpace(recipient.FaxSnapshot)) { <span> · Fax: @recipient.FaxSnapshot</span> }
+                    </p>
+                }
+                @if (!Model.FinalRecipients.Any(x => x.RecipientType == "TO"))
+                {
+                    <p class="text-danger">Save at least one TO recipient before signing.</p>
+                }
+                <p class="small text-body-secondary">Cancel to review or edit recipients. Save all content and recipient changes before signing.</p>
+                <div class="alert alert-danger d-none" id="consultationSignError" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="SignConsultation" method="post" id="signConsultationForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="patientUid" value="@Model.PatientUid" />
+                    <input type="hidden" name="documentUid" value="@Model.DocumentUid" />
+                    <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
+                    <button class="btn btn-success" type="submit" disabled="@(!Model.FinalRecipients.Any(x => x.RecipientType == "TO"))">Sign Consultation</button>
+                </form>
+            </div>
+        </div></div>
+    </div>
+}

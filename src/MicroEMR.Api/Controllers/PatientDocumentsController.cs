@@ -103,6 +103,47 @@ public sealed class PatientDocumentsController : ControllerBase
         }
     }
 
+    [HttpPost("api/patients/{patientUid:guid}/documents/{documentUid:guid}/sign")]
+    [RequirePermission(PermissionKeys.DocumentsSign)]
+    public async Task<IActionResult> SignConsultation(Guid patientUid, Guid documentUid,
+        SignConsultationRequest request, [FromServices] IConsultationSigningService signing, CancellationToken token)
+    {
+        try { return Ok(await signing.SignAsync(patientUid, documentUid, request, GetAuthenticatedUserId(), token)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (TemplateInstanceValidationException) { return BadRequest(new { message = "Complete the required consultation fields before signing." }); }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
+        catch (PatientDocumentNotDraftException) { return Conflict(new { message = "Only Draft consultations can be signed." }); }
+        catch (PatientDocumentConcurrencyException) { return Conflict(new { message = "The document changed. Reload before signing." }); }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogError(exception, "Consultation signing failed for {DocumentUid}.", documentUid);
+            return Problem("Signing could not be completed. Reload the document to check its status before retrying.", statusCode: 503);
+        }
+    }
+
+    [HttpGet("api/patients/{patientUid:guid}/documents/{documentUid:guid}/final-pdf")]
+    [SensitiveCapability(SecurityAuditCapabilities.PatientDocumentView)]
+    public async Task<IActionResult> FinalPdf(Guid patientUid, Guid documentUid, bool download,
+        [FromServices] IConsultationSigningService signing, CancellationToken token)
+    {
+        var artifact = await signing.OpenFinalPdfAsync(patientUid, documentUid, token);
+        if (artifact is null) return NotFound();
+        try
+        {
+            await _readAudit.RecordAsync(download ? ReadAuditActions.PatientDocumentDownloaded : ReadAuditActions.PatientDocumentViewed,
+                ReadAuditResourceTypes.PatientDocument, documentUid, patientUid, HttpContext.TraceIdentifier, token);
+            Response.Headers.CacheControl = "no-store";
+            return download ? File(artifact.Content, artifact.MimeType, artifact.FileName)
+                : File(artifact.Content, artifact.MimeType);
+        }
+        catch
+        {
+            await artifact.Content.DisposeAsync();
+            throw;
+        }
+    }
+
     [HttpGet("api/patients/{patientUid:guid}/documents")]
     [ProducesResponseType<
         IReadOnlyList<PatientDocumentListItemResponse>>(

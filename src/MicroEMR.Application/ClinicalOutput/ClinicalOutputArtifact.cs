@@ -3,6 +3,7 @@ namespace MicroEMR.Application.ClinicalOutput;
 public static class ClinicalArtifactTypes
 {
     public const string Encounter = "Encounter";
+    public const string PatientDocument = "PatientDocument";
     public const string FinalPdf = "FinalPdf";
     public const string FileSystem = "FileSystem";
 }

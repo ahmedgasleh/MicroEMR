@@ -16,7 +16,9 @@ function clearError() {
     error.classList.add("d-none");
 }
 if (form && rows && template && addButton) {
+    form.addEventListener("change", () => { form.dataset.dirty = "true"; });
     addButton.addEventListener("click", () => {
+        form.dataset.dirty = "true";
         rows.appendChild(template.content.cloneNode(true));
         clearError();
     });
@@ -27,6 +29,7 @@ if (form && rows && template && addButton) {
         const row = target.closest(".consultation-recipient-row");
         if (!row)
             return;
+        form.dataset.dirty = "true";
         if (target.closest(".move-recipient-up")) {
             row.previousElementSibling?.before(row);
             return;
@@ -76,6 +79,16 @@ documentForm?.addEventListener("change", () => { documentForm.dataset.dirty = "t
 documentForm?.addEventListener("reset", () => {
     documentForm.dataset.dirty = "false";
     clearError();
+});
+document.querySelector("#signConsultationForm")?.addEventListener("submit", event => {
+    if (documentForm?.dataset.dirty === "true" || form?.dataset.dirty === "true") {
+        event.preventDefault();
+        const message = document.querySelector("#consultationSignError");
+        if (message) {
+            message.textContent = "Save content and recipient changes before signing.";
+            message.classList.remove("d-none");
+        }
+    }
 });
 export {};
 //# sourceMappingURL=recipients.js.map

@@ -217,6 +217,7 @@ public sealed class EncounterAddendumCrossPatientAuditTests
         public Task<byte[]?> PreviewPatientDocumentAsync(Guid u, TemplatePreviewRequest r, CancellationToken t = default) => throw new NotSupportedException();
         public Task<byte[]?> PreviewEncounterAsync(Guid u, TemplatePreviewRequest r, CancellationToken t = default) => throw new NotSupportedException();
         public Task<byte[]> RenderSignedEncounterAsync(Guid u, CancellationToken t = default) => throw new NotSupportedException();
+        public Task<byte[]> RenderConsultationFinalAsync(MicroEMR.Application.PatientDocuments.Contracts.ConsultationSigningContext c, CancellationToken t = default) => throw new NotSupportedException();
     }
 
     private sealed class ArtifactService : IClinicalArtifactService

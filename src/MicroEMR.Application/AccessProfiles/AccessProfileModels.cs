@@ -15,6 +15,7 @@ public static class PermissionKeys
     public const string EncountersSign = "Encounters.Sign";
     public const string DocumentsView = "Documents.View";
     public const string DocumentsManage = "Documents.Manage";
+    public const string DocumentsSign = "Documents.Sign";
     public const string TemplatesUse = "Templates.Use";
     public const string TemplatesManage = "Templates.Manage";
     public const string ClinicalDataManage = "ClinicalData.Manage";
@@ -79,6 +80,7 @@ public static class PermissionCatalog
         P("Scheduling.View","View scheduling","Scheduling","View schedules and appointments."), P("Scheduling.Manage","Manage scheduling","Scheduling","Create and update appointments and schedules."),
         P("Encounters.View","View encounters","Encounters","View clinical encounters."), P("Encounters.Edit","Edit encounters","Encounters","Create and edit encounters."), P("Encounters.Sign","Sign encounters","Encounters","Finalize and sign encounters."),
         P("Documents.View","View documents","Documents","View patient documents."), P("Documents.Manage","Manage documents","Documents","Create and update patient documents."),
+        P("Documents.Sign","Sign documents","Documents","Sign consultation reports and preserve final PDFs."),
         P("Templates.Use","Use templates","Templates","Use published document templates."), P("Templates.Manage","Manage templates","Templates","Create, publish, and administer templates."),
         P("ClinicalData.Manage","Manage clinical data","Clinical Data","Manage allergies, problems, medications, and vitals."),
         P("Prescriptions.Prescribe","Prescribe medications","Clinical Data","Create, finalize, cancel, and correct local prescriptions."),
