@@ -12,7 +12,8 @@ public interface IPatientEncounterApiClient
 
     Task<PatientEncounterDetailsResponse?> GetByUidAsync(
         Guid encounterUid,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? patientUid = null);
 
     Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetEncounterHistoryAsync(
         Guid patientUid,

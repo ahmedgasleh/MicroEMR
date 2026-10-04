@@ -149,7 +149,8 @@ public sealed class PatientEncountersController : Controller
             var encounter =
                 await _encounterApiClient.GetByUidAsync(
                     encounterUid,
-                    cancellationToken);
+                    cancellationToken,
+                    patientUid);
 
             if (encounter is null || encounter.PatientUid != patientUid)
             {

@@ -78,11 +78,14 @@ public sealed class PatientEncounterApiClient
 
     public async Task<PatientEncounterDetailsResponse?> GetByUidAsync(
         Guid encounterUid,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? patientUid = null)
     {
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            $"api/patient-encounters/{encounterUid}");
+            patientUid.HasValue
+                ? $"api/patient-encounters/{encounterUid}?patientUid={patientUid.Value}"
+                : $"api/patient-encounters/{encounterUid}");
 
         await AddBearerTokenAsync(request);
 

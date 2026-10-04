@@ -1,7 +1,15 @@
 using System.Security.Claims;
+using System.Net;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Api.ClinicalUsers;
 using MicroEMR.Api.Controllers;
 using MicroEMR.Application.ClinicalOutput;
@@ -16,6 +24,216 @@ namespace MicroEMR.Api.Tests;
 
 public sealed class EncounterAddendumCrossPatientAuditTests
 {
+    [Theory]
+    [InlineData("matching")]
+    [InlineData("mismatched")]
+    [InlineData("missing")]
+    public async Task WebDetailPassesPatientContextToApiAndPreservesResponseAndAudit(string scenario)
+    {
+        var requestedPatient = Guid.NewGuid();
+        var encounter = new PatientEncounterDetailsResponse
+        {
+            EncounterUid = Guid.NewGuid(),
+            PatientUid = scenario == "matching" ? requestedPatient : Guid.NewGuid()
+        };
+        var securityAudit = new SecurityAuditRepository();
+        var (api, readAudit) = CreateController(
+            new EncounterService(scenario == "missing" ? null : encounter), securityAudit, Guid.NewGuid(), true);
+        using var handler = new DetailHandler(api, encounter.EncounterUid, requestedPatient);
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://microemr.test/") };
+        using var services = new ServiceCollection()
+            .AddSingleton<IAuthenticationService>(new TestAuthenticationService()).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        var client = new MicroEMR.Web.Services.PatientEncounters.PatientEncounterApiClient(
+            httpClient, new HttpContextAccessor { HttpContext = context },
+            NullLogger<MicroEMR.Web.Services.PatientEncounters.PatientEncounterApiClient>.Instance);
+        var web = new MicroEMR.Web.Controllers.PatientEncountersController(
+            client, null!, null!, null!,
+            NullLogger<MicroEMR.Web.Controllers.PatientEncountersController>.Instance);
+
+        var result = await web.EncounterDetails(requestedPatient, encounter.EncounterUid, CancellationToken.None);
+
+        Assert.Equal(1, handler.Calls);
+        if (scenario == "matching")
+        {
+            Assert.IsType<JsonResult>(result);
+            Assert.Equal(1, readAudit.Calls);
+            Assert.Empty(securityAudit.CrossPatientEvents);
+        }
+        else
+        {
+            Assert.IsType<NotFoundObjectResult>(result);
+            Assert.Equal(0, readAudit.Calls);
+            Assert.Equal(scenario == "mismatched" ? 1 : 0, securityAudit.CrossPatientEvents.Count);
+        }
+    }
+
+    [Fact]
+    public void DetailReadRetainsAuthorizationAndTenantBoundRepository()
+    {
+        var controllerType = typeof(PatientEncountersController);
+        Assert.NotEmpty(controllerType.GetCustomAttributes(typeof(AuthorizeAttribute), true));
+        var permission = Assert.Single(controllerType.GetCustomAttributes(typeof(RequirePermissionAttribute), true)
+            .Cast<RequirePermissionAttribute>());
+        Assert.Equal(PermissionPolicyProvider.Prefix + PermissionKeys.EncountersView, permission.Policy);
+        var capability = Assert.Single(controllerType.GetMethod(nameof(PatientEncountersController.GetEncounter))!
+            .GetCustomAttributes(typeof(SensitiveCapabilityAttribute), true).Cast<SensitiveCapabilityAttribute>());
+        Assert.Equal(SecurityAuditCapabilities.EncounterView, capability.Capability);
+        var constructor = Assert.Single(typeof(MicroEMR.Infrastructure.PatientEncounters.PatientEncounterRepository).GetConstructors());
+        Assert.Contains(constructor.GetParameters(), parameter =>
+            parameter.ParameterType == typeof(MicroEMR.Infrastructure.Tenancy.ITenantSqlConnectionFactory));
+    }
+
+    private sealed class DetailHandler(PatientEncountersController api, Guid encounterUid, Guid patientUid) : HttpMessageHandler
+    {
+        public int Calls { get; private set; }
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+        {
+            Calls++;
+            Assert.Equal($"/api/patient-encounters/{encounterUid}", request.RequestUri!.AbsolutePath);
+            Assert.Equal($"?patientUid={patientUid}", request.RequestUri.Query);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            var result = await api.GetEncounter(encounterUid, token, patientUid);
+            var response = Assert.IsAssignableFrom<ObjectResult>(result.Result);
+            return new HttpResponseMessage((HttpStatusCode)response.StatusCode!)
+            {
+                Content = JsonContent.Create(response.Value)
+            };
+        }
+    }
+
+    private sealed class TestAuthenticationService : IAuthenticationService
+    {
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme)
+        {
+            var properties = new AuthenticationProperties();
+            properties.StoreTokens([new AuthenticationToken { Name = "access_token", Value = "synthetic-test-token" }]);
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(
+                new ClaimsPrincipal(new ClaimsIdentity("test")), properties, "test")));
+        }
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
+        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties) => throw new NotSupportedException();
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => throw new NotSupportedException();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DetailReadWithMatchingOrAbsentPatientContextRecordsExactlyOneView(bool patientContextSupplied)
+    {
+        var encounter = new PatientEncounterDetailsResponse
+        {
+            EncounterUid = Guid.NewGuid(), PatientUid = Guid.NewGuid()
+        };
+        var securityAudit = new SecurityAuditRepository();
+        var (controller, readAudit) = CreateController(new EncounterService(encounter), securityAudit, Guid.NewGuid(), true);
+
+        var result = await controller.GetEncounter(encounter.EncounterUid, CancellationToken.None,
+            patientContextSupplied ? encounter.PatientUid : null);
+
+        Assert.Same(encounter, Assert.IsType<OkObjectResult>(result.Result).Value);
+        Assert.Equal(1, readAudit.Calls);
+        Assert.Equal((ReadAuditActions.EncounterViewed, ReadAuditResourceTypes.Encounter,
+            encounter.EncounterUid, encounter.PatientUid, "trace-step20b"), readAudit.Recorded);
+        Assert.Empty(securityAudit.CrossPatientEvents);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DetailPatientMismatchReturnsNotFoundWithOnlyOwnershipDenial(bool clinicalActorAvailable)
+    {
+        var encounter = new PatientEncounterDetailsResponse
+        {
+            EncounterUid = Guid.NewGuid(), PatientUid = Guid.NewGuid()
+        };
+        var requestedPatient = Guid.NewGuid();
+        var tenantUid = Guid.NewGuid();
+        var securityAudit = new SecurityAuditRepository();
+        var (controller, readAudit) = CreateController(new EncounterService(encounter), securityAudit, tenantUid, clinicalActorAvailable);
+
+        var result = await controller.GetEncounter(encounter.EncounterUid, CancellationToken.None, requestedPatient);
+
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal(0, readAudit.Calls);
+        var denial = Assert.Single(securityAudit.CrossPatientEvents);
+        Assert.Equal(SecurityAuditCapabilities.EncounterView, denial.Capability);
+        Assert.Equal(SecurityAuditResourceTypes.Encounter, denial.ResourceType);
+        Assert.Equal(requestedPatient, denial.RequestedPatientUid);
+        Assert.Equal(encounter.PatientUid, denial.AuthoritativePatientUid);
+        Assert.Equal(encounter.EncounterUid, denial.ResourceUid);
+        Assert.Equal(tenantUid, denial.TrustedTenantUid);
+        Assert.Equal("oidc-subject-20b", denial.ActorSubject);
+        Assert.Equal(clinicalActorAvailable ? 73L : null, denial.ClinicalUserId);
+        Assert.Equal("trace-step20b", denial.RequestCorrelationId);
+        Assert.Equal(SecurityAuditSourceApplications.Api, denial.SourceApplication);
+    }
+
+    [Fact]
+    public async Task DetailNotFoundInCurrentTenantCreatesNeitherViewNorOwnershipDenial()
+    {
+        // The unchanged tenant-bound service returns null for absent or other-tenant resources.
+        var securityAudit = new SecurityAuditRepository();
+        var (controller, readAudit) = CreateController(new EncounterService(null), securityAudit, Guid.NewGuid(), true);
+
+        var result = await controller.GetEncounter(Guid.NewGuid(), CancellationToken.None, Guid.NewGuid());
+
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal(0, readAudit.Calls);
+        Assert.Empty(securityAudit.CrossPatientEvents);
+    }
+
+    [Fact]
+    public async Task DetailMismatchRemainsRejectedWhenDenialAuditFails()
+    {
+        var encounter = new PatientEncounterDetailsResponse
+        {
+            EncounterUid = Guid.NewGuid(), PatientUid = Guid.NewGuid()
+        };
+        var logger = new RecordingLogger();
+        var securityAudit = new SecurityAuditRepository { Failure = new InvalidOperationException("unavailable") };
+        var (controller, readAudit) = CreateController(new EncounterService(encounter), securityAudit, Guid.NewGuid(), true, logger);
+
+        var result = await controller.GetEncounter(encounter.EncounterUid, CancellationToken.None, Guid.NewGuid());
+
+        Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal(0, readAudit.Calls);
+        Assert.Equal(1, securityAudit.Attempts);
+        Assert.Contains(logger.Messages, message => message.Contains("access remained denied", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DetailViewAuditFailureStillFailsClosed()
+    {
+        var encounter = new PatientEncounterDetailsResponse
+        {
+            EncounterUid = Guid.NewGuid(), PatientUid = Guid.NewGuid()
+        };
+        var securityAudit = new SecurityAuditRepository();
+        var (controller, readAudit) = CreateController(new EncounterService(encounter), securityAudit, Guid.NewGuid(), true);
+        readAudit.Failure = new InvalidOperationException("unavailable");
+
+        var result = await controller.GetEncounter(encounter.EncounterUid, CancellationToken.None, encounter.PatientUid);
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, Assert.IsType<ObjectResult>(result.Result).StatusCode);
+        Assert.Equal(1, readAudit.Calls);
+        Assert.Empty(securityAudit.CrossPatientEvents);
+    }
+
+    [Fact]
+    public async Task EmptyDetailPatientContextIsRejectedWithoutAudit()
+    {
+        var securityAudit = new SecurityAuditRepository();
+        var (controller, readAudit) = CreateController(new EncounterService(null), securityAudit, Guid.NewGuid(), true);
+
+        var result = await controller.GetEncounter(Guid.NewGuid(), CancellationToken.None, Guid.Empty);
+
+        Assert.IsType<BadRequestResult>(result.Result);
+        Assert.Equal(0, readAudit.Calls);
+        Assert.Empty(securityAudit.CrossPatientEvents);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -207,8 +425,15 @@ public sealed class EncounterAddendumCrossPatientAuditTests
     private sealed class ReadAuditService : IStructuredReadAuditService
     {
         public int Calls { get; private set; }
+        public Exception? Failure { get; set; }
+        public (string Event, string ResourceType, Guid ResourceUid, Guid PatientUid, string Correlation) Recorded { get; private set; }
         public Task<Guid> RecordAsync(string e, string r, Guid u, Guid p, string c, CancellationToken t = default)
-        { Calls++; return Task.FromResult(Guid.NewGuid()); }
+        {
+            Calls++;
+            if (Failure is not null) throw Failure;
+            Recorded = (e, r, u, p, c);
+            return Task.FromResult(Guid.NewGuid());
+        }
         public Task<Guid> RecordAggregateReportAsync(string e, string r, string c, CancellationToken t = default) => throw new NotSupportedException();
     }
 

@@ -85,9 +85,10 @@ public sealed class PatientEncountersController : ControllerBase
     public async Task<ActionResult<PatientEncounterDetailsResponse>>
         GetEncounter(
             Guid encounterUid,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            [FromQuery] Guid? patientUid = null)
     {
-        if (encounterUid == Guid.Empty)
+        if (encounterUid == Guid.Empty || patientUid == Guid.Empty)
         {
             return BadRequest();
         }
@@ -103,6 +104,13 @@ public sealed class PatientEncountersController : ControllerBase
             {
                 message = "The requested encounter was not found."
             });
+        }
+
+        if (patientUid.HasValue && encounter.PatientUid != patientUid.Value)
+        {
+            await TryRecordCrossPatientOwnershipAsync(
+                patientUid.Value, encounter.PatientUid, encounter.EncounterUid, cancellationToken);
+            return NotFound(new { message = "The requested encounter was not found." });
         }
 
         try
