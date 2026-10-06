@@ -2,6 +2,13 @@ namespace MicroEMR.Application.PatientReferrals;
 
 public interface IPatientReferralService
 {
+    Task<PatientReferralClinicalSelectionsResponse?> GetClinicalSelectionsAsync(Guid patientUid, Guid referralUid,
+        CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+    Task<PatientReferralClinicalSelectionsResponse?> ReplaceDraftClinicalSelectionsAsync(Guid patientUid, Guid referralUid,
+        ReplacePatientReferralClinicalSelectionsRequest request,
+        CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
     Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
         CancellationToken cancellationToken = default);

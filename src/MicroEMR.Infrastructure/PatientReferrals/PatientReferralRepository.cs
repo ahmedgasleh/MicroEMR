@@ -6,7 +6,7 @@ using MicroEMR.Infrastructure.Tenancy;
 
 namespace MicroEMR.Infrastructure.PatientReferrals;
 
-public sealed class PatientReferralRepository(
+public sealed partial class PatientReferralRepository(
     ITenantSqlConnectionFactory connectionFactory,
     ILogger<PatientReferralRepository> logger) : IPatientReferralRepository
 {

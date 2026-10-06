@@ -10,7 +10,7 @@ using System.Globalization;
 
 namespace MicroEMR.Application.PatientReferrals;
 
-public sealed class PatientReferralService(
+public sealed partial class PatientReferralService(
     IPatientReferralRepository referrals,
     IPatientRepository patients,
     IAuthenticatedClinicalUserAccessor clinicalUserAccessor,
@@ -20,7 +20,8 @@ public sealed class PatientReferralService(
     IReferralDocumentRepository? documentLinks = null,
     IClinicalPrintLayoutRenderer? printLayout = null,
     IPdfRenderer? pdfRenderer = null,
-    TimeProvider? timeProvider = null) : IPatientReferralService
+    TimeProvider? timeProvider = null,
+    MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService? permissions = null) : IPatientReferralService
 {
     public async Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
