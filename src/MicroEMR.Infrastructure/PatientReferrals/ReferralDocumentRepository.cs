@@ -9,14 +9,26 @@ public sealed class ReferralDocumentRepository(ITenantSqlConnectionFactory conne
     : IReferralDocumentRepository
 {
     public async Task<IReadOnlyList<ReferralDocumentLinkResponse>> GetByReferralUidAsync(
-        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default)
+        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default, bool requireAllLinkedDocuments = false)
     {
         var results = new List<ReferralDocumentLinkResponse>();
         await using var connection = await connections.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.PatientReferralDocument_GetByReferralUid");
         AddIds(command, patientUid, referralUid);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken)) results.Add(Map(reader));
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken)) results.Add(Map(reader));
+        if (requireAllLinkedDocuments)
+        {
+            await using var count = connection.CreateCommand();
+            count.CommandText = """
+                SELECT COUNT(*) FROM dbo.PatientReferralDocument l
+                JOIN dbo.PatientReferral r ON r.ReferralUid=l.ReferralUid
+                WHERE r.PatientUid=@PatientUid AND r.ReferralUid=@ReferralUid
+                """;
+            AddIds(count, patientUid, referralUid);
+            if ((int)(await count.ExecuteScalarAsync(cancellationToken))! != results.Count)
+                throw new ReferralClinicalSelectionRuleException("A supporting document is unavailable for this patient. Edit the Draft document selections and try again.");
+        }
         return results;
     }
 

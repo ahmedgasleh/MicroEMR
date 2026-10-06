@@ -90,7 +90,7 @@ public sealed class ReferralClinicalContentTests
         await Assert.ThrowsAsync<InvalidOperationException>(()=>f.Render()); Assert.Empty(f.Calls);
     }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public Guid PatientUid {get;}=Guid.NewGuid(); public Guid ReferralUid {get;}=Guid.NewGuid();
         public HashSet<string> Permissions {get;}=[PermissionKeys.PatientsView,PermissionKeys.ReferralsView,PermissionKeys.ReferralsManage,PermissionKeys.EncountersView,PermissionKeys.ResultsView];
@@ -99,6 +99,7 @@ public sealed class ReferralClinicalContentTests
         public PatientResultResponse Result {get;}
         public IReadOnlyList<PatientAllergyListItemResponse> Allergies {get;set;}
         private IReadOnlyList<PatientReferralClinicalSelectionResponse> selected=[];
+        public string RowVersion {get;set;}="version";
         public ReferralClinicalContentService Service {get;}
         public Fixture()
         {
@@ -108,7 +109,7 @@ public sealed class ReferralClinicalContentTests
             Service=new(Stub<IPatientReferralRepository>((m,a)=>
             {
                 Assert.Equal("GetClinicalSelectionsAsync",m); Assert.Equal(PatientUid,a[0]);Assert.Equal(ReferralUid,a[1]);
-                return Task.FromResult<PatientReferralClinicalSelectionsResponse?>(new(PatientUid,ReferralUid,"version",selected));
+                return Task.FromResult<PatientReferralClinicalSelectionsResponse?>(new(PatientUid,ReferralUid,RowVersion,selected));
             }),Stub<IPatientProblemService>((m,a)=>
             {
                 Assert.Equal("GetByPatientUidAsync",m);Assert.Equal(PatientUid,a[0]);Calls.Add("problems");

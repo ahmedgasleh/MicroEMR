@@ -3,7 +3,7 @@ namespace MicroEMR.Application.PatientReferrals;
 public interface IReferralDocumentRepository
 {
     Task<IReadOnlyList<ReferralDocumentLinkResponse>> GetByReferralUidAsync(
-        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default);
+        Guid patientUid, Guid referralUid, CancellationToken cancellationToken = default, bool requireAllLinkedDocuments = false);
     Task LinkAsync(Guid patientUid, Guid referralUid, Guid documentUid, string rowVersion,
         long linkedBy, CancellationToken cancellationToken = default);
     Task UnlinkAsync(Guid patientUid, Guid referralUid, Guid documentUid, string rowVersion,

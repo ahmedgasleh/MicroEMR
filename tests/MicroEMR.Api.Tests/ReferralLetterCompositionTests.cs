@@ -14,7 +14,7 @@ namespace MicroEMR.Api.Tests;
 public sealed class ReferralLetterCompositionTests
 {
     [Fact]
-    public async Task SelectedPreviewContentFollowsNarrativeAndPrecedesSupportingDocumentsWithoutChangingSentComposition()
+    public async Task SelectedContentFollowsNarrativeAndPrecedesSupportingDocumentsInPreviewAndFinalLetter()
     {
         var f = new Fixture(selectedClinicalHtml: "<section><h2>Selected Clinical Information</h2><p>Selected source content</p></section>");
         var html = await f.Preview();
@@ -22,7 +22,7 @@ public sealed class ReferralLetterCompositionTests
         Assert.True(html.IndexOf("Selected Clinical Information",StringComparison.Ordinal) < html.IndexOf("Supporting documents",StringComparison.Ordinal));
         Assert.DoesNotContain("<h2>Patient demographics</h2>",html);
         await f.Service.MarkSentAsync(f.Patient.PatientUid,f.Referral.ReferralUid,new() {RowVersion=f.Referral.RowVersion});
-        Assert.DoesNotContain("Selected source content",Encoding.UTF8.GetString(f.SentArtifact!.PdfContent));
+        Assert.Contains("Selected source content",Encoding.UTF8.GetString(f.SentArtifact!.PdfContent));
     }
     [Fact]
     public async Task PreviewIncludesAuthoritativePatientProviderClinicRecipientAndNarrative()
@@ -242,7 +242,8 @@ public sealed class ReferralLetterCompositionTests
                 }), Clock,
                 permissions: Stub<MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService>((method, _) =>
                     Task.FromResult<IReadOnlySet<string>>(new HashSet<string> { MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView })),
-                clinicalContent: Stub<IReferralClinicalContentService>((method, _) => Task.FromResult(selectedClinicalHtml)));
+                clinicalContent: Stub<IReferralClinicalContentService>((method, _) => Task.FromResult(new ReferralClinicalComposition(
+                    selectedClinicalHtml,new(Patient.PatientUid,Referral.ReferralUid,Referral.RowVersion,[])))));
         }
 
         public async Task<string> Preview() => Encoding.UTF8.GetString(

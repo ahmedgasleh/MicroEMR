@@ -17,11 +17,13 @@ public sealed record ReferralClinicalOption(string SelectionKind, string? CppCat
     Guid? ResultUid, string Label, DateTime? DateUtc = null, string? Provider = null, string? Status = null);
 public sealed record ReferralClinicalOptionsResponse(IReadOnlyList<ReferralClinicalOption> Categories,
     IReadOnlyList<ReferralClinicalOption> Encounters, IReadOnlyList<ReferralClinicalOption> Results);
+public sealed record ReferralClinicalComposition(string Html, PatientReferralClinicalSelectionsResponse SelectionSet);
 
 public interface IReferralClinicalContentService
 {
     Task<ReferralClinicalOptionsResponse> GetOptionsAsync(Guid patientUid, CancellationToken token = default);
     Task<string> RenderPreviewAsync(Guid patientUid, Guid referralUid, CancellationToken token = default, string timeZoneId = "UTC");
+    Task<ReferralClinicalComposition> ComposeAsync(Guid patientUid, Guid referralUid, CancellationToken token = default, string timeZoneId = "UTC");
 }
 
 public sealed class ReferralClinicalContentService(IPatientReferralRepository referrals,
@@ -50,6 +52,9 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
     }
 
     public async Task<string> RenderPreviewAsync(Guid patientUid, Guid referralUid, CancellationToken token = default, string timeZoneId = "UTC")
+        => (await ComposeAsync(patientUid, referralUid, token, timeZoneId)).Html;
+
+    public async Task<ReferralClinicalComposition> ComposeAsync(Guid patientUid, Guid referralUid, CancellationToken token = default, string timeZoneId = "UTC")
     {
         var access = await Access(token);
         var selected = await referrals.GetClinicalSelectionsAsync(patientUid, referralUid, token)
@@ -61,7 +66,8 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                 _ => throw new ReferralClinicalSelectionRuleException("Unsupported selected clinical source.") };
             if (!access.Contains(key)) throw new UnauthorizedAccessException("Selected clinical source is restricted.");
         }
-        if (selected.Selections.Count == 0) return string.Empty;
+        if (selected.PatientUid != patientUid || selected.ReferralUid != referralUid) throw Missing();
+        if (selected.Selections.Count == 0) return new(string.Empty, selected);
         var correlation = Correlation();
         if (selected.Selections.Any(x => x.SelectionKind is "CPP" or "RESULT"))
             await chartAudit.RecordOpenedAsync(patientUid, correlation, token);
@@ -90,7 +96,7 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                     break;
                 case "ENCOUNTER":
                     var encounter = await encounters.GetByUidAsync(item.EncounterUid!.Value,token);
-                    if (encounter is null || encounter.PatientUid != patientUid) throw Missing();
+                    if (encounter is null || encounter.PatientUid != patientUid || encounter.EncounterUid != item.EncounterUid) throw Missing();
                     await readAudit.RecordAsync(ReadAuditActions.EncounterViewed,ReadAuditResourceTypes.Encounter,
                         encounter.EncounterUid,patientUid,correlation,token);
                     html.Append("<h3>Selected Encounter</h3>");
@@ -110,7 +116,7 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                     break;
                 case "RESULT":
                     var result = await results.Get(patientUid,item.ResultUid!.Value,token);
-                    if (result is null || result.PatientUid != patientUid || result.LifecycleStatus != "Current") throw Missing();
+                    if (result is null || result.PatientUid != patientUid || result.PatientResultUid != item.ResultUid || result.LifecycleStatus != "Current") throw Missing();
                     html.Append("<h3>Selected Result / Report</h3>");
                     Paragraph(html,Join(Date(result.ResultDate),result.ResultName,result.ResultType,result.ResultStatus));
                     Paragraph(html,Join(result.ResultValue,result.ResultUnit,Prefix("Reference range",result.ReferenceRange),result.Abnormality));
@@ -119,7 +125,7 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                     break;
             }
         }
-        return html.Append("</section>").ToString();
+        return new(html.Append("</section>").ToString(), selected);
     }
 
     private async Task<IReadOnlySet<string>> Access(CancellationToken token)

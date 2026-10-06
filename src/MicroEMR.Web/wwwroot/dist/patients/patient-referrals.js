@@ -9,7 +9,8 @@ const detailsBody = document.querySelector("#patientReferralDetailsBody");
 const token = document.querySelector('#patientReferralAntiforgery input[name="__RequestVerificationToken"]');
 if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMessage && detailsBody && token) {
     const createModal = new bootstrap.Modal(document.querySelector("#patientReferralModal"));
-    const detailsModal = new bootstrap.Modal(document.querySelector("#patientReferralDetailsModal"));
+    const detailsModalElement = document.querySelector("#patientReferralDetailsModal");
+    const detailsModal = new bootstrap.Modal(detailsModalElement);
     let referrals = [];
     let selectedReferral = null;
     let providers = [];
@@ -119,7 +120,13 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         set("Reason", referral.reason);
         set("ClinicalSummary", referral.clinicalSummary);
         saveButton.textContent = "Save Draft";
-        createModal.show();
+        if (detailsModalElement.classList.contains("show")) {
+            detailsModalElement.addEventListener("hidden.bs.modal", () => createModal.show(), { once: true });
+            detailsModal.hide();
+        }
+        else {
+            createModal.show();
+        }
         document.querySelector("#patientReferralModalTitle").textContent = "Edit Draft";
         void loadDraftClinicalChoices(referral);
     }
@@ -158,7 +165,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
             const unavailable = selected.filter(x => !availableKeys.has(key(x))).map(x => ({ ...x, label: "Previously selected clinical source — unavailable; remove to exclude" }));
             if (unavailable.length)
                 groups.push(["Unavailable selections", unavailable]);
-            clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="mb-2"><legend class="fs-6 mb-1">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
+            clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-2">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
             const documentResponse = await fetch(`/PatientReferrals/ClinicalDocumentOptions?patientUid=${encodeURIComponent(patientUid)}${referral ? `&referralUid=${encodeURIComponent(referral.referralUid)}` : ""}`);
             const documents = await documentResponse.json();
             if (generation !== selectionLoad)

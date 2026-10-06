@@ -15,8 +15,12 @@ const referral = {patientUid, referralUid, rowVersion: 'v1', status: 'Draft', re
 const choices = [{selectionKind: 'CPP', cppCategoryCode: 'PROBLEMS'}, {selectionKind: 'ENCOUNTER', encounterUid}, {selectionKind: 'RESULT', resultUid}];
 function element() {
   let html = ''; let children = []; const fields = new Map();
+  const classes = new Set(); const listeners = new Map();
   return {dataset: {}, value: '', disabled: false, checked: false,
-    classList: {add() {}, remove() {}}, addEventListener() {}, setAttribute() {}, reset() {}, checkValidity() {return true;}, reportValidity() {},
+    classList: {add(...values) {values.forEach(x=>classes.add(x));}, remove(...values) {values.forEach(x=>classes.delete(x));}, contains(value) {return classes.has(value);}},
+    addEventListener(type, callback, options) {if (!listeners.has(type)) listeners.set(type, []); listeners.get(type).push({callback, once: options?.once});},
+    dispatch(type) {for (const handler of [...(listeners.get(type) ?? [])]) {handler.callback(); if (handler.once) listeners.set(type, listeners.get(type).filter(x=>x !== handler));}},
+    setAttribute() {}, reset() {}, checkValidity() {return true;}, reportValidity() {},
     elements: {namedItem(name) {if (!fields.has(name)) fields.set(name, element()); return fields.get(name);}},
     querySelectorAll(selector) {return children.filter(x => selector.includes('.referral-document') ? x.dataset.document && (!selector.includes(':checked') || x.checked) : x.dataset.kind && (!selector.includes(':checked') || x.checked));},
     get innerHTML() {return html;}, set innerHTML(value) {
@@ -34,7 +38,12 @@ async function setup({persisted = choices, version = 'v1', failSelection = false
   node('#patientReferralForm').dataset.canManage = 'true';
   const requests = []; let current = {...referral}; let saved = persisted; let linked = [];
   class FormData {constructor() {this.data = new Map();} set(k,v) {this.data.set(k,v);} get(k) {return this.data.get(k) ?? node('#patientReferralForm').elements.namedItem(k).value;}}
-  const context = {console, FormData, Set, Array, Date, encodeURIComponent, bootstrap: {Modal: class {show() {} hide() {}}}, window: {confirm: () => true},
+  const pendingModalHides = [];
+  const context = {console, FormData, Set, Array, Date, encodeURIComponent, bootstrap: {Modal: class {
+    constructor(element) {this.element = element;}
+    show() {this.element.classList.add('show');}
+    hide() {pendingModalHides.push(() => {this.element.classList.remove('show'); this.element.dispatch('hidden.bs.modal');});}
+  }}, window: {confirm: () => true},
     document: {querySelector: node, createElement: element}, fetch: async (url, init = {}) => {
       requests.push({url, init}); let ok = true; let body;
       if (url.includes('/Providers')) body = {success: true, providers: []};
@@ -51,8 +60,21 @@ async function setup({persisted = choices, version = 'v1', failSelection = false
     }};
   vm.runInNewContext(script, context);
   const drain = async () => {await new Promise(resolve => setImmediate(resolve));};
-  await drain(); return {context,node,requests,drain, saved:()=>saved};
+  await drain(); return {context,node,requests,drain,pendingModalHides, saved:()=>saved};
 }
+test('Edit Draft waits for the details dialog to close before showing the editor', async () => {
+  const f = await setup();
+  const details = f.node('#patientReferralDetailsModal'); const editor = f.node('#patientReferralModal');
+  details.classList.add('show');
+  f.context.hooks.openEdit(referral);
+  assert.equal(editor.classList.contains('show'), false);
+  assert.equal(f.pendingModalHides.length, 1);
+  f.pendingModalHides.shift()();
+  assert.equal(details.classList.contains('show'), false);
+  assert.equal(editor.classList.contains('show'), true);
+  editor.classList.remove('show'); details.dispatch('hidden.bs.modal');
+  assert.equal(editor.classList.contains('show'), false, 'completed transition handler must be removed');
+});
 test('Draft reload restores explicit CPP, encounter and result choices and document metadata', async () => {
   const f = await setup(); f.context.hooks.openEdit(referral); await f.drain();
   assert.equal(f.node('#referralClinicalChoices').querySelectorAll('.referral-clinical-choice:checked').length,3);

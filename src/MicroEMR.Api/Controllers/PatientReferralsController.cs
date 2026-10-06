@@ -126,6 +126,7 @@ public sealed partial class PatientReferralsController(
     {
         try { var bytes=await service.PreviewLetterAsync(patientUid,referralUid,cancellationToken);return bytes is null?NotFound():File(bytes,"application/pdf"); }
         catch(PatientReferralTransitionException e){return Conflict(new{message=e.Message});}
+        catch(PatientReferralConcurrencyException e){return Conflict(new{message=e.Message,code="referral_concurrency_conflict"});}
         catch(UnauthorizedAccessException){return StatusCode(403);}
         catch(PatientReferralPatientNotFoundException){return NotFound();}
         catch(ReferralClinicalSelectionRuleException e){return Conflict(new{message=e.Message});}
@@ -238,6 +239,14 @@ public sealed partial class PatientReferralsController(
         catch (PatientReferralTransitionException exception)
         {
             return Conflict(new { message = exception.Message, code = "invalid_referral_transition" });
+        }
+        catch (ReferralClinicalSelectionRuleException exception)
+        {
+            return Conflict(new { message = exception.Message, code = "referral_clinical_source_unavailable" });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
         catch (ArgumentException exception)
         {

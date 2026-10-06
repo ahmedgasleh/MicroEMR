@@ -116,11 +116,6 @@ public sealed partial class PatientReferralService(
         if (!string.Equals(current.RowVersion, request.RowVersion, StringComparison.Ordinal))
             throw new PatientReferralConcurrencyException();
         var actorId = await clinicalUserAccessor.GetRequiredUserIdAsync(cancellationToken);
-        if (patientService is null || clinicService is null || documentLinks is null || printLayout is null || pdfRenderer is null)
-        {
-            var legacy = await referrals.MarkSentAsync(patientUid, referralUid, request.RowVersion, actorId, cancellationToken);
-            return legacy is null ? null : MapDetails(legacy);
-        }
         var sentAt = (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime;
         var artifact = await BuildArtifactAsync(current, sentAt, cancellationToken);
         var updated = await referrals.SendWithArtifactAsync(patientUid, referralUid, request.RowVersion,
@@ -246,28 +241,19 @@ public sealed partial class PatientReferralService(
             ? await referrals.GetProviderAsync(referral.ReferringProviderUid.Value, cancellationToken) : null;
         if (provider is null) throw new ArgumentException("The referring provider is unavailable.");
         var clinic = await (clinicService ?? throw new InvalidOperationException("Referral letter clinic service is unavailable.")).GetAsync(cancellationToken);
-        var documents = await (documentLinks ?? throw new InvalidOperationException("Referral letter document service is unavailable.")).GetByReferralUidAsync(referral.PatientUid, referral.ReferralUid, cancellationToken);
-        if (isDraftPreview && documents.Count > 0 && (permissions is null ||
+        var documents = await (documentLinks ?? throw new InvalidOperationException("Referral letter document service is unavailable.")).GetByReferralUidAsync(referral.PatientUid, referral.ReferralUid, cancellationToken, requireAllLinkedDocuments: true);
+        if (documents.Count > 0 && (permissions is null ||
             !(await permissions.GetEffectivePermissionsAsync(cancellationToken)).Contains(MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView)))
             throw new UnauthorizedAccessException("Supporting document access is restricted.");
         var credential = string.Join(" | ", new[] { provider.ProviderType, provider.Specialty, provider.BillingNumber }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
-        var snapshot = new
-        {
-            referral.ReferralUid, referral.PatientUid, PatientName=patient.FullName, patient.DateOfBirth,
-            patient.HealthCardNumber, patient.HealthCardVersion, patient.ChartNumber,
-            ClinicName=string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName,
-            clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email,
-            provider.ProviderUid,ProviderName=provider.DisplayName,ProviderCredential=credential,
-            referral.RecipientName,referral.RecipientOrganization,referral.RecipientPhone,referral.RecipientFax,
-            referral.Reason,referral.ClinicalSummary,SentAtUtc=sentAt,
-            SupportingDocuments=documents.Select(x=>new{x.DocumentUid,x.Title,x.DocumentType,x.DocumentStatus}).ToArray()
-        };
         var letterDate = LetterDate(sentAt, clinic.TimeZoneId);
         var age = AgeOn(patient.DateOfBirth, letterDate);
-        var selectedClinicalHtml = isDraftPreview
-            ? await (clinicalContent ?? throw new InvalidOperationException("Referral clinical content service is unavailable."))
-                .RenderPreviewAsync(referral.PatientUid,referral.ReferralUid,cancellationToken,clinic.TimeZoneId) : string.Empty;
+        var composition = await (clinicalContent ?? throw new InvalidOperationException("Referral clinical content service is unavailable."))
+            .ComposeAsync(referral.PatientUid,referral.ReferralUid,cancellationToken,clinic.TimeZoneId);
+        if (!string.Equals(composition.SelectionSet.RowVersion, referral.RowVersion, StringComparison.Ordinal))
+            throw new PatientReferralConcurrencyException();
+        var selectedClinicalHtml = composition.Html;
         // Patient alternative contact means a designated person/purpose (PC01.04).
         // No such source exists in the current patient contract; AlternatePhoneNumber is not a substitute.
         var body = $"""
@@ -301,8 +287,27 @@ public sealed partial class PatientReferralService(
             new("Referring provider",provider.DisplayName,sentAt,null,null),clinic.TimeZoneId);
         var bytes = await (pdfRenderer ?? throw new InvalidOperationException("Referral letter PDF renderer is unavailable."))
             .RenderAsync((printLayout ?? throw new InvalidOperationException("Referral letter print layout is unavailable.")).Render(context,body),cancellationToken);
-        return new(Guid.NewGuid(),sentAt,bytes,$"referral-{referral.ReferralUid:N}.pdf",
-            Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),JsonSerializer.Serialize(snapshot),
+        if (bytes.Length == 0) throw new InvalidOperationException("Referral letter PDF rendering returned no content.");
+        var artifactUid = Guid.NewGuid();
+        var fileName = $"referral-{referral.ReferralUid:N}.pdf";
+        var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        var snapshot = new
+        {
+            referral.ReferralUid, referral.PatientUid, PatientName=patient.FullName, patient.DateOfBirth,
+            patient.HealthCardNumber, patient.HealthCardVersion, patient.ChartNumber,
+            ClinicName=string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName,
+            clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email,
+            provider.ProviderUid,ProviderName=provider.DisplayName,ProviderCredential=credential,
+            referral.RecipientName,referral.RecipientOrganization,referral.RecipientPhone,referral.RecipientFax,
+            referral.Reason,referral.ClinicalSummary,SentAtUtc=sentAt, LetterDate=letterDate,
+            DraftRowVersion=composition.SelectionSet.RowVersion,
+            ClinicalSelections=composition.SelectionSet.Selections.Select(x=>new
+                {x.SelectionUid,x.SelectionKind,x.CppCategoryCode,x.EncounterUid,x.ResultUid}).ToArray(),
+            SupportingDocuments=documents.Select(x=>new{x.DocumentUid,x.Title,x.DocumentType,x.DocumentStatus}).ToArray(),
+            ArtifactUid=artifactUid,FileName=fileName,MimeType="application/pdf",FileSizeBytes=bytes.LongLength,Sha256=hash
+        };
+        return new(artifactUid,sentAt,bytes,fileName,
+            hash,JsonSerializer.Serialize(snapshot),
             provider.DisplayName,string.IsNullOrWhiteSpace(credential)?null:credential);
     }
 

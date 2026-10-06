@@ -1,4 +1,9 @@
 using Microsoft.Extensions.Configuration;
+using System.Reflection;
+using System.Text;
+using MicroEMR.Application.ClinicalOutput;
+using MicroEMR.Application.ClinicConfiguration;
+using MicroEMR.Application.Patients.Services;
 using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Application.PatientReferrals;
 using MicroEMR.Application.Patients.Contracts;
@@ -55,6 +60,7 @@ public sealed class PatientReferralStatusWorkflowTests
         Assert.NotEqual(received.RowVersion, closed.RowVersion);
         Assert.Equal([73L, 73L, 73L], repository.Actors);
         Assert.Equal(3, actor.CallCount);
+        Assert.NotNull(repository.SentArtifact);
     }
 
     [Fact]
@@ -136,13 +142,26 @@ public sealed class PatientReferralStatusWorkflowTests
         Service([patientUid], repository, actor);
 
     private static PatientReferralService Service(Guid[] patientUids, WorkflowRepository repository, Actor actor) =>
-        new(repository, new Patients(patientUids), actor, new ReferralStatusTransitionService());
+        new(repository, new Patients(patientUids), actor, new ReferralStatusTransitionService(),
+            Stub<IPatientService>((m,a)=>new Patients(patientUids).GetByUidAsync((Guid)a[0]!)),
+            Stub<IClinicConfigurationService>((m,a)=>Task.FromResult(new ClinicConfigurationResponse("Clinic","UTC",null,
+                null,null,null,null,null,null,null,null,null,null,null,null,null))),
+            Stub<IReferralDocumentRepository>((m,a)=>Task.FromResult<IReadOnlyList<ReferralDocumentLinkResponse>>([])),
+            new ClinicalPrintLayoutRenderer(),Stub<IPdfRenderer>((m,a)=>Task.FromResult(Encoding.UTF8.GetBytes((string)a[0]!))),
+            clinicalContent:Stub<IReferralClinicalContentService>((m,a)=>Task.FromResult(new ReferralClinicalComposition(string.Empty,
+                new(repository.Current.PatientUid,repository.Current.ReferralUid,repository.Current.RowVersion,[])))));
+
+    private static T Stub<T>(Func<string,object?[],object> call) where T:class
+    {
+        var proxy=DispatchProxy.Create<T,ReferralLetterCompositionTests.StrictProxy>();
+        ((ReferralLetterCompositionTests.StrictProxy)(object)proxy).Call=call;return proxy;
+    }
 
     private static PatientReferral Referral(Guid patientUid) => new()
     {
         ReferralUid = Guid.NewGuid(), PatientUid = patientUid, RecipientName = "Specialist",
         Reason = "Assessment", Status = ReferralStatus.Draft, CreatedAt = DateTime.UtcNow,
-        CreatedBy = 12, RowVersion = RowVersion
+        CreatedBy = 12, RowVersion = RowVersion, ReferringProviderUid=Guid.NewGuid()
     };
 
     private sealed class Actor : IAuthenticatedClinicalUserAccessor
@@ -163,6 +182,15 @@ public sealed class PatientReferralStatusWorkflowTests
     {
         public PatientReferral Current { get; private set; } = referral;
         public List<long> Actors { get; } = [];
+        public ReferralArtifactWrite? SentArtifact {get;private set;}
+        public Task<ReferralProvider?> GetProviderAsync(Guid uid,CancellationToken cancellationToken=default)=>
+            Task.FromResult<ReferralProvider?>(new(uid,"Referrer","Physician",null,null));
+        public Task<PatientReferral?> SendWithArtifactAsync(Guid patientUid,Guid referralUid,string rowVersion,long actor,
+            ReferralArtifactWrite artifact,CancellationToken cancellationToken=default)
+        {
+            Assert.NotEmpty(artifact.PdfContent);SentArtifact=artifact;
+            return Change(ReferralStatus.Sent,rowVersion,actor);
+        }
         public Task<IReadOnlyList<PatientReferral>> GetByPatientUidAsync(Guid patientUid,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PatientReferral>>(
@@ -173,8 +201,7 @@ public sealed class PatientReferralStatusWorkflowTests
         public Task<PatientReferral> CreateAsync(Guid patientUid, CreatePatientReferralRequest request,
             long createdBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<PatientReferral?> MarkSentAsync(Guid patientUid, Guid referralUid, string rowVersion,
-            long updatedBy, CancellationToken cancellationToken = default) =>
-            Change(ReferralStatus.Sent, rowVersion, updatedBy);
+            long updatedBy, CancellationToken cancellationToken = default) => throw new NotSupportedException("Artifactless send is forbidden.");
         public Task<PatientReferral?> MarkResponseReceivedAsync(Guid patientUid, Guid referralUid, string rowVersion,
             long updatedBy, CancellationToken cancellationToken = default) =>
             Change(ReferralStatus.ResponseReceived, rowVersion, updatedBy);
