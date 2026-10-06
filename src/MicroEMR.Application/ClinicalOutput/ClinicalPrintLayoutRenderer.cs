@@ -10,7 +10,13 @@ public sealed record ClinicalPrintClinic(
 
 public sealed record ClinicalPrintPatient(
     string FullName, DateOnly DateOfBirth, string? HealthCardNumber,
-    string? HealthCardVersion, string? ChartNumber);
+    string? HealthCardVersion, string? ChartNumber)
+{
+    public string? Age { get; init; }
+    public string? Gender { get; init; }
+    public string? SexAtBirth { get; init; }
+    public string? AlternativeContact { get; init; }
+}
 
 public sealed record ClinicalPrintRecord(
     string Kind, string Title, string Type, DateTime DateUtc, string? Provider);
@@ -49,7 +55,11 @@ public sealed class ClinicalPrintLayoutRenderer : IClinicalPrintLayoutRenderer
         html.Append("</div><dl class=\"clinical-context-grid\">");
         AppendPair(html, "Patient", context.Patient.FullName);
         AppendPair(html, "DOB", context.Patient.DateOfBirth.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture));
+        AppendPair(html, "Age", context.Patient.Age);
+        AppendPair(html, "Gender", context.Patient.Gender);
+        AppendPair(html, "Sex at birth", context.Patient.SexAtBirth);
         AppendPair(html, "Health Card", JoinNonEmpty(" ", context.Patient.HealthCardNumber, context.Patient.HealthCardVersion));
+        AppendPair(html, "Patient alternative contact", context.Patient.AlternativeContact);
         AppendPair(html, "Chart", context.Patient.ChartNumber);
         AppendPair(html, context.Record.Kind, context.Record.Title);
         AppendPair(html, "Type", context.Record.Type);

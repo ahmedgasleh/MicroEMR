@@ -4,6 +4,7 @@ interface ReferralListItem {
   recipientName: string;
   recipientOrganization?: string;
   reason: string;
+  clinicalSummary?: string;
   status: string;
   createdAtUtc: string;
   sentAtUtc?: string;
@@ -22,7 +23,6 @@ interface ReferralListItem {
 interface ReferralDetails extends ReferralListItem {
   recipientPhone?: string;
   recipientFax?: string;
-  clinicalSummary?: string;
   createdBy: number;
   updatedAtUtc?: string;
   updatedBy?: number;
@@ -85,12 +85,8 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     }
   };
 
-  const relevantDate = (referral: ReferralListItem): string => {
-    if (referral.closedAtUtc) return `Closed ${formatDate(referral.closedAtUtc)}`;
-    if (referral.responseReceivedAtUtc) return `Response received ${formatDate(referral.responseReceivedAtUtc)}`;
-    if (referral.sentAtUtc) return `Sent ${formatDate(referral.sentAtUtc)}`;
-    return `Created ${formatDate(referral.createdAtUtc)}`;
-  };
+  const letterDate = (referral: ReferralListItem): string =>
+    referral.sentAtUtc ? formatDate(referral.sentAtUtc) : `Draft created ${formatDate(referral.createdAtUtc)}`;
 
   const showPageMessage = (message: string, style: "danger" | "success"): void => {
     pageMessage.textContent = message;
@@ -118,13 +114,15 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
 
     listRoot.innerHTML = `<div class="table-responsive">
       <table class="table table-hover align-middle">
-        <thead><tr><th>Recipient</th><th>Reason</th><th>Status</th><th>Date</th><th class="text-end">Actions</th></tr></thead>
+        <thead><tr><th>Letter Date</th><th>Referring Clinician</th><th>Referred Clinician</th><th>Reason</th><th>Letter Notes</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
         <tbody>${referrals.map(referral => `<tr>
+          <td class="small text-body-secondary text-nowrap">${escapeHtml(letterDate(referral))}</td>
+          <td>${escapeHtml(referral.referringProviderDisplayName || "Not recorded")}</td>
           <td><div class="fw-semibold">${escapeHtml(referral.recipientName)}</div>${referral.recipientOrganization ? `<div class="small text-body-secondary">${escapeHtml(referral.recipientOrganization)}</div>` : ""}</td>
           <td><div class="text-break">${escapeHtml(referral.reason)}</div></td>
-          <td><span class="badge ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span>${referral.isFollowUpOverdue?`<span class="badge text-bg-danger ms-1">Follow-up overdue</span>`:""}</td>
-          <td class="small text-body-secondary text-nowrap">${escapeHtml(relevantDate(referral))}</td>
-          <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary referral-details" data-referral-uid="${referral.referralUid}">View</button></td>
+          <td><div class="text-break" style="white-space: pre-wrap">${escapeHtml(referral.clinicalSummary || "No letter notes recorded")}</div></td>
+          <td><span class="badge ${statusClass(referral.status)}">${escapeHtml(statusLabel(referral.status))}</span>${referral.status === "Sent" && referral.isFollowUpOverdue ? `<div class="alert alert-danger small mt-2 mb-0" role="status"><strong>Follow-up overdue</strong><div>Referring clinician: ${escapeHtml(referral.referringProviderDisplayName || "Not recorded")}</div><div>Referred clinician: ${escapeHtml(referral.recipientName)}</div><div>Open referral details to manage follow-up.</div></div>` : ""}</td>
+          <td class="text-end text-nowrap">${referral.artifactUid ? `<a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}">View Referral Letter</a> ` : ""}<button type="button" class="btn btn-sm btn-outline-primary referral-details" data-referral-uid="${referral.referralUid}">Details</button></td>
         </tr>`).join("")}</tbody>
       </table>
     </div>`;

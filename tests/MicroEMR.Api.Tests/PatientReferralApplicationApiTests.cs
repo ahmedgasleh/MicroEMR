@@ -72,8 +72,7 @@ public sealed class PatientReferralApplicationTests
         Assert.Equal(2, results.Count);
         Assert.Equal(["First", "Second"], results.Select(item => item.RecipientName));
         Assert.All(results, item => Assert.Equal(patientUid, item.PatientUid));
-        Assert.All(results, item => Assert.Null(
-            typeof(PatientReferralListItemResponse).GetProperty(nameof(PatientReferral.ClinicalSummary))));
+        Assert.All(results, item => Assert.Equal("Letter-specific notes", item.ClinicalSummary));
     }
 
     [Fact]
@@ -158,6 +157,7 @@ public sealed class PatientReferralApplicationTests
         PatientUid = patientUid,
         RecipientName = recipient,
         Reason = "Assessment requested",
+        ClinicalSummary = "Letter-specific notes",
         Status = ReferralStatus.Draft,
         CreatedAt = DateTime.UtcNow,
         CreatedBy = 73,

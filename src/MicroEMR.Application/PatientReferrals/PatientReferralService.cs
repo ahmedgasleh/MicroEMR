@@ -6,6 +6,7 @@ using MicroEMR.Application.ClinicalOutput;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Globalization;
 
 namespace MicroEMR.Application.PatientReferrals;
 
@@ -89,7 +90,8 @@ public sealed class PatientReferralService(
         var referral = await referrals.GetByUidAsync(patientUid, referralUid, cancellationToken);
         if (referral is null) return null;
         if (referral.Status != ReferralStatus.Draft) throw new PatientReferralTransitionException("Only a Draft referral can be previewed.");
-        return (await BuildArtifactAsync(referral, (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime, cancellationToken)).PdfContent;
+        return (await BuildArtifactAsync(referral, (timeProvider ?? TimeProvider.System).GetUtcNow().UtcDateTime,
+            cancellationToken, isDraftPreview: true)).PdfContent;
     }
 
     public async Task<ReferralArtifactDownload?> OpenArtifactAsync(Guid patientUid, Guid referralUid,
@@ -234,7 +236,7 @@ public sealed class PatientReferralService(
     }
 
     private async Task<ReferralArtifactWrite> BuildArtifactAsync(PatientReferral referral, DateTime sentAt,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool isDraftPreview = false)
     {
         var patient = await (patientService ?? throw new InvalidOperationException("Referral letter patient service is unavailable.")).GetByUidAsync(referral.PatientUid, cancellationToken)
             ?? throw new PatientReferralPatientNotFoundException();
@@ -256,11 +258,38 @@ public sealed class PatientReferralService(
             referral.Reason,referral.ClinicalSummary,SentAtUtc=sentAt,
             SupportingDocuments=documents.Select(x=>new{x.DocumentUid,x.Title,x.DocumentType,x.DocumentStatus}).ToArray()
         };
-        var body = $"<section><h1>Referral Letter</h1><h2>To</h2><p><strong>{E(referral.RecipientName)}</strong><br>{E(referral.RecipientOrganization)}<br>{E(referral.RecipientPhone)} {E(referral.RecipientFax)}</p><h2>Reason for referral</h2><p>{E(referral.Reason)}</p><h2>Clinical summary</h2><p>{E(referral.ClinicalSummary)}</p>{SupportingHtml(documents)}</section>";
+        var letterDate = LetterDate(sentAt, clinic.TimeZoneId);
+        var age = AgeOn(patient.DateOfBirth, letterDate);
+        // Patient alternative contact means a designated person/purpose (PC01.04).
+        // No such source exists in the current patient contract; AlternatePhoneNumber is not a substitute.
+        var body = $"""
+            <section><h1>Referral Letter</h1>
+            <p><strong>{(isDraftPreview ? "Draft preview date" : "Referral Letter Date")}:</strong> {letterDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)}</p>
+            {(isDraftPreview ? "<p>Draft preview — not sent. The final Referral Letter Date is assigned when marked Sent.</p>" : string.Empty)}
+            <h2>Referring clinician</h2><dl class="clinical-context-grid">
+            {Pair("Name", provider.DisplayName)}{Pair("Provider type", provider.ProviderType)}
+            {Pair("Specialty", provider.Specialty)}{Pair("Billing number", provider.BillingNumber)}
+            </dl>
+            <h2>Referred clinician / recipient</h2><dl class="clinical-context-grid">
+            {Pair("Name", referral.RecipientName)}{Pair("Organization", referral.RecipientOrganization)}
+            {Pair("Phone", referral.RecipientPhone)}{Pair("Fax", referral.RecipientFax)}
+            </dl>
+            <h2>Reason for referral</h2><p style="white-space: pre-wrap">{E(referral.Reason)}</p>
+            <h2>Clinical summary</h2><p style="white-space: pre-wrap">{Recorded(referral.ClinicalSummary)}</p>
+            {SupportingHtml(documents)}</section>
+            """;
         var context = new ClinicalPrintContext(
             new(string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName!,clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email),
-            new(patient.FullName,patient.DateOfBirth,patient.HealthCardNumber,patient.HealthCardVersion,patient.ChartNumber),
-            new("Referral","Referral Letter","Outgoing referral",sentAt,provider.DisplayName),
+            new(patient.FullName,patient.DateOfBirth,
+                string.IsNullOrWhiteSpace(patient.HealthCardNumber) ? "Not recorded" : patient.HealthCardNumber,
+                string.IsNullOrWhiteSpace(patient.HealthCardNumber) ? null : patient.HealthCardVersion,patient.ChartNumber)
+            {
+                Age = age?.ToString(CultureInfo.InvariantCulture) ?? "Not recorded",
+                Gender = string.IsNullOrWhiteSpace(patient.GenderIdentity) ? "Not recorded" : patient.GenderIdentity,
+                SexAtBirth = string.IsNullOrWhiteSpace(patient.SexAtBirth) ? "Not recorded" : patient.SexAtBirth,
+                AlternativeContact = "Not recorded"
+            },
+            new("Referral","Referral Letter",isDraftPreview ? "Outgoing referral — Draft preview" : "Outgoing referral",sentAt,provider.DisplayName),
             new("Referring provider",provider.DisplayName,sentAt,null,null),clinic.TimeZoneId);
         var bytes = await (pdfRenderer ?? throw new InvalidOperationException("Referral letter PDF renderer is unavailable."))
             .RenderAsync((printLayout ?? throw new InvalidOperationException("Referral letter print layout is unavailable.")).Render(context,body),cancellationToken);
@@ -272,6 +301,25 @@ public sealed class PatientReferralService(
     private static string SupportingHtml(IReadOnlyList<ReferralDocumentLinkResponse> documents) => documents.Count == 0
         ? string.Empty : "<h2>Supporting documents</h2><ul>"+string.Concat(documents.Select(x=>$"<li>{E(x.Title)} ({E(x.DocumentType)})</li>"))+"</ul>";
     private static string E(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+    private static string Recorded(string? value) => E(string.IsNullOrWhiteSpace(value) ? "Not recorded" : value);
+    private static string Pair(string label, string? value) => $"<dt>{E(label)}:</dt><dd>{Recorded(value)}</dd>";
+
+    private static DateOnly LetterDate(DateTime utc, string timeZoneId)
+    {
+        try
+        {
+            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)));
+        }
+        catch (TimeZoneNotFoundException) { return DateOnly.FromDateTime(utc); }
+        catch (InvalidTimeZoneException) { return DateOnly.FromDateTime(utc); }
+    }
+
+    private static int? AgeOn(DateOnly dateOfBirth, DateOnly letterDate)
+    {
+        if (dateOfBirth == default || dateOfBirth > letterDate) return null;
+        var age = letterDate.Year - dateOfBirth.Year;
+        return dateOfBirth.AddYears(age) > letterDate ? age - 1 : age;
+    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -283,6 +331,7 @@ public sealed class PatientReferralService(
         RecipientName = referral.RecipientName,
         RecipientOrganization = referral.RecipientOrganization,
         Reason = referral.Reason,
+        ClinicalSummary = referral.ClinicalSummary,
         Status = referral.Status.ToString(),
         CreatedAtUtc = referral.CreatedAt,
         SentAtUtc = referral.SentAt,

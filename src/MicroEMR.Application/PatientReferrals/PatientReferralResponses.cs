@@ -7,6 +7,7 @@ public sealed class PatientReferralListItemResponse
     public required string RecipientName { get; init; }
     public string? RecipientOrganization { get; init; }
     public required string Reason { get; init; }
+    public string? ClinicalSummary { get; init; }
     public required string Status { get; init; }
     public DateTime CreatedAtUtc { get; init; }
     public DateTime? SentAtUtc { get; init; }

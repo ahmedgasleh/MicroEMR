@@ -9,6 +9,7 @@ public sealed class PatientReferralListItemViewModel
     public string RecipientName { get; set; } = string.Empty;
     public string? RecipientOrganization { get; set; }
     public string Reason { get; set; } = string.Empty;
+    public string? ClinicalSummary { get; set; }
     public string Status { get; set; } = "Draft";
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? SentAtUtc { get; set; }

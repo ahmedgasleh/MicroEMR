@@ -165,6 +165,38 @@ public sealed class PatientReferralWebTests
         Assert.Equal("current-version", client.LastRowVersion);
     }
 
+    [Fact]
+    public async Task ApiClientListRetainsLetterNotesIdentityDatesAndPreservedArtifact()
+    {
+        var patientUid = Guid.NewGuid();
+        var expected = new PatientReferralListItemViewModel
+        {
+            PatientUid = patientUid, ReferralUid = Guid.NewGuid(),
+            RecipientName = "Referred clinician", ReferringProviderDisplayName = "Referring clinician",
+            ClinicalSummary = "Letter-specific notes", Reason = "Assessment requested", Status = "Closed",
+            SentAtUtc = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc),
+            ClosedAtUtc = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc),
+            ArtifactUid = Guid.NewGuid()
+        };
+        var handler = new RecordingHandler(new[] { expected });
+        var client = new PatientReferralApiClient(
+            new HttpClient(handler) { BaseAddress = new Uri("https://api.test/") },
+            new HttpContextAccessor { HttpContext = AuthenticatedContext() });
+
+        var actual = Assert.Single(await client.GetByPatientUidAsync(patientUid));
+
+        Assert.Equal($"api/patients/{patientUid}/referrals", handler.RequestUri);
+        Assert.Equal("Bearer test-token", handler.Authorization);
+        Assert.Equal(expected.PatientUid, actual.PatientUid);
+        Assert.Equal(expected.ReferralUid, actual.ReferralUid);
+        Assert.Equal(expected.ClinicalSummary, actual.ClinicalSummary);
+        Assert.Equal(expected.ReferringProviderDisplayName, actual.ReferringProviderDisplayName);
+        Assert.Equal(expected.RecipientName, actual.RecipientName);
+        Assert.Equal(expected.SentAtUtc, actual.SentAtUtc);
+        Assert.Equal(expected.ClosedAtUtc, actual.ClosedAtUtc);
+        Assert.Equal(expected.ArtifactUid, actual.ArtifactUid);
+    }
+
     private static PatientReferralsController CreateController(IPatientReferralApiClient client) =>
         new(client, NullLogger<PatientReferralsController>.Instance);
 
@@ -262,7 +294,7 @@ public sealed class PatientReferralWebTests
             string rowVersion, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class RecordingHandler(PatientReferralDetailsViewModel responseBody) : HttpMessageHandler
+    private sealed class RecordingHandler(object responseBody) : HttpMessageHandler
     {
         public string? RequestUri { get; private set; }
         public string? RequestBody { get; private set; }
