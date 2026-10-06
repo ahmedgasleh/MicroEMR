@@ -14,6 +14,17 @@ namespace MicroEMR.Api.Tests;
 public sealed class ReferralLetterCompositionTests
 {
     [Fact]
+    public async Task SelectedPreviewContentFollowsNarrativeAndPrecedesSupportingDocumentsWithoutChangingSentComposition()
+    {
+        var f = new Fixture(selectedClinicalHtml: "<section><h2>Selected Clinical Information</h2><p>Selected source content</p></section>");
+        var html = await f.Preview();
+        Assert.True(html.IndexOf("Clinical summary",StringComparison.Ordinal) < html.IndexOf("Selected Clinical Information",StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Selected Clinical Information",StringComparison.Ordinal) < html.IndexOf("Supporting documents",StringComparison.Ordinal));
+        Assert.DoesNotContain("<h2>Patient demographics</h2>",html);
+        await f.Service.MarkSentAsync(f.Patient.PatientUid,f.Referral.ReferralUid,new() {RowVersion=f.Referral.RowVersion});
+        Assert.DoesNotContain("Selected source content",Encoding.UTF8.GetString(f.SentArtifact!.PdfContent));
+    }
+    [Fact]
     public async Task PreviewIncludesAuthoritativePatientProviderClinicRecipientAndNarrative()
     {
         var f = new Fixture();
@@ -171,7 +182,7 @@ public sealed class ReferralLetterCompositionTests
         public int ActorCalls { get; private set; }
         public List<string> ReferralCalls { get; } = [];
 
-        public Fixture(bool missingOptional = false, ReferralStatus status = ReferralStatus.Draft)
+        public Fixture(bool missingOptional = false, ReferralStatus status = ReferralStatus.Draft, string selectedClinicalHtml = "")
         {
             var providerUid = Guid.NewGuid();
             Referral = new()
@@ -228,7 +239,10 @@ public sealed class ReferralLetterCompositionTests
                 {
                     Assert.Equal("RenderAsync", method);
                     return Task.FromResult(Encoding.UTF8.GetBytes((string)args[0]!));
-                }), Clock);
+                }), Clock,
+                permissions: Stub<MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService>((method, _) =>
+                    Task.FromResult<IReadOnlySet<string>>(new HashSet<string> { MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView })),
+                clinicalContent: Stub<IReferralClinicalContentService>((method, _) => Task.FromResult(selectedClinicalHtml)));
         }
 
         public async Task<string> Preview() => Encoding.UTF8.GetString(

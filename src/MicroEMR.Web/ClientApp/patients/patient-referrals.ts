@@ -37,6 +37,10 @@ interface ReferralReply {
 
 interface ReferralProvider { providerUid: string; displayName: string; providerType: string; specialty?: string; }
 interface ProviderReply { success: boolean; providers?: ReferralProvider[]; }
+interface ClinicalSelection { selectionKind: string; cppCategoryCode?: string; encounterUid?: string; resultUid?: string; }
+interface ClinicalOption extends ClinicalSelection { label: string; dateUtc?: string; provider?: string; status?: string; }
+interface ClinicalSet { rowVersion: string; selections: ClinicalSelection[]; }
+interface ClinicalReply { success: boolean; message?: string; selections?: ClinicalSet; options?: { categories: ClinicalOption[]; encounters: ClinicalOption[]; results: ClinicalOption[] }; }
 
 interface SupportingDocument { documentUid: string; title: string; documentType: string; documentStatus: string; createdAtUtc?: string; createdAt?: string; }
 interface SupportingDocumentsReply { success: boolean; linked?: SupportingDocument[]; available?: SupportingDocument[]; message?: string; }
@@ -62,6 +66,12 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
   let referrals: ReferralListItem[] = [];
   let selectedReferral: ReferralDetails | null = null;
   let providers: ReferralProvider[] = [];
+  const clinicalRoot = document.querySelector<HTMLElement>("#referralClinicalChoices");
+  const draftDocumentRoot = document.querySelector<HTMLElement>("#referralDraftDocumentChoices");
+  let selectionLoad = 0;
+  let selectionsReady = false;
+  let documentChoicesReady = false;
+  let linkedDraftDocuments = new Set<string>();
   const canManage = createForm.dataset.canManage === "true";
 
   const escapeHtml = (value?: string): string => {
@@ -160,6 +170,8 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     saveButton.disabled = false;
     saveButton.textContent = "Save Referral";
     createModal.show();
+    document.querySelector<HTMLElement>("#patientReferralModalTitle")!.textContent = "Add Referral";
+    void loadDraftClinicalChoices();
   }
 
   function openEdit(referral: ReferralDetails): void {
@@ -170,9 +182,63 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     set("RecipientOrganization",referral.recipientOrganization);set("RecipientPhone",referral.recipientPhone);
     set("RecipientFax",referral.recipientFax);set("Reason",referral.reason);set("ClinicalSummary",referral.clinicalSummary);
     saveButton.textContent="Save Draft";createModal.show();
+    document.querySelector<HTMLElement>("#patientReferralModalTitle")!.textContent = "Edit Draft";
+    void loadDraftClinicalChoices(referral);
+  }
+
+  async function loadDraftClinicalChoices(referral?: ReferralDetails): Promise<void> {
+    if (!clinicalRoot || !draftDocumentRoot) return;
+    const generation = ++selectionLoad;
+    selectionsReady = false; documentChoicesReady = false; linkedDraftDocuments = new Set(); saveButton.disabled = true;
+    clinicalRoot.innerHTML = '<p class="text-body-secondary">Loading clinical choices...</p>';
+    draftDocumentRoot.innerHTML = "";
+    try {
+      const optionsResponse = await fetch(`/PatientReferrals/ClinicalOptions?patientUid=${encodeURIComponent(patientUid)}`);
+      const options = await optionsResponse.json() as ClinicalReply;
+      if (!optionsResponse.ok || !options.success || !options.options) throw new Error(options.message ?? "Clinical choices could not be loaded.");
+      let selected: ClinicalSelection[] = [];
+      if (referral) {
+        const response = await fetch(`/PatientReferrals/ClinicalSelections?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}`);
+        const result = await response.json() as ClinicalReply;
+        if (!response.ok || !result.success || !result.selections) throw new Error(result.message ?? "Clinical selections could not be loaded.");
+        if (result.selections.rowVersion !== referral.rowVersion) throw new Error("The Draft changed. Close and reopen it before editing.");
+        selected = result.selections.selections;
+      }
+      if (generation !== selectionLoad) return;
+      const key = (x: ClinicalSelection): string => `${x.selectionKind}:${x.cppCategoryCode ?? x.encounterUid ?? x.resultUid}`;
+      const selectedIds = new Set(selected.map(key));
+      const groups: [string, ClinicalOption[]][] = [["CPP", options.options.categories], ["Encounter Notes", options.options.encounters], ["Results / Reports", options.options.results]];
+      const inputId = (label: string, index: number): string => `referral-choice-${label.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
+      const availableKeys = new Set(groups.flatMap(([, rows]) => rows.map(key)));
+      const unavailable: ClinicalOption[] = selected.filter(x => !availableKeys.has(key(x))).map(x => ({ ...x, label: "Previously selected clinical source — unavailable; remove to exclude" }));
+      if (unavailable.length) groups.push(["Unavailable selections", unavailable]);
+      clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="mb-2"><legend class="fs-6 mb-1">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
+      const documentResponse = await fetch(`/PatientReferrals/ClinicalDocumentOptions?patientUid=${encodeURIComponent(patientUid)}${referral ? `&referralUid=${encodeURIComponent(referral.referralUid)}` : ""}`);
+      const documents = await documentResponse.json() as SupportingDocumentsReply;
+      if (generation !== selectionLoad) return;
+      if (documentResponse.ok && documents.success) {
+        linkedDraftDocuments = new Set((documents.linked ?? []).map(x => x.documentUid));
+        const rows = [...(documents.linked ?? []), ...(documents.available ?? [])].filter((x, i, all) => all.findIndex(y => y.documentUid === x.documentUid) === i);
+        draftDocumentRoot.innerHTML = rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-document-choice" type="checkbox" id="referral-doc-${i}" data-document="${escapeHtml(x.documentUid)}"${linkedDraftDocuments.has(x.documentUid) ? " checked" : ""}><label class="form-check-label" for="referral-doc-${i}">${escapeHtml(x.title)} — ${escapeHtml(x.documentType)} (${escapeHtml(x.documentStatus)})</label></div>`).join("") : '<p class="small text-body-secondary">No patient documents available.</p>';
+        documentChoicesReady = true;
+      } else draftDocumentRoot.textContent = "Supporting documents are unavailable or restricted. Existing links will be retained.";
+      selectionsReady = true;
+      saveButton.disabled = false;
+    } catch (error: unknown) {
+      if (generation === selectionLoad) showModalMessage(error instanceof Error ? error.message : "Clinical choices could not be loaded.");
+    }
+  }
+
+  function chosenClinicalSelections(): ClinicalSelection[] {
+    return Array.from(clinicalRoot?.querySelectorAll<HTMLInputElement>(".referral-clinical-choice:checked") ?? []).map(x => ({
+      selectionKind: x.dataset.kind!, ...(x.dataset.code ? { cppCategoryCode: x.dataset.code } : {}),
+      ...(x.dataset.encounter ? { encounterUid: x.dataset.encounter } : {}), ...(x.dataset.result ? { resultUid: x.dataset.result } : {})
+    }));
   }
 
   async function saveReferral(): Promise<void> {
+    if (!selectionsReady) return;
+    let draftWritten = false;
     if (!createForm.checkValidity()) {
       createForm.classList.add("was-validated");
       createForm.reportValidity();
@@ -188,16 +254,47 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
       const isEdit=Boolean(body.get("ReferralUid"));
       const response = await fetch(isEdit?"/PatientReferrals/UpdateDraft":"/PatientReferrals/Create", { method: "POST", body });
       const result = await response.json() as ReferralReply;
-      if (!response.ok || !result.success)
+      if (!response.ok || !result.success || !result.referral)
         throw new Error(result.message ?? "The referral could not be created.");
+      draftWritten = true;
+      const uid = createForm.elements.namedItem("ReferralUid") as HTMLInputElement;
+      const version = createForm.elements.namedItem("RowVersion") as HTMLInputElement;
+      uid.value = result.referral.referralUid; version.value = result.referral.rowVersion;
+      // If a later stage fails, retain the newly saved identity/version so retry edits rather than creates again.
+      const selectionResponse = await fetch("/PatientReferrals/ReplaceClinicalSelections", { method: "POST",
+        headers: { "Content-Type": "application/json", "RequestVerificationToken": token.value },
+        body: JSON.stringify({ patientUid, referralUid: uid.value, rowVersion: version.value, selections: chosenClinicalSelections() }) });
+      const clinical = await selectionResponse.json() as ClinicalReply;
+      if (!selectionResponse.ok || !clinical.success || !clinical.selections) throw new Error(clinical.message ?? "Referral text was saved, but clinical choices were not saved. Reopen the Draft if it changed.");
+      version.value = clinical.selections.rowVersion;
+      if (documentChoicesReady) {
+        const desired = new Set(Array.from(draftDocumentRoot?.querySelectorAll<HTMLInputElement>(".referral-document-choice:checked") ?? []).map(x => x.dataset.document!));
+        const changes: ["Link" | "Unlink", string][] = [...Array.from(linkedDraftDocuments).filter(x => !desired.has(x)).map(x => ["Unlink", x] as ["Unlink", string]), ...Array.from(desired).filter(x => !linkedDraftDocuments.has(x)).map(x => ["Link", x] as ["Link", string])];
+        for (const [action, documentUid] of changes) {
+          const documentBody = new FormData();
+          documentBody.set("PatientUid", patientUid); documentBody.set("ReferralUid", uid.value);
+          documentBody.set("DocumentUid", documentUid); documentBody.set("RowVersion", version.value); documentBody.set("__RequestVerificationToken", token.value);
+          const linked = await fetch(`/ReferralSupportingDocuments/${action}`, { method: "POST", body: documentBody });
+          const reply = await linked.json() as ReferralReply;
+          if (!linked.ok || !reply.success) throw new Error(reply.message ?? "Draft saved, but a supporting-document change failed. Reopen the Draft before continuing.");
+          if (action === "Link") linkedDraftDocuments.add(documentUid); else linkedDraftDocuments.delete(documentUid);
+          const details = await fetch(`/PatientReferrals/Details?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(uid.value)}`);
+          const refreshed = await details.json() as ReferralReply;
+          if (!details.ok || !refreshed.referral) { selectionsReady = false; throw new Error("Reopen the Draft to obtain its updated version."); }
+          version.value = refreshed.referral.rowVersion;
+        }
+      }
       createModal.hide();
+      await openDetails(uid.value);
       await loadReferrals();
       showPageMessage(isEdit?"Referral Draft updated.":"Referral created as Draft.", "success");
     } catch (error: unknown) {
-      showModalMessage(error instanceof Error ? error.message : "The referral could not be created.");
+      if (draftWritten) selectionsReady = false;
+      showModalMessage((error instanceof Error ? error.message : "The referral could not be saved.") +
+        (draftWritten ? " Some Draft changes were saved. Close and reopen the Draft before continuing." : ""));
     } finally {
-      saveButton.disabled = false;
-      saveButton.textContent = "Save Referral";
+      saveButton.disabled = !selectionsReady;
+      saveButton.textContent = (createForm.elements.namedItem("ReferralUid") as HTMLInputElement).value ? "Save Draft" : "Save Referral";
     }
   }
 

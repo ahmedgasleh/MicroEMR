@@ -11,7 +11,7 @@ namespace MicroEMR.Api.Controllers;
 [Authorize]
 [RequirePermission(PermissionKeys.ReferralsView)]
 [Route("api/patients/{patientUid:guid}/referrals")]
-public sealed class PatientReferralsController(
+public sealed partial class PatientReferralsController(
     IPatientReferralService service,
     ILogger<PatientReferralsController> logger) : ControllerBase
 {
@@ -126,6 +126,9 @@ public sealed class PatientReferralsController(
     {
         try { var bytes=await service.PreviewLetterAsync(patientUid,referralUid,cancellationToken);return bytes is null?NotFound():File(bytes,"application/pdf"); }
         catch(PatientReferralTransitionException e){return Conflict(new{message=e.Message});}
+        catch(UnauthorizedAccessException){return StatusCode(403);}
+        catch(PatientReferralPatientNotFoundException){return NotFound();}
+        catch(ReferralClinicalSelectionRuleException e){return Conflict(new{message=e.Message});}
     }
 
     [HttpGet("{referralUid:guid}/letter")]

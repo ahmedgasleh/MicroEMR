@@ -8,6 +8,9 @@ namespace MicroEMR.Web.Services.PatientReferrals;
 
 public interface IPatientReferralApiClient
 {
+    Task<MicroEMR.Application.PatientReferrals.ReferralClinicalOptionsResponse> GetClinicalOptionsAsync(Guid patientUid,CancellationToken token=default) => throw new NotSupportedException();
+    Task<MicroEMR.Application.PatientReferrals.PatientReferralClinicalSelectionsResponse?> GetClinicalSelectionsAsync(Guid patientUid,Guid referralUid,CancellationToken token=default) => throw new NotSupportedException();
+    Task<MicroEMR.Application.PatientReferrals.PatientReferralClinicalSelectionsResponse?> ReplaceClinicalSelectionsAsync(Guid patientUid,Guid referralUid,MicroEMR.Application.PatientReferrals.ReplacePatientReferralClinicalSelectionsRequest request,CancellationToken token=default) => throw new NotSupportedException();
     Task<IReadOnlyList<PatientReferralListItemViewModel>> GetByPatientUidAsync(
         Guid patientUid,
         CancellationToken cancellationToken = default);
@@ -44,7 +47,7 @@ public interface IPatientReferralApiClient
         string rowVersion, CancellationToken cancellationToken = default);
 }
 
-public sealed class PatientReferralApiClient(
+public sealed partial class PatientReferralApiClient(
     HttpClient client,
     IHttpContextAccessor httpContextAccessor) : IPatientReferralApiClient
 {

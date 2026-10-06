@@ -7,9 +7,10 @@ using MicroEMR.Web.Services.PatientReferrals;
 namespace MicroEMR.Web.Controllers;
 
 [Authorize]
-public sealed class PatientReferralsController(
+public sealed partial class PatientReferralsController(
     IPatientReferralApiClient client,
-    ILogger<PatientReferralsController> logger) : Controller
+    ILogger<PatientReferralsController> logger,
+    MicroEMR.Web.Services.PatientDocuments.IPatientDocumentApiClient? documentClient = null) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> List(

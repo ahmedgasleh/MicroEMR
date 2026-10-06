@@ -2,6 +2,8 @@ namespace MicroEMR.Application.PatientReferrals;
 
 public interface IPatientReferralService
 {
+    Task<ReferralClinicalOptionsResponse> GetClinicalSelectionOptionsAsync(Guid patientUid,
+        CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task<PatientReferralClinicalSelectionsResponse?> GetClinicalSelectionsAsync(Guid patientUid, Guid referralUid,
         CancellationToken cancellationToken = default) => throw new NotSupportedException();
 

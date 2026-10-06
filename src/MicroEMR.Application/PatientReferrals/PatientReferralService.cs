@@ -21,7 +21,8 @@ public sealed partial class PatientReferralService(
     IClinicalPrintLayoutRenderer? printLayout = null,
     IPdfRenderer? pdfRenderer = null,
     TimeProvider? timeProvider = null,
-    MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService? permissions = null) : IPatientReferralService
+    MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService? permissions = null,
+    IReferralClinicalContentService? clinicalContent = null) : IPatientReferralService
 {
     public async Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
@@ -246,6 +247,9 @@ public sealed partial class PatientReferralService(
         if (provider is null) throw new ArgumentException("The referring provider is unavailable.");
         var clinic = await (clinicService ?? throw new InvalidOperationException("Referral letter clinic service is unavailable.")).GetAsync(cancellationToken);
         var documents = await (documentLinks ?? throw new InvalidOperationException("Referral letter document service is unavailable.")).GetByReferralUidAsync(referral.PatientUid, referral.ReferralUid, cancellationToken);
+        if (isDraftPreview && documents.Count > 0 && (permissions is null ||
+            !(await permissions.GetEffectivePermissionsAsync(cancellationToken)).Contains(MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView)))
+            throw new UnauthorizedAccessException("Supporting document access is restricted.");
         var credential = string.Join(" | ", new[] { provider.ProviderType, provider.Specialty, provider.BillingNumber }
             .Where(value => !string.IsNullOrWhiteSpace(value)));
         var snapshot = new
@@ -261,6 +265,9 @@ public sealed partial class PatientReferralService(
         };
         var letterDate = LetterDate(sentAt, clinic.TimeZoneId);
         var age = AgeOn(patient.DateOfBirth, letterDate);
+        var selectedClinicalHtml = isDraftPreview
+            ? await (clinicalContent ?? throw new InvalidOperationException("Referral clinical content service is unavailable."))
+                .RenderPreviewAsync(referral.PatientUid,referral.ReferralUid,cancellationToken,clinic.TimeZoneId) : string.Empty;
         // Patient alternative contact means a designated person/purpose (PC01.04).
         // No such source exists in the current patient contract; AlternatePhoneNumber is not a substitute.
         var body = $"""
@@ -277,7 +284,7 @@ public sealed partial class PatientReferralService(
             </dl>
             <h2>Reason for referral</h2><p style="white-space: pre-wrap">{E(referral.Reason)}</p>
             <h2>Clinical summary</h2><p style="white-space: pre-wrap">{Recorded(referral.ClinicalSummary)}</p>
-            {SupportingHtml(documents)}</section>
+            {selectedClinicalHtml}{SupportingHtml(documents)}</section>
             """;
         var context = new ClinicalPrintContext(
             new(string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName!,clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email),
