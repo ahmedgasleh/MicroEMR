@@ -1,0 +1,63 @@
+@model MicroEMR.Web.Models.Scheduling.SchedulingDaySheetResponse
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Alphabetic Day Sheet";
+}
+
+<div class="container-fluid py-3" id="schedulingDaySheet">
+    <div class="d-print-none d-flex justify-content-end mb-3">
+        <button type="button" class="btn btn-primary" id="printDaySheetOutput">
+            <i class="bi bi-printer me-1" aria-hidden="true"></i>Print
+        </button>
+    </div>
+    <header class="border-bottom pb-3 mb-3">
+        <div class="small text-body-secondary">MicroEMR</div>
+        <h1 class="h3 mb-2">Day Sheet — Alphabetic Patient Name</h1>
+        <div><strong>Date:</strong> @Model.Date.ToString("yyyy-MM-dd")</div>
+        <div><strong>Clinicians:</strong> @Model.ClinicianScope</div>
+    </header>
+    @if (Model.Appointments.Count == 0)
+    {
+        <p>No appointments scheduled.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-bordered align-middle">
+            <thead><tr><th>Patient Name</th><th>Time</th><th>Clinician</th><th>Status</th></tr></thead>
+            <tbody>
+            @foreach (var appointment in Model.Appointments)
+            {
+                <tr>
+                    <td>@appointment.PatientName</td>
+                    <td>
+                        <time data-day-sheet-time datetime="@appointment.StartDateTimeUtc.ToString("O")">@appointment.StartDateTimeUtc.ToString("HH:mm") UTC</time>
+                        – <time data-day-sheet-time datetime="@appointment.EndDateTimeUtc.ToString("O")">@appointment.EndDateTimeUtc.ToString("HH:mm") UTC</time>
+                    </td>
+                    <td>@appointment.ClinicianName</td>
+                    <td>@appointment.Status</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+    <footer class="small text-body-secondary border-top pt-2 mt-4">
+        Generated <time data-day-sheet-generated datetime="@Model.GeneratedAtUtc.ToString("O")">@Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</time>
+        <span class="d-print-none"> · Times use your local time zone.</span>
+    </footer>
+</div>
+
+<style>
+@@media print {
+    .app-sidebar, .app-topbar, .app-footer, .d-print-none { display: none !important; }
+    .app-wrapper { height: auto !important; margin-left: 0 !important; overflow: visible !important; }
+    .app-main { padding: 0 !important; overflow: visible !important; }
+    body { background: #fff; font-size: 10pt; }
+    .container-fluid { max-width: none; padding: 0 !important; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+}
+</style>
+
+@section Scripts {
+    <script type="module" src="~/dist/scheduling/day-sheet.js" asp-append-version="true"></script>
+}

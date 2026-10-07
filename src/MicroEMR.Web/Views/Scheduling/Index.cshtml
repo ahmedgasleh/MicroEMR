@@ -584,6 +584,16 @@
             </button>
         </div>
         <div class="scheduling-filter-summary" id="resourceFilterSummary">0 resources selected</div>
+        <div class="scheduling-filter-field">
+            <label class="form-label" for="schedulingDaySheetScope">Day Sheet Clinicians</label>
+            <select class="form-select" id="schedulingDaySheetScope">
+                <option value="all">All Clinicians</option>
+                <option value="selected">Selected Clinicians (Day View)</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" id="schedulingPrintDaySheet">
+            <i class="bi bi-printer me-1" aria-hidden="true"></i>Print Day Sheet
+        </button>
     </div>
 </div>
 
@@ -2449,6 +2459,14 @@ else
             };
         };
 
+        window.MicroEmrDaySheet.bind({
+            url: @Html.Raw(JsonSerializer.Serialize(Url.Action("PrintDaySheet", "Scheduling"), jsonOptions)),
+            getDate: () => selectedDate.toString("yyyy-MM-dd"),
+            getClinicianUids: () => getFilteredResources()
+                .filter(resource => resource.resourceType === "Provider")
+                .map(resource => resource.resourceUid)
+        });
+
         const loadEvents = async () => {
             const range = dayRange();
             const url = new URL(
@@ -2699,5 +2717,6 @@ else
     });
     </script>
     <script type="module" src="~/dist/scheduling/patient-display.js" asp-append-version="true"></script>
+    <script type="module" src="~/dist/scheduling/day-sheet.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>
 }

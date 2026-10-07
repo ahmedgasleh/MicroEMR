@@ -4,6 +4,8 @@ namespace MicroEMR.Application.Scheduling.Services;
 
 public interface ISchedulingReadService
 {
+    Task<SchedulingDaySheetResponse> GetDaySheetAsync(
+        SchedulingDaySheetRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
         Guid patientUid, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(

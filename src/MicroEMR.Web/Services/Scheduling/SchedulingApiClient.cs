@@ -25,6 +25,26 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         _logger = logger;
     }
 
+    public async Task<SchedulingDaySheetResponse> GetDaySheetAsync(
+        SchedulingDaySheetRequest daySheetRequest, CancellationToken cancellationToken = default)
+    {
+        var requestUri = QueryHelpers.AddQueryString("api/scheduling/day-sheet", new Dictionary<string, string?>
+        {
+            ["date"] = daySheetRequest.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            ["start"] = daySheetRequest.Start.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            ["end"] = daySheetRequest.End.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
+        });
+        if (daySheetRequest.ClinicianUids is not null)
+            foreach (var uid in daySheetRequest.ClinicianUids)
+                requestUri = QueryHelpers.AddQueryString(requestUri, "clinicianUids", uid.ToString());
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<SchedulingDaySheetResponse>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The API returned no day sheet.");
+    }
+
     public async Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
         Guid patientUid, CancellationToken cancellationToken = default)
     {

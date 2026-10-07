@@ -29,6 +29,30 @@ public sealed class SchedulingController : Controller
         _logger = logger;
     }
 
+    [HttpGet("PrintDaySheet")]
+    public async Task<IActionResult> PrintDaySheet(
+        [FromQuery] SchedulingDaySheetRequest request, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        if (!ModelState.IsValid || request.ClinicianUids is { Length: 0 })
+            return BadRequest(new { message = "A valid scheduling day and clinician scope are required." });
+        try
+        {
+            return View("~/Views/Scheduling/PrintDaySheet.cshtml",
+                await _schedulingApiClient.GetDaySheetAsync(request, cancellationToken));
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest
+            or HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        { return StatusCode((int)exception.StatusCode.Value, new { message = "The day or clinician selection is unavailable." }); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to load the scheduling day sheet.");
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = "The day sheet could not be loaded." });
+        }
+    }
+
     [HttpGet("PatientAppointments")]
     [RequireWebPermission(PermissionKeys.PatientsView)]
     public async Task<IActionResult> PatientAppointments(Guid patientUid, CancellationToken cancellationToken)
