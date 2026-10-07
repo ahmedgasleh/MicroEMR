@@ -604,6 +604,7 @@ public sealed class PatientsController : Controller
         {
             "summary" => "summary",
             "timeline" => "timeline",
+            "appointments" => "appointments",
             "care-team" => "care-team",
             "alerts" => "alerts",
             "tasks" => "tasks",

@@ -4,6 +4,8 @@ namespace MicroEMR.Web.Services.Scheduling;
 
 public interface ISchedulingApiClient
 {
+    Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
+        Guid patientUid, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ScheduleResourceResponse>>
         GetActiveResourcesAsync(
             CancellationToken cancellationToken = default);

@@ -12,6 +12,16 @@ public sealed class SchedulingReadService : ISchedulingReadService
         _repository = repository;
     }
 
+    public async Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
+        Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty) throw new ArgumentException("Patient UID is required.", nameof(patientUid));
+        var items = await _repository.GetPatientAppointmentsAsync(patientUid, cancellationToken);
+        if (items?.Any(item => item.PatientUid != patientUid) == true)
+            throw new InvalidOperationException("Appointment history does not belong to the requested patient.");
+        return items;
+    }
+
     public Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(
         CancellationToken cancellationToken = default)
     {

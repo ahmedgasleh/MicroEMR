@@ -29,6 +29,28 @@ public sealed class SchedulingController : Controller
         _logger = logger;
     }
 
+    [HttpGet("PatientAppointments")]
+    [RequireWebPermission(PermissionKeys.PatientsView)]
+    public async Task<IActionResult> PatientAppointments(Guid patientUid, CancellationToken cancellationToken)
+    {
+        if (patientUid == Guid.Empty) return BadRequest(new { success = false, message = "Patient UID is required." });
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            var items = await _schedulingApiClient.GetPatientAppointmentsAsync(patientUid, cancellationToken);
+            return items is null ? NotFound() : Json(new { success = true, items });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        { return StatusCode((int)exception.StatusCode.Value); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to load patient appointment history.");
+            return StatusCode(StatusCodes.Status502BadGateway, new { success = false, message = "Appointment history could not be loaded." });
+        }
+    }
+
     [HttpGet("SearchPatients")]
     public async Task<IActionResult> SearchPatients(string? term, CancellationToken cancellationToken)
     {

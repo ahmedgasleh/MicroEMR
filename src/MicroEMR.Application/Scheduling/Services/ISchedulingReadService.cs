@@ -4,6 +4,8 @@ namespace MicroEMR.Application.Scheduling.Services;
 
 public interface ISchedulingReadService
 {
+    Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
+        Guid patientUid, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(
         CancellationToken cancellationToken = default);
 

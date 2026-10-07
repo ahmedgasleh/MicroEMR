@@ -14,6 +14,8 @@
     var canManageDocuments = effectivePermissions.Contains(PermissionKeys.DocumentsManage);
     var canManageClinicalData = effectivePermissions.Contains(PermissionKeys.ClinicalDataManage);
     var canViewCareTeam = effectivePermissions.Contains(PermissionKeys.ProvidersView);
+    var canViewAppointmentHistory = effectivePermissions.Contains(PermissionKeys.SchedulingView);
+    var appointmentsActive = canViewAppointmentHistory && Model.ActiveTab == "appointments";
     var canManageCareTeam = canEditPatients && canViewCareTeam;
     var careTeamActive = canViewCareTeam && Model.ActiveTab == "care-team";
 
@@ -21,7 +23,8 @@
     ViewData ["Subtitle"] = patient.ChartNumber;
     Layout = "_AppLayout";
 
-    var summaryActive = Model.ActiveTab == "summary" || (!canViewCareTeam && Model.ActiveTab == "care-team");
+    var summaryActive = Model.ActiveTab == "summary" || (!canViewCareTeam && Model.ActiveTab == "care-team")
+        || (!canViewAppointmentHistory && Model.ActiveTab == "appointments");
 
     var demographicsActive =
         Model.ActiveTab == "demographics";
@@ -227,6 +230,10 @@
             Problems
         </button>
     </li>
+    @if (canViewAppointmentHistory)
+    {
+        <li class="nav-item"><button class="nav-link @(appointmentsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#appointments" type="button">Appointment History</button></li>
+    }
     <li class="nav-item"><button class="nav-link @(historyActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#history" type="button">Medical / Surgical History</button></li>
     <li class="nav-item"><button class="nav-link @(immunizationsActive ? "active" : null)" data-bs-toggle="tab" data-bs-target="#immunizations" type="button">Immunizations</button></li>
 
@@ -254,6 +261,15 @@
 </ul>
 
 <div class="tab-content patient-chart-content">
+    @if (canViewAppointmentHistory)
+    {
+        <div class="tab-pane fade @(appointmentsActive ? "show active" : null)" id="appointments" role="tabpanel">
+            <h5>Appointment History</h5>
+            <div id="patientAppointmentHistory" data-list-url="@Url.Action("PatientAppointments", "Scheduling", new { patientUid = patient.PatientUid })" aria-live="polite">
+                <p class="text-body-secondary">Open Appointment History to load appointments.</p>
+            </div>
+        </div>
+    }
     @if (canViewCareTeam)
     {
     <div class="tab-pane fade @(careTeamActive ? "show active" : null)" id="care-team" role="tabpanel">
@@ -1732,6 +1748,7 @@ document.addEventListener("DOMContentLoaded", () => {
 <div class="modal fade" id="immunizationErrorModal" tabindex="-1" aria-labelledby="immunizationErrorTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h2 class="modal-title fs-5" id="immunizationErrorTitle">Mark entered in error</h2><button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><form id="immunizationErrorForm">@Html.AntiForgeryToken()<input type="hidden" name="ImmunizationUid"/><input type="hidden" name="RowVersion"/><label class="form-label">Reason</label><textarea class="form-control" name="Reason" maxlength="500" required rows="3"></textarea><div id="immunizationErrorMessage" class="alert alert-danger d-none mt-3"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-danger" id="confirmImmunizationErrorButton" type="button">Mark entered in error</button></div></div></div></div>
 <script type="module" src="~/dist/patients/recent-patients.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-clinical-history.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patients/patient-appointments.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-immunizations.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-problems.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-chart-alerts.js" asp-append-version="true"></script>

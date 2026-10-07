@@ -173,6 +173,16 @@ public sealed class SchedulingController : ControllerBase
         return Ok(appointments);
     }
 
+    [HttpGet("patients/{patientUid:guid}/appointments")]
+    [RequirePermission(PermissionKeys.PatientsView)]
+    public async Task<IActionResult> GetPatientAppointments(Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        if (patientUid == Guid.Empty) return BadRequest(new { message = "Patient UID is required." });
+        var items = await _schedulingReadService.GetPatientAppointmentsAsync(patientUid, cancellationToken);
+        Response.Headers.CacheControl = "no-store";
+        return items is null ? NotFound() : Ok(items);
+    }
+
     [HttpGet("appointments/{appointmentUid:guid}")]
     [ProducesResponseType(typeof(ScheduleAppointmentDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

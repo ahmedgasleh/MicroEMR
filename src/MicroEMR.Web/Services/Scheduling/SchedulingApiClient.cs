@@ -25,6 +25,17 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
+        Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/scheduling/patients/{patientUid}/appointments");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<List<PatientAppointmentResponse>>(cancellationToken: cancellationToken) ?? [];
+    }
+
     public async Task<IReadOnlyList<ScheduleResourceResponse>>
         GetActiveResourcesAsync(
             CancellationToken cancellationToken = default)

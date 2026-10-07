@@ -21,6 +21,47 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
+        Guid patientUid, CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT PatientUid FROM dbo.Patient WHERE PatientUid = @PatientUid AND IsDeleted = 0;
+
+            SELECT a.AppointmentUid, a.PatientUid, a.StartDateTimeUtc, a.EndDateTimeUtc,
+                a.AppointmentStatus AS Status, a.AppointmentType, a.Reason,
+                sr.DisplayName AS PrimaryResourceName
+            FROM dbo.ScheduleAppointment a
+            INNER JOIN dbo.Patient p ON p.PatientUid = a.PatientUid AND p.IsDeleted = 0
+            LEFT JOIN dbo.ScheduleResource sr ON sr.ResourceId = a.PrimaryResourceId
+            WHERE a.PatientUid = @PatientUid
+                AND (a.IsDeleted = 0 OR a.AppointmentStatus = N'Cancelled')
+            ORDER BY a.StartDateTimeUtc DESC, a.ScheduleAppointmentId DESC;
+            """;
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection) { CommandType = CommandType.Text };
+        command.Parameters.Add("@PatientUid", SqlDbType.UniqueIdentifier).Value = patientUid;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+        if (reader.GetGuid(0) != patientUid) throw new InvalidOperationException("The history patient does not match the request.");
+        if (!await reader.NextResultAsync(cancellationToken)) throw new InvalidOperationException("Appointment history was not returned.");
+        var items = new List<PatientAppointmentResponse>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new()
+            {
+                AppointmentUid = reader.GetGuid(reader.GetOrdinal("AppointmentUid")),
+                PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+                StartDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("StartDateTimeUtc"))),
+                EndDateTimeUtc = SpecifyUtc(reader.GetDateTime(reader.GetOrdinal("EndDateTimeUtc"))),
+                Status = reader.GetString(reader.GetOrdinal("Status")),
+                AppointmentType = GetNullableString(reader, "AppointmentType"),
+                PrimaryResourceName = GetNullableString(reader, "PrimaryResourceName"),
+                Reason = GetNullableString(reader, "Reason")
+            });
+        }
+        return items;
+    }
+
     public async Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(
         CancellationToken cancellationToken = default)
     {
