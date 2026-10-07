@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using MicroEMR.Application.Patients.Contracts;
 using MicroEMR.Application.Patients.Repositories;
 
@@ -52,6 +53,7 @@ public sealed class PatientService : IPatientService
                 "Date of birth cannot be in the future.");
         }
 
+        ValidateContacts(request.AlternativeContacts);
         return _patientRepository.CreateAsync(
             request,
             createdBy,
@@ -72,10 +74,24 @@ public sealed class PatientService : IPatientService
                 "Date of birth cannot be in the future.");
         }
 
+        ValidateContacts(request.AlternativeContacts);
         return _patientRepository.UpdateDemographicsAsync(
             patientUid,
             request,
             updatedBy,
             cancellationToken);
+    }
+
+    private static void ValidateContacts(List<PatientAlternativeContact>? contacts)
+    {
+        if (contacts is null) return;
+        foreach (var contact in contacts)
+        {
+            if (contact is null) throw new ArgumentException("Alternative contact cannot be null.");
+            var results = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(contact, new ValidationContext(contact), results, true))
+                throw new ArgumentException(string.Join(" ", results.Select(x => x.ErrorMessage)));
+            contact.Purposes = contact.Purposes.Distinct(StringComparer.Ordinal).ToList();
+        }
     }
 }

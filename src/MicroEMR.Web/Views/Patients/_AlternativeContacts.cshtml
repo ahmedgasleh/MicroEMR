@@ -1,0 +1,16 @@
+@model List<MicroEMR.Web.Models.Patients.PatientAlternativeContact>
+<section class="mb-3" data-alternative-contacts>
+    <h5>Patient alternative contacts</h5>
+    <p class="small text-muted">Optional people designated by the patient for a stated purpose. These contacts appear in referral letters.</p>
+    <div data-contact-list>
+        @for (var i = 0; i < Model.Count; i++)
+        {
+            var fieldData = new ViewDataDictionary(ViewData) { ["ContactIndex"] = i.ToString() };
+            @await Html.PartialAsync("_AlternativeContactFields", Model[i], fieldData)
+        }
+    </div>
+    <template data-contact-template>
+        @await Html.PartialAsync("_AlternativeContactFields", new MicroEMR.Web.Models.Patients.PatientAlternativeContact(), new ViewDataDictionary(ViewData) { ["ContactIndex"] = "__index__" })
+    </template>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-add-contact>Add designated contact</button>
+</section>

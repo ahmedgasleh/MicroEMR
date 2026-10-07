@@ -45,6 +45,8 @@ public sealed class EditPatientDemographicsViewModel : IValidatableObject
     [StringLength(30)]
     public string? AlternatePhoneNumber { get; set; }
 
+    public List<PatientAlternativeContact> AlternativeContacts { get; set; } = [];
+
     [EmailAddress]
     [StringLength(255)]
     public string? Email { get; set; }

@@ -237,6 +237,7 @@ public sealed partial class PatientReferralService(
     {
         var patient = await (patientService ?? throw new InvalidOperationException("Referral letter patient service is unavailable.")).GetByUidAsync(referral.PatientUid, cancellationToken)
             ?? throw new PatientReferralPatientNotFoundException();
+        if (patient.PatientUid != referral.PatientUid) throw new PatientReferralPatientNotFoundException();
         var provider = referral.ReferringProviderUid.HasValue
             ? await referrals.GetProviderAsync(referral.ReferringProviderUid.Value, cancellationToken) : null;
         if (provider is null) throw new ArgumentException("The referring provider is unavailable.");
@@ -255,7 +256,7 @@ public sealed partial class PatientReferralService(
             throw new PatientReferralConcurrencyException();
         var selectedClinicalHtml = composition.Html;
         // Patient alternative contact means a designated person/purpose (PC01.04).
-        // No such source exists in the current patient contract; AlternatePhoneNumber is not a substitute.
+        // Patient phone numbers are not a substitute for this designated person.
         var body = $"""
             <section><h1>Referral Letter</h1>
             <p><strong>{(isDraftPreview ? "Draft preview date" : "Referral Letter Date")}:</strong> {letterDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)}</p>
@@ -281,7 +282,7 @@ public sealed partial class PatientReferralService(
                 Age = age?.ToString(CultureInfo.InvariantCulture) ?? "Not recorded",
                 Gender = string.IsNullOrWhiteSpace(patient.GenderIdentity) ? "Not recorded" : patient.GenderIdentity,
                 SexAtBirth = string.IsNullOrWhiteSpace(patient.SexAtBirth) ? "Not recorded" : patient.SexAtBirth,
-                AlternativeContact = "Not recorded"
+                AlternativeContact = FormatAlternativeContacts(patient.AlternativeContacts)
             },
             new("Referral","Referral Letter",isDraftPreview ? "Outgoing referral — Draft preview" : "Outgoing referral",sentAt,provider.DisplayName),
             new("Referring provider",provider.DisplayName,sentAt,null,null),clinic.TimeZoneId);
@@ -295,6 +296,7 @@ public sealed partial class PatientReferralService(
         {
             referral.ReferralUid, referral.PatientUid, PatientName=patient.FullName, patient.DateOfBirth,
             patient.HealthCardNumber, patient.HealthCardVersion, patient.ChartNumber,
+            patient.AlternativeContacts,
             ClinicName=string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName,
             clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email,
             provider.ProviderUid,ProviderName=provider.DisplayName,ProviderCredential=credential,
@@ -309,6 +311,27 @@ public sealed partial class PatientReferralService(
         return new(artifactUid,sentAt,bytes,fileName,
             hash,JsonSerializer.Serialize(snapshot),
             provider.DisplayName,string.IsNullOrWhiteSpace(credential)?null:credential);
+    }
+
+    private static string FormatAlternativeContacts(IEnumerable<MicroEMR.Application.Patients.Contracts.PatientAlternativeContact> contacts)
+    {
+        var entries = contacts.Select(contact =>
+        {
+            var fields = new List<string> { $"{contact.FirstName} {contact.LastName}".Trim(),
+                $"Purpose: {string.Join(", ", contact.Purposes)}" };
+            void Add(string label, string? value)
+            {
+                if (!string.IsNullOrWhiteSpace(value)) fields.Add($"{label}: {value}");
+            }
+            Add("Residence phone", contact.ResidencePhone);
+            Add("Cell phone", contact.CellPhone);
+            Add("Work phone", contact.WorkPhone);
+            Add("Work extension", contact.WorkPhoneExtension);
+            Add("Email", contact.Email);
+            Add("Note", contact.Note);
+            return string.Join(" | ", fields);
+        }).ToArray();
+        return entries.Length == 0 ? "Not recorded" : string.Join("; ", entries);
     }
 
     private static string SupportingHtml(IReadOnlyList<ReferralDocumentLinkResponse> documents) => documents.Count == 0

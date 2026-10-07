@@ -1,0 +1,55 @@
+@model MicroEMR.Web.Models.Patients.PatientAlternativeContact
+@{ var index = (string)ViewData["ContactIndex"]!; var prefix = $"AlternativeContacts[{index}]"; }
+<div class="border rounded p-3 mb-2" data-alternative-contact>
+    <div class="d-flex justify-content-between mb-2"><strong>Designated contact</strong><button type="button" class="btn btn-sm btn-outline-secondary" data-remove-contact>Remove</button></div>
+    <div class="row g-2">
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-FirstName">First name</label>
+            <input class="form-control" id="alternativeContact-@index-FirstName" name="@(prefix + ".FirstName")" value="@Model.FirstName" type="text" maxlength="100" required />
+            @Html.ValidationMessage(prefix + ".FirstName", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-LastName">Last name</label>
+            <input class="form-control" id="alternativeContact-@index-LastName" name="@(prefix + ".LastName")" value="@Model.LastName" type="text" maxlength="100" required />
+            @Html.ValidationMessage(prefix + ".LastName", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-ResidencePhone">Residence phone</label>
+            <input class="form-control" id="alternativeContact-@index-ResidencePhone" name="@(prefix + ".ResidencePhone")" value="@Model.ResidencePhone" type="tel" maxlength="30" />
+            @Html.ValidationMessage(prefix + ".ResidencePhone", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-CellPhone">Cell phone</label>
+            <input class="form-control" id="alternativeContact-@index-CellPhone" name="@(prefix + ".CellPhone")" value="@Model.CellPhone" type="tel" maxlength="30" />
+            @Html.ValidationMessage(prefix + ".CellPhone", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-WorkPhone">Work phone</label>
+            <input class="form-control" id="alternativeContact-@index-WorkPhone" name="@(prefix + ".WorkPhone")" value="@Model.WorkPhone" type="tel" maxlength="30" />
+            @Html.ValidationMessage(prefix + ".WorkPhone", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-WorkPhoneExtension">Work extension</label>
+            <input class="form-control" id="alternativeContact-@index-WorkPhoneExtension" name="@(prefix + ".WorkPhoneExtension")" value="@Model.WorkPhoneExtension" type="text" maxlength="20" />
+            @Html.ValidationMessage(prefix + ".WorkPhoneExtension", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-Email">Email</label>
+            <input class="form-control" id="alternativeContact-@index-Email" name="@(prefix + ".Email")" value="@Model.Email" type="email" maxlength="255" />
+            @Html.ValidationMessage(prefix + ".Email", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-Note">Note</label>
+            <input class="form-control" id="alternativeContact-@index-Note" name="@(prefix + ".Note")" value="@Model.Note" type="text" maxlength="1000" />
+            @Html.ValidationMessage(prefix + ".Note", null, new { @class = "text-danger" })
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="alternativeContact-@index-Purposes">Contact purpose (select one or both)</label>
+            <select class="form-select" id="alternativeContact-@index-Purposes" name="@(prefix + ".Purposes")" multiple required>
+                <option value="Emergency Contact" selected="@Model.Purposes.Contains("Emergency Contact")">Emergency Contact</option>
+                <option value="Substitute Decision Maker" selected="@Model.Purposes.Contains("Substitute Decision Maker")">Substitute Decision Maker</option>
+            </select>
+            @Html.ValidationMessage(prefix + ".Purposes", null, new { @class = "text-danger" })
+        </div>
+    </div>
+</div>

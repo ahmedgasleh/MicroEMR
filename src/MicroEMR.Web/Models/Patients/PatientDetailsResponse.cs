@@ -28,6 +28,8 @@ public sealed class PatientDetailsResponse
 
     public string? AlternatePhoneNumber { get; set; }
 
+    public List<PatientAlternativeContact> AlternativeContacts { get; set; } = [];
+
     public string? Email { get; set; }
 
     public string? AddressLine1 { get; set; }

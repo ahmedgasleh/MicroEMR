@@ -168,6 +168,64 @@ public sealed class ReferralLetterCompositionTests
         Assert.Equal(new[] { "GetByUidAsync" }, f.ReferralCalls);
     }
 
+    [Fact]
+    public async Task AlternativeContactPreviewIncludesAllDictionaryFieldsAndMultiplePurposesSafely()
+    {
+        var f = new Fixture();
+        f.Patient.AlternativeContacts = [Contact(), new() { FirstName = "Second", LastName = "Person", Purposes = ["Emergency Contact"] }];
+        var html = await f.Preview();
+        foreach (var expected in new[] { "Alex &lt;contact&gt; Lee", "Emergency Contact, Substitute Decision Maker",
+            "Residence phone: 416-555-0101", "Cell phone: 416-555-0102", "Work phone: 416-555-0103",
+            "Work extension: 42", "Email: alex@example.test", "Note: Call &amp; confirm", "Second Person" })
+            Assert.Contains(expected, html);
+        Assert.DoesNotContain("<contact>", html);
+        Assert.Null(await f.Service.PreviewLetterAsync(Guid.NewGuid(), f.Referral.ReferralUid));
+    }
+
+    [Fact]
+    public async Task AlternativeContactFinalSnapshotAndDownloadSurviveLaterPatientEdit()
+    {
+        var f = new Fixture();
+        f.Patient.AlternativeContacts = [Contact()];
+        await f.Service.MarkSentAsync(f.Patient.PatientUid, f.Referral.ReferralUid,
+            new ReferralStatusTransitionRequest { RowVersion = f.Referral.RowVersion });
+        var artifact = Assert.IsType<ReferralArtifactWrite>(f.SentArtifact);
+        var originalBytes = artifact.PdfContent.ToArray();
+        using var snapshot = System.Text.Json.JsonDocument.Parse(artifact.SnapshotJson);
+        Assert.Equal("Alex <contact>", snapshot.RootElement.GetProperty("AlternativeContacts")[0].GetProperty("FirstName").GetString());
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(Contact()), snapshot.RootElement.GetProperty("AlternativeContacts")[0].GetRawText());
+        Assert.Contains("Work extension: 42", Encoding.UTF8.GetString(originalBytes));
+        f.Patient.AlternativeContacts[0].FirstName = "Updated";
+        f.Patient.AlternativeContacts[0].Note = "Updated note";
+        using var download = (await f.Service.OpenArtifactAsync(f.Patient.PatientUid, f.Referral.ReferralUid))!.Content;
+        using var buffer = new MemoryStream();
+        await download.CopyToAsync(buffer);
+        Assert.Equal(originalBytes, buffer.ToArray());
+        Assert.Equal(artifact.SnapshotJson, f.SentArtifact!.SnapshotJson);
+        Assert.Equal("GetArtifactAsync", f.ReferralCalls.Last());
+        await Assert.ThrowsAsync<PatientReferralTransitionException>(() => f.Preview());
+        var newDraft = new Fixture();
+        newDraft.Patient.AlternativeContacts = f.Patient.AlternativeContacts;
+        Assert.Contains("Updated Lee", await newDraft.Preview());
+        Assert.DoesNotContain("Updated", Encoding.UTF8.GetString(originalBytes));
+        Assert.Null(await f.Service.OpenArtifactAsync(Guid.NewGuid(), f.Referral.ReferralUid));
+    }
+
+    [Fact]
+    public async Task AlternativeContactCompositionRejectsMismatchedPatientSource()
+    {
+        var f = new Fixture();
+        f.Patient.PatientUid = Guid.NewGuid();
+        await Assert.ThrowsAsync<PatientReferralPatientNotFoundException>(() => f.Service.PreviewLetterAsync(f.Referral.PatientUid, f.Referral.ReferralUid));
+    }
+
+    private static PatientAlternativeContact Contact() => new()
+    {
+        FirstName = "Alex <contact>", LastName = "Lee", Purposes = ["Emergency Contact", "Substitute Decision Maker"],
+        ResidencePhone = "416-555-0101", CellPhone = "416-555-0102", WorkPhone = "416-555-0103",
+        WorkPhoneExtension = "42", Email = "alex@example.test", Note = "Call & confirm"
+    };
+
     private sealed class Fixture
     {
         public PatientDetailsResponse Patient { get; } = new()
@@ -200,10 +258,16 @@ public sealed class ReferralLetterCompositionTests
                 switch (method)
                 {
                     case "GetByUidAsync":
-                        return Task.FromResult((Guid)args[0]! == Patient.PatientUid && (Guid)args[1]! == Referral.ReferralUid ? Referral : null);
+                        return Task.FromResult((Guid)args[0]! == Referral.PatientUid && (Guid)args[1]! == Referral.ReferralUid ? SentArtifact is null ? Referral : new PatientReferral { PatientUid = Referral.PatientUid, ReferralUid = Referral.ReferralUid,
+                            RecipientName = Referral.RecipientName, Reason = Referral.Reason, RowVersion = Referral.RowVersion, Status = ReferralStatus.Sent } : null);
                     case "GetProviderAsync":
                         Assert.Equal(providerUid, args[0]);
                         return Task.FromResult<ReferralProvider?>(new(providerUid, "Dr Selected", "Physician", "998877", "Family Medicine"));
+                    case "GetArtifactAsync":
+                        return Task.FromResult<ReferralArtifactContent?>(
+                            (Guid)args[0]! == Patient.PatientUid && (Guid)args[1]! == Referral.ReferralUid && SentArtifact is { } stored
+                                ? new(stored.ArtifactUid, "application/pdf", stored.FileName, stored.PdfContent,
+                                    stored.PdfContent.LongLength, stored.Sha256, stored.SnapshotJson, stored.SentAtUtc) : null);
                     case "SendWithArtifactAsync":
                         Assert.Equal(Patient.PatientUid, args[0]); Assert.Equal(Referral.ReferralUid, args[1]);
                         SentArtifact = (ReferralArtifactWrite)args[4]!;
@@ -213,7 +277,7 @@ public sealed class ReferralLetterCompositionTests
             });
             object PatientRead(string method, object?[] args)
             {
-                Assert.Equal("GetByUidAsync", method); Assert.Equal(Patient.PatientUid, args[0]);
+                Assert.Equal("GetByUidAsync", method); Assert.Equal(Referral.PatientUid, args[0]);
                 return Task.FromResult<PatientDetailsResponse?>(Patient);
             }
             Service = new(referrals, Stub<IPatientRepository>(PatientRead),

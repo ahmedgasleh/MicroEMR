@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Infrastructure.Tenancy;
@@ -226,6 +227,9 @@ public sealed class PatientRepository : IPatientRepository
             30,
             request.AlternatePhoneNumber);
 
+        command.Parameters.Add("@AlternativeContactsJson", SqlDbType.NVarChar, -1).Value =
+            request.AlternativeContacts is null ? DBNull.Value : JsonSerializer.Serialize(request.AlternativeContacts);
+
         AddNullableString(
             command,
             "@Email",
@@ -427,6 +431,9 @@ public sealed class PatientRepository : IPatientRepository
             SqlDbType.NVarChar,
             30,
             request.AlternatePhoneNumber);
+
+        command.Parameters.Add("@AlternativeContactsJson", SqlDbType.NVarChar, -1).Value =
+            request.AlternativeContacts is null ? DBNull.Value : JsonSerializer.Serialize(request.AlternativeContacts);
 
         AddNullableString(
             command,
@@ -638,6 +645,9 @@ public sealed class PatientRepository : IPatientRepository
                 GetNullableString(
                     reader,
                     "AlternatePhoneNumber"),
+
+            AlternativeContacts = JsonSerializer.Deserialize<List<PatientAlternativeContact>>(
+                GetNullableString(reader, "AlternativeContactsJson") ?? "[]") ?? [],
 
             Email =
                 GetNullableString(reader, "Email"),

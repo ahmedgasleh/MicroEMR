@@ -249,6 +249,7 @@
 
         <hr class="my-4" />
 
+        <partial name="_AlternativeContacts" model="@(Model.AlternativeContacts ?? [])" />
         <h5 class="mb-3">Address</h5>
 
         <div class="row g-3">
@@ -380,6 +381,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script type="module" src="~/dist/patients/alternative-contacts.js" asp-append-version="true"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
