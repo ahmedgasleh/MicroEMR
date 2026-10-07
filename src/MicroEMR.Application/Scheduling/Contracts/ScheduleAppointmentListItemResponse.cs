@@ -8,6 +8,10 @@ public sealed class ScheduleAppointmentListItemResponse
 
     public string? PatientDisplayName { get; set; }
 
+    public string? PatientHealthCardNumber { get; set; }
+    public DateOnly? PatientDateOfBirth { get; set; }
+    public string? PatientGender { get; set; }
+
     public string? ChartNumber { get; set; }
 
     public string? Reason { get; set; }

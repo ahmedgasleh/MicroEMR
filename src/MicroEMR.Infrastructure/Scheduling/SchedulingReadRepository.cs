@@ -114,6 +114,9 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 NULLIF(
                     LTRIM(RTRIM(CONCAT(p.LastName, ', ', p.FirstName))),
                     ',') AS PatientDisplayName,
+                p.HealthCardNumber AS PatientHealthCardNumber,
+                p.DateOfBirth AS PatientDateOfBirth,
+                p.GenderIdentity AS PatientGender,
                 p.ChartNumber,
                 a.Reason,
                 a.AppointmentType,
@@ -211,6 +214,10 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         reader.GetGuid(reader.GetOrdinal("PatientUid")),
                     PatientDisplayName =
                         GetNullableString(reader, "PatientDisplayName"),
+                    PatientHealthCardNumber = GetNullableString(reader, "PatientHealthCardNumber"),
+                    PatientDateOfBirth = reader.IsDBNull(reader.GetOrdinal("PatientDateOfBirth"))
+                        ? null : DateOnly.FromDateTime(reader.GetDateTime(reader.GetOrdinal("PatientDateOfBirth"))),
+                    PatientGender = GetNullableString(reader, "PatientGender"),
                     ChartNumber = GetNullableString(reader, "ChartNumber"),
                     Reason = GetNullableString(reader, "Reason"),
                     AppointmentType =

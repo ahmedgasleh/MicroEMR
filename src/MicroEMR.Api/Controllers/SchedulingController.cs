@@ -169,6 +169,7 @@ public sealed class SchedulingController : ControllerBase
                 resourceUid,
                 cancellationToken);
 
+        Response.Headers.CacheControl = "no-store";
         return Ok(appointments);
     }
 

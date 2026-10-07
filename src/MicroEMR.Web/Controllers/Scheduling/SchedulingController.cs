@@ -622,6 +622,9 @@ public sealed class SchedulingController : Controller
                     resource = appointment.PrimaryResourceUid,
                     primaryResourceUid = appointment.PrimaryResourceUid,
                     patientDisplayName = appointment.PatientDisplayName,
+                    patientHealthCardNumber = appointment.PatientHealthCardNumber,
+                    patientDateOfBirth = appointment.PatientDateOfBirth,
+                    patientGender = appointment.PatientGender,
                     appointmentType = appointment.AppointmentType,
                     status = appointment.Status,
                     isCritical = appointment.IsCritical,
@@ -629,6 +632,7 @@ public sealed class SchedulingController : Controller
                     primaryResourceName = appointment.PrimaryResourceName
                 });
 
+            Response.Headers.CacheControl = "no-store";
             return Json(events);
         }
         catch (UnauthorizedAccessException exception)

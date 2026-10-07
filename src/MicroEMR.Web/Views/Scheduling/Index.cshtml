@@ -218,9 +218,19 @@
             box-shadow: inset 4px 0 0 #b02a37;
         }
 
+        .scheduling-critical-appointment .calendar_default_event_inner {
+            padding-right: 76px !important;
+        }
+
         .scheduling-critical-appointment .calendar_default_event_inner::before {
-            content: "Critical · ";
+            content: "Critical";
+            position: absolute;
+            top: 1px;
+            right: 24px;
+            font-size: 9px;
+            line-height: 11px;
             font-weight: 700;
+            color: #b02a37;
         }
 
         .scheduling-mini-calendar-header {
@@ -552,6 +562,13 @@
     </div>
 
     <div class="scheduling-filter-panel">
+        <div class="scheduling-filter-field">
+            <label class="form-label" for="schedulingPatientDisplay">Patient Display</label>
+            <select class="form-select" id="schedulingPatientDisplay">
+                <option value="name" selected>Name Only</option>
+                <option value="details">Patient Details</option>
+            </select>
+        </div>
         <div class="scheduling-filter-field">
             <label class="form-label" for="schedulingResourceTypeFilter">Resource Type</label>
             <select class="form-select" id="schedulingResourceTypeFilter">
@@ -1197,6 +1214,9 @@ else
             window.requestAnimationFrame(() => calendar.update());
         };
 
+        const patientDisplay = new window.SchedulePatientDisplay(
+            document.getElementById("schedulingPatientDisplay"),
+            () => calendar.update({ events: patientDisplay.apply(calendar.events.list || []) }));
         const calendar = new DayPilot.Calendar(
             "schedulingCalendar",
             {
@@ -2509,7 +2529,7 @@ else
                 }
 
                 calendar.update({
-                    events
+                    events: patientDisplay.apply(events)
                 });
             } catch (error) {
                 console.error(error);
@@ -2678,5 +2698,6 @@ else
         }
     });
     </script>
+    <script type="module" src="~/dist/scheduling/patient-display.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>
 }
