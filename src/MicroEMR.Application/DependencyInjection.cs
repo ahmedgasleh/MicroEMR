@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientProblemService, PatientProblemService>();
         services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
         services.AddScoped<IPatientImmunizationService, PatientImmunizationService>();
+        services.AddScoped<IPatientImmunizationSummaryService, PatientImmunizationSummaryService>();
         services.AddScoped<IPatientVitalService, PatientVitalService>();
         services.AddScoped<IPatientReferralService, PatientReferralService>();
         services.AddScoped<IReferralClinicalContentService, ReferralClinicalContentService>();

@@ -11,6 +11,23 @@ namespace MicroEMR.Web.Controllers;
 [Authorize,RequireWebPermission(PermissionKeys.PatientsView),Route("patients/{patientUid:guid}/immunizations")]
 public sealed class PatientImmunizationsController(IPatientImmunizationApiClient client,ILogger<PatientImmunizationsController> logger):Controller
 {
+    [HttpGet("summary/pdf")]
+    public async Task<IActionResult> Summary(Guid patientUid, CancellationToken token)
+    {
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            var bytes = await client.SummaryAsync(patientUid, token);
+            return bytes is null ? NotFound() : File(bytes, "application/pdf");
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        {
+            return StatusCode((int)exception.StatusCode.Value);
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception exception) { return Failure(exception, "Immunization Summary could not be generated."); }
+    }
     [HttpGet]public async Task<IActionResult>List(Guid patientUid,string status="All",CancellationToken token=default){try{return Json(new{success=true,items=await client.ListAsync(patientUid,status,token)});}catch(Exception e){return Failure(e,"Immunizations could not be loaded.");}}
     [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Create(Guid patientUid,SavePatientImmunizationViewModel model,CancellationToken token){model.PatientUid=patientUid;if(!ModelState.IsValid)return BadRequest(new{success=false,message=Error()});try{return Json(new{success=true,item=await client.CreateAsync(patientUid,model,token)});}catch(Exception e){return Failure(e,"Immunization could not be saved.");}}
     [HttpPost("{immunizationUid:guid}"),ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Update(Guid patientUid,Guid immunizationUid,SavePatientImmunizationViewModel model,CancellationToken token){model.PatientUid=patientUid;model.ImmunizationUid=immunizationUid;if(!ModelState.IsValid)return BadRequest(new{success=false,message=Error()});try{return await client.UpdateAsync(patientUid,immunizationUid,model,token)is{}item?Json(new{success=true,item}):NotFound(new{success=false,message="Immunization was not found."});}catch(Exception e){return Failure(e,"Immunization could not be saved.");}}

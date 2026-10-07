@@ -8,6 +8,7 @@ namespace MicroEMR.Web.Services.PatientImmunizations;
 
 public interface IPatientImmunizationApiClient
 {
+    Task<byte[]?> SummaryAsync(Guid patientUid, CancellationToken token = default);
     Task<IReadOnlyList<PatientImmunizationViewModel>> ListAsync(Guid patientUid,string status,CancellationToken token=default);
     Task<PatientImmunizationViewModel> CreateAsync(Guid patientUid,SavePatientImmunizationViewModel model,CancellationToken token=default);
     Task<PatientImmunizationViewModel?> UpdateAsync(Guid patientUid,Guid uid,SavePatientImmunizationViewModel model,CancellationToken token=default);
@@ -16,6 +17,14 @@ public interface IPatientImmunizationApiClient
 
 public sealed class PatientImmunizationApiClient(HttpClient client,IHttpContextAccessor context):IPatientImmunizationApiClient
 {
+    public async Task<byte[]?> SummaryAsync(Guid patientUid, CancellationToken token = default)
+    {
+        using var request = await Request(HttpMethod.Get, $"api/patients/{patientUid}/immunizations/summary/pdf");
+        using var response = await client.SendAsync(request, token);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await Ensure(response);
+        return await response.Content.ReadAsByteArrayAsync(token);
+    }
     public async Task<IReadOnlyList<PatientImmunizationViewModel>> ListAsync(Guid p,string status,CancellationToken token=default)
     {using var q=await Request(HttpMethod.Get,$"api/patients/{p}/immunizations?status={Uri.EscapeDataString(status)}");using var r=await client.SendAsync(q,token);await Ensure(r);return await r.Content.ReadFromJsonAsync<List<PatientImmunizationViewModel>>(cancellationToken:token)??[];}
     public async Task<PatientImmunizationViewModel> CreateAsync(Guid p,SavePatientImmunizationViewModel m,CancellationToken token=default)

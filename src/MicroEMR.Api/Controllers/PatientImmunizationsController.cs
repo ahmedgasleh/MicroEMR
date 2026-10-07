@@ -19,6 +19,15 @@ public sealed class PatientImmunizationsController(IPatientImmunizationService s
     public async Task<ActionResult<PatientImmunizationResponse>> Get(Guid patientUid, Guid immunizationUid, CancellationToken token) =>
         await service.GetAsync(patientUid, immunizationUid, token) is { } item ? Ok(item) : NotFound();
 
+    [HttpGet("summary/pdf")]
+    public async Task<IActionResult> Summary(Guid patientUid,
+        [FromServices] IPatientImmunizationSummaryService summary, CancellationToken token)
+    {
+        var bytes = await summary.GenerateAsync(patientUid, HttpContext.TraceIdentifier, token);
+        Response.Headers.CacheControl = "no-store";
+        return bytes is null ? NotFound() : File(bytes, "application/pdf");
+    }
+
     [HttpPost, RequirePermission(PermissionKeys.ClinicalDataManage)]
     public async Task<ActionResult<PatientImmunizationResponse>> Create(Guid patientUid, CreatePatientImmunizationRequest request, CancellationToken token)
     {

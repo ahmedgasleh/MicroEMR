@@ -12,6 +12,7 @@ public sealed record ClinicalPrintPatient(
     string FullName, DateOnly DateOfBirth, string? HealthCardNumber,
     string? HealthCardVersion, string? ChartNumber)
 {
+    public string? DateOfBirthDisplay { get; init; }
     public string? Age { get; init; }
     public string? Gender { get; init; }
     public string? SexAtBirth { get; init; }
@@ -54,7 +55,7 @@ public sealed class ClinicalPrintLayoutRenderer : IClinicalPrintLayoutRenderer
         AppendContactLine(html, context.Clinic);
         html.Append("</div><dl class=\"clinical-context-grid\">");
         AppendPair(html, "Patient", context.Patient.FullName);
-        AppendPair(html, "DOB", context.Patient.DateOfBirth.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture));
+        AppendPair(html, "DOB", context.Patient.DateOfBirthDisplay ?? context.Patient.DateOfBirth.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture));
         AppendPair(html, "Age", context.Patient.Age);
         AppendPair(html, "Gender", context.Patient.Gender);
         AppendPair(html, "Sex at birth", context.Patient.SexAtBirth);
