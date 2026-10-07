@@ -103,5 +103,5 @@ test('Day View bridge reuses current provider selection and has only alphabetic 
     assert.match(view, /id="schedulingPrintDaySheet"/);
     const printView = fs.readFileSync(path.join(root, 'src/MicroEMR.Web/Views/Scheduling/PrintDaySheet.cshtml'), 'utf8');
     assert.match(printView, /Alphabetic Patient Name/);
-    assert.doesNotMatch(printView, /Chronological|HealthCardNumber|PatientDocument|ClinicalOutputArtifact/);
+    assert.doesNotMatch(printView, /HealthCardNumber|PatientDocument|ClinicalOutputArtifact/);
 });

@@ -5,7 +5,9 @@ function localMidnight(date) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00:00`
         + `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
 }
-function buildDaySheetUrl(baseUrl, dateKey, clinicianUids) {
+function buildDaySheetUrl(baseUrl, dateKey, clinicianUids, order = "Alphabetic") {
+    if (order !== "Alphabetic" && order !== "Chronological")
+        throw new Error("Select a valid day sheet order.");
     if (clinicianUids?.length === 0)
         throw new Error("Select at least one provider in Day View before printing selected clinicians.");
     const start = new Date(`${dateKey}T00:00:00`);
@@ -13,6 +15,7 @@ function buildDaySheetUrl(baseUrl, dateKey, clinicianUids) {
     end.setDate(end.getDate() + 1);
     const url = new URL(baseUrl, window.location.origin);
     url.searchParams.set("date", dateKey);
+    url.searchParams.set("order", order);
     // Separate midnight offsets preserve 23/25-hour daylight-saving days.
     url.searchParams.set("start", localMidnight(start));
     url.searchParams.set("end", localMidnight(end));
@@ -22,10 +25,11 @@ function buildDaySheetUrl(baseUrl, dateKey, clinicianUids) {
 function bindDaySheet(options) {
     const button = document.querySelector("#schedulingPrintDaySheet");
     const scope = document.querySelector("#schedulingDaySheetScope");
+    const order = document.querySelector("#schedulingDaySheetOrder");
     button?.addEventListener("click", () => {
         try {
             const uids = scope?.value === "selected" ? options.getClinicianUids() : null;
-            window.open(buildDaySheetUrl(options.url, options.getDate(), uids), "_blank", "noopener");
+            window.open(buildDaySheetUrl(options.url, options.getDate(), uids, order?.value ?? "Alphabetic"), "_blank", "noopener");
         }
         catch (error) {
             window.alert(error instanceof Error ? error.message : "The day sheet could not be opened.");

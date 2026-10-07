@@ -1,7 +1,8 @@
 @model MicroEMR.Web.Models.Scheduling.SchedulingDaySheetResponse
 @{
     Layout = "_AppLayout";
-    ViewData["Title"] = "Alphabetic Day Sheet";
+    var chronological = Model.Order == "Chronological";
+    ViewData["Title"] = chronological ? "Chronological Day Sheet" : "Alphabetic Day Sheet";
 }
 
 <div class="container-fluid py-3" id="schedulingDaySheet">
@@ -12,7 +13,7 @@
     </div>
     <header class="border-bottom pb-3 mb-3">
         <div class="small text-body-secondary">MicroEMR</div>
-        <h1 class="h3 mb-2">Day Sheet — Alphabetic Patient Name</h1>
+        <h1 class="h3 mb-2">Day Sheet — @(chronological ? "Chronological" : "Alphabetic Patient Name")</h1>
         <div><strong>Date:</strong> @Model.Date.ToString("yyyy-MM-dd")</div>
         <div><strong>Clinicians:</strong> @Model.ClinicianScope</div>
     </header>

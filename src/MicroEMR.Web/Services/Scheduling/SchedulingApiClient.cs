@@ -31,6 +31,7 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
         var requestUri = QueryHelpers.AddQueryString("api/scheduling/day-sheet", new Dictionary<string, string?>
         {
             ["date"] = daySheetRequest.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            ["order"] = daySheetRequest.Order,
             ["start"] = daySheetRequest.Start.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
             ["end"] = daySheetRequest.End.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
         });

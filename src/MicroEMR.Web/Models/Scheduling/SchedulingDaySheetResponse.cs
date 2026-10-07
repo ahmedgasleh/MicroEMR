@@ -2,6 +2,7 @@ namespace MicroEMR.Web.Models.Scheduling;
 
 public sealed class SchedulingDaySheetRequest
 {
+    public string Order { get; set; } = "Alphabetic";
     public DateOnly Date { get; set; }
     public DateTimeOffset Start { get; set; }
     public DateTimeOffset End { get; set; }
@@ -11,6 +12,7 @@ public sealed class SchedulingDaySheetRequest
 
 public sealed class SchedulingDaySheetResponse
 {
+    public string Order { get; set; } = "Alphabetic";
     public DateOnly Date { get; set; }
     public string ClinicianScope { get; set; } = string.Empty;
     public DateTime GeneratedAtUtc { get; set; }

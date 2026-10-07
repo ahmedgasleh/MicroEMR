@@ -16,6 +16,9 @@ public sealed class SchedulingReadService : ISchedulingReadService
         SchedulingDaySheetRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var chronological = string.Equals(request.Order, "Chronological", StringComparison.OrdinalIgnoreCase);
+        if (!chronological && !string.Equals(request.Order, "Alphabetic", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Day sheet order must be Alphabetic or Chronological.");
         if (request.Date == default || request.Date == DateOnly.MaxValue
             || DateOnly.FromDateTime(request.Start.Date) != request.Date
             || DateOnly.FromDateTime(request.End.Date) != request.Date.AddDays(1)
@@ -38,21 +41,29 @@ public sealed class SchedulingReadService : ISchedulingReadService
         var endUtc = request.End.UtcDateTime;
         // Reuse the operational calendar query and its overlap/cancellation policy.
         var appointments = await _repository.GetAppointmentsAsync(startUtc, endUtc, null, cancellationToken);
+        var included = appointments.Where(appointment => selectedUids.Contains(appointment.PrimaryResourceUid)
+            && appointment.StartDateTimeUtc < endUtc && appointment.EndDateTimeUtc > startUtc
+            && !string.Equals(appointment.Status, "Cancelled", StringComparison.OrdinalIgnoreCase));
+        var ordered = chronological
+            ? included.OrderBy(appointment => appointment.StartDateTimeUtc)
+                .ThenBy(appointment => clinicianNames[appointment.PrimaryResourceUid], StringComparer.OrdinalIgnoreCase)
+                .ThenBy(appointment => string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
+                    ? "Unknown patient" : appointment.PatientDisplayName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(appointment => appointment.AppointmentUid)
+            : included.OrderBy(appointment => string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
+                    ? "Unknown patient" : appointment.PatientDisplayName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(appointment => appointment.StartDateTimeUtc)
+                .ThenBy(appointment => appointment.AppointmentUid);
         return new SchedulingDaySheetResponse
         {
+            Order = chronological ? "Chronological" : "Alphabetic",
             Date = request.Date,
             ClinicianScope = request.ClinicianUids is null ? "All Clinicians"
                 : string.Join(", ", clinicians.Where(resource => selectedUids.Contains(resource.ResourceUid))
                     .OrderBy(resource => resource.DisplayName, StringComparer.OrdinalIgnoreCase)
                     .Select(resource => resource.DisplayName)),
             GeneratedAtUtc = DateTime.UtcNow,
-            Appointments = appointments.Where(appointment => selectedUids.Contains(appointment.PrimaryResourceUid)
-                    && appointment.StartDateTimeUtc < endUtc && appointment.EndDateTimeUtc > startUtc
-                    && !string.Equals(appointment.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(appointment => string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
-                    ? "Unknown patient" : appointment.PatientDisplayName.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ThenBy(appointment => appointment.StartDateTimeUtc)
-                .ThenBy(appointment => appointment.AppointmentUid)
+            Appointments = ordered
                 .Select(appointment => new SchedulingDaySheetRow
                 {
                     PatientName = string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
