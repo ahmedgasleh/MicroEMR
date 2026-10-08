@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddSingleton<ICdmProgramRegistry, CdmProgramRegistry>();
         services.AddScoped<ICdmEnrollmentService, CdmEnrollmentService>();
         services.AddScoped<IPatientCppService, PatientCppService>();
+        services.AddScoped<ICppDisplayPreferencesService, CppDisplayPreferencesService>();
         services.AddScoped<IProviderAdministrationService, ProviderAdministrationService>();
 
         return services;

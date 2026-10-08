@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let items = [], summaryItems = [];
     const endpoint = (suffix = "") => `${root.dataset.mutationUrl.replace(/\/$/, "")}${suffix}`;
     function render() {
-        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span>${escape(x.description)}</span><span class="small text-body-secondary ms-2">${escape(day(x.relevantDate))}</span></div>`).join("")}</div>` : '<span class="text-muted">No past medical or surgical history recorded.</span>';
+        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span data-cpp-field="History.HistoryType" class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span data-cpp-field="History.Description">${escape(x.description)}</span><span data-cpp-field="History.RelevantDate" class="small text-body-secondary ms-2">${escape(day(x.relevantDate))}</span></div>`).join("")}</div>` : '<span class="text-muted">No past medical or surgical history recorded.</span>';
         if (!items.length) {
             list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__title">No history recorded</div></div>';
             return;

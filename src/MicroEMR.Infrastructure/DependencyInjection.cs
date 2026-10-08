@@ -62,6 +62,8 @@ using MicroEMR.Application.Providers;
 using MicroEMR.Infrastructure.Providers;
 using MicroEMR.Application.PatientCareTeam;
 using MicroEMR.Infrastructure.PatientCareTeam;
+using MicroEMR.Application.PatientCpp;
+using MicroEMR.Infrastructure.PatientCpp;
 
 namespace MicroEMR.Infrastructure;
 
@@ -93,6 +95,7 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
+        services.AddScoped<ICppDisplayPreferencesRepository, CppDisplayPreferencesRepository>();
         services.AddSingleton<IPdfRenderer, PlaywrightPdfRenderer>();
         services.AddScoped<IClinicalOutputArtifactRepository, ClinicalOutputArtifactRepository>();
         services.AddScoped<IReadAuditRepository, ReadAuditRepository>();
