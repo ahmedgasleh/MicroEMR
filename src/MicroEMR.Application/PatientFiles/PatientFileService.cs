@@ -56,7 +56,17 @@ public sealed class PatientFileService(IPatientFileRepository repository,IPatien
     }
     public async Task<IReadOnlyList<PatientFileResponse>> GetByPatientUidAsync(Guid p,CancellationToken ct=default)=>(await repository.GetByPatientUidAsync(p,ct)).Select(x=>Map(x,false)).ToArray();
     public async Task<PatientFileResponse?> GetByUidAsync(Guid p,Guid f,CancellationToken ct=default)=>await repository.GetByUidAsync(p,f,ct)is{}x?Map(x,true):null;
-    public async Task<PatientFileContent?> OpenContentAsync(Guid p,Guid f,CancellationToken ct=default){var x=await repository.GetByUidAsync(p,f,ct);if(x is null)return null;if(!await storage.ExistsAsync(x.StorageKey,ct)){logger.LogError("Stored content is missing for patient file {FileUid}.",f);return null;}return new(x.FileUid,x.PatientUid,await storage.OpenReadAsync(x.StorageKey,ct),x.OriginalFileName,x.ContentType,x.FileSizeBytes);}
+    public async Task<PatientFileContent?> OpenContentAsync(Guid p,Guid f,CancellationToken ct=default)
+    {
+        var x=await repository.GetByUidAsync(p,f,ct);
+        if(x is null)return null;
+        var expectedKey=$"tenants/{tenant.TenantUid:N}/"+PatientFileNaming.StorageKey(p,f);
+        if(tenant.TenantUid==Guid.Empty || x.PatientUid!=p || x.FileUid!=f || !string.Equals(x.StorageKey,expectedKey,StringComparison.Ordinal))
+        {
+            logger.LogWarning("Patient file storage ownership validation failed for {FileUid}.",f);
+            return null;
+        }
+        if(!await storage.ExistsAsync(x.StorageKey,ct)){logger.LogError("Stored content is missing for patient file {FileUid}.",f);return null;}return new(x.FileUid,x.PatientUid,await storage.OpenReadAsync(x.StorageKey,ct),x.OriginalFileName,x.ContentType,x.FileSizeBytes);}
     public Task<PatientFileResponse> ArchiveAsync(Guid p,Guid f,string v,CancellationToken ct=default)=>TransitionAsync(p,f,v,PatientFileStatus.Active,repository.ArchiveAsync,ct);
     public Task<PatientFileResponse> RestoreAsync(Guid p,Guid f,string v,CancellationToken ct=default)=>TransitionAsync(p,f,v,PatientFileStatus.Archived,repository.RestoreAsync,ct);
     private async Task<PatientFileResponse> TransitionAsync(Guid p,Guid f,string v,PatientFileStatus expected,Func<Guid,Guid,string,long,CancellationToken,Task<PatientFile>> mutate,CancellationToken ct)

@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientVitalService, PatientVitalService>();
         services.AddScoped<IPatientReferralService, PatientReferralService>();
         services.AddScoped<IReferralClinicalContentService, ReferralClinicalContentService>();
+        services.AddScoped<IReferralReportContentService, ReferralReportContentService>();
         services.AddScoped<IReferralStatusTransitionService, ReferralStatusTransitionService>();
         services.AddScoped<IReferralDocumentService, ReferralDocumentService>();
         services.AddScoped<IPatientFileService, PatientFileService>();

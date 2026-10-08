@@ -134,7 +134,7 @@ public sealed class ReferralFinalizationTests
         Assert.Null(f.Artifact);
     }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public ReferralClinicalContentTests.Fixture Source {get;}=new();
         public string Version {get;}=Convert.ToBase64String(new byte[8]);
@@ -147,7 +147,7 @@ public sealed class ReferralFinalizationTests
         public ReferralArtifactWrite? Artifact; public int PdfCalls; public int StoreCalls;
         public string Failure=""; public string ProviderName="Dr Referrer"; public string DocumentTitle="Supporting report";
         private readonly Guid providerUid=Guid.NewGuid();
-        public Fixture()
+        public Fixture(IReferralReportContentService? reports = null, IReferralPdfAssembler? assembler = null, IPdfRenderer? renderer = null)
         {
             Source.RowVersion=Version;
             Source.Select(new("CPP","PROBLEMS"),new("CPP","ALLERGIES"),new("CPP","MEDICATIONS"),
@@ -177,13 +177,14 @@ public sealed class ReferralFinalizationTests
                     Assert.True((bool)a[3]!);
                     if(Failure=="missing-document") throw new ReferralClinicalSelectionRuleException("Supporting document unavailable.");
                     return Task.FromResult<IReadOnlyList<ReferralDocumentLinkResponse>>([new() {DocumentUid=Guid.NewGuid(),Title=DocumentTitle,DocumentType="Report",DocumentStatus="Final"}]);
-                }),new ClinicalPrintLayoutRenderer(),Stub<IPdfRenderer>((m,a)=>
+                }),new ClinicalPrintLayoutRenderer(),renderer ?? Stub<IPdfRenderer>((m,a)=>
                 {
                     PdfCalls++;
                     if(Failure=="render") throw new InvalidOperationException("Rendering failed.");
                     return Task.FromResult(Failure=="empty-pdf"?Array.Empty<byte>():Encoding.UTF8.GetBytes((string)a[0]!));
                 }),new Clock(),Stub<ICurrentUserPermissionService>((m,a)=>Task.FromResult<IReadOnlySet<string>>(
-                    Failure=="restricted-document"?new HashSet<string>():new HashSet<string>(Source.Permissions) {PermissionKeys.DocumentsView})),Source.Service);
+                    Failure=="restricted-document"?new HashSet<string>():new HashSet<string>(Source.Permissions) {PermissionKeys.DocumentsView})),Source.Service,
+                reports ?? Stub<IReferralReportContentService>((m,a) => Task.FromResult(new ReferralReportComposition("<h2>" + DocumentTitle + "</h2><p>Complete report body</p>",[],[]))), assembler);
         }
         public Task<PatientReferralDetailsResponse?> Send(string? version=null)=>Service.MarkSentAsync(Patient.PatientUid,Source.ReferralUid,new() {RowVersion=version??Version});
         private Task<PatientReferral?> Store(ReferralArtifactWrite artifact)

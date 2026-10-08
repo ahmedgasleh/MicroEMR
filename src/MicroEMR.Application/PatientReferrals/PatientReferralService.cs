@@ -22,7 +22,9 @@ public sealed partial class PatientReferralService(
     IPdfRenderer? pdfRenderer = null,
     TimeProvider? timeProvider = null,
     MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService? permissions = null,
-    IReferralClinicalContentService? clinicalContent = null) : IPatientReferralService
+    IReferralClinicalContentService? clinicalContent = null,
+    IReferralReportContentService? reportContent = null,
+    IReferralPdfAssembler? pdfAssembler = null) : IPatientReferralService
 {
     public async Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
@@ -255,6 +257,11 @@ public sealed partial class PatientReferralService(
         if (!string.Equals(composition.SelectionSet.RowVersion, referral.RowVersion, StringComparison.Ordinal))
             throw new PatientReferralConcurrencyException();
         var selectedClinicalHtml = composition.Html;
+        var selectedReports = documents.Count > 0 || composition.SelectionSet.Selections.Any(x => x.SelectionKind == ReferralClinicalSelectionKinds.File);
+        var reports = selectedReports
+            ? await (reportContent ?? throw new ReferralClinicalSelectionRuleException("Selected report content service is unavailable. Try again before sending."))
+                .ComposeAsync(referral.PatientUid, documents, composition.SelectionSet.Selections, cancellationToken)
+            : new ReferralReportComposition(string.Empty, [], []);
         // Patient alternative contact means a designated person/purpose (PC01.04).
         // Patient phone numbers are not a substitute for this designated person.
         var body = $"""
@@ -271,7 +278,7 @@ public sealed partial class PatientReferralService(
             </dl>
             <h2>Reason for referral</h2><p style="white-space: pre-wrap">{E(referral.Reason)}</p>
             <h2>Clinical summary</h2><p style="white-space: pre-wrap">{Recorded(referral.ClinicalSummary)}</p>
-            {selectedClinicalHtml}{SupportingHtml(documents)}</section>
+            {selectedClinicalHtml}{reports.Html}</section>
             """;
         var context = new ClinicalPrintContext(
             new(string.IsNullOrWhiteSpace(clinic.LegalName)?clinic.ClinicName:clinic.LegalName!,clinic.AddressLine1,clinic.AddressLine2,clinic.City,clinic.ProvinceState,clinic.PostalCode,clinic.Phone,clinic.Fax,clinic.Email),
@@ -289,6 +296,18 @@ public sealed partial class PatientReferralService(
         var bytes = await (pdfRenderer ?? throw new InvalidOperationException("Referral letter PDF renderer is unavailable."))
             .RenderAsync((printLayout ?? throw new InvalidOperationException("Referral letter print layout is unavailable.")).Render(context,body),cancellationToken);
         if (bytes.Length == 0) throw new InvalidOperationException("Referral letter PDF rendering returned no content.");
+        if (reports.Appendices.Count > 0)
+        {
+            var parts = new List<byte[]> { bytes };
+            foreach (var appendix in reports.Appendices)
+            {
+                parts.Add(await pdfRenderer.RenderAsync(printLayout.Render(context, appendix.HeadingHtml), cancellationToken));
+                parts.Add(appendix.PdfContent);
+            }
+            bytes = await (pdfAssembler ?? throw new ReferralClinicalSelectionRuleException("Selected PDF assembly is unavailable. Try again before sending."))
+                .CombineAsync(parts, cancellationToken);
+            if (bytes.Length == 0) throw new ReferralClinicalSelectionRuleException("Selected report assembly returned no content. Try again before sending.");
+        }
         var artifactUid = Guid.NewGuid();
         var fileName = $"referral-{referral.ReferralUid:N}.pdf";
         var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -304,7 +323,8 @@ public sealed partial class PatientReferralService(
             referral.Reason,referral.ClinicalSummary,SentAtUtc=sentAt, LetterDate=letterDate,
             DraftRowVersion=composition.SelectionSet.RowVersion,
             ClinicalSelections=composition.SelectionSet.Selections.Select(x=>new
-                {x.SelectionUid,x.SelectionKind,x.CppCategoryCode,x.EncounterUid,x.ResultUid}).ToArray(),
+                {x.SelectionUid,x.SelectionKind,x.CppCategoryCode,x.EncounterUid,x.ResultUid,x.FileUid}).ToArray(),
+            ReportSources=reports.Sources,
             SupportingDocuments=documents.Select(x=>new{x.DocumentUid,x.Title,x.DocumentType,x.DocumentStatus}).ToArray(),
             ArtifactUid=artifactUid,FileName=fileName,MimeType="application/pdf",FileSizeBytes=bytes.LongLength,Sha256=hash
         };
@@ -334,8 +354,6 @@ public sealed partial class PatientReferralService(
         return entries.Length == 0 ? "Not recorded" : string.Join("; ", entries);
     }
 
-    private static string SupportingHtml(IReadOnlyList<ReferralDocumentLinkResponse> documents) => documents.Count == 0
-        ? string.Empty : "<h2>Supporting documents</h2><ul>"+string.Concat(documents.Select(x=>$"<li>{E(x.Title)} ({E(x.DocumentType)})</li>"))+"</ul>";
     private static string E(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
     private static string Recorded(string? value) => E(string.IsNullOrWhiteSpace(value) ? "Not recorded" : value);
     private static string Pair(string label, string? value) => $"<dt>{E(label)}:</dt><dd>{Recorded(value)}</dd>";

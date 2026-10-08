@@ -12,6 +12,7 @@ const encounterUid = '33333333-3333-3333-3333-333333333333';
 const resultUid = '44444444-4444-4444-4444-444444444444';
 const documentUid = '55555555-5555-5555-5555-555555555555';
 const referral = {patientUid, referralUid, rowVersion: 'v1', status: 'Draft', recipientName: 'Recipient', reason: 'Reason', referringProviderUid: 'provider'};
+const fileUid = '66666666-6666-6666-6666-666666666666';
 const choices = [{selectionKind: 'CPP', cppCategoryCode: 'PROBLEMS'}, {selectionKind: 'ENCOUNTER', encounterUid}, {selectionKind: 'RESULT', resultUid}];
 function element() {
   let html = ''; let children = []; const fields = new Map();
@@ -47,7 +48,7 @@ async function setup({persisted = choices, version = 'v1', failSelection = false
     document: {querySelector: node, createElement: element}, fetch: async (url, init = {}) => {
       requests.push({url, init}); let ok = true; let body;
       if (url.includes('/Providers')) body = {success: true, providers: []};
-      else if (url.includes('/ClinicalOptions?')) {ok = !failOptions; body = {success: ok, message: 'Options restricted', options: {categories: [{selectionKind:'CPP',cppCategoryCode:'PROBLEMS',label:'Ongoing Problems'}, {selectionKind:'CPP',cppCategoryCode:'ALLERGIES',label:'Allergies'}, {selectionKind:'CPP',cppCategoryCode:'MEDICATIONS',label:'Medications'}], encounters:[{selectionKind:'ENCOUNTER',encounterUid,label:'Visit',status:'Signed',provider:'Dr Source'}],results:[{selectionKind:'RESULT',resultUid,label:'Creatinine'}]}};}
+      else if (url.includes('/ClinicalOptions?')) {ok = !failOptions; body = {success: ok, message: 'Options restricted', options: {categories: [{selectionKind:'CPP',cppCategoryCode:'PROBLEMS',label:'Ongoing Problems'}, {selectionKind:'CPP',cppCategoryCode:'ALLERGIES',label:'Allergies'}, {selectionKind:'CPP',cppCategoryCode:'MEDICATIONS',label:'Medications'}], encounters:[{selectionKind:'ENCOUNTER',encounterUid,label:'Visit',status:'Signed',provider:'Dr Source'}],results:[{selectionKind:'RESULT',resultUid,label:'Creatinine'}],files:[{selectionKind:'FILE',fileUid,label:'External report',status:'Active'}]}};}
       else if (url.includes('/ClinicalSelections?')) body = {success:true, selections:{rowVersion:version,selections:persisted}};
       else if (url.includes('/ClinicalDocumentOptions?')) {ok = !failDocuments; body = {success:ok,linked,available:[{documentUid,title:'Consultation report',documentType:'ConsultationReport',documentStatus:'Signed'}]};}
       else if (url.includes('/UpdateDraft') || url.endsWith('/Create')) {current = {...current,rowVersion:'v2'}; body = {success:true,referral:current};}
@@ -126,4 +127,25 @@ test('unavailable persisted source remains selected until explicitly removed', a
   f.context.hooks.openEdit(referral); await f.drain();
   assert.match(f.node('#referralClinicalChoices').innerHTML,/Previously selected clinical source/);
   assert.equal(f.node('#referralClinicalChoices').querySelectorAll('.referral-clinical-choice:checked').length,1);
+});
+
+
+test('uploaded report choices reload and persist only the selected file reference', async () => {
+  const selected = [{selectionKind:'FILE',fileUid}];
+  const f = await setup({persisted:selected}); f.context.hooks.openEdit(referral); await f.drain();
+  assert.match(f.node('#referralClinicalChoices').innerHTML,/Uploaded External Reports/);
+  const checked = f.node('#referralClinicalChoices').querySelectorAll('.referral-clinical-choice:checked');
+  assert.equal(checked.length,1); assert.equal(checked[0].dataset.file,fileUid);
+  await f.context.hooks.saveReferral();
+  assert.deepEqual(JSON.parse(f.requests.find(x=>x.url.includes('/ReplaceClinicalSelections')).init.body).selections,selected);
+});
+
+test('unavailable persisted file stays selected until explicitly removed', async () => {
+  const missing = '77777777-7777-7777-7777-777777777777';
+  const f = await setup({persisted:[{selectionKind:'FILE',fileUid:missing}]}); f.context.hooks.openEdit(referral); await f.drain();
+  assert.match(f.node('#referralClinicalChoices').innerHTML,/Unavailable selections/);
+  const checked = f.node('#referralClinicalChoices').querySelectorAll('.referral-clinical-choice:checked');
+  assert.equal(checked.length,1); assert.equal(checked[0].dataset.file,missing);
+  checked[0].checked = false; await f.context.hooks.saveReferral();
+  assert.deepEqual(JSON.parse(f.requests.find(x=>x.url.includes('/ReplaceClinicalSelections')).init.body).selections,[]);
 });

@@ -37,10 +37,10 @@ interface ReferralReply {
 
 interface ReferralProvider { providerUid: string; displayName: string; providerType: string; specialty?: string; }
 interface ProviderReply { success: boolean; providers?: ReferralProvider[]; }
-interface ClinicalSelection { selectionKind: string; cppCategoryCode?: string; encounterUid?: string; resultUid?: string; }
+interface ClinicalSelection { selectionKind: string; cppCategoryCode?: string; encounterUid?: string; resultUid?: string; fileUid?: string; }
 interface ClinicalOption extends ClinicalSelection { label: string; dateUtc?: string; provider?: string; status?: string; }
 interface ClinicalSet { rowVersion: string; selections: ClinicalSelection[]; }
-interface ClinicalReply { success: boolean; message?: string; selections?: ClinicalSet; options?: { categories: ClinicalOption[]; encounters: ClinicalOption[]; results: ClinicalOption[] }; }
+interface ClinicalReply { success: boolean; message?: string; selections?: ClinicalSet; options?: { categories: ClinicalOption[]; encounters: ClinicalOption[]; results: ClinicalOption[]; files?: ClinicalOption[] }; }
 
 interface SupportingDocument { documentUid: string; title: string; documentType: string; documentStatus: string; createdAtUtc?: string; createdAt?: string; }
 interface SupportingDocumentsReply { success: boolean; linked?: SupportingDocument[]; available?: SupportingDocument[]; message?: string; }
@@ -212,14 +212,14 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         selected = result.selections.selections;
       }
       if (generation !== selectionLoad) return;
-      const key = (x: ClinicalSelection): string => `${x.selectionKind}:${x.cppCategoryCode ?? x.encounterUid ?? x.resultUid}`;
+      const key = (x: ClinicalSelection): string => `${x.selectionKind}:${x.cppCategoryCode ?? x.encounterUid ?? x.resultUid ?? x.fileUid}`;
       const selectedIds = new Set(selected.map(key));
-      const groups: [string, ClinicalOption[]][] = [["CPP", options.options.categories], ["Encounter Notes", options.options.encounters], ["Results / Reports", options.options.results]];
+      const groups: [string, ClinicalOption[]][] = [["CPP", options.options.categories], ["Encounter Notes", options.options.encounters], ["Results / Reports", options.options.results], ["Uploaded External Reports", options.options.files ?? []]];
       const inputId = (label: string, index: number): string => `referral-choice-${label.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
       const availableKeys = new Set(groups.flatMap(([, rows]) => rows.map(key)));
       const unavailable: ClinicalOption[] = selected.filter(x => !availableKeys.has(key(x))).map(x => ({ ...x, label: "Previously selected clinical source — unavailable; remove to exclude" }));
       if (unavailable.length) groups.push(["Unavailable selections", unavailable]);
-      clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-2">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
+      clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-2">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}" data-file="${escapeHtml(x.fileUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
       const documentResponse = await fetch(`/PatientReferrals/ClinicalDocumentOptions?patientUid=${encodeURIComponent(patientUid)}${referral ? `&referralUid=${encodeURIComponent(referral.referralUid)}` : ""}`);
       const documents = await documentResponse.json() as SupportingDocumentsReply;
       if (generation !== selectionLoad) return;
@@ -239,7 +239,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
   function chosenClinicalSelections(): ClinicalSelection[] {
     return Array.from(clinicalRoot?.querySelectorAll<HTMLInputElement>(".referral-clinical-choice:checked") ?? []).map(x => ({
       selectionKind: x.dataset.kind!, ...(x.dataset.code ? { cppCategoryCode: x.dataset.code } : {}),
-      ...(x.dataset.encounter ? { encounterUid: x.dataset.encounter } : {}), ...(x.dataset.result ? { resultUid: x.dataset.result } : {})
+      ...(x.dataset.encounter ? { encounterUid: x.dataset.encounter } : {}), ...(x.dataset.result ? { resultUid: x.dataset.result } : {}), ...(x.dataset.file ? { fileUid: x.dataset.file } : {})
     }));
   }
 

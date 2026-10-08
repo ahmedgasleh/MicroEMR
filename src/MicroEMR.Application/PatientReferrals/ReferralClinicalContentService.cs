@@ -14,9 +14,10 @@ using MicroEMR.Application.Templates.Runtime;
 namespace MicroEMR.Application.PatientReferrals;
 
 public sealed record ReferralClinicalOption(string SelectionKind, string? CppCategoryCode, Guid? EncounterUid,
-    Guid? ResultUid, string Label, DateTime? DateUtc = null, string? Provider = null, string? Status = null);
+    Guid? ResultUid, string Label, DateTime? DateUtc = null, string? Provider = null, string? Status = null, Guid? FileUid = null);
 public sealed record ReferralClinicalOptionsResponse(IReadOnlyList<ReferralClinicalOption> Categories,
-    IReadOnlyList<ReferralClinicalOption> Encounters, IReadOnlyList<ReferralClinicalOption> Results);
+    IReadOnlyList<ReferralClinicalOption> Encounters, IReadOnlyList<ReferralClinicalOption> Results,
+    IReadOnlyList<ReferralClinicalOption>? Files = null);
 public sealed record ReferralClinicalComposition(string Html, PatientReferralClinicalSelectionsResponse SelectionSet);
 
 public interface IReferralClinicalContentService
@@ -62,12 +63,12 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
         foreach (var item in selected.Selections)
         {
             var key = item.SelectionKind switch { "CPP" => PermissionKeys.PatientsView,
-                "ENCOUNTER" => PermissionKeys.EncountersView, "RESULT" => PermissionKeys.ResultsView,
+                "ENCOUNTER" => PermissionKeys.EncountersView, "RESULT" => PermissionKeys.ResultsView, "FILE" => PermissionKeys.DocumentsView,
                 _ => throw new ReferralClinicalSelectionRuleException("Unsupported selected clinical source.") };
             if (!access.Contains(key)) throw new UnauthorizedAccessException("Selected clinical source is restricted.");
         }
         if (selected.PatientUid != patientUid || selected.ReferralUid != referralUid) throw Missing();
-        if (selected.Selections.Count == 0) return new(string.Empty, selected);
+        if (selected.Selections.All(x => x.SelectionKind == ReferralClinicalSelectionKinds.File)) return new(string.Empty, selected);
         var correlation = Correlation();
         if (selected.Selections.Any(x => x.SelectionKind is "CPP" or "RESULT"))
             await chartAudit.RecordOpenedAsync(patientUid, correlation, token);

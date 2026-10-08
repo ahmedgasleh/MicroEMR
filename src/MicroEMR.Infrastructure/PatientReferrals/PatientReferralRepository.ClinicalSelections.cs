@@ -51,7 +51,7 @@ public sealed partial class PatientReferralRepository
         while (await reader.ReadAsync(token)) selections.Add(new(
             reader.GetGuid(reader.GetOrdinal("SelectionUid")), reader.GetString(reader.GetOrdinal("SelectionKind")),
             GetNullableString(reader, "CppCategoryCode"), GetNullableGuid(reader, "EncounterUid"), GetNullableGuid(reader, "ResultUid"),
-            reader.GetDateTime(reader.GetOrdinal("CreatedAt")), reader.GetInt64(reader.GetOrdinal("CreatedBy"))));
+            reader.GetDateTime(reader.GetOrdinal("CreatedAt")), reader.GetInt64(reader.GetOrdinal("CreatedBy")), GetNullableGuid(reader, "FileUid")));
         // Consume completion so a transaction/commit failure cannot be hidden after the result sets.
         while (await reader.NextResultAsync(token)) { }
         return new(patientUid, referralUid, rowVersion, selections);

@@ -5,6 +5,7 @@ public static class ReferralClinicalSelectionKinds
     public const string Cpp = "CPP";
     public const string Encounter = "ENCOUNTER";
     public const string Result = "RESULT";
+    public const string File = "FILE";
 }
 
 public static class ReferralCppCategoryCodes
@@ -15,7 +16,7 @@ public static class ReferralCppCategoryCodes
 }
 
 public sealed record ReferralClinicalSelectionInput(
-    string SelectionKind, string? CppCategoryCode = null, Guid? EncounterUid = null, Guid? ResultUid = null);
+    string SelectionKind, string? CppCategoryCode = null, Guid? EncounterUid = null, Guid? ResultUid = null, Guid? FileUid = null);
 
 public sealed class ReplacePatientReferralClinicalSelectionsRequest
 {
@@ -25,7 +26,7 @@ public sealed class ReplacePatientReferralClinicalSelectionsRequest
 
 public sealed record PatientReferralClinicalSelectionResponse(
     Guid SelectionUid, string SelectionKind, string? CppCategoryCode, Guid? EncounterUid, Guid? ResultUid,
-    DateTime CreatedAt, long CreatedBy);
+    DateTime CreatedAt, long CreatedBy, Guid? FileUid = null);
 
 public sealed record PatientReferralClinicalSelectionsResponse(
     Guid PatientUid, Guid ReferralUid, string RowVersion,

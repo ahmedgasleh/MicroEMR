@@ -19,7 +19,7 @@ public sealed class ReferralLetterCompositionTests
         var f = new Fixture(selectedClinicalHtml: "<section><h2>Selected Clinical Information</h2><p>Selected source content</p></section>");
         var html = await f.Preview();
         Assert.True(html.IndexOf("Clinical summary",StringComparison.Ordinal) < html.IndexOf("Selected Clinical Information",StringComparison.Ordinal));
-        Assert.True(html.IndexOf("Selected Clinical Information",StringComparison.Ordinal) < html.IndexOf("Supporting documents",StringComparison.Ordinal));
+        Assert.True(html.IndexOf("Selected Clinical Information",StringComparison.Ordinal) < html.IndexOf("Selected consultation / external reports",StringComparison.Ordinal));
         Assert.DoesNotContain("<h2>Patient demographics</h2>",html);
         await f.Service.MarkSentAsync(f.Patient.PatientUid,f.Referral.ReferralUid,new() {RowVersion=f.Referral.RowVersion});
         Assert.Contains("Selected source content",Encoding.UTF8.GetString(f.SentArtifact!.PdfContent));
@@ -307,7 +307,8 @@ public sealed class ReferralLetterCompositionTests
                 permissions: Stub<MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService>((method, _) =>
                     Task.FromResult<IReadOnlySet<string>>(new HashSet<string> { MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView })),
                 clinicalContent: Stub<IReferralClinicalContentService>((method, _) => Task.FromResult(new ReferralClinicalComposition(
-                    selectedClinicalHtml,new(Patient.PatientUid,Referral.ReferralUid,Referral.RowVersion,[])))));
+                    selectedClinicalHtml,new(Patient.PatientUid,Referral.ReferralUid,Referral.RowVersion,[])))),
+                reportContent: Stub<IReferralReportContentService>((method, _) => Task.FromResult(new ReferralReportComposition("<h2>Selected consultation / external reports</h2><h3>Supporting report</h3><p>Complete report body</p>",[],[]))));
         }
 
         public async Task<string> Preview() => Encoding.UTF8.GetString(

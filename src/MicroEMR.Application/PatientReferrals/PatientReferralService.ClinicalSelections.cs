@@ -58,6 +58,7 @@ public sealed partial class PatientReferralService
                 ReferralClinicalSelectionKinds.Cpp => PermissionKeys.PatientsView,
                 ReferralClinicalSelectionKinds.Encounter => PermissionKeys.EncountersView,
                 ReferralClinicalSelectionKinds.Result => PermissionKeys.ResultsView,
+                ReferralClinicalSelectionKinds.File => PermissionKeys.DocumentsView,
                 _ => throw new ReferralClinicalSelectionRuleException("Unsupported clinical selection kind.")
             };
             if (!effective.Contains(permission))
@@ -89,6 +90,10 @@ public sealed partial class PatientReferralService
                     && selection.ResultUid.HasValue && selection.ResultUid != Guid.Empty,
                 _ => false
             };
+            if (selection.SelectionKind == ReferralClinicalSelectionKinds.File)
+                valid = selection.FileUid.HasValue && selection.FileUid != Guid.Empty && selection.CppCategoryCode is null
+                    && selection.EncounterUid is null && selection.ResultUid is null;
+            else valid = valid && selection.FileUid is null;
             if (!valid) throw new ArgumentException("Invalid clinical selection kind or reference.", nameof(request));
             if (!unique.Add(selection)) throw new ArgumentException("Duplicate clinical selections are not allowed.", nameof(request));
         }

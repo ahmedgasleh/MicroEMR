@@ -157,15 +157,15 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
             }
             if (generation !== selectionLoad)
                 return;
-            const key = (x) => `${x.selectionKind}:${x.cppCategoryCode ?? x.encounterUid ?? x.resultUid}`;
+            const key = (x) => `${x.selectionKind}:${x.cppCategoryCode ?? x.encounterUid ?? x.resultUid ?? x.fileUid}`;
             const selectedIds = new Set(selected.map(key));
-            const groups = [["CPP", options.options.categories], ["Encounter Notes", options.options.encounters], ["Results / Reports", options.options.results]];
+            const groups = [["CPP", options.options.categories], ["Encounter Notes", options.options.encounters], ["Results / Reports", options.options.results], ["Uploaded External Reports", options.options.files ?? []]];
             const inputId = (label, index) => `referral-choice-${label.replace(/[^a-zA-Z0-9]/g, "-")}-${index}`;
             const availableKeys = new Set(groups.flatMap(([, rows]) => rows.map(key)));
             const unavailable = selected.filter(x => !availableKeys.has(key(x))).map(x => ({ ...x, label: "Previously selected clinical source — unavailable; remove to exclude" }));
             if (unavailable.length)
                 groups.push(["Unavailable selections", unavailable]);
-            clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-2">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
+            clinicalRoot.innerHTML = groups.map(([label, rows]) => `<fieldset class="border rounded p-3 mb-3"><legend class="float-none w-auto px-2 fs-6 fw-semibold mb-2">${escapeHtml(label)}</legend>${rows.length ? rows.map((x, i) => `<div class="form-check"><input class="form-check-input referral-clinical-choice" type="checkbox" id="referral-choice-${inputId(label, i)}" data-kind="${escapeHtml(x.selectionKind)}" data-code="${escapeHtml(x.cppCategoryCode)}" data-encounter="${escapeHtml(x.encounterUid)}" data-result="${escapeHtml(x.resultUid)}" data-file="${escapeHtml(x.fileUid)}"${selectedIds.has(key(x)) ? " checked" : ""}><label class="form-check-label" for="referral-choice-${inputId(label, i)}">${escapeHtml([x.dateUtc ? formatDate(x.dateUtc) : "", x.label, x.provider, x.status].filter(Boolean).join(" — "))}</label></div>`).join("") : '<div class="small text-body-secondary">No available items, or source access is restricted.</div>'}</fieldset>`).join("");
             const documentResponse = await fetch(`/PatientReferrals/ClinicalDocumentOptions?patientUid=${encodeURIComponent(patientUid)}${referral ? `&referralUid=${encodeURIComponent(referral.referralUid)}` : ""}`);
             const documents = await documentResponse.json();
             if (generation !== selectionLoad)
@@ -189,7 +189,7 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
     function chosenClinicalSelections() {
         return Array.from(clinicalRoot?.querySelectorAll(".referral-clinical-choice:checked") ?? []).map(x => ({
             selectionKind: x.dataset.kind, ...(x.dataset.code ? { cppCategoryCode: x.dataset.code } : {}),
-            ...(x.dataset.encounter ? { encounterUid: x.dataset.encounter } : {}), ...(x.dataset.result ? { resultUid: x.dataset.result } : {})
+            ...(x.dataset.encounter ? { encounterUid: x.dataset.encounter } : {}), ...(x.dataset.result ? { resultUid: x.dataset.result } : {}), ...(x.dataset.file ? { fileUid: x.dataset.file } : {})
         }));
     }
     async function saveReferral() {

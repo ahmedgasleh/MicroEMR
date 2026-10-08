@@ -7,7 +7,8 @@ public sealed partial class PatientReferralService
     {
         await RequireSelectionAccessAsync(MicroEMR.Application.AccessProfiles.PermissionKeys.ReferralsManage,cancellationToken);
         await EnsurePatientExistsAsync(patientUid,cancellationToken);
-        return await (clinicalContent ?? throw new InvalidOperationException("Referral clinical content service is unavailable."))
+        var options = await (clinicalContent ?? throw new InvalidOperationException("Referral clinical content service is unavailable."))
             .GetOptionsAsync(patientUid,cancellationToken);
+        return options with { Files = reportContent is null ? [] : await reportContent.GetFileOptionsAsync(patientUid,cancellationToken) };
     }
 }

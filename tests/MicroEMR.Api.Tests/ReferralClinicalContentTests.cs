@@ -134,7 +134,7 @@ public sealed class ReferralClinicalContentTests
         public void Select(ReferralClinicalSelectionInput? first=null,params ReferralClinicalSelectionInput[] rest)
         {
             IEnumerable<ReferralClinicalSelectionInput> choices=first is null?rest:new[] {first}.Concat(rest);
-            selected=choices.Select(x=>new PatientReferralClinicalSelectionResponse(Guid.NewGuid(),x.SelectionKind,x.CppCategoryCode,x.EncounterUid,x.ResultUid,DateTime.UtcNow,7)).ToArray();
+            selected=choices.Select(x=>new PatientReferralClinicalSelectionResponse(Guid.NewGuid(),x.SelectionKind,x.CppCategoryCode,x.EncounterUid,x.ResultUid,DateTime.UtcNow,7,x.FileUid)).ToArray();
         }
         public Task<string> Render()=>Service.RenderPreviewAsync(PatientUid,ReferralUid);
     }
