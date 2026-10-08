@@ -132,6 +132,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientImmunizationApiClient,
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientCppApiClient, PatientCppApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<ICppPrintApiClient, CppPrintApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<ICppDisplayPreferencesApiClient, CppDisplayPreferencesApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<

@@ -97,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddScoped<ICppDisplayPreferencesRepository, CppDisplayPreferencesRepository>();
         services.AddSingleton<IPdfRenderer, PlaywrightPdfRenderer>();
+        services.AddSingleton<IPdfPageNumberer, PdfPageNumberer>();
         services.AddSingleton<IReferralPdfAssembler, ReferralPdfAssembler>();
         services.AddScoped<IClinicalOutputArtifactRepository, ClinicalOutputArtifactRepository>();
         services.AddScoped<IReadAuditRepository, ReadAuditRepository>();

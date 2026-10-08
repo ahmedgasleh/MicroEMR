@@ -18,13 +18,15 @@ namespace MicroEMR.Application.PatientCpp;
 
 public interface IPatientCppService
 {
+    Task<PatientCppSummaryResponse?> GetForPrintAsync(Guid patientUid, IReadOnlyList<string> categories,
+        string correlation, CancellationToken token = default) => throw new NotSupportedException("CPP printing is unavailable.");
     Task<PatientCppSummaryResponse?> GetAsync(
         Guid patientUid,
         string requestCorrelationId,
         CancellationToken cancellationToken = default);
 }
 
-public sealed class PatientCppService(
+public sealed partial class PatientCppService(
     IPatientRepository patients,
     IPatientProblemService problems,
     IPatientAllergyService allergies,
@@ -95,22 +97,24 @@ public sealed class PatientCppService(
 
     private static bool Authorized(IReadOnlySet<string> effective, string permission) => effective.Contains(permission);
 
-    private async Task<PatientCppSection<PatientCppProblem>> LoadProblems(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppProblem>> LoadProblems(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Problems", trace, async () =>
         {
             var rows = (await problems.GetByPatientUidAsync(patientUid, "Active", token))
                 .Where(x => string.Equals(x.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppProblem>.From(rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
-                .Take(ClinicalLimit).Select(x => new PatientCppProblem(x.PatientProblemUid, x.ProblemName, x.ProblemStatus, x.OnsetDate)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppProblem(x.PatientProblemUid, x.ProblemName, x.ProblemStatus, x.OnsetDate)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppAllergy>> LoadAllergies(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppAllergy>> LoadAllergies(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Allergies", trace, async () =>
         {
             var rows = (await allergies.GetByPatientUidAsync(patientUid, token))
                 .Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             var items = rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
-                .Take(ClinicalLimit).Select(x => new PatientCppAllergy(x.AllergyUid, x.AllergenName, x.Status, x.Reaction, x.Severity)).ToArray();
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppAllergy(x.AllergyUid, x.AllergenName, x.Status, x.Reaction, x.Severity)).ToArray();
             if (rows.Length > 0) return PatientCppSection<PatientCppAllergy>.From(items, rows.Length);
             var documentation = await allergies.GetDocumentationStateAsync(patientUid, token);
             return documentation.State == PatientCppSectionStates.ExplicitlyNone
@@ -118,75 +122,84 @@ public sealed class PatientCppService(
                 : PatientCppSection<PatientCppAllergy>.From([], 0);
         });
 
-    private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Medications", trace, async () =>
         {
             var rows = (await medications.GetByPatientUidAsync(patientUid, token))
                 .Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppMedication>.From(rows.OrderByDescending(x => x.StartDate ?? x.CreatedAt)
-                .Take(ClinicalLimit).Select(x => new PatientCppMedication(x.MedicationUid, x.MedicationName, x.Strength, x.Route, x.Frequency, x.StartDate)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppMedication(x.MedicationUid, x.MedicationName, x.Strength, x.Route, x.Frequency, x.StartDate)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppPrescription>> LoadPrescriptions(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppPrescription>> LoadPrescriptions(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Prescriptions", trace, async () =>
         {
             var rows = (await prescriptions.ListAsync(patientUid, token))
                 .Where(x => string.Equals(x.Status, PrescriptionStatuses.Finalized, StringComparison.Ordinal)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppPrescription>.From(rows.OrderByDescending(x => x.PrescribedDate)
-                .Take(ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Immunizations", trace, async () =>
         {
             var rows = (await immunizations.ListAsync(patientUid, "Completed", token))
                 .Where(x => string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppImmunization>.From(rows.OrderByDescending(x => x.AdministrationDate)
-                .Take(ClinicalLimit).Select(x => new PatientCppImmunization(x.ImmunizationUid, x.VaccineName, x.AdministrationDate, x.SourceType)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppImmunization(x.ImmunizationUid, x.VaccineName, x.AdministrationDate, x.SourceType)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppResult>> LoadResults(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppResult>> LoadResults(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Results", trace, async () =>
         {
             var rows = (await results.List(patientUid, "All", token))
                 .Where(x => string.Equals(x.LifecycleStatus, "Current", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppResult>.From(rows.OrderByDescending(x => x.ResultDate)
-                .Take(ClinicalLimit).Select(x => new PatientCppResult(x.PatientResultUid, x.ResultName, x.ResultType,
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppResult(x.PatientResultUid, x.ResultName, x.ResultType,
                     x.ResultDate, x.ResultValue, x.ResultUnit, x.Abnormality, x.ResultStatus, Provenance(x))).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppVitals>> LoadVitals(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppVitals>> LoadVitals(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Vitals", trace, async () =>
         {
             var row = (await vitals.GetByPatientUidAsync(patientUid, token)).OrderByDescending(x => x.RecordedAt).FirstOrDefault();
+            if (full && row is not null) EnsureOwned(new[] { row }, patientUid);
             var items = row is null ? [] : new[] { new PatientCppVitals(row.PatientVitalUid, row.RecordedAt,
                 row.BloodPressureSystolic, row.BloodPressureDiastolic, row.HeartRate, row.WeightKg, row.Bmi, row.OxygenSaturation) };
             return PatientCppSection<PatientCppVitals>.From(items, items.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppEncounter>> LoadEncounters(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppEncounter>> LoadEncounters(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Encounters", trace, async () =>
         {
             var rows = (await encounters.GetByPatientUidAsync(patientUid, token))
                 .Where(x => string.Equals(x.Status, "Signed", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (full) EnsureOwned(rows, patientUid);
+            // This CPP category is explicitly the latest signed encounter, rather than the encounter history.
             return PatientCppSection<PatientCppEncounter>.From(rows.OrderByDescending(x => x.EncounterDateUtc).Take(ContextLimit)
                 .Select(x => new PatientCppEncounter(x.EncounterUid, x.EncounterDateUtc, x.EncounterType, x.ProviderName, x.ReasonForVisit)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppReferral>> LoadReferrals(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppReferral>> LoadReferrals(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Referrals", trace, async () =>
         {
             var rows = (await referrals.GetByPatientUidAsync(patientUid, token))
                 .Where(x => x.Status is "Draft" or "Sent" or "ResponseReceived").ToArray();
-            return PatientCppSection<PatientCppReferral>.From(rows.OrderByDescending(x => x.CreatedAtUtc).Take(ContextLimit)
+            if (full) EnsureOwned(rows, patientUid);
+            return PatientCppSection<PatientCppReferral>.From(rows.OrderByDescending(x => x.CreatedAtUtc).Take(full ? int.MaxValue : ContextLimit)
                 .Select(x => new PatientCppReferral(x.ReferralUid, x.RecipientName, x.RecipientOrganization, x.Status, x.CreatedAtUtc)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppDocument>> LoadDocuments(Guid patientUid, string trace, CancellationToken token) =>
+    private async Task<PatientCppSection<PatientCppDocument>> LoadDocuments(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Documents", trace, async () =>
         {
             var rows = await documents.GetByPatientUidAsync(patientUid, token);
-            return PatientCppSection<PatientCppDocument>.From(rows.OrderByDescending(x => x.CreatedAt).Take(ContextLimit)
+            if (full) EnsureOwned(rows, patientUid);
+            return PatientCppSection<PatientCppDocument>.From(rows.OrderByDescending(x => x.CreatedAt).Take(full ? int.MaxValue : ContextLimit)
                 .Select(x => new PatientCppDocument(x.DocumentUid, x.Title, x.DocumentType, x.Status, x.CreatedAt)).ToArray(), rows.Count);
         });
 

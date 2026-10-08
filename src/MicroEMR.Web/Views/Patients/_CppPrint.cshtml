@@ -1,0 +1,22 @@
+@using MicroEMR.Application.PatientCpp
+@model MicroEMR.Web.Models.Patients.PatientChartViewModel
+<details id="cppPrint" class="mb-3">
+    <summary class="btn btn-outline-secondary btn-sm">Print CPP</summary>
+    <form id="cppPrintForm" class="card card-body mt-2" method="post" action="@Url.Action("Print","CppPrint")" target="_blank"
+          data-options-url="@Url.Action("Options","CppPrint",new { patientUid = Model.Patient.PatientUid })">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="patientUid" value="@Model.Patient.PatientUid" />
+        <p class="small text-body-secondary">Choose categories for one printable CPP. These choices include all eligible CPP entries and fields, independently of your screen display preferences.</p>
+        <label for="cppPrintClinician" class="form-label">Clinician for letterhead</label>
+        <select id="cppPrintClinician" name="ClinicianUid" class="form-select mb-3" required><option value="">Select a clinician</option></select>
+        <fieldset id="cppPrintCategories"><legend class="fs-6">Categories to print</legend>
+            @foreach (var category in CppDisplayCatalog.Categories)
+            {
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="Categories" value="@category.Key" id="cpp-print-@category.Key" />
+                    <label class="form-check-label" for="cpp-print-@category.Key">@category.Label</label></div>
+            }
+        </fieldset>
+        <p id="cppPrintMessage" class="small text-body-secondary mt-2" role="status">Open Print CPP to load clinicians.</p>
+        <button id="cppPrintButton" class="btn btn-primary align-self-start" type="submit" disabled>Print selected categories</button>
+    </form>
+</details>
