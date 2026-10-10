@@ -100,6 +100,10 @@ builder.Services.AddScoped<ITenantContextAccessor, TenantContextAccessor>();
 builder.Services.AddScoped<ITenantContext, DeferredTenantContext>();
 
 builder.Services.AddMicroEmrApplication();
+builder.Services.AddOptions<MicroEMR.Application.Scheduling.Contracts.NextAvailableSearchOptions>()
+    .Bind(builder.Configuration.GetSection("Scheduling:NextAvailable"))
+    .Validate(options => options.MaxHorizonDays is >= 1 and <= 90, "Search horizon must be between 1 and 90 days.")
+    .ValidateOnStart();
 builder.Services.AddOptions<ClinicalDataMigrationOptions>()
     .Bind(builder.Configuration.GetSection("ClinicalDataMigration"))
     .Validate(x => x.MaxPatients is > 0 and <= 10_000 && x.MaxProblems is > 0 and <= 50_000,

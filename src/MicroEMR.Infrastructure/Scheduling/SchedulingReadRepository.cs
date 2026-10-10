@@ -9,6 +9,37 @@ namespace MicroEMR.Infrastructure.Scheduling;
 
 public sealed class SchedulingReadRepository : ISchedulingReadRepository
 {
+    public async Task<IReadOnlyList<SchedulingBusyPeriod>> GetAvailabilityBusyPeriodsAsync(
+        Guid clinicianUid, Guid? roomUid, DateTime startUtc, DateTime endUtc,
+        CancellationToken cancellationToken = default)
+    {
+        // Same occupancy predicates as final booking, including room use; no patient data is projected.
+        const string sql = """
+            SELECT a.StartDateTimeUtc, a.EndDateTimeUtc
+            FROM dbo.ScheduleAppointment a
+            JOIN dbo.ScheduleResource primaryResource ON primaryResource.ResourceId = a.PrimaryResourceId
+            LEFT JOIN dbo.ScheduleResource room ON room.ResourceId = a.RoomResourceId
+            WHERE a.IsDeleted = 0 AND a.AppointmentStatus <> N'Cancelled'
+                AND a.StartDateTimeUtc < @EndUtc AND a.EndDateTimeUtc > @StartUtc
+                AND (primaryResource.ResourceUid = @ClinicianUid OR room.ResourceUid = @ClinicianUid
+                    OR primaryResource.ResourceUid = @RoomUid OR room.ResourceUid = @RoomUid)
+            UNION ALL
+            SELECT StartDateTimeUtc, EndDateTimeUtc FROM dbo.SchedulingBlockedTime
+            WHERE IsActive = 1 AND StartDateTimeUtc < @EndUtc AND EndDateTimeUtc > @StartUtc
+                AND (ResourceUid = @ClinicianUid OR ResourceUid = @RoomUid);
+            """;
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@ClinicianUid", SqlDbType.UniqueIdentifier).Value = clinicianUid;
+        command.Parameters.Add("@RoomUid", SqlDbType.UniqueIdentifier).Value = (object?)roomUid ?? DBNull.Value;
+        command.Parameters.Add("@StartUtc", SqlDbType.DateTime2).Value = startUtc;
+        command.Parameters.Add("@EndUtc", SqlDbType.DateTime2).Value = endUtc;
+        var periods = new List<SchedulingBusyPeriod>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            periods.Add(new(SpecifyUtc(reader.GetDateTime(0)), SpecifyUtc(reader.GetDateTime(1))));
+        return periods;
+    }
     private readonly ITenantSqlConnectionFactory _connectionFactory;
     private readonly ILogger<SchedulingReadRepository> _logger;
 

@@ -1,0 +1,28 @@
+@model MicroEMR.Web.Models.Scheduling.SchedulingIndexViewModel
+@using MicroEMR.Application.AccessProfiles
+@inject MicroEMR.Web.Authorization.IWebPermissionService Permissions
+@{ var canBook = await Permissions.HasAsync(PermissionKeys.SchedulingManage, Context.RequestAborted); }
+<div class="modal fade" id="nextAvailableModal" tabindex="-1" aria-labelledby="nextAvailableTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="nextAvailableTitle">Next Available</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <p class="small text-body-secondary">Search the calendar's 08:00–18:00 hours in @TimeZoneInfo.Local.DisplayName. Provider-specific working hours are not configured. Results are suggestions; availability is checked again when booking.</p>
+            <form id="nextAvailableForm" data-url="@Url.Action("NextAvailable", "Scheduling")" data-can-book="@canBook.ToString().ToLowerInvariant()">
+                <div class="row g-3">
+                    <div class="col-md-6"><label for="nextClinician" class="form-label">Clinician</label><select id="nextClinician" name="clinicianUid" class="form-select" required><option value="">Select clinician</option>@foreach (var resource in Model.Resources.Where(r => r.IsActive && r.ResourceType == "Provider")) { <option value="@resource.ResourceUid">@resource.DisplayName</option> }</select></div>
+                    <div class="col-md-6"><label for="nextRoom" class="form-label">Room (optional)</label><select id="nextRoom" name="roomUid" class="form-select"><option value="">No room</option>@foreach (var resource in Model.Resources.Where(r => r.IsActive && r.ResourceType == "Room")) { <option value="@resource.ResourceUid">@resource.DisplayName</option> }</select></div>
+                    <div class="col-md-6"><label for="nextDate" class="form-label">Starting date</label><input id="nextDate" name="startDate" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" min="@DateTime.Today.ToString("yyyy-MM-dd")" class="form-control" required /></div>
+                    <div class="col-md-6"><label for="nextDays" class="form-label">Search days</label><input id="nextDays" name="horizonDays" type="number" min="1" max="90" value="30" class="form-control" required /></div>
+                    <div class="col-12"><fieldset><legend class="fs-6">Weekdays (none selected means any day)</legend><div class="d-flex flex-wrap gap-3">@for (var day = 0; day < 7; day++) { <div class="form-check"><input type="checkbox" class="form-check-input" id="nextDay@day" name="weekdays" value="@day" /><label class="form-check-label" for="nextDay@day">@((DayOfWeek)day)</label></div> }</div></fieldset></div>
+                    <div class="col-md-6"><label for="nextStart" class="form-label">Time window from</label><input id="nextStart" name="preferredStart" type="time" step="900" value="08:00" class="form-control" /></div>
+                    <div class="col-md-6"><label for="nextEnd" class="form-label">Time window to (appointment must finish by)</label><input id="nextEnd" name="preferredEnd" type="time" step="900" value="18:00" class="form-control" /></div>
+                    <div class="col-md-6"><label for="nextType" class="form-label">Appointment type</label><select id="nextType" name="appointmentType" class="form-select"><option value="">No type selected</option>@foreach (var type in new[] { "Office Visit", "Phone Visit", "Virtual Visit", "Follow-up", "Consultation", "Procedure", "Other" }) { <option>@type</option> }</select></div>
+                    <div class="col-md-6"><label for="nextDuration" class="form-label">Duration (minutes)</label><input id="nextDuration" name="durationMinutes" type="number" min="15" max="240" step="15" value="15" class="form-control" required /><div class="form-text">Select duration explicitly; appointment types have no configured default duration.</div></div>
+                </div>
+                <button type="submit" id="nextAvailableSearch" class="btn btn-primary mt-3">Search</button>
+            </form>
+            <p id="nextAvailableMessage" class="mt-3" role="status" aria-live="polite"></p>
+            <div id="nextAvailableResults" class="list-group"></div>
+        </div>
+    </div></div>
+</div>

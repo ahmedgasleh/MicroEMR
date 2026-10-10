@@ -521,6 +521,7 @@
 
     <div class="text-body-secondary small">
         Appointment booking is available in Day View.
+        <button type="button" class="btn btn-outline-primary btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#nextAvailableModal">Next Available</button>
     </div>
 </div>
 
@@ -1096,6 +1097,8 @@ else
     </div>
 }
 </div>
+
+<partial name="_NextAvailable" model="Model" />
 
 @section Scripts {
     <script src="~/lib/daypilot/daypilot-javascript.min.js"></script>
@@ -2248,6 +2251,21 @@ else
             appointmentModal.show();
         };
 
+        document.addEventListener("scheduling-available-slot-selected", event => {
+            if (!canManageScheduling) return;
+            const slot = event.detail;
+            if (!resources.some(resource => resource.resourceUid === slot.clinicianUid && resource.resourceType === "Provider")) return;
+            const searchModal = document.getElementById("nextAvailableModal");
+            searchModal.addEventListener("hidden.bs.modal", () => {
+                openAppointmentModal(new DayPilot.Date(slot.startDateTimeLocal.slice(0, 19)), slot.clinicianUid);
+                document.getElementById("StartDateTimeLocal").value = slot.startDateTimeLocal.slice(0, 16);
+                document.getElementById("EndDateTimeLocal").value = slot.endDateTimeLocal.slice(0, 16);
+                document.getElementById("RoomResourceUid").value = slot.roomUid || "";
+                document.getElementById("AppointmentType").value = slot.appointmentType || "";
+            }, { once: true });
+            bootstrap.Modal.getInstance(searchModal).hide();
+        });
+
         const openAppointmentModalForDefaultSlot = () => {
             const selectedLocalDate = selectedDate.toDateLocal();
             const now = new Date();
@@ -2725,5 +2743,6 @@ else
     </script>
     <script type="module" src="~/dist/scheduling/patient-display.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/day-sheet.js" asp-append-version="true"></script>
+    <script type="module" src="~/dist/scheduling/next-available.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>
 }

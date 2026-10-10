@@ -4,6 +4,9 @@ namespace MicroEMR.Application.Scheduling.Repositories;
 
 public interface ISchedulingReadRepository
 {
+    Task<IReadOnlyList<SchedulingBusyPeriod>> GetAvailabilityBusyPeriodsAsync(
+        Guid clinicianUid, Guid? roomUid, DateTime startUtc, DateTime endUtc,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(
         Guid patientUid, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(

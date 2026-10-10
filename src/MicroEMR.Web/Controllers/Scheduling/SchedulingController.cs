@@ -29,6 +29,28 @@ public sealed class SchedulingController : Controller
         _logger = logger;
     }
 
+    [HttpGet("NextAvailable")]
+    public async Task<IActionResult> NextAvailable(
+        [FromQuery] MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsRequest request,
+        CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        if (!ModelState.IsValid) return BadRequest(new { message = "Review the search criteria." });
+        request.TimeZoneId = TimeZoneInfo.Local.Id;
+        try { return Json(await _schedulingApiClient.GetNextAvailableAsync(request, cancellationToken)); }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest)
+        { return BadRequest(new { message = "Review the clinician, date, time window, duration and search horizon (maximum 90 days, or the configured lower limit)." }); }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        { return StatusCode((int)exception.StatusCode.Value); }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Unable to search scheduling availability.");
+            return StatusCode(502, new { message = "Availability could not be checked. Try again." });
+        }
+    }
+
     [HttpGet("PrintDaySheet")]
     public async Task<IActionResult> PrintDaySheet(
         [FromQuery] SchedulingDaySheetRequest request, CancellationToken cancellationToken)
@@ -101,6 +123,7 @@ public sealed class SchedulingController : Controller
 
     [HttpPost("CreateAppointment")]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.SchedulingManage)]
     public async Task<IActionResult> CreateAppointment(
         CreateScheduleAppointmentViewModel model,
         CancellationToken cancellationToken)
@@ -126,6 +149,8 @@ public sealed class SchedulingController : Controller
 
             return Json(new { success = true, appointmentUid = appointment.AppointmentUid });
         }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        { return StatusCode((int)exception.StatusCode.Value); }
         catch (AppointmentUpdateConflictException exception)
         {
             return Conflict(new

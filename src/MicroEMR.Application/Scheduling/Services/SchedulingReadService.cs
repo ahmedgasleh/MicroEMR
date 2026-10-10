@@ -1,15 +1,83 @@
 using MicroEMR.Application.Scheduling.Contracts;
 using MicroEMR.Application.Scheduling.Repositories;
+using MicroEMR.Application.Scheduling.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace MicroEMR.Application.Scheduling.Services;
 
 public sealed class SchedulingReadService : ISchedulingReadService
 {
     private readonly ISchedulingReadRepository _repository;
+    private readonly TimeProvider _clock;
+    private readonly NextAvailableSearchOptions _searchOptions;
 
-    public SchedulingReadService(ISchedulingReadRepository repository)
+    public SchedulingReadService(ISchedulingReadRepository repository, TimeProvider? clock = null,
+        IOptions<NextAvailableSearchOptions>? searchOptions = null)
     {
         _repository = repository;
+        _clock = clock ?? TimeProvider.System;
+        _searchOptions = searchOptions?.Value ?? new();
+    }
+
+    public async Task<NextAvailableAppointmentsResponse> GetNextAvailableAsync(
+        NextAvailableAppointmentsRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var maximum = Math.Clamp(_searchOptions.MaxHorizonDays, 1, 90);
+        if (request.ClinicianUid == Guid.Empty || request.RoomUid == Guid.Empty
+            || request.StartDate == default || request.HorizonDays < 1 || request.HorizonDays > maximum
+            || request.StartDate.DayNumber > DateOnly.MaxValue.DayNumber - request.HorizonDays
+            || request.DurationMinutes < 15 || request.DurationMinutes > 240 || request.DurationMinutes % 15 != 0
+            || request.Weekdays?.Any(day => day < 0 || day > 6) == true)
+            throw new ArgumentException($"Select a clinician, a valid date, 1–{maximum} search days and a duration of 15–240 minutes in 15-minute increments.");
+        string[] types = ["Office Visit", "Phone Visit", "Virtual Visit", "Follow-up", "Consultation", "Procedure", "Other"];
+        var type = string.IsNullOrWhiteSpace(request.AppointmentType) ? null : request.AppointmentType.Trim();
+        if (type is not null && !types.Contains(type)) throw new ArgumentException("Select an available appointment type.");
+        var from = request.PreferredStart ?? new TimeOnly(8, 0);
+        var to = request.PreferredEnd ?? new TimeOnly(18, 0);
+        if (to <= from || from.Ticks % TimeSpan.TicksPerMinute != 0 || to.Ticks % TimeSpan.TicksPerMinute != 0)
+            throw new ArgumentException("Use whole-minute times with the time-window end after its start.");
+        TimeZoneInfo zone;
+        try { zone = request.TimeZoneId is null ? TimeZoneInfo.Local : TimeZoneInfo.FindSystemTimeZoneById(request.TimeZoneId); }
+        catch (Exception error) when (error is TimeZoneNotFoundException or InvalidTimeZoneException)
+        { throw new ArgumentException("The scheduling time zone is unavailable."); }
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(now, zone));
+        if (request.StartDate < today || request.StartDate > today.AddDays(maximum))
+            throw new ArgumentException("Search must start today or within the configured search horizon.");
+        var resources = await _repository.GetActiveResourcesAsync(cancellationToken);
+        if (!resources.Any(r => r.ResourceUid == request.ClinicianUid && r.IsActive && r.ResourceType == "Provider")
+            || request.RoomUid is Guid room && !resources.Any(r => r.ResourceUid == room && r.IsActive && r.ResourceType == "Room"))
+            throw new ArgumentException("The selected clinician or room is unavailable in this schedule.");
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(request.StartDate.ToDateTime(TimeOnly.MinValue), zone);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(request.StartDate.AddDays(request.HorizonDays).ToDateTime(TimeOnly.MinValue), zone);
+        // Fail closed if the authoritative occupancy query cannot be read; never infer an empty schedule.
+        var busy = await _repository.GetAvailabilityBusyPeriodsAsync(request.ClinicianUid, request.RoomUid, startUtc, endUtc, cancellationToken);
+        var periods = busy.Select(p => (p.StartDateTimeUtc, p.EndDateTimeUtc)).ToList();
+        var slots = new List<AvailableAppointmentSlot>();
+        for (var offset = 0; offset < request.HorizonDays && slots.Count < 20; offset++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var date = request.StartDate.AddDays(offset);
+            if (request.Weekdays is { Length: > 0 } && !request.Weekdays.Contains((int)date.DayOfWeek)) continue;
+            // These are the existing calendar's operational hours, not provider-specific rosters.
+            var localStart = date.ToDateTime(from < new TimeOnly(8, 0) ? new TimeOnly(8, 0) : from);
+            var localEnd = date.ToDateTime(to > new TimeOnly(18, 0) ? new TimeOnly(18, 0) : to);
+            if (localEnd <= localStart) continue;
+            localStart = localStart.AddMinutes((15 - localStart.Minute % 15) % 15);
+            if (zone.IsInvalidTime(localStart) || zone.IsAmbiguousTime(localStart)
+                || zone.IsInvalidTime(localEnd) || zone.IsAmbiguousTime(localEnd)) continue;
+            var workStart = TimeZoneInfo.ConvertTimeToUtc(localStart, zone);
+            var workEnd = TimeZoneInfo.ConvertTimeToUtc(localEnd, zone);
+            foreach (var (start, end) in SchedulingHelper.CalculateAvailableSlots([(workStart, workEnd)], periods, [], request.DurationMinutes))
+            {
+                if (start < now) continue;
+                slots.Add(new(request.ClinicianUid, request.RoomUid, type, DateTime.SpecifyKind(start, DateTimeKind.Utc),
+                    DateTime.SpecifyKind(end, DateTimeKind.Utc), TimeZoneInfo.ConvertTimeFromUtc(start, zone), TimeZoneInfo.ConvertTimeFromUtc(end, zone)));
+                if (slots.Count == 20) break;
+            }
+        }
+        return new() { TimeZoneId = zone.Id, Slots = slots };
     }
 
     public async Task<SchedulingDaySheetResponse> GetDaySheetAsync(

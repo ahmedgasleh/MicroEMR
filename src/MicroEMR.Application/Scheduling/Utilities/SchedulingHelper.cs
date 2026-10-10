@@ -41,8 +41,10 @@ public static class SchedulingHelper
     public static List<(DateTime Start, DateTime End)> CalculateAvailableSlots(
         List<(DateTime Start, DateTime End)> workingHours,
         List<(DateTime Start, DateTime End)> appointments,
-        List<(DateTime Start, DateTime End)> blocks)
+        List<(DateTime Start, DateTime End)> blocks,
+        int durationMinutes = 15)
     {
+        if (durationMinutes <= 0) throw new ArgumentOutOfRangeException(nameof(durationMinutes));
         var availableSlots = new List<(DateTime, DateTime)>();
 
         foreach (var (workStart, workEnd) in workingHours)
@@ -51,7 +53,8 @@ public static class SchedulingHelper
             
             while (current < workEnd)
             {
-                var slotEnd = current.AddMinutes(15);
+                var slotEnd = current.AddMinutes(durationMinutes);
+                if (slotEnd > workEnd) break;
                 
                 // Check if slot overlaps with any appointment or block
                 bool isAvailable = !appointments.Any(a => IsOverlapping(current, slotEnd, a.Start, a.End))
@@ -62,7 +65,7 @@ public static class SchedulingHelper
                     availableSlots.Add((current, slotEnd));
                 }
                 
-                current = slotEnd;
+                current = current.AddMinutes(15);
             }
         }
         

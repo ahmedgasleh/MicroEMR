@@ -11,6 +11,29 @@ namespace MicroEMR.Web.Services.Scheduling;
 
 public sealed class SchedulingApiClient : ISchedulingApiClient
 {
+    public async Task<MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsResponse> GetNextAvailableAsync(
+        MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsRequest input,
+        CancellationToken cancellationToken = default)
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var uri = QueryHelpers.AddQueryString("api/scheduling/next-available", new Dictionary<string, string?>
+        {
+            ["clinicianUid"] = input.ClinicianUid.ToString(), ["roomUid"] = input.RoomUid?.ToString(),
+            ["startDate"] = input.StartDate.ToString("yyyy-MM-dd", culture),
+            ["horizonDays"] = input.HorizonDays.ToString(culture),
+            ["preferredStart"] = input.PreferredStart?.ToString("HH:mm", culture),
+            ["preferredEnd"] = input.PreferredEnd?.ToString("HH:mm", culture),
+            ["appointmentType"] = input.AppointmentType, ["durationMinutes"] = input.DurationMinutes.ToString(culture),
+            ["timeZoneId"] = input.TimeZoneId
+        });
+        foreach (var day in input.Weekdays ?? []) uri = QueryHelpers.AddQueryString(uri, "weekdays", day.ToString(culture));
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsResponse>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("The API returned no availability result.");
+    }
     private readonly HttpClient _httpClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<SchedulingApiClient> _logger;

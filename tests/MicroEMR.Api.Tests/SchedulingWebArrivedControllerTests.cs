@@ -79,6 +79,7 @@ public sealed class SchedulingWebArrivedControllerTests
         }
 
         public Task<IReadOnlyList<ScheduleResourceResponse>> GetActiveResourcesAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsResponse> GetNextAvailableAsync(MicroEMR.Application.Scheduling.Contracts.NextAvailableAppointmentsRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<SchedulingDaySheetResponse> GetDaySheetAsync(SchedulingDaySheetRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<PatientAppointmentResponse>?> GetPatientAppointmentsAsync(Guid patientUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<ScheduleAppointmentListItemResponse>> GetAppointmentsAsync(DateTime startUtc, DateTime endUtc, Guid? resourceUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();

@@ -83,6 +83,15 @@ public sealed class SchedulingController : ControllerBase
     private long GetAuthenticatedUserId() =>
         ClinicalUserActorContext.GetRequired(HttpContext);
 
+    [HttpGet("next-available")]
+    public async Task<IActionResult> GetNextAvailable([FromQuery] NextAvailableAppointmentsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        Response.Headers.CacheControl = "no-store";
+        try { return Ok(await _schedulingReadService.GetNextAvailableAsync(request, cancellationToken)); }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
+    }
+
     [HttpGet("day-sheet")]
     public async Task<IActionResult> GetDaySheet(
         [FromQuery] SchedulingDaySheetRequest request, CancellationToken cancellationToken = default)
