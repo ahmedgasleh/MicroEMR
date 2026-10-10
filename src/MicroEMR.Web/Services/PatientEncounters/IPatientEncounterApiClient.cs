@@ -4,6 +4,11 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 
 public interface IPatientEncounterApiClient
 {
+    Task<MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyResponse?> GetChronologyAsync(
+        Guid patientUid, MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyRequest request,
+        CancellationToken token = default) => throw new NotSupportedException();
+    Task<byte[]> GetChronologyEncounterPdfAsync(Guid patientUid, Guid encounterUid,
+        CancellationToken token = default) => throw new NotSupportedException();
     Task<IReadOnlyList<EncounterTemplateListItem>> GetEncounterTemplatesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PatientEncounterListItemResponse>>
         GetByPatientUidAsync(

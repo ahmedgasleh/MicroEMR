@@ -11,6 +11,30 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 public sealed class PatientEncounterApiClient
     : IPatientEncounterApiClient
 {
+    public async Task<MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyResponse?> GetChronologyAsync(
+        Guid patientUid, MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyRequest criteria,
+        CancellationToken token = default)
+    {
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"api/patients/{patientUid}/encounter-chronology", new Dictionary<string, string?> {
+                ["startDate"] = criteria.StartDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                ["endDate"] = criteria.EndDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                ["direction"] = criteria.Direction, ["timeZoneId"] = criteria.TimeZoneId });
+        using var request = new HttpRequestMessage(HttpMethod.Get, query);
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, token);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        await EnsureSuccessAsync(response, token);
+        return await response.Content.ReadFromJsonAsync<MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyResponse>(cancellationToken: token);
+    }
+    public async Task<byte[]> GetChronologyEncounterPdfAsync(Guid patientUid, Guid encounterUid, CancellationToken token = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/patients/{patientUid}/encounter-chronology/encounters/{encounterUid}/final-pdf");
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, token);
+        await EnsureSuccessAsync(response, token);
+        return await response.Content.ReadAsByteArrayAsync(token);
+    }
     public async Task<byte[]> GetFinalPdfAsync(Guid encounterUid, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"api/patient-encounters/{encounterUid}/final-pdf");

@@ -8,6 +8,27 @@ namespace MicroEMR.Infrastructure.PatientResults;
 
 public sealed class PatientResultRepository(ITenantSqlConnectionFactory connectionFactory) : IPatientResultRepository
 {
+    public async Task<IReadOnlyList<PatientResultResponse>> ListChronologyAsync(Guid patientUid, CancellationToken token = default)
+    {
+        // Chronological history must include corrected and entered-in-error records, unlike the current-result list.
+        await using var connection = await connectionFactory.OpenConnectionAsync(token);
+        await using var command = new SqlCommand("""
+            SELECT r.*, cu.DisplayName AS CreatedByDisplayName, uu.DisplayName AS UpdatedByDisplayName,
+                ru.DisplayName AS ReviewedByDisplayName, eu.DisplayName AS EnteredInErrorByDisplayName
+            FROM dbo.PatientResult AS r
+            LEFT JOIN dbo.ApplicationUser AS cu ON cu.UserId=r.CreatedBy
+            LEFT JOIN dbo.ApplicationUser AS uu ON uu.UserId=r.UpdatedBy
+            LEFT JOIN dbo.ApplicationUser AS ru ON ru.UserId=r.ReviewedBy
+            LEFT JOIN dbo.ApplicationUser AS eu ON eu.UserId=r.EnteredInErrorBy
+            WHERE r.PatientUid=@PatientUid
+            ORDER BY r.ResultDate, r.PatientResultUid;
+            """, connection);
+        Parameter(command, "@PatientUid", SqlDbType.UniqueIdentifier, patientUid);
+        var records = new List<PatientResultResponse>();
+        await using var reader = await command.ExecuteReaderAsync(token);
+        while (await reader.ReadAsync(token)) records.Add(Map(reader));
+        return records;
+    }
     public async Task<int> GetUnreviewedCount(CancellationToken token = default)
     {
         await using var connection = await connectionFactory.OpenConnectionAsync(token);

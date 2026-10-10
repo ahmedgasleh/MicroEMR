@@ -1,0 +1,74 @@
+@model MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyResponse
+@{
+    Layout = "_AppLayout";
+    ViewData["Title"] = "Chronological Encounter Documentation";
+}
+<div class="container-fluid py-3" id="encounterChronology">
+    <div class="d-print-none mb-3">
+        <a asp-controller="Patients" asp-action="Details" asp-route-patientUid="@Model.PatientUid" asp-route-tab="encounters" class="btn btn-outline-secondary">Back to chart</a>
+        <button type="button" class="btn btn-primary" id="printEncounterChronology">Print selected content</button>
+        <form method="get" asp-action="Chronology" class="d-flex gap-2 align-items-end flex-wrap mt-3">
+            <input type="hidden" name="patientUid" value="@Model.PatientUid" />
+            <div><label for="chronologyStart" class="form-label">From (inclusive)</label><input type="date" id="chronologyStart" name="startDate" class="form-control" value="@Model.Criteria.StartDate?.ToString("yyyy-MM-dd")" /></div>
+            <div><label for="chronologyEnd" class="form-label">To (inclusive)</label><input type="date" id="chronologyEnd" name="endDate" class="form-control" value="@Model.Criteria.EndDate?.ToString("yyyy-MM-dd")" /></div>
+            <div><label for="chronologyDirection" class="form-label">Order</label><select name="direction" id="chronologyDirection" class="form-select">
+                <option value="Ascending" selected="@(Model.Criteria.Direction == "Ascending")">Oldest first</option>
+                <option value="Descending" selected="@(Model.Criteria.Direction == "Descending")">Newest first</option>
+            </select></div>
+            <button type="submit" class="btn btn-outline-primary">Apply</button>
+        </form>
+    </div>
+    <header class="border-bottom pb-2 mb-3">
+        <h1 class="h3">Chronological Encounter Documentation</h1>
+        <div><strong>@Model.PatientName</strong> · Chart @Model.ChartNumber · DOB @Model.DateOfBirth.ToString("yyyy-MM-dd") · HCN @(Model.HealthCardNumber ?? "Not recorded")</div>
+        <div>Patient ID: @Model.PatientUid</div>
+        <div>Range: @(Model.Criteria.StartDate?.ToString("yyyy-MM-dd") ?? "Beginning") – @(Model.Criteria.EndDate?.ToString("yyyy-MM-dd") ?? "Present") · @Model.Criteria.Direction · Time zone: @Model.Criteria.TimeZoneId</div>
+        <div class="small">Generated @Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC. Patient documents use creation date; files use document date, received date or upload date. Date-only records retain their recorded date.</div>
+    </header>
+    @if (!Model.IsComplete)
+    {
+        <div class="alert alert-warning" role="alert"><strong>Incomplete output.</strong> Restricted or unavailable material is identified below. Do not treat this printout as complete clinical documentation.</div>
+    }
+    @foreach (var warning in Model.Qualifications) { <p class="alert alert-warning">@warning</p> }
+    <p class="small">Attachments identified below are separate printable materials. Their full identity is retained on paper; open/download each available attachment for printing. Patient-level material has no recorded encounter association; no association is inferred from its date.</p>
+    @if (Model.Entries.Count == 0) { <p>No clinical documentation in the selected range.</p> }
+    @foreach (var entry in Model.Entries)
+    {
+        <article class="chronology-entry border-bottom pb-3 mb-3">
+            <h2 class="h5">@entry.ClinicalDate.ToString("yyyy-MM-dd") — @entry.Title</h2>
+            <div class="small">@entry.SourceType · @entry.Status · Record: @entry.SourceUid</div>
+            <div class="small">@(entry.EncounterUid.HasValue ? "Encounter: " + entry.EncounterUid : "Patient-level material — no recorded encounter association")</div>
+            @if (entry.ClinicalDateTimeUtc.HasValue) { <div class="small">Source timestamp: @entry.ClinicalDateTimeUtc.Value.ToString("O") UTC</div> }
+            @if (!string.IsNullOrWhiteSpace(entry.Content)) { <div class="chronology-content mt-2">@entry.Content</div> }
+            @if (entry.Warning is not null) { <p class="alert alert-warning mt-2">@entry.Warning</p> }
+            @if (entry.Attachment is { } attachment)
+            {
+                <div class="mt-2"><strong>Printable attachment reference:</strong> @attachment.Identity</div>
+                @if (attachment.Available)
+                {
+                    var link = attachment.Kind switch {
+                        "EncounterPdf" => Url.Action("ChronologyAttachment", "PatientEncounters", new { patientUid = Model.PatientUid, encounterUid = attachment.SourceUid }),
+                        "DocumentPdf" => Url.Action("FinalPdf", "PatientDocuments", new { patientUid = Model.PatientUid, documentUid = attachment.SourceUid }),
+                        "PrescriptionPdf" => Url.Action("Artifact", "PatientPrescriptions", new { patientUid = Model.PatientUid, prescriptionUid = attachment.SourceUid }),
+                        "ReferralPdf" => Url.Action("Letter", "PatientReferrals", new { patientUid = Model.PatientUid, referralUid = attachment.SourceUid, preview = false }),
+                        "PatientFile" => $"/patients/{Model.PatientUid}/files/{attachment.SourceUid}/content",
+                        _ => null
+                    };
+                    if (link is not null) { <a href="@link" target="_blank" rel="noopener" class="d-print-none">Open printable attachment — @attachment.SourceUid</a> }
+                }
+            }
+        </article>
+    }
+</div>
+<style>
+    .chronology-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+    @@media print {
+        .app-sidebar, .app-topbar, .app-footer, .d-print-none { display: none !important; }
+        .app-wrapper { height: auto !important; margin-left: 0 !important; overflow: visible !important; }
+        .app-main { padding: 0 !important; overflow: visible !important; }
+        body { background: white; font-size: 10pt; }
+        h2 { break-after: avoid; }
+        .chronology-content, .chronology-entry { overflow: visible; }
+    }
+</style>
+@section Scripts { <script type="module" src="~/dist/encounters/chronology.js" asp-append-version="true"></script> }

@@ -18,6 +18,41 @@ namespace MicroEMR.Web.Controllers;
 [RequireWebPermission(PermissionKeys.EncountersView)]
 public sealed class PatientEncountersController : Controller
 {
+    [HttpGet, RequireWebPermission(PermissionKeys.PatientsView)]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterView)]
+    public async Task<IActionResult> Chronology(Guid patientUid,
+        MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyRequest request, CancellationToken token)
+    {
+        if (!ModelState.IsValid || patientUid == Guid.Empty) return BadRequest("Select valid chronological criteria.");
+        request.TimeZoneId = TimeZoneInfo.Local.Id;
+        Response.Headers.CacheControl = "no-store";
+        try
+        {
+            var content = await _encounterApiClient.GetChronologyAsync(patientUid, request, token);
+            return content is null ? NotFound() : View(content);
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (HttpRequestException error) when (error.StatusCode is HttpStatusCode.BadRequest) { return BadRequest("Select a valid date range and direction."); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception error)
+        {
+            _logger.LogError(error, "Could not load chronological documentation for patient {PatientUid}.", patientUid);
+            return StatusCode(503, "Chronological documentation is unavailable. Retry before printing.");
+        }
+    }
+
+    [HttpGet, RequireWebPermission(PermissionKeys.PatientsView)]
+    [SensitiveCapability(SecurityAuditCapabilities.EncounterView)]
+    public async Task<IActionResult> ChronologyAttachment(Guid patientUid, Guid encounterUid, CancellationToken token)
+    {
+        if (patientUid == Guid.Empty || encounterUid == Guid.Empty) return BadRequest();
+        Response.Headers.CacheControl = "no-store";
+        try { return File(await _encounterApiClient.GetChronologyEncounterPdfAsync(patientUid, encounterUid, token), "application/pdf"); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (HttpRequestException error) when (error.StatusCode is HttpStatusCode.NotFound) { return NotFound(); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception error) { _logger.LogError(error, "Could not open chronology attachment {EncounterUid}.", encounterUid); return StatusCode(503); }
+    }
     [HttpGet]
     public async Task<IActionResult> FinalPdf(Guid encounterUid, CancellationToken cancellationToken)
     {
