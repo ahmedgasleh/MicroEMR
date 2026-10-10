@@ -1,0 +1,11 @@
+<section id="encounterDiagnoses" class="col-12" data-url="@Url.Action("Get","EncounterDiagnoses")">
+    <h3 class="fs-6">Discrete diagnoses</h3>
+    <p class="small text-body-secondary">Diagnoses are saved separately from note text. Choose explicitly whether to include the current list in CPP.</p>
+    <div id="encounterDiagnosisRows"></div>
+    <button id="addEncounterDiagnosis" type="button" class="btn btn-outline-secondary btn-sm" disabled>Add diagnosis</button>
+    <div class="d-flex gap-2 mt-3">
+        <button id="saveEncounterDiagnosesOnly" type="button" class="btn btn-primary btn-sm" disabled>Save to Encounter Only</button>
+        <button id="saveEncounterDiagnosesCpp" type="button" class="btn btn-outline-primary btn-sm" disabled>Save to Encounter and CPP</button>
+    </div>
+    <p id="encounterDiagnosisMessage" class="small mt-2" role="status"></p>
+</section>

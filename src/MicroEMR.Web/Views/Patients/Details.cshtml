@@ -1423,6 +1423,7 @@
                             <h3 class="fs-6">Reason for Visit</h3>
                             <p class="mb-0 text-break" id="encounterDetailsReason"></p>
                         </div>
+                        <partial name="_EncounterDiagnoses" />
                         <div class="col-12">
                             <div id="encounterStructuredTemplate" class="d-none">
                                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -1751,6 +1752,7 @@ document.addEventListener("DOMContentLoaded", () => {
 <script type="module" src="~/dist/patients/recent-patients.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/cpp-display-preferences.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/cpp-print.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patient-encounters/diagnoses.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-clinical-history.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-appointments.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-immunizations.js" asp-append-version="true"></script>
@@ -1885,7 +1887,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById(valueId).textContent = value || "";
     };
 
+    document.addEventListener("encounter-diagnoses-saved", event => {
+        const saved = event.detail;
+        if (saved.encounterUid === currentEncounterUid && saved.patientUid === currentPatientUid) {
+            if (currentStructuredEncounter) currentStructuredEncounter.rowVersion = saved.rowVersion;
+            resetEncounterHistory();
+        }
+    });
+
     const applyEncounterDetails = encounter => {
+        document.dispatchEvent(new CustomEvent("encounter-diagnoses-context", { detail: encounter }));
         setText("encounterDetailsDate", formatDate(encounter.encounterDateUtc));
         setText("encounterDetailsType", encounter.encounterType);
         setText("encounterDetailsStatus", encounter.status);
