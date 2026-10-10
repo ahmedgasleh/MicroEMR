@@ -193,6 +193,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 a.Reason,
                 a.AppointmentType,
                 a.IsCritical,
+                a.IsAdHoc,
                 a.StartDateTimeUtc,
                 a.EndDateTimeUtc,
                 sr.ResourceUid AS PrimaryResourceUid,
@@ -295,6 +296,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                     AppointmentType =
                         GetNullableString(reader, "AppointmentType"),
                     IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
+                    IsAdHoc = reader.GetBoolean(reader.GetOrdinal("IsAdHoc")),
                     StartDateTimeUtc = SpecifyUtc(
                         reader.GetDateTime(
                             reader.GetOrdinal("StartDateTimeUtc"))),
@@ -356,6 +358,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             Reason = GetNullableString(reader, "Reason"),
             Notes = GetNullableString(reader, "Notes"),
             IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
+            IsAdHoc = reader.GetBoolean(reader.GetOrdinal("IsAdHoc")),
             Status = reader.GetString(reader.GetOrdinal("Status")),
             PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
             ChartNumber = reader.GetString(reader.GetOrdinal("ChartNumber")),
@@ -400,6 +403,7 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
             {
                 Date = reader.GetDateTime(reader.GetOrdinal("AppointmentDate")),
                 AppointmentCount = reader.GetInt32(reader.GetOrdinal("AppointmentCount")),
+                AdHocCount = reader.GetInt32(reader.GetOrdinal("AdHocCount")),
                 ProviderCount = reader.GetInt32(reader.GetOrdinal("ProviderCount")),
                 Status = reader.GetString(reader.GetOrdinal("Status"))
             });

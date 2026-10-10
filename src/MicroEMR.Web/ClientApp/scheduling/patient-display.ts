@@ -1,5 +1,6 @@
 interface SchedulePatientDisplayData {
     eventKind?: string;
+    isAdHoc?: boolean;
     html?: string;
     text?: string | null;
     patientDisplayName?: string | null;
@@ -45,11 +46,12 @@ class SchedulePatientDisplay {
 
     render(appointment: SchedulePatientDisplayData): string {
         const name = encode(value(appointment.patientDisplayName));
-        if (!this.expanded) return name;
+        const mode = appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "";
+        if (!this.expanded) return mode + name;
         const lineStyle = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
         return `<div style="width:100%;min-width:0;padding-right:22px;font-size:11px;line-height:13px">`
             + `<div style="${lineStyle}">${encode(this.identifiers(appointment))}</div>`
-            + `<div style="${lineStyle}">${encode(this.description(appointment))}</div></div>`;
+            + `<div style="${lineStyle}">${mode}${encode(this.description(appointment))}</div></div>`;
     }
 
     private identifiers(appointment: SchedulePatientDisplayData): string {
@@ -63,13 +65,14 @@ class SchedulePatientDisplay {
     }
 
     private tooltip(appointment: SchedulePatientDisplayData): string {
-        if (!this.expanded) return value(appointment.patientDisplayName);
-        return `${this.identifiers(appointment)}\n${this.description(appointment)}`;
+        const mode = appointment.isAdHoc ? "Ad-hoc · " : "";
+        if (!this.expanded) return mode + value(appointment.patientDisplayName);
+        return `${this.identifiers(appointment)}\n${mode}${this.description(appointment)}`;
     }
 
     apply<T extends SchedulePatientDisplayData>(events: T[]): T[] {
         return events.map(event => event.eventKind === "appointment" ? {
-            ...event, text: value(event.patientDisplayName), html: this.render(event), toolTip: this.tooltip(event)
+            ...event, text: (event.isAdHoc ? "Ad-hoc · " : "") + value(event.patientDisplayName), html: this.render(event), toolTip: this.tooltip(event)
         } : event);
     }
 }

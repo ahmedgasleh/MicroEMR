@@ -144,7 +144,8 @@ public sealed class SchedulingController : Controller
                     AppointmentType = model.AppointmentType,
                     Reason = model.Reason,
                     Notes = model.Notes,
-                    IsCritical = model.IsCritical
+                    IsCritical = model.IsCritical,
+                    IsAdHoc = model.IsAdHoc
                 }, cancellationToken);
 
             return Json(new { success = true, appointmentUid = appointment.AppointmentUid });
@@ -355,6 +356,7 @@ public sealed class SchedulingController : Controller
 
     [HttpPost("UpdateAppointment")]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.SchedulingManage)]
     public async Task<IActionResult> UpdateAppointment(
         UpdateAppointmentViewModel model,
         CancellationToken cancellationToken)
@@ -385,7 +387,8 @@ public sealed class SchedulingController : Controller
                     AppointmentType = model.AppointmentType,
                     Reason = model.Reason,
                     Notes = model.Notes,
-                    IsCritical = model.IsCritical
+                    IsCritical = model.IsCritical,
+                    IsAdHoc = model.IsAdHoc
                 },
                 cancellationToken);
             if (result is null)
@@ -415,6 +418,7 @@ public sealed class SchedulingController : Controller
 
     [HttpPost("RescheduleAppointment")]
     [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.SchedulingManage)]
     public async Task<IActionResult> RescheduleAppointment(
         RescheduleAppointmentViewModel model,
         CancellationToken cancellationToken)
@@ -514,6 +518,7 @@ public sealed class SchedulingController : Controller
                 appointment.Reason,
                 appointment.Notes,
                 appointment.IsCritical,
+                appointment.IsAdHoc,
                 appointment.Status,
                 appointment.LinkedEncounterUid,
                 appointment.LinkedEncounterStatus,
@@ -699,6 +704,7 @@ public sealed class SchedulingController : Controller
                     appointmentType = appointment.AppointmentType,
                     status = appointment.Status,
                     isCritical = appointment.IsCritical,
+                    isAdHoc = appointment.IsAdHoc,
                     reason = appointment.Reason,
                     primaryResourceName = appointment.PrimaryResourceName
                 });
@@ -751,6 +757,7 @@ public sealed class SchedulingController : Controller
             {
                 date = item.Date,
                 item.AppointmentCount,
+                item.AdHocCount,
                 item.ProviderCount,
                 item.Status
             }));

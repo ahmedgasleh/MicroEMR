@@ -105,3 +105,26 @@ test('critical badge is positioned outside text flow so it cannot consume the fi
     assert.match(badge, /right:\s*24px/);
     assert.match(view, /\.scheduling-critical-appointment \.calendar_default_event_inner\s*\{\s*padding-right:\s*76px !important/);
 });
+
+test('ad-hoc mode labels each overlapping appointment in both display modes and hover', () => {
+    const f = fixture();
+    const source = [
+        { ...appointment, eventKind: 'appointment', id: 'ordinary', start: '2030-01-04T08:00', isAdHoc: false },
+        { ...appointment, eventKind: 'appointment', id: 'adhoc', start: '2030-01-04T08:00', isAdHoc: true }
+    ];
+    for (const mode of ['name', 'details']) {
+        f.select(mode);
+        const events = f.display.apply(source);
+        assert.equal(events.length, 2);
+        assert.equal(events[0].id, 'ordinary'); assert.equal(events[1].id, 'adhoc');
+        assert.ok(!events[0].html.includes('Ad-hoc'));
+        assert.ok(events[1].html.includes('<strong>Ad-hoc</strong>'));
+        assert.ok(events[1].text.includes('Ad-hoc')); assert.ok(events[1].toolTip.includes('Ad-hoc'));
+    }
+    const view = fs.readFileSync(path.join(__dirname, '../src/MicroEMR.Web/Views/Scheduling/Index.cshtml'), 'utf8');
+    assert.match(view, /scheduling-ad-hoc-appointment.*calendar_default_event_inner/);
+    assert.match(view, /EditIsAdHoc.*checked = Boolean\(currentAppointmentDetails.isAdHoc\)/);
+    const print = fs.readFileSync(path.join(__dirname, '../src/MicroEMR.Web/Views/Scheduling/PrintDaySheet.cshtml'), 'utf8');
+    assert.match(print, /foreach \(var appointment in Model.Appointments\)/);
+    assert.match(print, /appointment.IsAdHoc.*Ad-hoc/);
+});

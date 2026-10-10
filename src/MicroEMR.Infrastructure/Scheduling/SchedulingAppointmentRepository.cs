@@ -37,6 +37,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         AddNullableString(command, "@Reason", 500, request.Reason);
         AddNullableString(command, "@Notes", 1000, request.Notes);
         command.Parameters.Add(new SqlParameter("@IsCritical", SqlDbType.Bit) { Value = request.IsCritical });
+        command.Parameters.Add(new SqlParameter("@IsAdHoc", SqlDbType.Bit) { Value = request.IsAdHoc });
         command.Parameters.AddWithValue("@CreatedBy", (object?)createdBy ?? DBNull.Value);
 
 
@@ -57,6 +58,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 Reason = GetNullableString(reader, "Reason"),
                 AppointmentType = GetNullableString(reader, "AppointmentType"),
                 IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
+                IsAdHoc = reader.GetBoolean(reader.GetOrdinal("IsAdHoc")),
                 StartDateTimeUtc = DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("StartDateTimeUtc")), DateTimeKind.Utc),
                 EndDateTimeUtc = DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("EndDateTimeUtc")), DateTimeKind.Utc),
                 PrimaryResourceUid = reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid"))
@@ -143,6 +145,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         AddNullableString(command, "@Reason", 500, request.Reason);
         AddNullableString(command, "@Notes", 1000, request.Notes);
         command.Parameters.Add(new SqlParameter("@IsCritical", SqlDbType.Bit) { Value = request.IsCritical });
+        command.Parameters.Add(new SqlParameter("@IsAdHoc", SqlDbType.Bit) { Value = request.IsAdHoc });
         command.Parameters.Add(new SqlParameter("@ModifiedBy", SqlDbType.BigInt)
         {
             Value = (object?)modifiedBy ?? DBNull.Value
@@ -167,6 +170,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 Reason = GetNullableString(reader, "Reason"),
                 Notes = GetNullableString(reader, "Notes"),
                 IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
+                IsAdHoc = reader.GetBoolean(reader.GetOrdinal("IsAdHoc")),
                 Status = reader.GetString(reader.GetOrdinal("Status")),
                 PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
                 ChartNumber = reader.GetString(reader.GetOrdinal("ChartNumber")),
@@ -465,6 +469,8 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         AppointmentType = GetNullableString(reader, "AppointmentType"),
         Reason = GetNullableString(reader, "Reason"),
         Notes = GetNullableString(reader, "Notes"),
+        IsAdHoc = reader.GetBoolean(reader.GetOrdinal("IsAdHoc")),
+        IsCritical = reader.GetBoolean(reader.GetOrdinal("IsCritical")),
         Status = reader.GetString(reader.GetOrdinal("Status")),
         PatientDisplayName = reader.GetString(reader.GetOrdinal("PatientDisplayName")),
         ChartNumber = reader.GetString(reader.GetOrdinal("ChartNumber")),

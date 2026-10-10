@@ -2,6 +2,7 @@ namespace MicroEMR.Application.Scheduling.Contracts;
 
 public sealed class ScheduleAppointmentListItemResponse
 {
+    public bool IsAdHoc { get; set; }
     public Guid AppointmentUid { get; set; }
 
     public Guid PatientUid { get; set; }

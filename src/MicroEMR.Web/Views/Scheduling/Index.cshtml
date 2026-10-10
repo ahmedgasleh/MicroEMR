@@ -460,6 +460,10 @@
                 min-width: 680px;
             }
 
+            .scheduling-ad-hoc-appointment .calendar_default_event_inner {
+                border-left: 4px dashed #6f42c1 !important;
+            }
+
             #schedulingMonthView {
                 max-width: 100%;
                 overflow-x: auto;
@@ -785,6 +789,11 @@
                         </div>
                         <div class="col-12">
                             <div class="form-check">
+                                <input id="EditIsAdHoc" name="IsAdHoc" value="true" type="checkbox" class="form-check-input" />
+                                <label for="EditIsAdHoc" class="form-check-label">Ad-hoc appointment (allow clinician overlap)</label>
+                                <div class="form-text">Room conflicts and blocked time still apply.</div>
+                            </div>
+                            <div class="form-check mt-2">
                                 <input id="EditIsCritical" name="IsCritical" value="true" type="checkbox" class="form-check-input" />
                                 <label for="EditIsCritical" class="form-check-label">Critical appointment</label>
                             </div>
@@ -1002,6 +1011,11 @@
                         </div>
                         <div class="col-12">
                             <div class="form-check">
+                                <input id="IsAdHoc" name="IsAdHoc" value="true" type="checkbox" class="form-check-input" />
+                                <label for="IsAdHoc" class="form-check-label">Ad-hoc appointment (allow clinician overlap)</label>
+                                <div class="form-text">Room conflicts and blocked time still apply.</div>
+                            </div>
+                            <div class="form-check mt-2">
                                 <input id="IsCritical" name="IsCritical" value="true" type="checkbox" class="form-check-input" />
                                 <label for="IsCritical" class="form-check-label">Critical appointment</label>
                             </div>
@@ -1252,6 +1266,9 @@ else
                 timeRangeSelectedHandling: canManageScheduling ? "Enabled" : "Disabled",
                 onBeforeEventRender: args => {
                     if (args.data.eventKind !== "appointment") return;
+                    if (args.data.isAdHoc) {
+                        args.data.cssClass = `${args.data.cssClass || ""} scheduling-ad-hoc-appointment`.trim();
+                    }
                     if (args.data.isCritical) {
                         args.data.cssClass = `${args.data.cssClass || ""} scheduling-critical-appointment`.trim();
                     }
@@ -1757,7 +1774,7 @@ else
                 setDetailsText("detailsPatient", details.patientDisplayName);
                 setDetailsText("detailsChartNumber", details.chartNumber);
                 setDetailsText("detailsStatus", details.status);
-                setDetailsText("detailsPriority", details.isCritical ? "Critical" : "Standard");
+                setDetailsText("detailsPriority", `${details.isCritical ? "Critical" : "Standard"}${details.isAdHoc ? " · Ad-hoc" : ""}`);
                 setDetailsText("detailsDate", start.toLocaleDateString());
                 setDetailsText("detailsStartTime", start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
                 setDetailsText("detailsEndTime", end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
@@ -1971,6 +1988,7 @@ else
             document.getElementById("EditReason").value = currentAppointmentDetails.reason || "";
             document.getElementById("EditNotes").value = currentAppointmentDetails.notes || "";
             document.getElementById("EditIsCritical").checked = Boolean(currentAppointmentDetails.isCritical);
+            document.getElementById("EditIsAdHoc").checked = Boolean(currentAppointmentDetails.isAdHoc);
 
             appointmentDetailsModalElement.addEventListener(
                 "hidden.bs.modal",
@@ -2640,7 +2658,7 @@ else
                 if (key === todayKey) cell.classList.add("is-today");
                 if (key === selectedKey) cell.classList.add("is-selected");
                 cell.innerHTML = `<div class="scheduling-month-day-number">${day}</div>` +
-                    `<div class="scheduling-month-day-summary">${count} ${count === 1 ? "appointment" : "appointments"}<br>${status}</div>`;
+                    `<div class="scheduling-month-day-summary">${count} ${count === 1 ? "appointment" : "appointments"}${item?.adHocCount ? `<br><strong>${item.adHocCount} Ad-hoc</strong>` : ""}<br>${status}</div>`;
                 cell.addEventListener("click", async () => {
                     selectedDate = new DayPilot.Date(key);
                     selectedMonthDate = date;

@@ -79,7 +79,7 @@ public sealed class NextAvailableSqlDatabase : IAsyncLifetime
     private readonly string _name = "MicroEMR_Step71_" + Guid.NewGuid().ToString("N");
     private readonly string _other = "MicroEMR_Step71_" + Guid.NewGuid().ToString("N");
     private readonly string? _server = Environment.GetEnvironmentVariable("MICROEMR_SCHEDULING_SEARCH_TEST_CONNECTION");
-    private string Connection => new SqlConnectionStringBuilder(_server) { InitialCatalog = _name }.ConnectionString;
+    public string Connection => new SqlConnectionStringBuilder(_server) { InitialCatalog = _name }.ConnectionString;
     public string OtherConnection => new SqlConnectionStringBuilder(_server) { InitialCatalog = _other }.ConnectionString;
     public SchedulingReadRepository Reads => new(new Factory(Connection), NullLogger<SchedulingReadRepository>.Instance);
     public SchedulingAppointmentRepository Appointments => new(new Factory(Connection));
@@ -100,7 +100,7 @@ public sealed class NextAvailableSqlDatabase : IAsyncLifetime
                 CREATE TABLE dbo.AuditLog(AuditLogId bigint IDENTITY, UserId bigint, PatientId bigint, ActionName nvarchar(100), EntityName nvarchar(100), EntityId nvarchar(100), OldValue nvarchar(max), NewValue nvarchar(max), CreatedAt datetime2);
                 """, sql).ExecuteNonQueryAsync();
             var root = Root();
-            foreach (var path in new[] { "db/scheduling_stored_procedures.sql", "db/tenant-clinical/migrations/0042-scheduling-critical-appointments.sql" })
+            foreach (var path in new[] { "db/scheduling_stored_procedures.sql", "db/tenant-clinical/migrations/0042-scheduling-critical-appointments.sql", "db/tenant-clinical/migrations/0070-scheduling-ad-hoc-overlap.sql" })
                 foreach (var batch in Regex.Split(File.ReadAllText(Path.Combine(root, path)), @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase).Where(x => !string.IsNullOrWhiteSpace(x)))
                     await new SqlCommand(batch, sql).ExecuteNonQueryAsync();
         }
@@ -110,7 +110,7 @@ public sealed class NextAvailableSqlDatabase : IAsyncLifetime
         var patient = Guid.NewGuid(); var provider = Guid.NewGuid(); var room = Guid.NewGuid();
         await using var sql = new SqlConnection(Connection); await sql.OpenAsync();
         using var command = new SqlCommand("""
-            INSERT dbo.Patient(PatientUid,IsDeleted,FirstName,LastName) VALUES(@p,0,N'Test',N'Patient');
+            INSERT dbo.Patient(PatientUid,IsDeleted,FirstName,LastName,ChartNumber) VALUES(@p,0,N'Test',N'Patient',N'TEST');
             INSERT dbo.ScheduleResource(ResourceUid,ResourceType,DisplayName,IsActive) VALUES(@provider,N'Provider',N'Test provider',1),(@room,N'Room',N'Test room',1);
             """, sql);
         command.Parameters.AddWithValue("@p", patient); command.Parameters.AddWithValue("@provider", provider); command.Parameters.AddWithValue("@room", room);

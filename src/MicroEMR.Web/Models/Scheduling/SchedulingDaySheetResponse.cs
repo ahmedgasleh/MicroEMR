@@ -21,6 +21,7 @@ public sealed class SchedulingDaySheetResponse
 
 public sealed class SchedulingDaySheetRow
 {
+    public bool IsAdHoc { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public DateTime StartDateTimeUtc { get; set; }
     public DateTime EndDateTimeUtc { get; set; }

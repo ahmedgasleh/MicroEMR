@@ -35,7 +35,7 @@
                         – <time data-day-sheet-time datetime="@appointment.EndDateTimeUtc.ToString("O")">@appointment.EndDateTimeUtc.ToString("HH:mm") UTC</time>
                     </td>
                     <td>@appointment.ClinicianName</td>
-                    <td>@appointment.Status</td>
+                    <td>@appointment.Status @if (appointment.IsAdHoc) { <strong> · Ad-hoc</strong> }</td>
                 </tr>
             }
             </tbody>

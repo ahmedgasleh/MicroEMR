@@ -68,5 +68,6 @@
   { "migrationId": "0066-patient-alternative-contacts", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0066-patient-alternative-contacts.sql" },
   { "migrationId": "0067-cpp-display-preferences", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0067-cpp-display-preferences.sql" },
   { "migrationId": "0068-referral-report-content", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0068-referral-report-content.sql" },
-  { "migrationId": "0069-encounter-diagnoses", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0069-encounter-diagnoses.sql" }
+  { "migrationId": "0069-encounter-diagnoses", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0069-encounter-diagnoses.sql" },
+  { "migrationId": "0070-scheduling-ad-hoc-overlap", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0070-scheduling-ad-hoc-overlap.sql" }
 ]

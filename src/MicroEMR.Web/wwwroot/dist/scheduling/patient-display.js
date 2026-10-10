@@ -30,12 +30,13 @@ class SchedulePatientDisplay {
     }
     render(appointment) {
         const name = encode(value(appointment.patientDisplayName));
+        const mode = appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "";
         if (!this.expanded)
-            return name;
+            return mode + name;
         const lineStyle = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
         return `<div style="width:100%;min-width:0;padding-right:22px;font-size:11px;line-height:13px">`
             + `<div style="${lineStyle}">${encode(this.identifiers(appointment))}</div>`
-            + `<div style="${lineStyle}">${encode(this.description(appointment))}</div></div>`;
+            + `<div style="${lineStyle}">${mode}${encode(this.description(appointment))}</div></div>`;
     }
     identifiers(appointment) {
         return `HCN: ${value(appointment.patientHealthCardNumber)} · DOB: ${birthDate(appointment.patientDateOfBirth)}`
@@ -46,13 +47,14 @@ class SchedulePatientDisplay {
         return value(appointment.patientDisplayName) + (reason ? ` — ${reason}` : "");
     }
     tooltip(appointment) {
+        const mode = appointment.isAdHoc ? "Ad-hoc · " : "";
         if (!this.expanded)
-            return value(appointment.patientDisplayName);
-        return `${this.identifiers(appointment)}\n${this.description(appointment)}`;
+            return mode + value(appointment.patientDisplayName);
+        return `${this.identifiers(appointment)}\n${mode}${this.description(appointment)}`;
     }
     apply(events) {
         return events.map(event => event.eventKind === "appointment" ? {
-            ...event, text: value(event.patientDisplayName), html: this.render(event), toolTip: this.tooltip(event)
+            ...event, text: (event.isAdHoc ? "Ad-hoc · " : "") + value(event.patientDisplayName), html: this.render(event), toolTip: this.tooltip(event)
         } : event);
     }
 }

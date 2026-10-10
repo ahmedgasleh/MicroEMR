@@ -4,6 +4,7 @@ namespace MicroEMR.Web.Models.Scheduling;
 
 public sealed class UpdateAppointmentViewModel
 {
+    public bool IsAdHoc { get; set; }
     public Guid AppointmentUid { get; set; }
     public Guid PrimaryResourceUid { get; set; }
     public Guid? RoomResourceUid { get; set; }

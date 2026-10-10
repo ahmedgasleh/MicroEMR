@@ -134,6 +134,7 @@ public sealed class SchedulingReadService : ISchedulingReadService
             Appointments = ordered
                 .Select(appointment => new SchedulingDaySheetRow
                 {
+                    IsAdHoc = appointment.IsAdHoc,
                     PatientName = string.IsNullOrWhiteSpace(appointment.PatientDisplayName)
                         ? "Unknown patient" : appointment.PatientDisplayName.Trim(),
                     StartDateTimeUtc = appointment.StartDateTimeUtc,

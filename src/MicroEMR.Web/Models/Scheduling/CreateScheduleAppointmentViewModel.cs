@@ -4,6 +4,7 @@ namespace MicroEMR.Web.Models.Scheduling;
 
 public sealed class CreateScheduleAppointmentViewModel : IValidatableObject
 {
+    public bool IsAdHoc { get; set; }
     public Guid PatientUid { get; set; }
     public Guid PrimaryResourceUid { get; set; }
     public Guid? RoomResourceUid { get; set; }

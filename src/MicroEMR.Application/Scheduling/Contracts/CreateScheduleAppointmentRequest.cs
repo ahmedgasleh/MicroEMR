@@ -4,6 +4,7 @@ namespace MicroEMR.Application.Scheduling.Contracts;
 
 public sealed class CreateScheduleAppointmentRequest
 {
+    public bool IsAdHoc { get; set; }
     public Guid PatientUid { get; set; }
     public Guid PrimaryResourceUid { get; set; }
     public Guid? RoomResourceUid { get; set; }
