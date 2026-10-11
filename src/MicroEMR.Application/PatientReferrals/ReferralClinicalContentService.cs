@@ -5,6 +5,7 @@ using System.Text;
 using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.PatientAllergies.Services;
 using MicroEMR.Application.PatientEncounters.Services;
+using MicroEMR.Application.PatientEncounters;
 using MicroEMR.Application.PatientMedications.Services;
 using MicroEMR.Application.PatientProblems.Services;
 using MicroEMR.Application.PatientResults;
@@ -104,7 +105,8 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                     Paragraph(html,Join(Date(ClinicDate(encounter.EncounterDateUtc,timeZoneId)),encounter.EncounterType,encounter.ProviderName,encounter.Status));
                     if (encounter.TemplateDefinition is not null && !string.IsNullOrWhiteSpace(encounter.StructuredDataJson))
                     {
-                        var processed = runtime.Process(encounter.TemplateDefinition,encounter.StructuredDataJson);
+                        var processed = runtime.Process(encounter.TemplateDefinition,
+                            EncounterFieldComposition.Compose(encounter.StructuredDataJson, encounter.Contributions));
                         if (!processed.IsValid) throw Missing();
                         Paragraph(html,runtime.RenderSnapshot(encounter.TemplateDefinition,processed.Data!));
                     }
@@ -113,6 +115,14 @@ public sealed class ReferralClinicalContentService(IPatientReferralRepository re
                         Note(html,"Subjective",encounter.SubjectiveNote); Note(html,"Objective",encounter.ObjectiveNote);
                         Note(html,"Assessment",encounter.AssessmentNote); Note(html,"Plan",encounter.PlanNote);
                         Note(html,"Notes",encounter.Notes);
+                    }
+                    foreach (var contribution in encounter.Contributions.Where(c => c.ValueKind == "Narrative"))
+                    {
+                        var label = $"{contribution.FieldLabel ?? contribution.SectionTitle}: {EncounterContributionOutput.Identity(contribution)}";
+                        if (encounter.TemplateDefinition is not null && contribution.FieldKey is not null)
+                            Paragraph(html, label); // Field text is already included in the composed template snapshot.
+                        else
+                            Note(html, label, contribution.Content);
                     }
                     break;
                 case "RESULT":

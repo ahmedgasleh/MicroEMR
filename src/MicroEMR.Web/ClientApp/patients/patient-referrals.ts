@@ -352,14 +352,44 @@ if (patientUid && listRoot && pageMessage && createForm && saveButton && modalMe
         <div class="col-12"><div class="small text-body-secondary">Response Document</div><div>${referral.responseDocumentUid?`<a href="/PatientDocuments/Details?documentUid=${encodeURIComponent(referral.responseDocumentUid)}" target="_blank" rel="noopener">${escapeHtml(referral.responseDocumentTitle||"Open response document")}</a>`:"â€”"}</div></div>
         ${canManage&&(referral.status==="Draft"||referral.status==="Sent")?`<div class="col-12 border-top pt-3"><label class="form-label" for="referralFollowUpDue">Follow-up due</label><div class="input-group"><input class="form-control" type="datetime-local" id="referralFollowUpDue" value="${referral.followUpDueAtUtc?new Date(referral.followUpDueAtUtc).toISOString().slice(0,16):""}"><button class="btn btn-outline-primary" id="saveReferralFollowUp">Save</button>${referral.followUpDueAtUtc?`<button class="btn btn-outline-secondary" id="clearReferralFollowUp">Clear</button>`:""}</div><div class="form-text">Entered manually; no clinical interval is inferred.</div></div>`:""}
         <div class="col-12 border-top pt-3"><div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h6 class="mb-0">Supporting Documents</h6></div><div id="referralSupportingDocuments"><div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading supporting documents...</span></div></div></div>
-        <div class="col-12 border-top pt-3 d-flex flex-wrap gap-2">${referral.status==="Draft"&&canManage?`<button type="button" class="btn btn-outline-secondary" id="editReferralDraft">Edit Draft</button><a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}&preview=true">Preview Letter</a>`:""}${referral.artifactUid?`<a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}">View Referral Letter</a>`:""}${action&&canManage?`<button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button>`:""}<div class="alert alert-danger d-none mt-3 mb-0 w-100" id="patientReferralActionMessage" role="alert"></div></div>
+        <div class="col-12 border-top pt-3 d-flex flex-wrap gap-2">${referral.status==="Draft"&&canManage?`<button type="button" class="btn btn-outline-secondary" id="editReferralDraft">Edit Draft</button><button type="button" class="btn btn-outline-primary" id="previewReferralLetter">Preview Letter</button>`:""}${referral.artifactUid?`<a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid)}&referralUid=${encodeURIComponent(referral.referralUid)}">View Referral Letter</a>`:""}${action&&canManage?`<button type="button" class="btn btn-primary" id="patientReferralLifecycleAction" data-endpoint="${action.endpoint}"${action.confirm ? ` data-confirm="${escapeHtml(action.confirm)}"` : ""}>${escapeHtml(action.label)}</button>`:""}<div class="alert alert-danger d-none mt-3 mb-0 w-100" id="patientReferralActionMessage" role="alert"></div></div>
       </div>`;
       document.querySelector<HTMLButtonElement>("#patientReferralLifecycleAction")
         ?.addEventListener("click", event => void transitionReferral(event.currentTarget as HTMLButtonElement));
       document.querySelector<HTMLButtonElement>("#editReferralDraft")?.addEventListener("click",()=>openEdit(referral));
+      document.querySelector<HTMLButtonElement>("#previewReferralLetter")?.addEventListener("click", event => void previewLetter(event.currentTarget as HTMLButtonElement));
       document.querySelector<HTMLButtonElement>("#saveReferralFollowUp")?.addEventListener("click",()=>void saveFollowUp(false));
       document.querySelector<HTMLButtonElement>("#clearReferralFollowUp")?.addEventListener("click",()=>void saveFollowUp(true));
       void loadSupportingDocuments(referral);
+  }
+
+  async function previewLetter(button: HTMLButtonElement): Promise<void> {
+    if (!selectedReferral || button.disabled) return;
+    const referralUid = selectedReferral.referralUid;
+    const error = document.querySelector<HTMLElement>("#patientReferralActionMessage")!;
+    error.classList.add("d-none");
+    const preview = window.open("", "_blank");
+    button.disabled = true;
+    try {
+      if (!preview) throw new Error("Allow pop-ups to preview the referral letter.");
+      preview.opener = null;
+      const response = await fetch(`/PatientReferrals/Letter?patientUid=${encodeURIComponent(patientUid!)}&referralUid=${encodeURIComponent(referralUid)}&preview=true`);
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({})) as {message?: string};
+        throw new Error(result.message || "The referral letter could not be previewed.");
+      }
+      if (!response.headers.get("Content-Type")?.toLowerCase().startsWith("application/pdf"))
+        throw new Error("The referral letter could not be previewed. Refresh your session and try again.");
+      const url = URL.createObjectURL(await response.blob());
+      preview.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (failure) {
+      preview?.close();
+      if (selectedReferral?.referralUid === referralUid) {
+        error.textContent = failure instanceof Error ? failure.message : "The referral letter could not be previewed.";
+        error.classList.remove("d-none");
+      }
+    } finally { button.disabled = false; }
   }
 
   async function saveFollowUp(clear: boolean): Promise<void> {

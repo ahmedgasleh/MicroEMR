@@ -4,6 +4,9 @@ using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Services;
 using MicroEMR.Application.PatientEncounters.Contracts;
 using MicroEMR.Application.PatientEncounters.Services;
+using MicroEMR.Application.PatientEncounters;
+using MicroEMR.Application.Templates.Serialization;
+using MicroEMR.Application.Templates.Validation;
 using MicroEMR.Application.PatientMedications.Contracts;
 using MicroEMR.Application.PatientMedications.Services;
 using MicroEMR.Application.PatientProblems.Contracts;
@@ -90,6 +93,38 @@ public sealed class ReferralClinicalContentTests
         await Assert.ThrowsAsync<InvalidOperationException>(()=>f.Render()); Assert.Empty(f.Calls);
     }
 
+    [Fact]
+    public async Task RequiredTemplateNoteSavedAsContributionIsIncludedOnceWithoutChangingBaseline()
+    {
+        var runtime = new TemplateInstanceRuntime(new TemplateDefinitionSerializer(new TemplateDefinitionValidator()));
+        var f = new Fixture(runtime);
+        f.Encounter.TemplateDefinition = new() { SchemaVersion = 1, Sections = [new() {Id="note",Key="note",Title="Encounter Note",Order=0,
+            Fields=[new() {Id="text",Key="text",Label="Note",Type="TextArea",Required=true,Order=0}]}] };
+        const string baseline = "{\"schemaVersion\":1,\"values\":{}}";
+        f.Encounter.StructuredDataJson = baseline;
+        f.Encounter.Contributions.Add(new() {FieldKey="text",FieldLabel="Note",SectionKey="note",SectionTitle="Encounter Note",
+            OriginalContributorId=7,OriginalContributorDisplayName="Dr Author",CreatedAtUtc=new(2026,10,11),
+            Revisions=[new(1,"Saved required narrative <text>",7,"Dr Author",new(2026,10,11))]});
+        f.Select(new("ENCOUNTER",EncounterUid:f.Encounter.EncounterUid));
+        Assert.False(runtime.Process(f.Encounter.TemplateDefinition,baseline).IsValid);
+        var html = await f.Render();
+        Assert.Equal(1,html.Split("Saved required narrative &lt;text&gt;").Length-1);
+        Assert.Contains("Dr Author",html); Assert.Equal(baseline,f.Encounter.StructuredDataJson);
+        f.Encounter.Contributions.Clear();
+        await Assert.ThrowsAsync<ReferralClinicalSelectionRuleException>(() => f.Render());
+    }
+
+    [Fact]
+    public async Task NonTemplateSelectedEncounterIncludesNewNarrativeAndPreservesLegacyText()
+    {
+        var f = new Fixture(); f.Select(new("ENCOUNTER",EncounterUid:f.Encounter.EncounterUid));
+        f.Encounter.Contributions.Add(new() {SectionKey="subjective",SectionTitle="Subjective",OriginalContributorDisplayName="Dr Author",
+            Revisions=[new(1,"New contributed narrative",7,"Dr Author",new(2026,10,11))]});
+        var html = await f.Render();
+        Assert.Contains("Subjective content",html); Assert.Contains("Dr Author",html);
+        Assert.Equal(1,html.Split("New contributed narrative").Length-1);
+    }
+
     internal sealed class Fixture
     {
         public Guid PatientUid {get;}=Guid.NewGuid(); public Guid ReferralUid {get;}=Guid.NewGuid();
@@ -101,7 +136,7 @@ public sealed class ReferralClinicalContentTests
         private IReadOnlyList<PatientReferralClinicalSelectionResponse> selected=[];
         public string RowVersion {get;set;}="version";
         public ReferralClinicalContentService Service {get;}
-        public Fixture()
+        public Fixture(ITemplateInstanceRuntime? templateRuntime = null)
         {
             Encounter=new() {EncounterUid=Guid.NewGuid(),PatientUid=PatientUid,EncounterType="Visit",Status="Signed",ProviderName="Dr Source",EncounterDateUtc=new(2026,9,22),SubjectiveNote="Subjective content <b>literal</b>",ObjectiveNote="Objective content",AssessmentNote="Assessment content",PlanNote="Plan content"};
             Result=new() {PatientResultUid=Guid.NewGuid(),PatientUid=PatientUid,ResultName="Creatinine",ResultValue="42",ResultUnit="umol/L",ResultSummary="Report summary",LifecycleStatus="Current"};
@@ -129,7 +164,7 @@ public sealed class ReferralClinicalContentTests
             }),Stub<ICurrentUserPermissionService>((m,a)=>Task.FromResult<IReadOnlySet<string>>(Permissions)),
             Stub<IPatientChartReadAuditService>((m,a)=> {if(FailAudit)throw new InvalidOperationException("Audit unavailable");ChartReads++;return Task.FromResult(Guid.NewGuid());}),
             Stub<IStructuredReadAuditService>((m,a)=> {Assert.Equal("RecordAsync",m);Assert.Equal(Encounter.EncounterUid,a[2]);Assert.Equal(PatientUid,a[3]);EncounterReads++;return Task.FromResult(Guid.NewGuid());}),
-            Stub<ITemplateInstanceRuntime>((m,a)=>m=="Process"?new TemplateInstanceProcessingResult(true,new(),"{}",[]):"Existing structured snapshot"));
+            templateRuntime ?? Stub<ITemplateInstanceRuntime>((m,a)=>m=="Process"?new TemplateInstanceProcessingResult(true,new(),"{}",[]):"Existing structured snapshot"));
         }
         public void Select(ReferralClinicalSelectionInput? first=null,params ReferralClinicalSelectionInput[] rest)
         {

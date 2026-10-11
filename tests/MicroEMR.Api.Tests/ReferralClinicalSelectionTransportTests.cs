@@ -65,6 +65,48 @@ public sealed class ReferralClinicalSelectionTransportTests
         Assert.Equal(403,Assert.IsType<StatusCodeResult>(await controller.ClinicalSelections(Guid.NewGuid(),Guid.NewGuid(),default)).StatusCode);
     }
 
+    [Fact]
+    public async Task PreviewConflictPreservesSpecificSelectionErrorThroughWebController()
+    {
+        const string detail = "A supporting document is unavailable for this patient. Edit the Draft document selections and try again.";
+        var patient = Guid.NewGuid(); var referral = Guid.NewGuid();
+        var client = Client(message =>
+        {
+            Assert.Equal($"/api/patients/{patient}/referrals/{referral}/letter/preview", message.RequestUri!.AbsolutePath);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Conflict) { Content = JsonContent.Create(new { message = detail }) });
+        });
+        var controller = new MicroEMR.Web.Controllers.PatientReferralsController(client, NullLogger<MicroEMR.Web.Controllers.PatientReferralsController>.Instance);
+        var result = Assert.IsType<ConflictObjectResult>(await controller.Letter(patient, referral, true, default));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result.Value));
+        Assert.Equal(detail, json.RootElement.GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("not JSON")]
+    [InlineData("[]")]
+    [InlineData("{\"message\":123}")]
+    [InlineData("{\"message\":\" \"}")]
+    public async Task MalformedPreviewConflictRetainsSafeFallback(string body)
+    {
+        var client = Client(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Conflict) { Content = new StringContent(body) }));
+        var failure = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetLetterAsync(Guid.NewGuid(), Guid.NewGuid(), true));
+        Assert.Equal(HttpStatusCode.Conflict, failure.StatusCode);
+        Assert.Equal("The referral changed or is no longer in the expected status. Refresh and try again.", failure.Message);
+    }
+
+    [Fact]
+    public async Task OversizedPreviewConflictAndServerErrorsDoNotExposeResponseBodies()
+    {
+        foreach (var code in new[] { HttpStatusCode.Conflict, HttpStatusCode.InternalServerError })
+        {
+            var detail = code == HttpStatusCode.Conflict ? new string('x', 20_000) : "Internal storage path and diagnostic details";
+            var client = Client(_ => Task.FromResult(new HttpResponseMessage(code) { Content = JsonContent.Create(new { message = detail }) }));
+            var failure = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetLetterAsync(Guid.NewGuid(), Guid.NewGuid(), true));
+            Assert.Equal(code, failure.StatusCode);
+            Assert.DoesNotContain(detail, failure.Message);
+        }
+    }
+
     private static PatientReferralApiClient Client(Func<HttpRequestMessage,Task<HttpResponseMessage>> send)
     {
         var properties=new AuthenticationProperties(); properties.StoreTokens([new AuthenticationToken {Name="access_token",Value="test-token"}]);

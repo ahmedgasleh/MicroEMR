@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 let script = fs.readFileSync(path.join(__dirname, '../src/MicroEMR.Web/wwwroot/dist/patients/patient-referrals.js'), 'utf8').replace(/^export \{\};?\s*$/m, '');
 script = script.replace('document.querySelector("#addPatientReferral")?.addEventListener',
-  'globalThis.hooks = { openCreate, openEdit, saveReferral }; document.querySelector("#addPatientReferral")?.addEventListener');
+  'globalThis.hooks = { openCreate, openEdit, saveReferral, openDetails, previewLetter }; document.querySelector("#addPatientReferral")?.addEventListener');
 const patientUid = '11111111-1111-1111-1111-111111111111';
 const referralUid = '22222222-2222-2222-2222-222222222222';
 const encounterUid = '33333333-3333-3333-3333-333333333333';
@@ -33,21 +33,24 @@ function element() {
     set textContent(value) {html = String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}, get textContent() {return html;}
   };
 }
-async function setup({persisted = choices, version = 'v1', failSelection = false, failOptions = false, failDocuments = false, failLink = false} = {}) {
+async function setup({persisted = choices, version = 'v1', failSelection = false, failOptions = false, failDocuments = false, failLink = false, previewError = '', popupBlocked = false, previewContentType = 'application/pdf'} = {}) {
   const nodes = new Map(); const node = s => {if (!nodes.has(s)) nodes.set(s, element()); return nodes.get(s);};
   node('#patientChartBanner').dataset.patientUid = patientUid;
   node('#patientReferralForm').dataset.canManage = 'true';
   const requests = []; let current = {...referral}; let saved = persisted; let linked = [];
   class FormData {constructor() {this.data = new Map();} set(k,v) {this.data.set(k,v);} get(k) {return this.data.get(k) ?? node('#patientReferralForm').elements.namedItem(k).value;}}
   const pendingModalHides = [];
-  const context = {console, FormData, Set, Array, Date, encodeURIComponent, bootstrap: {Modal: class {
+  const previewWindow = {opener: {}, location: {href: ''}, closed: false, close() {this.closed = true;}};
+  const revoked = []; const timers = [];
+  const context = {console, FormData, Set, Array, Date, Error, encodeURIComponent, URL: {createObjectURL: () => 'blob:preview', revokeObjectURL: url => revoked.push(url)}, setTimeout: callback => timers.push(callback), bootstrap: {Modal: class {
     constructor(element) {this.element = element;}
     show() {this.element.classList.add('show');}
     hide() {pendingModalHides.push(() => {this.element.classList.remove('show'); this.element.dispatch('hidden.bs.modal');});}
-  }}, window: {confirm: () => true},
+  }}, window: {confirm: () => true, open: () => popupBlocked ? null : previewWindow},
     document: {querySelector: node, createElement: element}, fetch: async (url, init = {}) => {
       requests.push({url, init}); let ok = true; let body;
       if (url.includes('/Providers')) body = {success: true, providers: []};
+      else if (url.includes('/Letter?')) {ok = !previewError; body = {success:ok,message:previewError};}
       else if (url.includes('/ClinicalOptions?')) {ok = !failOptions; body = {success: ok, message: 'Options restricted', options: {categories: [{selectionKind:'CPP',cppCategoryCode:'PROBLEMS',label:'Ongoing Problems'}, {selectionKind:'CPP',cppCategoryCode:'ALLERGIES',label:'Allergies'}, {selectionKind:'CPP',cppCategoryCode:'MEDICATIONS',label:'Medications'}], encounters:[{selectionKind:'ENCOUNTER',encounterUid,label:'Visit',status:'Signed',provider:'Dr Source'}],results:[{selectionKind:'RESULT',resultUid,label:'Creatinine'}],files:[{selectionKind:'FILE',fileUid,label:'External report',status:'Active'}]}};}
       else if (url.includes('/ClinicalSelections?')) body = {success:true, selections:{rowVersion:version,selections:persisted}};
       else if (url.includes('/ClinicalDocumentOptions?')) {ok = !failDocuments; body = {success:ok,linked,available:[{documentUid,title:'Consultation report',documentType:'ConsultationReport',documentStatus:'Signed'}]};}
@@ -57,12 +60,40 @@ async function setup({persisted = choices, version = 'v1', failSelection = false
       else if (url.includes('/Details?')) body = {success:true,referral:current};
       else if (url.includes('/ReferralSupportingDocuments/List')) body = {success:true,linked:[],available:[]};
       else body = {success:true,referrals:[]};
-      return {ok,json:async()=>body};
+      return {ok,json:async()=>body,headers:{get:()=>previewContentType},blob:async()=>({type:'application/pdf'})};
     }};
   vm.runInNewContext(script, context);
   const drain = async () => {await new Promise(resolve => setImmediate(resolve));};
-  await drain(); return {context,node,requests,drain,pendingModalHides, saved:()=>saved};
+  await drain(); return {context,node,requests,drain,pendingModalHides,previewWindow,revoked,timers, saved:()=>saved};
 }
+
+test('Preview failure closes its blank tab and displays the specific error within Referral Details', async () => {
+  const detail = 'Selected PDF requires flattening <report>';
+  const f = await setup({previewError:detail}); await f.context.hooks.openDetails(referralUid);
+  await f.context.hooks.previewLetter(f.node('#previewReferralLetter'));
+  assert.equal(f.previewWindow.closed,true);
+  assert.equal(f.previewWindow.location.href,'');
+  assert.match(f.node('#patientReferralActionMessage').innerHTML,/requires flattening &lt;report&gt;/);
+  assert.equal(f.node('#patientReferralActionMessage').classList.contains('d-none'),false);
+  assert.equal(f.node('#previewReferralLetter').disabled,false);
+  assert.ok(f.requests.some(x=>x.url.includes('&preview=true')));
+});
+
+test('Successful Preview opens PDF bytes and cleans up the temporary URL', async () => {
+  const f = await setup(); await f.context.hooks.openDetails(referralUid);
+  await f.context.hooks.previewLetter(f.node('#previewReferralLetter'));
+  assert.equal(f.previewWindow.location.href,'blob:preview'); assert.equal(f.previewWindow.opener,null);
+  assert.equal(f.previewWindow.closed,false); f.timers[0](); assert.deepEqual(f.revoked,['blob:preview']);
+});
+
+test('Blocked pop-ups and non-PDF session responses remain actionable without opening JSON/HTML', async () => {
+  for (const options of [{popupBlocked:true},{previewContentType:'text/html'}]) {
+    const f = await setup(options); await f.context.hooks.openDetails(referralUid);
+    await f.context.hooks.previewLetter(f.node('#previewReferralLetter'));
+    assert.equal(f.previewWindow.location.href,'');
+    assert.equal(f.node('#patientReferralActionMessage').classList.contains('d-none'),false);
+  }
+});
 test('Edit Draft waits for the details dialog to close before showing the editor', async () => {
   const f = await setup();
   const details = f.node('#patientReferralDetailsModal'); const editor = f.node('#patientReferralModal');

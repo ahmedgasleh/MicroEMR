@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using MicroEMR.Web.Models.PatientReferrals;
 
@@ -233,7 +234,22 @@ public sealed partial class PatientReferralApiClient(
             _ => "The referral operation could not be completed."
         };
 
-        await response.Content.LoadIntoBufferAsync();
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
+        {
+            try
+            {
+                await response.Content.LoadIntoBufferAsync(16 * 1024);
+                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                if (json.RootElement.ValueKind == JsonValueKind.Object &&
+                    json.RootElement.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String &&
+                    value.GetString() is { Length: > 0 and <= 1000 } detail && !string.IsNullOrWhiteSpace(detail))
+                    message = detail;
+            }
+            catch (Exception exception) when (exception is JsonException or HttpRequestException)
+            {
+                // Malformed/oversized responses retain the safe status-specific message.
+            }
+        }
         throw new HttpRequestException(message, null, response.StatusCode);
     }
 }
