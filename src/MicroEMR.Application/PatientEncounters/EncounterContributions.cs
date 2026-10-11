@@ -10,6 +10,7 @@ public sealed class SaveEncounterContributionRequest
 {
     public Guid? ContributionUid { get; set; }
     public string SectionKey { get; set; } = string.Empty;
+    public string? FieldKey { get; set; }
     public string Content { get; set; } = string.Empty;
     public string RowVersion { get; set; } = string.Empty;
 }
@@ -20,7 +21,11 @@ public sealed class EncounterContributionResponse
     public Guid EncounterUid { get; set; }
     public Guid PatientUid { get; set; }
     public string SectionKey { get; set; } = string.Empty;
+    public string? FieldKey { get; set; }
     public string SectionTitle { get; set; } = string.Empty;
+    public string? FieldLabel { get; set; }
+    public string ValueKind { get; set; } = "Narrative";
+    public string? PriorValueJson { get; set; }
     public long OriginalContributorId { get; set; }
     public string OriginalContributorDisplayName { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
@@ -65,9 +70,14 @@ public sealed class EncounterContributionService(
         var validSection = encounter.TemplateVersionUid.HasValue
             ? encounter.TemplateDefinition?.Sections?.Any(s => s.Key == request.SectionKey) == true
             : request.SectionKey is "subjective" or "objective" or "assessment" or "plan" or "notes";
+        if (request.FieldKey is not null && encounter.TemplateDefinition?.Sections?
+            .SingleOrDefault(s => s.Key == request.SectionKey)?.Fields?
+            .Any(f => f.Key == request.FieldKey && f.Type is "Text" or "TextArea") != true)
+            throw new ArgumentException("The narrative field does not belong to this encounter section.");
         if (!validSection) throw new ArgumentException("The section does not belong to the encounter.");
         if (request.ContributionUid.HasValue && !encounter.Contributions.Any(c =>
-            c.ContributionUid == request.ContributionUid && c.SectionKey == request.SectionKey)) return false;
+            c.ContributionUid == request.ContributionUid && c.SectionKey == request.SectionKey
+                && c.FieldKey == request.FieldKey && c.ValueKind == "Narrative")) return false;
         return await repository.SaveAsync(patientUid, encounterUid, request, actorId, token);
     }
 }

@@ -169,12 +169,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
         if (encounterUid == Guid.Empty)
             throw new ArgumentException("Encounter identifier is required.", nameof(encounterUid));
 
-        return _repository.UpdateNoteAsync(
-            patientUid,
-            encounterUid,
-            request,
-            updatedBy,
-            cancellationToken);
+        throw new EncounterNoteNotEditableException("Existing narrative is read-only. Use an attributed contribution for new text.");
     }
 
     public Task<PatientEncounterDetailsResponse?> UpdateSoapNoteAsync(
@@ -185,8 +180,7 @@ public sealed class PatientEncounterService : IPatientEncounterService
         CancellationToken cancellationToken = default)
     {
         ValidateIdentifiers(patientUid, encounterUid);
-        return _repository.UpdateSoapNoteAsync(
-            patientUid, encounterUid, request, updatedBy, cancellationToken);
+        throw new EncounterNoteNotEditableException("Existing SOAP text is read-only. Use attributed contributions for new text.");
     }
 
     public async Task<PatientEncounterDetailsResponse?> UpdateStructuredDataAsync(
@@ -207,7 +201,17 @@ public sealed class PatientEncounterService : IPatientEncounterService
             field.Required = false;
         var processed = _runtime!.Process(definition, request.StructuredDataJson);
         if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
-        request.StructuredDataJson = processed.Json!;
+        EncounterFieldComposition.EnsureNarrativeUnchanged(definition, current.StructuredDataJson, processed.Json!);
+        if (request.ChangedFieldKeys is { } keys)
+        {
+            var fields = definition.Sections!.SelectMany(s => s.Fields!).Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
+            if (keys.Any(key => !fields.Contains(key)))
+                throw new TemplateInstanceValidationException([new("values", "UnknownField", "The changed field does not belong to the historical template.")]);
+            processed = _runtime.Process(definition, EncounterFieldComposition.ApplyFieldPatch(current.StructuredDataJson, processed.Json!, keys));
+            if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
+        }
+        EncounterFieldComposition.EnsureNarrativeUnchanged(definition, current.StructuredDataJson, processed.Json!);
+        request.StructuredDataJson = EncounterFieldComposition.NormalizeNumbers(processed.Json!);
         var soap = CreateSoapSnapshots(definition, processed.Data!);
         var saved = await _repository.UpdateStructuredDataAsync(patientUid, encounterUid, request,
             soap.Subjective, soap.Objective, soap.Assessment, soap.Plan, updatedBy, cancellationToken);
@@ -241,20 +245,18 @@ public sealed class PatientEncounterService : IPatientEncounterService
             var version = await _versions!.GetByUidAsync(versionUid, cancellationToken)
                 ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
             EnsureVersionProvenance(current.TemplateUid, version.TemplateUid);
-            var validation = _runtime!.Process(RequireDefinition(version.DefinitionJson), current.StructuredDataJson);
+            var validation = _runtime!.Process(RequireDefinition(version.DefinitionJson),
+                EncounterFieldComposition.Compose(current.StructuredDataJson, current.Contributions));
             if (!validation.IsValid) throw new TemplateInstanceValidationException(validation.Errors);
         }
         _appointmentStatusTransitionService.EnsureCanTransition(
             AppointmentStatus.Seen,
             AppointmentStatus.Completed);
 
-        var signed = await _repository.SignAsync(
-            patientUid,
-            encounterUid,
-            signedBy,
-            AppointmentStatus.Seen,
-            AppointmentStatus.Completed,
-            cancellationToken);
+        var signed = current is null
+            ? await _repository.SignAsync(patientUid, encounterUid, signedBy, AppointmentStatus.Seen, AppointmentStatus.Completed, cancellationToken)
+            : await _repository.SignVersionedAsync(patientUid, encounterUid, signedBy, AppointmentStatus.Seen,
+                AppointmentStatus.Completed, current.RowVersion, cancellationToken);
         if (signed?.TemplateVersionUid.HasValue == true && _artifacts is not null)
             await _artifacts.EnsureEncounterFinalPdfAsync(encounterUid, signedBy, cancellationToken);
         return signed is null ? null : await EnrichAsync(signed, cancellationToken);
@@ -272,10 +274,28 @@ public sealed class PatientEncounterService : IPatientEncounterService
         ResolveDefinitionText(encounter.TemplateDefinition, new(patient.FullName, patient.DateOfBirth,
             encounter.ProviderName ?? encounter.CreatedByDisplayName, encounter.EncounterDateUtc,
             DateOnly.FromDateTime(DateTime.UtcNow)));
+        var effective = _runtime!.Process(DraftDefinition(version.DefinitionJson),
+            EncounterFieldComposition.Compose(encounter.StructuredDataJson, encounter.Contributions));
+        if (effective.IsValid)
+        {
+            var baseline = System.Text.Json.JsonSerializer.Deserialize<TemplateInstanceData>(encounter.StructuredDataJson ?? "{\"schemaVersion\":1,\"values\":{}}")!;
+            encounter.TemplateFieldValues = baseline.Values.ToDictionary(pair => pair.Key,
+                pair => pair.Value.ValueKind == System.Text.Json.JsonValueKind.String ? pair.Value.GetString() : pair.Value.GetRawText(), StringComparer.Ordinal);
+            var soap = CreateSoapSnapshots(encounter.TemplateDefinition, effective.Data!);
+            encounter.SubjectiveNote = soap.Subjective; encounter.ObjectiveNote = soap.Objective;
+            encounter.AssessmentNote = soap.Assessment; encounter.PlanNote = soap.Plan;
+        }
         encounter.TemplateVersionNumber = version.VersionNumber;
         if (encounter.TemplateUid.HasValue)
             encounter.TemplateName = (await _templates!.GetTemplateByUidAsync(encounter.TemplateUid.Value, token))?.TemplateName;
         return encounter;
+    }
+
+    private TemplateDefinition DraftDefinition(string json)
+    {
+        var definition = RequireDefinition(json);
+        foreach (var field in definition.Sections!.SelectMany(s => s.Fields!)) field.Required = false;
+        return definition;
     }
 
     private TemplateDefinition RequireDefinition(string json)

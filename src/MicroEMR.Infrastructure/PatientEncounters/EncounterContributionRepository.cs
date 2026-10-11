@@ -19,6 +19,7 @@ public sealed class EncounterContributionRepository(ITenantSqlConnectionFactory 
         command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
         command.Parameters.Add("@ContributionUid", SqlDbType.UniqueIdentifier).Value = (object?)request.ContributionUid ?? DBNull.Value;
         command.Parameters.Add("@SectionKey", SqlDbType.NVarChar, 100).Value = request.SectionKey;
+        command.Parameters.Add("@FieldKey", SqlDbType.NVarChar, 100).Value = (object?)request.FieldKey ?? DBNull.Value;
         command.Parameters.Add("@Content", SqlDbType.NVarChar, -1).Value = request.Content;
         command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Binary, 8).Value = Convert.FromBase64String(request.RowVersion);
         command.Parameters.Add("@ActorId", SqlDbType.BigInt).Value = actorId;
@@ -47,7 +48,11 @@ public sealed class EncounterContributionRepository(ITenantSqlConnectionFactory 
                 contribution = new() { ContributionUid = uid, EncounterUid = encounterUid, PatientUid = patientUid,
                     SectionKey = reader.GetString(1), SectionTitle = reader.GetString(2),
                     OriginalContributorId = reader.GetInt64(3), OriginalContributorDisplayName = reader.GetString(4),
-                    CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc) };
+                    CreatedAtUtc = DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc),
+                    FieldKey = reader.FieldCount > 11 && !reader.IsDBNull(11) ? reader.GetString(11) : null,
+                    ValueKind = reader.FieldCount > 12 ? reader.GetString(12) : "Narrative",
+                    PriorValueJson = reader.FieldCount > 13 && !reader.IsDBNull(13) ? reader.GetString(13) : null,
+                    FieldLabel = reader.FieldCount > 14 && !reader.IsDBNull(14) ? reader.GetString(14) : null };
                 result.Add(contribution);
             }
             contribution.Revisions.Add(new(reader.GetInt32(6), reader.GetString(7), reader.GetInt64(8),

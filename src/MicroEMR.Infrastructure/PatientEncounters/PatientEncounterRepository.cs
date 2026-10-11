@@ -433,13 +433,19 @@ public sealed class PatientEncounterRepository
         }
     }
 
-    public async Task<PatientEncounterDetailsResponse?> SignAsync(
-        Guid patientUid,
-        Guid encounterUid,
-        long? signedBy,
-        AppointmentStatus expectedAppointmentStatus,
-        AppointmentStatus completedAppointmentStatus,
-        CancellationToken cancellationToken = default)
+    public Task<PatientEncounterDetailsResponse?> SignAsync(Guid patientUid, Guid encounterUid, long? signedBy,
+        AppointmentStatus expectedAppointmentStatus, AppointmentStatus completedAppointmentStatus,
+        CancellationToken cancellationToken = default) =>
+        SignCoreAsync(patientUid, encounterUid, signedBy, expectedAppointmentStatus, completedAppointmentStatus, null, cancellationToken);
+
+    public Task<PatientEncounterDetailsResponse?> SignVersionedAsync(Guid patientUid, Guid encounterUid, long? signedBy,
+        AppointmentStatus expectedAppointmentStatus, AppointmentStatus completedAppointmentStatus,
+        string rowVersion, CancellationToken cancellationToken = default) =>
+        SignCoreAsync(patientUid, encounterUid, signedBy, expectedAppointmentStatus, completedAppointmentStatus, rowVersion, cancellationToken);
+
+    private async Task<PatientEncounterDetailsResponse?> SignCoreAsync(Guid patientUid, Guid encounterUid, long? signedBy,
+        AppointmentStatus expectedAppointmentStatus, AppointmentStatus completedAppointmentStatus,
+        string? rowVersion, CancellationToken cancellationToken)
     {
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(
@@ -475,6 +481,9 @@ public sealed class PatientEncounterRepository
             Value = AppointmentStatusMapper.ToStorageValue(completedAppointmentStatus)
         });
 
+        if (rowVersion is not null)
+            command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Binary, 8).Value = Convert.FromBase64String(rowVersion);
+
         try
         {
             await using var reader =
@@ -484,6 +493,8 @@ public sealed class PatientEncounterRepository
             await reader.DisposeAsync();
             return found ? await GetByUidAsync(encounterUid, cancellationToken) : null;
         }
+        catch (SqlException exception) when (exception.Number == 51073)
+        { throw new EncounterCannotBeSignedException("The encounter changed after validation. Reopen before signing.", exception); }
         catch (SqlException exception) when (exception.Number == 51072)
         {
             throw new EncounterCannotBeSignedException(

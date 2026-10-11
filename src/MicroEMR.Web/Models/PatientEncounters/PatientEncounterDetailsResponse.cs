@@ -39,6 +39,7 @@ public sealed class PatientEncounterDetailsResponse
     public Guid? TemplateVersionUid { get; set; }
     public int? TemplateVersionNumber { get; set; }
     public string? TemplateName { get; set; }
+    public Dictionary<string, string?> TemplateFieldValues { get; set; } = new(StringComparer.Ordinal);
     public string? StructuredDataJson { get; set; }
     public TemplateDefinition? TemplateDefinition { get; set; }
 

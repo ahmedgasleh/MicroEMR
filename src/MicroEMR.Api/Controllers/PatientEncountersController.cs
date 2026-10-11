@@ -345,11 +345,11 @@ public sealed class PatientEncountersController : ControllerBase
                 ? NotFound(new { message = "Encounter was not found." })
                 : Ok(encounter);
         }
-        catch (EncounterNoteNotEditableException)
+        catch (EncounterNoteNotEditableException exception)
         {
             return Conflict(new
             {
-                message = "Encounter note cannot be edited."
+                message = exception.Message
             });
         }
     }
@@ -378,9 +378,9 @@ public sealed class PatientEncountersController : ControllerBase
                 ? NotFound(new { message = "Encounter was not found." })
                 : Ok(encounter);
         }
-        catch (EncounterNoteNotEditableException)
+        catch (EncounterNoteNotEditableException exception)
         {
-            return Conflict(new { message = "Signed encounter notes cannot be edited." });
+            return Conflict(new { message = exception.Message });
         }
         catch (Exception exception)
         {
@@ -437,9 +437,9 @@ public sealed class PatientEncountersController : ControllerBase
             foreach (var error in exception.Errors) ModelState.AddModelError(error.Path, error.Message);
             return ValidationProblem(ModelState);
         }
-        catch (EncounterNoteNotEditableException)
+        catch (EncounterNoteNotEditableException exception)
         {
-            return Conflict(new { message = "The encounter changed or cannot be edited." });
+            return Conflict(new { message = exception.Message });
         }
     }
 
@@ -473,11 +473,11 @@ public sealed class PatientEncountersController : ControllerBase
                 ? NotFound(new { message = "Encounter was not found." })
                 : Ok(encounter);
         }
-        catch (EncounterCannotBeSignedException)
+        catch (EncounterCannotBeSignedException exception)
         {
             return Conflict(new
             {
-                message = "Encounter cannot be signed."
+                message = exception.Message
             });
         }
         catch (MicroEMR.Application.Templates.Runtime.TemplateInstanceValidationException exception)

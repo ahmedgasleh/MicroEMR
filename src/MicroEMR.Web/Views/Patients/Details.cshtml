@@ -1443,6 +1443,7 @@
                             </div>
                             <div id="encounterLegacySoapEditor">
                             <h3 class="fs-6">SOAP Encounter Note</h3>
+                            <p class="small text-muted">Earlier contribution identity unavailable. Existing text is read-only; use contributions below for new narrative.</p>
                             <div class="row g-3">
                                 <div class="col-12 col-lg-6">
                                     <label for="encounterSubjectiveNote" class="form-label">Subjective</label>
@@ -1876,15 +1877,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const dialog = document.getElementById("encounterDetailsDialog");
     let previewObjectUrl = null;
 
+    const changedTemplateInputs = () => Array.from(document.querySelectorAll("#encounterStructuredFields [data-field-key]"))
+        .filter(input => !["Text","TextArea"].includes(input.dataset.fieldType) && (input.type==="checkbox"?String(input.checked):input.value)!==input.dataset.initialValue);
     const collectStructuredData = () => {
-        const values = {};
+        const values = {...JSON.parse(currentStructuredEncounter.structuredDataJson || '{"values":{}}').values};
         document.querySelectorAll("#encounterStructuredFields [data-field-key]").forEach(input => {
+            if(input.dataset.fieldType === "Text" || input.dataset.fieldType === "TextArea") return;
+            const currentValue=input.type==="checkbox"?String(input.checked):input.value;
+            if(currentValue === input.dataset.initialValue) return;
+            delete values[input.dataset.fieldKey];
             const type=input.dataset.fieldType;
             if(type==="Checkbox") values[input.dataset.fieldKey]=input.checked;
             else if(type==="Boolean"&&input.value!=="") values[input.dataset.fieldKey]=input.value==="true";
             else if(input.value!=="") values[input.dataset.fieldKey]=type==="Number"?Number(input.value):input.value;
         });
-        return JSON.stringify({schemaVersion: currentStructuredEncounter.templateDefinition.schemaVersion, values});
+        // Keep decimal input as JSON numeric text; Number() would round high-precision clinical values.
+        const numberInputs = new Map(changedTemplateInputs().filter(input => input.dataset.fieldType==="Number" && input.value!=="").map(input => [input.dataset.fieldKey,input.value.replace(/^\+/, "").replace(/^(-?)\./, (_, sign) => sign+"0.").replace(/\.(?=[eE]|$)/, ".0").replace(/^(-?)0+(?=\d)/, "$1")]));
+        const members = Object.entries(values).map(([key,value]) => JSON.stringify(key)+":"+(numberInputs.has(key)?numberInputs.get(key):JSON.stringify(value)));
+        return '{"schemaVersion":'+currentStructuredEncounter.templateDefinition.schemaVersion+',"values":{'+members.join(",")+'}}';
     };
 
     const closePdfPreview = () => {
@@ -1928,7 +1938,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("encounter-contribution-saved", event => {
         const saved = event.detail;
         if (saved.encounterUid === currentEncounterUid && saved.patientUid === currentPatientUid) {
-            if (currentStructuredEncounter) currentStructuredEncounter.rowVersion = saved.rowVersion;
+            if (currentStructuredEncounter) {currentStructuredEncounter.rowVersion = saved.rowVersion; currentStructuredEncounter.contributions = saved.contributions;}
             resetEncounterHistory();
         }
     });
@@ -1969,9 +1979,9 @@ document.addEventListener("DOMContentLoaded", () => {
         previewButton.classList.toggle("d-none", !currentStructuredEncounter || !currentEncounterIsEditable);
         viewPdfButton.classList.toggle("d-none", !currentStructuredEncounter || String(encounter.status).toLowerCase() !== "signed");
         Object.values(soapFields).forEach(field => {
-            field.readOnly = !currentEncounterIsEditable;
+            field.readOnly = true;
         });
-        saveNoteButton.classList.toggle("d-none", !encounterIsOpen);
+        saveNoteButton.classList.toggle("d-none", !encounterIsOpen || !currentStructuredEncounter);
         saveNoteButton.disabled = !currentEncounterIsEditable;
         signEncounterButton.classList.toggle("d-none", !encounterIsOpen);
         signEncounterButton.disabled = !canSignEncounters || !encounterIsOpen;
@@ -2007,10 +2017,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 else if(field.type==="Select"||field.type==="Radio"){input=document.createElement("select");const blank=document.createElement("option");blank.value="";blank.textContent="Select...";input.appendChild(blank);(field.options||[]).sort((a,b)=>a.order-b.order).forEach(option=>{const item=document.createElement("option");item.value=option.value;item.textContent=option.label;input.appendChild(item);});}
                 else {input=document.createElement("input");input.type=field.type==="Number"?"number":field.type==="Date"?"date":field.type==="Checkbox"?"checkbox":"text";}
                 input.className=field.type==="Checkbox"?"form-check-input":"form-control"; input.dataset.fieldKey=field.key; input.dataset.fieldType=field.type;
-                if(field.type==="Checkbox") input.checked=values[field.key]===true; else input.value=field.type==="Boolean"&&values[field.key]!==undefined?String(values[field.key]):values[field.key]??"";
-                input.disabled=String(encounter.status).toLowerCase()!=="open"; if(field.required) input.required=true; group.appendChild(input); wrapper.appendChild(group);
+                if(field.type==="Checkbox") input.checked=values[field.key]===true; else input.value=field.type==="Number" ? encounter.templateFieldValues?.[field.key] ?? values[field.key] ?? "" : field.type==="Boolean"&&values[field.key]!==undefined?String(values[field.key]):values[field.key]??"";
+                input.dataset.initialValue=field.type==="Checkbox"?String(input.checked):input.value;
+                input.disabled=String(encounter.status).toLowerCase()!=="open" || !canEditEncounters || field.type==="Text" || field.type==="TextArea";
+                if(field.type==="Text" || field.type==="TextArea") {const help=document.createElement("p");help.className="small text-muted";help.textContent="Earlier/template contribution identity unavailable. Use a field contribution for new text.";group.appendChild(help);}
+                if(field.required) input.required=true; group.appendChild(input); wrapper.appendChild(group);
             }); fieldsHost.appendChild(wrapper);
         });
+        document.dispatchEvent(new CustomEvent("encounter-fields-rendered"));
     };
 
     const renderAddendums = addendums => {
@@ -2219,6 +2233,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentStructuredEncounter) {
                 formData.append("StructuredDataJson", collectStructuredData());
                 formData.append("RowVersion", currentStructuredEncounter.rowVersion);
+                formData.append("UseFieldPatch", "true");
+                changedTemplateInputs().forEach(input => formData.append("ChangedFieldKeys",input.dataset.fieldKey));
             } else {
                 formData.append("SubjectiveNote", soapFields.SubjectiveNote.value);
                 formData.append("ObjectiveNote", soapFields.ObjectiveNote.value);
@@ -2385,7 +2401,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const body = new FormData();
             body.append("encounterUid", currentEncounterUid);
-            body.append("structuredDataJson", collectStructuredData());
+            if (changedTemplateInputs().length) throw new Error("Save the draft before previewing attributed content.");
+            body.append("structuredDataJson", currentStructuredEncounter.structuredDataJson);
             const token = document.querySelector('#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
             const response = await fetch(previewPdfUrl, { method:"POST", headers:{"RequestVerificationToken":token}, body });
             if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || "PDF preview could not be generated.");

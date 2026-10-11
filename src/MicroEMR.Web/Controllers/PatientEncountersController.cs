@@ -405,7 +405,7 @@ public sealed class PatientEncountersController : Controller
             return Conflict(new
             {
                 success = false,
-                message = "Encounter note cannot be edited."
+                message = "Existing narrative is read-only. Use attributed contributions for new text."
             });
         }
         catch (OperationCanceledException)
@@ -458,7 +458,7 @@ public sealed class PatientEncountersController : Controller
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Conflict)
         {
-            return Conflict(new { success = false, message = "Signed encounter notes cannot be edited." });
+            return Conflict(new { success = false, message = "Existing SOAP text is read-only. Use attributed contributions for new text." });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -477,13 +477,13 @@ public sealed class PatientEncountersController : Controller
     [RequireWebPermission(PermissionKeys.EncountersEdit)]
     public async Task<IActionResult> UpdateEncounterStructuredData(
         Guid patientUid, Guid encounterUid, string structuredDataJson, string rowVersion,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool useFieldPatch = false, string[]? changedFieldKeys = null)
     {
         if (patientUid == Guid.Empty || encounterUid == Guid.Empty) return BadRequest();
         try
         {
             var encounter = await _encounterApiClient.UpdateStructuredDataAsync(patientUid, encounterUid,
-                new UpdateEncounterStructuredDataRequest { StructuredDataJson = structuredDataJson, RowVersion = rowVersion }, cancellationToken);
+                new UpdateEncounterStructuredDataRequest { StructuredDataJson = structuredDataJson, RowVersion = rowVersion, ChangedFieldKeys = useFieldPatch ? changedFieldKeys ?? [] : null }, cancellationToken);
             return encounter is null ? NotFound() : Json(new { success = true, message = "Encounter draft saved.", encounter });
         }
         catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
@@ -543,7 +543,7 @@ public sealed class PatientEncountersController : Controller
             return BadRequest(new
             {
                 success = false,
-                message = message + " Complete the required fields and save the draft before signing."
+                message = message + " Complete the required fields and save the draft before signing. For read-only narrative fields, use Add contribution for that field and save the contribution; a section contribution does not fill a required field."
             });
         }
         catch (HttpRequestException exception)

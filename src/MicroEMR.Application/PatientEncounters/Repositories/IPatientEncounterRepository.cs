@@ -65,6 +65,10 @@ public interface IPatientEncounterRepository
         AppointmentStatus completedAppointmentStatus,
         CancellationToken cancellationToken = default);
 
+    Task<PatientEncounterDetailsResponse?> SignVersionedAsync(Guid patientUid, Guid encounterUid, long? signedBy,
+        AppointmentStatus expectedAppointmentStatus, AppointmentStatus completedAppointmentStatus,
+        string rowVersion, CancellationToken cancellationToken = default);
+
     Task<StartEncounterFromAppointmentResponse?> StartFromAppointmentAsync(
         Guid appointmentUid,
         long? createdBy,

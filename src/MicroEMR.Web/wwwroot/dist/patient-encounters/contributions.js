@@ -13,6 +13,7 @@ if (root) {
     const reset = () => { editing = undefined; content.value = ""; section.disabled = false; save.textContent = "Add contribution"; };
     const render = (encounter) => {
         state = encounter;
+        document.querySelectorAll("[data-contribution-card], [data-contribution-field-help]").forEach(card => card.remove());
         host.replaceChildren();
         const editable = encounter.status.toLowerCase() === "open" && root.dataset.canEdit === "true";
         editor.hidden = !editable;
@@ -21,15 +22,66 @@ if (root) {
             { key: "subjective", title: "Subjective", order: 0 }, { key: "objective", title: "Objective", order: 1 },
             { key: "assessment", title: "Assessment", order: 2 }, { key: "plan", title: "Plan", order: 3 }, { key: "notes", title: "Note", order: 4 }
         ];
-        [...sections].sort((a, b) => a.order - b.order).forEach(s => { const option = new Option(s.title, s.key); section.add(option); });
+        [...sections].sort((a, b) => a.order - b.order).forEach(s => {
+            section.add(new Option(s.title, s.key));
+            for (const field of s.fields || [])
+                if (field.type === "Text" || field.type === "TextArea") {
+                    const option = new Option(`${s.title} / ${field.label}${field.required ? " (required field)" : ""}`, s.key + "/" + field.key);
+                    option.dataset.sectionKey = s.key;
+                    option.dataset.fieldKey = field.key;
+                    section.add(option);
+                }
+        });
+        for (const container of encounter.templateDefinition?.sections || []) {
+            for (const field of container.fields || []) {
+                if (field.type !== "Text" && field.type !== "TextArea")
+                    continue;
+                const fieldInput = Array.from(document.querySelectorAll("#encounterStructuredFields [data-field-key]"))
+                    .find(input => input.dataset.fieldKey === field.key);
+                if (!fieldInput)
+                    continue;
+                const help = document.createElement("div");
+                help.dataset.contributionFieldHelp = "true";
+                help.className = "my-2";
+                const hasContent = !!fieldInput.value.trim() || encounter.contributions.some(block => block.sectionKey === container.key && block.fieldKey === field.key && block.valueKind === "Narrative" && !!block.content.trim());
+                if (encounter.status.toLowerCase() === "open" && field.required && !hasContent) {
+                    const missing = text("p", `${field.label}: a saved field contribution is required before signing. A section contribution does not fill this field.`);
+                    missing.className = "small text-danger mb-2";
+                    help.append(missing);
+                }
+                if (editable) {
+                    const add = document.createElement("button");
+                    add.type = "button";
+                    add.className = "btn btn-outline-primary btn-sm";
+                    add.textContent = `Add contribution for ${field.label}`;
+                    add.addEventListener("click", () => {
+                        if (busy)
+                            return;
+                        if (content.value.trim()) {
+                            message.textContent = "Save or cancel the current contribution before starting another.";
+                            content.focus();
+                            return;
+                        }
+                        reset();
+                        section.value = container.key + "/" + field.key;
+                        message.textContent = `New text will be saved to ${container.title} / ${field.label}.`;
+                        editor.scrollIntoView({ block: "nearest" });
+                        content.focus();
+                    });
+                    help.append(add);
+                }
+                fieldInput.parentElement.append(help);
+            }
+        }
         for (const block of encounter.contributions || []) {
             const card = document.createElement("section");
             card.className = "border rounded p-3 mb-2";
-            card.append(text("h6", block.sectionTitle));
-            const identity = text("p", `Original contributor: ${block.originalContributorDisplayName} (clinical user ${block.originalContributorId}) | ${date(block.createdAtUtc)}`);
+            card.dataset.contributionCard = "true";
+            card.append(text("h6", block.fieldLabel || block.sectionTitle));
+            const identity = text("p", `${block.valueKind === "Value" ? "Original contributor of tracked value" : "Original contributor"}: ${block.originalContributorDisplayName} (clinical user ${block.originalContributorId}) | ${date(block.createdAtUtc)}`);
             identity.className = "small text-muted";
             card.append(identity);
-            const body = text("p", block.content);
+            const body = text("p", block.valueKind === "Value" ? "" : block.content);
             body.style.whiteSpace = "pre-wrap";
             card.append(body);
             const latest = block.revisions[block.revisions.length - 1];
@@ -37,6 +89,8 @@ if (root) {
                 card.append(text("p", `Last revised by ${latest.editorDisplayName} (clinical user ${latest.editorId}) | ${date(latest.revisedAtUtc)} | revision ${latest.revisionNumber}`));
             const history = document.createElement("details");
             history.append(text("summary", "Contribution revisions"));
+            if (block.priorValueJson !== undefined && block.priorValueJson !== null)
+                history.append(text("p", `Prior value (identity unavailable): ${block.priorValueJson}`));
             for (const revision of block.revisions) {
                 history.append(text("p", `Revision ${revision.revisionNumber}: ${revision.editorDisplayName} (clinical user ${revision.editorId}) | ${date(revision.revisedAtUtc)}`));
                 const previous = text("p", revision.content);
@@ -44,16 +98,18 @@ if (root) {
                 history.append(previous);
             }
             card.append(history);
-            if (editable) {
+            if (editable && block.valueKind !== "Value") {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.className = "btn btn-outline-secondary btn-sm";
                 button.textContent = "Edit contribution";
                 button.disabled = busy;
-                button.addEventListener("click", () => { editing = block.contributionUid; section.value = block.sectionKey; section.disabled = true; content.value = block.content; save.textContent = "Save revision"; content.focus(); });
+                button.addEventListener("click", () => { editing = block.contributionUid; section.value = block.fieldKey ? block.sectionKey + "/" + block.fieldKey : block.sectionKey; section.disabled = true; content.value = block.content; save.textContent = "Save revision"; content.focus(); });
                 card.append(button);
             }
-            host.append(card);
+            const fieldInput = Array.from(document.querySelectorAll("#encounterStructuredFields [data-field-key]"))
+                .find(input => input.dataset.fieldKey === block.fieldKey);
+            (fieldInput?.parentElement || host).append(card);
         }
     };
     document.addEventListener("encounter-contributions-context", event => {
@@ -62,6 +118,8 @@ if (root) {
         message.textContent = "";
         render(event.detail);
     });
+    document.addEventListener("encounter-fields-rendered", () => { if (state)
+        render(state); });
     document.addEventListener("encounter-diagnoses-saved", event => {
         const saved = event.detail;
         if (state?.encounterUid === saved.encounterUid && state?.patientUid === saved.patientUid)
@@ -76,12 +134,14 @@ if (root) {
         save.disabled = true;
         cancel.disabled = true;
         content.disabled = true;
-        host.querySelectorAll("button").forEach(b => b.disabled = true);
+        document.querySelectorAll("[data-contribution-card] button").forEach(b => b.disabled = true);
         try {
             const body = new FormData();
             body.append("patientUid", current.patientUid);
             body.append("encounterUid", current.encounterUid);
-            body.append("sectionKey", section.value);
+            body.append("sectionKey", section.selectedOptions[0].dataset.sectionKey || section.value);
+            if (section.selectedOptions[0].dataset.fieldKey)
+                body.append("fieldKey", section.selectedOptions[0].dataset.fieldKey);
             body.append("content", content.value);
             body.append("rowVersion", current.rowVersion);
             if (editing)
@@ -112,7 +172,7 @@ if (root) {
             save.disabled = false;
             cancel.disabled = false;
             content.disabled = false;
-            host.querySelectorAll("button").forEach(b => b.disabled = false);
+            document.querySelectorAll("[data-contribution-card] button").forEach(b => b.disabled = false);
         }
     });
     root.querySelector("[data-contribution-print]").addEventListener("click", () => {
@@ -127,43 +187,52 @@ if (root) {
         print.document.body.append(text("p", `${state.encounterType} | ${date(state.encounterDateUtc)}`));
         if (state.signedAt)
             print.document.body.append(text("p", `Signed by ${state.signedByDisplayName || "Identity unavailable"} ? ${date(state.signedAt)}`));
-        // Capture current displayed section values, including unsaved draft text; signed values are read-only.
-        print.document.body.append(text("p", state.status.toLowerCase() === "signed" ? "Signed encounter" : "Draft preview - may include unsaved section text"));
-        const template = document.querySelector("#encounterStructuredFields");
-        if (state.templateDefinition && template) {
-            for (const wrapper of Array.from(template.children)) {
-                print.document.body.append(text("h2", wrapper.querySelector("h4")?.textContent || "Section"));
-                print.document.body.append(text("p", "Earlier contribution identity unavailable"));
-                wrapper.querySelectorAll("input,textarea,select").forEach(input => {
-                    const value = input instanceof HTMLInputElement && input.type === "checkbox" ? String(input.checked) : input.value;
-                    const p = text("p", `${input.parentElement?.querySelector("label")?.textContent || ""}: ${value}`);
+        // Print persisted values only: unsaved controls never inherit a saved identity.
+        print.document.body.append(text("p", state.status.toLowerCase() === "signed" ? "Signed encounter" : "Saved draft - unsaved field changes are not printed"));
+        const appendBlock = (block) => {
+            print.document.body.append(text("p", `${block.valueKind === "Value" ? "Original contributor of tracked value" : "Original contributor"}: ${block.originalContributorDisplayName} (clinical user ${block.originalContributorId}) | ${date(block.createdAtUtc)}`));
+            const latest = block.revisions[block.revisions.length - 1];
+            if (latest?.revisionNumber > 1)
+                print.document.body.append(text("p", `Revision ${latest.revisionNumber}: ${latest.editorDisplayName} (clinical user ${latest.editorId}) | ${date(latest.revisedAtUtc)}`));
+            if (block.valueKind !== "Value") {
+                const p = text("p", block.content);
+                p.style.whiteSpace = "pre-wrap";
+                print.document.body.append(p);
+            }
+        };
+        if (state.templateDefinition) {
+            const values = JSON.parse(state.structuredDataJson || '{"values":{}}').values;
+            for (const section of state.templateDefinition.sections) {
+                print.document.body.append(text("h2", section.title));
+                for (const field of section.fields || []) {
+                    if (field.type === "StaticText") {
+                        print.document.body.append(text("p", field.content || ""));
+                        continue;
+                    }
+                    const p = text("p", `${field.label}: ${field.type === "Number" ? state.templateFieldValues?.[field.key] ?? values[field.key] ?? "" : values[field.key] ?? ""}`);
                     p.style.whiteSpace = "pre-wrap";
                     print.document.body.append(p);
-                });
-                wrapper.querySelectorAll("p").forEach(p => print.document.body.append(p.cloneNode(true)));
+                    const linked = state.contributions.filter(c => c.fieldKey === field.key);
+                    if (!linked.some(c => c.valueKind === "Value"))
+                        print.document.body.append(text("p", "Earlier/template contribution identity unavailable"));
+                    linked.forEach(appendBlock);
+                }
+                state.contributions.filter(c => c.sectionKey === section.key && !c.fieldKey).forEach(appendBlock);
             }
         }
         else {
-            for (const name of ["Subjective", "Objective", "Assessment", "Plan"]) {
-                const value = document.querySelector(`#encounter${name}Note`)?.value;
+            for (const [title, value] of [["Subjective", state.subjectiveNote], ["Objective", state.objectiveNote], ["Assessment", state.assessmentNote], ["Plan", state.planNote], ["Legacy note", state.notes]]) {
                 if (value) {
-                    print.document.body.append(text("h2", name), text("p", "Earlier contribution identity unavailable"));
                     const p = text("p", value);
                     p.style.whiteSpace = "pre-wrap";
-                    print.document.body.append(p);
+                    print.document.body.append(text("h2", title), text("p", "Earlier contribution identity unavailable"), p);
                 }
             }
+            for (const block of state.contributions) {
+                print.document.body.append(text("h2", block.sectionTitle));
+                appendBlock(block);
+            }
         }
-        if (state.notes) {
-            const p = text("p", state.notes);
-            p.style.whiteSpace = "pre-wrap";
-            print.document.body.append(text("h2", "Legacy note"), text("p", "Earlier contribution identity unavailable"), p);
-        }
-        print.document.body.append(text("h2", "Contributions"));
-        const blocks = host.cloneNode(true);
-        blocks.querySelectorAll("button").forEach(b => b.remove());
-        blocks.querySelectorAll("details").forEach(d => { d.open = true; });
-        print.document.body.append(blocks);
         const amendments = document.querySelector("#encounterAddendumsContent");
         if (amendments)
             print.document.body.append(text("h2", "Addendums"), amendments.cloneNode(true));

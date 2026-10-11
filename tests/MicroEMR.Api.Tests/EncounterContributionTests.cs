@@ -136,6 +136,44 @@ public sealed class EncounterContributionTests
         Assert.DoesNotContain("Original contributor",html);
     }
 
+
+    [Fact]
+    public void FieldValuesAndNarrativeRenderOnceWithSeparateIdentities()
+    {
+        var value=new EncounterContributionResponse {SectionKey="subjective",FieldKey="pulse",ValueKind="Value",OriginalContributorId=7,
+            OriginalContributorDisplayName="A",Revisions=[new(1,"80",7,"A",DateTime.UtcNow),new(2,"81",8,"B",DateTime.UtcNow)]};
+        var narrative=new EncounterContributionResponse {SectionKey="subjective",FieldKey="history",FieldLabel="History",OriginalContributorId=8,
+            OriginalContributorDisplayName="B",Revisions=[new(1,"New attributed narrative",8,"B",DateTime.UtcNow)]};
+        var output=EncounterContributionOutput.Include(new([new("subjective","Subjective",0,
+            [new("pulse","Pulse","81","Number",false,0),new("history","History","Legacy narrative","TextArea",false,1)])]),[value,narrative]);
+        var html=new TemplateHtmlRenderer().Render(output);
+        Assert.Equal(3,output.Sections[0].Items.Count);
+        Assert.Single(output.Sections[0].Items,i=>i.DisplayValue=="81");
+        Assert.Single(output.Sections[0].Items,i=>i.DisplayValue=="Legacy narrative");
+        Assert.Single(output.Sections[0].Items,i=>i.DisplayValue=="New attributed narrative");
+        Assert.Contains("Original contributor of tracked value: A",html);Assert.Contains("Revision 2: B",html);
+        Assert.Contains("History",html);
+    }
+
+    [Fact]
+    public void ComposedValidationDoesNotCopyNarrativeIntoBaseline()
+    {
+        const string baseline="{\"schemaVersion\":1,\"values\":{\"history\":\"Legacy\"}}";
+        var block=new EncounterContributionResponse {FieldKey="history",Revisions=[new(1,"New",7,"A",DateTime.UtcNow)]};
+        var composed=EncounterFieldComposition.Compose(baseline,[block]);
+        using var json=JsonDocument.Parse(composed);
+        Assert.Equal("Legacy\n\nNew",json.RootElement.GetProperty("values").GetProperty("history").GetString());
+        Assert.DoesNotContain("New",baseline);
+    }
+
+    [Fact]
+    public async Task ScalarFieldsCannotBeRevisedThroughNarrativeEndpoint()
+    {
+        var note=Note();note.Contributions.Add(new() {ContributionUid=Guid.NewGuid(),SectionKey="subjective",ValueKind="Value"});
+        var request=Request();request.ContributionUid=note.Contributions[0].ContributionUid;
+        Assert.False(await Service(note).SaveAsync(note.PatientUid,note.EncounterUid,request,8));
+    }
+
     private static PatientEncounterDetailsResponse Note()=>new() {PatientUid=Guid.NewGuid(),EncounterUid=Guid.NewGuid(),Status="Open"};
     private static SaveEncounterContributionRequest Request()=>new() {SectionKey="subjective",Content="Clinical text",RowVersion=Convert.ToBase64String(new byte[8])};
     private static EncounterContributionService Service(PatientEncounterDetailsResponse note)=>new(

@@ -12,6 +12,95 @@ namespace MicroEMR.Api.Tests;
 public sealed class EncounterContributionSqlTests(ContributionSqlDatabase db) : IClassFixture<ContributionSqlDatabase>
 {
     [DiagnosisSqlFact]
+    public async Task RawReplacementClientsCannotOverwriteLegacyContent()
+    {
+        var (p,e)=await db.Seed();
+        await db.Inner.Execute("UPDATE dbo.PatientEncounter SET EncounterNotes=N'Legacy free text' WHERE EncounterUid=@p",e);
+        await Assert.ThrowsAsync<EncounterNoteNotEditableException>(()=>db.Notes.UpdateSoapNoteAsync(p,e,new() {SubjectiveNote="Replacement"},7));
+        await Assert.ThrowsAsync<EncounterNoteNotEditableException>(()=>db.Notes.UpdateNoteAsync(p,e,new() {Notes="Replacement"},8));
+        var note=(await db.Notes.GetByUidAsync(e))!;
+        Assert.Equal("Preserved SOAP",note.SubjectiveNote);Assert.Equal("Legacy free text",note.Notes);
+        Assert.Empty(note.Contributions);
+    }
+
+    [DiagnosisSqlFact]
+    public async Task FieldsPreserveBaselineAuthorshipNoOpsRevisionsAndClears()
+    {
+        var (p,e)=await SeedTemplate();
+        var first=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":80}",7))!;
+        var block=Assert.Single(first.Contributions);Assert.Equal("pulse",block.FieldKey);
+        Assert.Equal("Value",block.ValueKind);Assert.Equal(7,block.OriginalContributorId);Assert.Equal("null",block.PriorValueJson);
+        var uid=block.ContributionUid;var timestamp=block.CreatedAtUtc;
+        var same=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":80.0}",8))!;
+        Assert.Single(same.Contributions[0].Revisions);
+        var revised=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":81,\"flag\":false}",8))!;
+        block=revised.Contributions.Single(c=>c.FieldKey=="pulse");
+        Assert.Equal(uid,block.ContributionUid);Assert.Equal(timestamp,block.CreatedAtUtc);Assert.Equal(7,block.OriginalContributorId);
+        Assert.Equal("80",block.Revisions[0].Content);Assert.Equal("81",block.Content);Assert.Equal(8,block.Revisions[1].EditorId);
+        Assert.Equal("false",revised.Contributions.Single(c=>c.FieldKey=="flag").Content);
+        var cleared=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"flag\":false}",7))!;
+        Assert.Equal("null",cleared.Contributions.Single(c=>c.FieldKey=="pulse").Content);
+        Assert.Equal(3,cleared.Contributions.Single(c=>c.FieldKey=="pulse").Revisions.Count);
+        await Assert.ThrowsAsync<EncounterNoteNotEditableException>(()=>FieldSave(p,e,"{\"history\":\"Replacement\"}",8));
+        Assert.Contains("Legacy history",(await db.Notes.GetByUidAsync(e))!.StructuredDataJson);
+        Assert.True(await db.Save(p,e,"New narrative",7,field:"history"));
+        var narrative=(await db.Notes.GetByUidAsync(e))!.Contributions.Single(c=>c.ValueKind=="Narrative");
+        Assert.Equal("history",narrative.FieldKey);Assert.Equal("History",narrative.FieldLabel);
+        Assert.Contains("Legacy history",(await db.Notes.GetByUidAsync(e))!.StructuredDataJson);
+        await Assert.ThrowsAsync<SqlException>(()=>db.Save(p,e,"Forged scalar",7,field:"pulse"));
+        await Assert.ThrowsAsync<SqlException>(()=>db.Save(p,e,"Forged field",7,field:"other"));
+    }
+
+    [DiagnosisSqlFact]
+    public async Task FieldChangesAndProvenanceRollbackTogetherAndRejectStaleAndForeignSaves()
+    {
+        var (p,e)=await SeedTemplate();var before=(await db.Notes.GetByUidAsync(e))!;
+        await db.Inner.Execute("ALTER TABLE dbo.AuditLog WITH NOCHECK ADD CONSTRAINT CK_TestFieldAudit CHECK (ActionName <> 'FieldValueSaved')");
+        try {await Assert.ThrowsAsync<SqlException>(()=>FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":80}",7));}
+        finally {await db.Inner.Execute("ALTER TABLE dbo.AuditLog DROP CONSTRAINT CK_TestFieldAudit");}
+        var after=(await db.Notes.GetByUidAsync(e))!;
+        Assert.Equal(before.StructuredDataJson,after.StructuredDataJson);Assert.Equal(before.RowVersion,after.RowVersion);Assert.Empty(after.Contributions);
+        var saved=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":80}",7))!;
+        await Assert.ThrowsAsync<EncounterNoteNotEditableException>(()=>FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":81}",8,before.RowVersion));
+        var (otherP,_)=await db.Seed();Assert.Null(await FieldSave(otherP,e,"{}",8,saved.RowVersion));
+        var foreign=new PatientEncounterRepository(new EncounterDiagnosisSqlTests.Factory(db.Inner.OtherConnection),NullLogger<PatientEncounterRepository>.Instance);
+        Assert.Null(await foreign.UpdateStructuredDataAsync(p,e,new() {RowVersion=saved.RowVersion,StructuredDataJson="{\"schemaVersion\":1,\"values\":{}}"},null,null,null,null,8));
+        await Assert.ThrowsAsync<EncounterCannotBeSignedException>(()=>db.Notes.SignVersionedAsync(p,e,8,MicroEMR.Application.Scheduling.AppointmentStatus.Seen,MicroEMR.Application.Scheduling.AppointmentStatus.Completed,before.RowVersion));
+        var signed=(await db.Notes.SignVersionedAsync(p,e,8,MicroEMR.Application.Scheduling.AppointmentStatus.Seen,MicroEMR.Application.Scheduling.AppointmentStatus.Completed,saved.RowVersion))!;
+        Assert.Equal(7,Assert.Single(signed.Contributions).OriginalContributorId);
+        await Assert.ThrowsAsync<EncounterNoteNotEditableException>(()=>FieldSave(p,e,"{}",8));
+        Assert.NotNull(await db.Notes.CreateAddendumAsync(p,e,new() {AddendumText="Signed clarification"},8));
+    }
+
+
+    [DiagnosisSqlFact]
+    public async Task TinyDecimalChangeIsARevisionAndEquivalentPrecisionIsANoOp()
+    {
+        var (p,e)=await SeedTemplate();
+        await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":0.0000000000000000000000000001}",7);
+        var next=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":0.0000000000000000000000000002}",8))!;
+        Assert.Equal(2,Assert.Single(next.Contributions).Revisions.Count);
+        var same=(await FieldSave(p,e,"{\"history\":\"Legacy history\",\"pulse\":0.00000000000000000000000000020}",7))!;
+        Assert.Equal(2,Assert.Single(same.Contributions).Revisions.Count);
+        Assert.Equal(8,same.Contributions[0].Revisions[1].EditorId);
+    }
+
+    private async Task<(Guid p,Guid e)> SeedTemplate()
+    {
+        var (p,e)=await db.Seed();var version=Guid.NewGuid();
+        await db.Inner.Execute($$$"""
+            INSERT dbo.DocumentTemplateVersion VALUES('{{{version}}}',N'{"schemaVersion":1,"sections":[{"key":"subjective","title":"Subjective","fields":[{"key":"history","label":"History","type":"TextArea"},{"key":"pulse","label":"Pulse","type":"Number"},{"key":"flag","label":"Flag","type":"Boolean"}]}]}');
+            UPDATE dbo.PatientEncounter SET TemplateVersionUid='{{{version}}}',StructuredDataJson=N'{"schemaVersion":1,"values":{"history":"Legacy history"}}' WHERE EncounterUid=@p;
+            """,e);
+        return(p,e);
+    }
+    private async Task<MicroEMR.Application.PatientEncounters.Contracts.PatientEncounterDetailsResponse?> FieldSave(Guid p,Guid e,string values,long actor,string? version=null)
+    {
+        version ??=(await db.Notes.GetByUidAsync(e))!.RowVersion;
+        return await db.Notes.UpdateStructuredDataAsync(p,e,new() {StructuredDataJson="{\"schemaVersion\":1,\"values\":"+values+"}",RowVersion=version},null,null,null,null,actor);
+    }
+
+    [DiagnosisSqlFact]
     public async Task TwoCliniciansSameSectionRevisionAndSigningPreserveAttribution()
     {
         var (p,e)=await db.Seed();
@@ -152,16 +241,17 @@ public sealed class ContributionSqlDatabase : IAsyncLifetime
                         || x.TrimStart().StartsWith("CREATE OR ALTER PROCEDURE dbo."+procedure+"\r\n",StringComparison.Ordinal)));
             await Batches(sql,File.ReadAllText(Path.Combine(Root(),"db/patient_encounter_addendum_stored_procedures.sql")));
             await Batches(sql,File.ReadAllText(Path.Combine(Root(),"db/tenant-clinical/migrations/0071-encounter-contribution-identity.sql")));
+            await Batches(sql,File.ReadAllText(Path.Combine(Root(),"db/tenant-clinical/migrations/0072-encounter-field-attribution.sql")));
+            await Batches(sql,File.ReadAllText(Path.Combine(Root(),"db/tenant-clinical/migrations/0072-encounter-field-attribution.sql")));
             // Verify migration rerun is additive and idempotent.
-            await Batches(sql,File.ReadAllText(Path.Combine(Root(),"db/tenant-clinical/migrations/0071-encounter-contribution-identity.sql")));
         }
     }
     public Task<(Guid,Guid)> Seed()=>Inner.Seed();
-    public async Task<bool> Save(Guid p,Guid e,string content,long actor,Guid? uid=null,string? version=null,string section="subjective")
+    public async Task<bool> Save(Guid p,Guid e,string content,long actor,Guid? uid=null,string? version=null,string section="subjective",string? field=null)
     {
         version ??= (await Notes.GetByUidAsync(e))!.RowVersion;
         return await new EncounterContributionRepository(new EncounterDiagnosisSqlTests.Factory(connection),NullLogger<EncounterContributionRepository>.Instance)
-            .SaveAsync(p,e,new() {ContributionUid=uid,SectionKey=section,Content=content,RowVersion=version},actor);
+            .SaveAsync(p,e,new() {ContributionUid=uid,SectionKey=section,FieldKey=field,Content=content,RowVersion=version},actor);
     }
     private static async Task Batches(SqlConnection sql,string text)
     {foreach(var batch in Regex.Split(text,@"^\s*GO\s*$",RegexOptions.Multiline|RegexOptions.IgnoreCase).Where(x=>!string.IsNullOrWhiteSpace(x)))await new SqlCommand(batch,sql).ExecuteNonQueryAsync();}

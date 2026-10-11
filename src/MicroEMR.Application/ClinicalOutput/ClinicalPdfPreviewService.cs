@@ -108,6 +108,10 @@ public sealed class ClinicalPdfPreviewService(
         EnsureProvenance(encounter.TemplateUid.Value, version.TemplateUid);
         var definition = RequireDefinition(version.DefinitionJson);
         var data = ProcessDraft(definition, request.StructuredDataJson);
+        var saved = ProcessDraft(definition, encounter.StructuredDataJson);
+        if (data.Values.Count != saved.Values.Count || data.Values.Any(pair =>
+            !saved.Values.TryGetValue(pair.Key, out var value) || !System.Text.Json.JsonElement.DeepEquals(pair.Value, value)))
+            throw new InvalidOperationException("Save the draft before previewing attributed content.");
         var patient = await patients.GetByUidAsync(encounter.PatientUid, token)
             ?? throw new InvalidOperationException("The encounter patient is unavailable.");
         var clinic = await clinicConfiguration.GetAsync(token);
@@ -198,7 +202,7 @@ public sealed class ClinicalPdfPreviewService(
             ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
         EnsureProvenance(encounter.TemplateUid.Value, version.TemplateUid);
         var definition = RequireDefinition(version.DefinitionJson);
-        var processed = runtime.Process(definition, encounter.StructuredDataJson);
+        var processed = runtime.Process(definition, MicroEMR.Application.PatientEncounters.EncounterFieldComposition.Compose(encounter.StructuredDataJson, encounter.Contributions));
         if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
         var patient = await patients.GetByUidAsync(encounter.PatientUid, token)
             ?? throw new InvalidOperationException("The encounter patient is unavailable.");
@@ -211,7 +215,7 @@ public sealed class ClinicalPdfPreviewService(
                 encounter.EncounterDateUtc, encounter.ProviderName ?? encounter.AppointmentProviderDisplayName),
             new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
                 encounter.SignedByDisplayName, encounter.SignedAt));
-        return await RenderAsync(printContext, definition, processed.Data!, variables, null, encounterUid,
+        return await RenderAsync(printContext, definition, ProcessDraft(definition, encounter.StructuredDataJson), variables, null, encounterUid,
             encounter.TemplateUid.Value, version.TemplateVersionUid, token, encounter.Contributions);
     }
 

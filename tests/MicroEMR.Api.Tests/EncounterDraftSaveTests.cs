@@ -25,8 +25,7 @@ public sealed class EncounterDraftSaveTests
 {
     [Theory]
     [InlineData("{}")]
-    [InlineData("{\"history\":\"\"}")]
-    [InlineData("{\"history\":\"Partial note\"}")]
+
     public async Task IncompleteDraftSavesButCannotBeSigned(string values)
     {
         var fixture = new Fixture();
@@ -84,6 +83,42 @@ public sealed class EncounterDraftSaveTests
         var json=System.Text.Json.JsonSerializer.Serialize(result.Value);
         Assert.Contains(message,json);
         Assert.Contains("save the draft before signing",json);
+        Assert.Contains("Add contribution for that field",json);
+        Assert.Contains("section contribution does not fill a required field",json);
+    }
+
+
+    [Fact]
+    public async Task NarrativeReplacementFailsButFieldLinkedContributionSatisfiesRequiredText()
+    {
+        var fixture=new Fixture();
+        await Assert.ThrowsAsync<MicroEMR.Application.PatientEncounters.EncounterNoteNotEditableException>(()=>fixture.Service.UpdateStructuredDataAsync(
+            fixture.Note.PatientUid,fixture.Note.EncounterUid,new() {StructuredDataJson="{\"schemaVersion\":1,\"values\":{\"history\":\"Unattributed\"}}",RowVersion=Convert.ToBase64String(new byte[8])},7));
+        Assert.Equal(0,fixture.Saves);
+        fixture.Note.StructuredDataJson="{\"schemaVersion\":1,\"values\":{\"pulse\":80}}";
+        fixture.Note.Contributions.Add(new() {SectionKey="subjective",FieldKey="history",Revisions=[new(1,"Attributed history",7,"A",DateTime.UtcNow)]});
+        Assert.NotNull(await fixture.Service.SignAsync(fixture.Note.PatientUid,fixture.Note.EncounterUid,7));
+        Assert.Equal(1,fixture.Signs);
+    }
+
+    [Fact]
+    public async Task UnboundBlockDoesNotSatisfyRequiredField()
+    {
+        var fixture=new Fixture();fixture.Note.StructuredDataJson="{\"schemaVersion\":1,\"values\":{\"pulse\":80}}";
+        fixture.Note.Contributions.Add(new() {SectionKey="subjective",Revisions=[new(1,"Section text",7,"A",DateTime.UtcNow)]});
+        await Assert.ThrowsAsync<TemplateInstanceValidationException>(()=>fixture.Service.SignAsync(fixture.Note.PatientUid,fixture.Note.EncounterUid,7));
+        Assert.Equal(0,fixture.Signs);
+    }
+
+
+    [Fact]
+    public async Task FieldPatchPreservesUntouchedHighPrecisionClinicalValue()
+    {
+        var fixture=new Fixture();fixture.Note.StructuredDataJson="{\"schemaVersion\":1,\"values\":{\"pulse\":12345678901234567890.123456789}}";
+        var saved=await fixture.Service.UpdateStructuredDataAsync(fixture.Note.PatientUid,fixture.Note.EncounterUid,
+            new() {StructuredDataJson="{\"schemaVersion\":1,\"values\":{\"pulse\":12345678901234567000}}",ChangedFieldKeys=[],RowVersion=Convert.ToBase64String(new byte[8])},7);
+        Assert.Contains("12345678901234567890.123456789",saved!.StructuredDataJson);
+        Assert.Equal("12345678901234567890.123456789",saved.TemplateFieldValues["pulse"]);
     }
 
     private sealed class Fixture
@@ -111,7 +146,7 @@ public sealed class EncounterDraftSaveTests
                     Saves++;SavedVersion=request.RowVersion;SavedActor=(long?)args[7];Note.StructuredDataJson=request.StructuredDataJson;
                     return Task.FromResult<PatientEncounterDetailsResponse?>(Note);
                 }
-                if(method.Name==nameof(IPatientEncounterRepository.SignAsync)) {Signs++;return Task.FromResult<PatientEncounterDetailsResponse?>(Note);}
+                if(method.Name==nameof(IPatientEncounterRepository.SignAsync) || method.Name==nameof(IPatientEncounterRepository.SignVersionedAsync)) {Signs++;return Task.FromResult<PatientEncounterDetailsResponse?>(Note);}
                 throw new NotSupportedException(method.Name);
             });
             Service=new(repository,Proxy<ISchedulingAppointmentRepository>((m,_)=>throw new NotSupportedException(m.Name)),new AppointmentStatusTransitionService(),
