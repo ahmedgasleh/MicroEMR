@@ -2020,7 +2020,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(field.type==="Checkbox") input.checked=values[field.key]===true; else input.value=field.type==="Number" ? encounter.templateFieldValues?.[field.key] ?? values[field.key] ?? "" : field.type==="Boolean"&&values[field.key]!==undefined?String(values[field.key]):values[field.key]??"";
                 input.dataset.initialValue=field.type==="Checkbox"?String(input.checked):input.value;
                 input.disabled=String(encounter.status).toLowerCase()!=="open" || !canEditEncounters || field.type==="Text" || field.type==="TextArea";
-                if(field.type==="Text" || field.type==="TextArea") {const help=document.createElement("p");help.className="small text-muted";help.textContent="Earlier/template contribution identity unavailable. Use a field contribution for new text.";group.appendChild(help);}
+                if(field.type==="Text" || field.type==="TextArea") {
+                    input.hidden=true;
+                    if(input.value.trim()) {
+                        const help=document.createElement("p");help.className="small text-muted mb-1";help.textContent="Earlier/template text (read-only; contributor identity unavailable)";group.appendChild(help);
+                        const baseline=document.createElement("p");baseline.className="text-break mb-2";baseline.style.whiteSpace="pre-wrap";baseline.textContent=input.value;group.appendChild(baseline);
+                    }
+                }
                 if(field.required) input.required=true; group.appendChild(input); wrapper.appendChild(group);
             }); fieldsHost.appendChild(wrapper);
         });
@@ -2322,6 +2328,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!currentPatientUid || !currentEncounterUid || !currentEncounterIsEditable) {
             return;
         }
+        if (Array.from(document.querySelectorAll("[data-template-note-editor] textarea")).some(input => input.value.trim())) {
+            noteMessage.className = "alert alert-warning mt-3 mb-0";
+            noteMessage.textContent = "Save the template text fields before signing.";
+            return;
+        }
 
         signMessage.classList.add("d-none");
         signMessage.textContent = "";
@@ -2401,7 +2412,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const body = new FormData();
             body.append("encounterUid", currentEncounterUid);
-            if (changedTemplateInputs().length) throw new Error("Save the draft before previewing attributed content.");
+            if (changedTemplateInputs().length || Array.from(document.querySelectorAll("[data-template-note-editor] textarea")).some(input => input.value.trim()))
+                throw new Error("Save the template fields before previewing attributed content.");
             body.append("structuredDataJson", currentStructuredEncounter.structuredDataJson);
             const token = document.querySelector('#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]').value;
             const response = await fetch(previewPdfUrl, { method:"POST", headers:{"RequestVerificationToken":token}, body });

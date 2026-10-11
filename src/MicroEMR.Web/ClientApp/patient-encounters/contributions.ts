@@ -11,15 +11,18 @@ if (root) {
     const cancel = root.querySelector<HTMLButtonElement>("[data-contribution-cancel]")!;
     const message = root.querySelector<HTMLElement>("[data-contribution-message]")!;
     let state: ContributionEncounter | undefined, editing: string | undefined, busy = false, generation = 0;
+    const fieldDrafts = new Map<string, string>();
+    let refreshRequired = false;
     const date = (value: string) => new Date(value).toLocaleString();
     const text = (tag: string, value: string): HTMLElement => { const node = document.createElement(tag); node.textContent = value; return node; };
     const reset = () => { editing = undefined; content.value = ""; section.disabled = false; save.textContent = "Add contribution"; };
     const render = (encounter: ContributionEncounter) => {
         state = encounter;
-        document.querySelectorAll("[data-contribution-card], [data-contribution-field-help]").forEach(card => card.remove());
+        document.querySelectorAll("[data-contribution-card], [data-template-note-editor]").forEach(card => card.remove());
         host.replaceChildren();
         const editable = encounter.status.toLowerCase() === "open" && root.dataset.canEdit === "true";
         editor.hidden = !editable;
+        const selectedSection = section.value;
         section.replaceChildren();
         const sections = encounter.templateDefinition?.sections || [
             { key: "subjective", title: "Subjective", order: 0 }, { key: "objective", title: "Objective", order: 1 },
@@ -31,32 +34,30 @@ if (root) {
                 option.dataset.sectionKey = s.key; option.dataset.fieldKey = field.key; section.add(option);
             }
         });
+        if (Array.from(section.options).some(option => option.value === selectedSection)) section.value = selectedSection;
         for (const container of encounter.templateDefinition?.sections || []) {
             for (const field of container.fields || []) {
-                if (field.type !== "Text" && field.type !== "TextArea") continue;
-                const fieldInput = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("#encounterStructuredFields [data-field-key]"))
+                if (!editable || (field.type !== "Text" && field.type !== "TextArea")) continue;
+                const baseline = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("#encounterStructuredFields [data-field-key]"))
                     .find(input => input.dataset.fieldKey === field.key);
-                if (!fieldInput) continue;
-                const help = document.createElement("div"); help.dataset.contributionFieldHelp = "true"; help.className = "my-2";
-                const hasContent = !!fieldInput.value.trim() || encounter.contributions.some(block =>
-                    block.sectionKey === container.key && block.fieldKey === field.key && block.valueKind === "Narrative" && !!block.content.trim());
-                if (encounter.status.toLowerCase() === "open" && field.required && !hasContent) {
-                    const missing = text("p", `${field.label}: a saved field contribution is required before signing. A section contribution does not fill this field.`);
-                    missing.className = "small text-danger mb-2"; help.append(missing);
-                }
-                if (editable) {
-                    const add = document.createElement("button"); add.type = "button"; add.className = "btn btn-outline-primary btn-sm";
-                    add.textContent = `Add contribution for ${field.label}`;
-                    add.addEventListener("click", () => {
-                        if (busy) return;
-                        if (content.value.trim()) { message.textContent = "Save or cancel the current contribution before starting another."; content.focus(); return; }
-                        reset(); section.value = container.key + "/" + field.key;
-                        message.textContent = `New text will be saved to ${container.title} / ${field.label}.`;
-                        editor.scrollIntoView({block: "nearest"}); content.focus();
-                    });
-                    help.append(add);
-                }
-                fieldInput.parentElement!.append(help);
+                if (!baseline) continue;
+                const draftKey = JSON.stringify([container.key, field.key]);
+                const hasSavedText = !!baseline.value.trim() || encounter.contributions.some(block =>
+                    block.sectionKey === container.key && block.fieldKey === field.key && block.valueKind === "Narrative");
+                if (hasSavedText && !fieldDrafts.get(draftKey)?.trim()) continue;
+                const fieldEditor = document.createElement("div"); fieldEditor.dataset.templateNoteEditor = "true"; fieldEditor.className = "mb-3";
+                const input = document.createElement("textarea"); input.className = "form-control mb-2"; input.rows = 3;
+                input.setAttribute("aria-label", field.label + (field.required ? " (required)" : ""));
+                input.placeholder = `Enter ${field.label}`; input.value = fieldDrafts.get(draftKey) || "";
+                input.addEventListener("input", () => fieldDrafts.set(draftKey, input.value));
+                const fieldSave = document.createElement("button"); fieldSave.type = "button"; fieldSave.className = "btn btn-primary btn-sm";
+                fieldSave.textContent = `Save ${field.label}`;
+                const status = text("p", ""); status.className = "small mt-2 mb-0"; status.setAttribute("role", "status");
+                fieldSave.addEventListener("click", async () => {
+                    if (!input.value.trim()) { status.textContent = `Enter ${field.label} before saving.`; input.focus(); return; }
+                    await persistContribution(input.value, container.key, field.key, undefined, () => fieldDrafts.delete(draftKey), status);
+                });
+                fieldEditor.append(input, fieldSave, status); baseline.parentElement!.append(fieldEditor);
             }
         }
         for (const block of encounter.contributions || []) {
@@ -87,7 +88,9 @@ if (root) {
         }
     };
     document.addEventListener("encounter-contributions-context", event => {
-        generation++; reset(); message.textContent = ""; render((event as CustomEvent<ContributionEncounter>).detail);
+        const encounter = (event as CustomEvent<ContributionEncounter>).detail;
+        if (state?.patientUid !== encounter.patientUid || state?.encounterUid !== encounter.encounterUid) fieldDrafts.clear();
+        generation++; refreshRequired = false; reset(); message.textContent = ""; render(encounter);
     });
     document.addEventListener("encounter-fields-rendered", () => { if (state) render(state); });
     document.addEventListener("encounter-diagnoses-saved", event => {
@@ -95,31 +98,41 @@ if (root) {
         if (state?.encounterUid === saved.encounterUid && state?.patientUid === saved.patientUid) state.rowVersion = saved.rowVersion;
     });
     cancel.addEventListener("click", reset);
-    save.addEventListener("click", async () => {
-        if (busy || !state || !content.value.trim()) return;
+    const persistContribution = async (value: string, sectionKey: string, fieldKey: string | undefined, contributionUid: string | undefined,
+        onSaved: () => void, status: HTMLElement = message) => {
+        if (busy || !state || !value.trim()) return;
+        if (refreshRequired) { status.textContent = "Reopen the encounter to refresh saved content before editing again."; return; }
         const current = state, currentGeneration = generation;
         busy = true; save.disabled = true; cancel.disabled = true; content.disabled = true;
-        document.querySelectorAll<HTMLButtonElement>("[data-contribution-card] button").forEach(b => b.disabled = true);
+        document.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>("[data-contribution-card] button, [data-template-note-editor] button, [data-template-note-editor] textarea").forEach(control => control.disabled = true);
         try {
             const body = new FormData();
             body.append("patientUid", current.patientUid); body.append("encounterUid", current.encounterUid);
-            body.append("sectionKey", section.selectedOptions[0].dataset.sectionKey || section.value);
-            if (section.selectedOptions[0].dataset.fieldKey) body.append("fieldKey", section.selectedOptions[0].dataset.fieldKey!); body.append("content", content.value); body.append("rowVersion", current.rowVersion);
-            if (editing) body.append("contributionUid", editing);
+            body.append("sectionKey", sectionKey);
+            if (fieldKey) body.append("fieldKey", fieldKey); body.append("content", value); body.append("rowVersion", current.rowVersion);
+            if (contributionUid) body.append("contributionUid", contributionUid);
             body.append("__RequestVerificationToken", document.querySelector<HTMLInputElement>('#encounterNoteAntiforgeryForm input[name="__RequestVerificationToken"]')!.value);
             const response = await fetch(root.dataset.saveUrl!, { method: "POST", body });
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || "Contribution could not be saved.");
+            if (currentGeneration !== generation) return;
+            refreshRequired = true;
+            onSaved();
             const query = new URLSearchParams({ patientUid: current.patientUid, encounterUid: current.encounterUid });
             const refreshed = await fetch(`${root.dataset.detailsUrl}?${query}`);
             const details = await refreshed.json();
             if (!refreshed.ok || !details.success) throw new Error("Contribution saved, but refresh failed. Reopen the encounter before editing again.");
             if (currentGeneration !== generation) return;
-            reset(); render(details.encounter); message.textContent = "Contribution saved.";
+            refreshRequired = false; render(details.encounter); message.textContent = fieldKey ? "Template field saved." : "Contribution saved.";
             document.dispatchEvent(new CustomEvent("encounter-contribution-saved", { detail: details.encounter }));
         } catch (error) {
-            if (currentGeneration === generation) message.textContent = error instanceof Error ? error.message : "Contribution could not be saved.";
-        } finally { busy = false; save.disabled = false; cancel.disabled = false; content.disabled = false; document.querySelectorAll<HTMLButtonElement>("[data-contribution-card] button").forEach(b => b.disabled = false); }
+            if (currentGeneration === generation) status.textContent = error instanceof Error ? error.message : "Contribution could not be saved.";
+        } finally { busy = false; save.disabled = false; cancel.disabled = false; content.disabled = false; document.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>("[data-contribution-card] button, [data-template-note-editor] button, [data-template-note-editor] textarea").forEach(control => control.disabled = false); }
+    };
+    save.addEventListener("click", async () => {
+        const option = section.selectedOptions[0];
+        if (!option) return;
+        await persistContribution(content.value, option.dataset.sectionKey || section.value, option.dataset.fieldKey, editing, reset);
     });
     root.querySelector("[data-contribution-print]")!.addEventListener("click", () => {
         if (!state) return;
