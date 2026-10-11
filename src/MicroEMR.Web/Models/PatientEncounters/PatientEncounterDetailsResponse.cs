@@ -28,6 +28,8 @@ public sealed class PatientEncounterDetailsResponse
 
     public DateTime? UpdatedAt { get; set; }
 
+    public List<MicroEMR.Application.PatientEncounters.EncounterContributionResponse> Contributions { get; set; } = [];
+
     public string? Notes { get; set; }
     public string? SubjectiveNote { get; set; }
     public string? ObjectiveNote { get; set; }

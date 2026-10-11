@@ -202,6 +202,9 @@ public sealed class PatientEncounterService : IPatientEncounterService
             ?? throw new InvalidOperationException("The encounter's historical template version is unavailable.");
         EnsureVersionProvenance(current.TemplateUid, version.TemplateUid);
         var definition = RequireDefinition(version.DefinitionJson);
+        // Drafts may be incomplete. Signing still validates the unchanged historical definition.
+        foreach (var field in definition.Sections!.SelectMany(section => section.Fields!))
+            field.Required = false;
         var processed = _runtime!.Process(definition, request.StructuredDataJson);
         if (!processed.IsValid) throw new TemplateInstanceValidationException(processed.Errors);
         request.StructuredDataJson = processed.Json!;

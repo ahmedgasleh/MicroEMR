@@ -1467,6 +1467,25 @@
                                 <div class="form-text">This note is preserved from the previous note format.</div>
                             </div>
                             </div>
+                            <div id="encounterContributions" class="mt-3"
+                                 data-save-url="@Url.Action("SaveContribution", "PatientEncounters")"
+                                 data-details-url="@Url.Action("EncounterDetails", "PatientEncounters")"
+                                 data-can-edit="@canEditEncounters.ToString().ToLowerInvariant()"
+                                 data-patient-name="@patient.FullName" data-chart-number="@patient.ChartNumber">
+                                <h6>Contributions</h6>
+                                <p class="small text-muted">Section content outside these blocks: Earlier contribution identity unavailable.</p>
+                                <div data-contribution-blocks></div>
+                                <div data-contribution-editor class="border rounded p-3">
+                                    <label class="form-label" for="contributionSection">Section</label>
+                                    <select id="contributionSection" class="form-select mb-2"></select>
+                                    <label class="form-label" for="contributionContent">Contribution text</label>
+                                    <textarea id="contributionContent" class="form-control mb-2" rows="3" maxlength="32000"></textarea>
+                                    <button type="button" data-contribution-save class="btn btn-outline-primary">Add contribution</button>
+                                    <button type="button" data-contribution-cancel class="btn btn-outline-secondary">Cancel edit</button>
+                                </div>
+                                <p data-contribution-message class="small mt-2" role="status"></p>
+                                <button type="button" data-contribution-print class="btn btn-outline-secondary btn-sm">Print note with contribution identities</button>
+                            </div>
                             <div id="encounterNoteMessage"
                                  class="alert d-none mt-3 mb-0"
                                  role="status"></div>
@@ -1762,6 +1781,7 @@ document.addEventListener("DOMContentLoaded", () => {
 <script type="module" src="~/dist/patients/recent-patients.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/cpp-display-preferences.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/cpp-print.js" asp-append-version="true"></script>
+<script type="module" src="~/dist/patient-encounters/contributions.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patient-encounters/diagnoses.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-clinical-history.js" asp-append-version="true"></script>
 <script type="module" src="~/dist/patients/patient-appointments.js" asp-append-version="true"></script>
@@ -1905,8 +1925,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    document.addEventListener("encounter-contribution-saved", event => {
+        const saved = event.detail;
+        if (saved.encounterUid === currentEncounterUid && saved.patientUid === currentPatientUid) {
+            if (currentStructuredEncounter) currentStructuredEncounter.rowVersion = saved.rowVersion;
+            resetEncounterHistory();
+        }
+    });
+
     const applyEncounterDetails = encounter => {
         document.dispatchEvent(new CustomEvent("encounter-diagnoses-context", { detail: encounter }));
+        document.dispatchEvent(new CustomEvent("encounter-contributions-context", { detail: encounter }));
         setText("encounterDetailsDate", formatDate(encounter.encounterDateUtc));
         setText("encounterDetailsType", encounter.encounterType);
         setText("encounterDetailsStatus", encounter.status);

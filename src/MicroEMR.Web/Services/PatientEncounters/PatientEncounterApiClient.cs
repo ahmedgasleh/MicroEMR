@@ -60,6 +60,16 @@ public sealed class PatientEncounterApiClient
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<List<EncounterTemplateListItem>>(cancellationToken: cancellationToken) ?? [];
     }
+    public async Task SaveContributionAsync(Guid patientUid, Guid encounterUid,
+        MicroEMR.Application.PatientEncounters.SaveEncounterContributionRequest contribution, CancellationToken token = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/encounters/{encounterUid}/contributions")
+        { Content = JsonContent.Create(contribution) };
+        await AddBearerTokenAsync(request);
+        using var response = await _httpClient.SendAsync(request, token);
+        await EnsureSuccessAsync(response, token);
+    }
+
     private readonly HttpClient _httpClient;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<PatientEncounterApiClient> _logger;

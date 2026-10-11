@@ -120,7 +120,7 @@ public sealed class ClinicalPdfPreviewService(
             new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
                 encounter.SignedByDisplayName, encounter.SignedAt));
         return await RenderAsync(printContext, definition, data, context, null,
-            encounter.EncounterUid, encounter.TemplateUid.Value, version.TemplateVersionUid, token);
+            encounter.EncounterUid, encounter.TemplateUid.Value, version.TemplateVersionUid, token, encounter.Contributions);
     }
 
     private TemplateInstanceData ProcessDraft(Templates.Definitions.TemplateDefinition definition, string? json)
@@ -138,12 +138,16 @@ public sealed class ClinicalPdfPreviewService(
 
     private async Task<byte[]> RenderAsync(ClinicalPrintContext printContext, Templates.Definitions.TemplateDefinition definition,
         TemplateInstanceData data, TemplateVariableContext? context, Guid? documentUid, Guid? encounterUid,
-        Guid templateUid, Guid versionUid, CancellationToken token)
+        Guid templateUid, Guid versionUid, CancellationToken token,
+        IReadOnlyList<MicroEMR.Application.PatientEncounters.EncounterContributionResponse>? contributions = null)
     {
         var timer = Stopwatch.StartNew();
         try
         {
-            var html = htmlRenderer.Render(outputBuilder.Build(definition, data, context));
+            var output = outputBuilder.Build(definition, data, context);
+            if (contributions is not null)
+                output = MicroEMR.Application.PatientEncounters.EncounterContributionOutput.Include(output, contributions);
+            var html = htmlRenderer.Render(output);
             return await pdfRenderer.RenderAsync(printLayout.Render(printContext, html), token);
         }
         catch (Exception exception) when (exception is not TemplateInstanceValidationException)
@@ -208,7 +212,7 @@ public sealed class ClinicalPdfPreviewService(
             new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
                 encounter.SignedByDisplayName, encounter.SignedAt));
         return await RenderAsync(printContext, definition, processed.Data!, variables, null, encounterUid,
-            encounter.TemplateUid.Value, version.TemplateVersionUid, token);
+            encounter.TemplateUid.Value, version.TemplateVersionUid, token, encounter.Contributions);
     }
 
     private static ClinicalPrintContext CreatePrintContext(ClinicConfigurationResponse clinic,

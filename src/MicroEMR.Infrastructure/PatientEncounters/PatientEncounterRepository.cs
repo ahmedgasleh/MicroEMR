@@ -65,39 +65,23 @@ public sealed class PatientEncounterRepository
     }
 
     public async Task<PatientEncounterDetailsResponse?> GetByUidAsync(
-        Guid encounterUid,
-        CancellationToken cancellationToken = default)
+        Guid encounterUid, CancellationToken cancellationToken = default)
     {
-        await using var connection =
-            await _connectionFactory.OpenConnectionAsync(cancellationToken);
-
-        await using var command =
-            new SqlCommand(
-                "dbo.PatientEncounter_GetByUid",
-                connection)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-
-        command.Parameters.Add(
-            new SqlParameter(
-                "@EncounterUid",
-                SqlDbType.UniqueIdentifier)
-            {
-                Value = encounterUid
-            });
-
-
-
-        await using var reader =
-            await command.ExecuteReaderAsync(cancellationToken);
-
-        if (!await reader.ReadAsync(cancellationToken))
-        {
-            return null;
-        }
-
-        return MapDetails(reader);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        // Hold the parent read lock until its contribution revisions have been read.
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.RepeatableRead, cancellationToken);
+        await using var command = new SqlCommand("dbo.PatientEncounter_GetByUid", connection, transaction)
+        { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add("@EncounterUid", SqlDbType.UniqueIdentifier).Value = encounterUid;
+        PatientEncounterDetailsResponse? encounter;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            encounter = await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        if (encounter is not null)
+            encounter.Contributions = await EncounterContributionRepository.ReadAsync(connection, transaction,
+                encounter.PatientUid, encounterUid, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return encounter;
     }
 
     public async Task<IReadOnlyList<PatientEncounterHistoryResponse>> GetHistoryAsync(
@@ -359,9 +343,9 @@ public sealed class PatientEncounterRepository
             await using var reader =
                 await command.ExecuteReaderAsync(cancellationToken);
 
-            return await reader.ReadAsync(cancellationToken)
-                ? MapDetails(reader)
-                : null;
+            var found = await reader.ReadAsync(cancellationToken);
+            await reader.DisposeAsync();
+            return found ? await GetByUidAsync(encounterUid, cancellationToken) : null;
         }
         catch (SqlException exception) when (exception.Number == 51071)
         {
@@ -403,7 +387,9 @@ public sealed class PatientEncounterRepository
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+            var found = await reader.ReadAsync(cancellationToken);
+            await reader.DisposeAsync();
+            return found ? await GetByUidAsync(encounterUid, cancellationToken) : null;
         }
         catch (SqlException exception) when (exception.Number == 51071)
         {
@@ -437,7 +423,9 @@ public sealed class PatientEncounterRepository
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+            var found = await reader.ReadAsync(cancellationToken);
+            await reader.DisposeAsync();
+            return found ? await GetByUidAsync(encounterUid, cancellationToken) : null;
         }
         catch (SqlException exception) when (exception.Number is 51071 or 51073)
         {
@@ -492,9 +480,9 @@ public sealed class PatientEncounterRepository
             await using var reader =
                 await command.ExecuteReaderAsync(cancellationToken);
 
-            return await reader.ReadAsync(cancellationToken)
-                ? MapDetails(reader)
-                : null;
+            var found = await reader.ReadAsync(cancellationToken);
+            await reader.DisposeAsync();
+            return found ? await GetByUidAsync(encounterUid, cancellationToken) : null;
         }
         catch (SqlException exception) when (exception.Number == 51072)
         {

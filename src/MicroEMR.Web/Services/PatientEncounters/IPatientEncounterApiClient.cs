@@ -4,6 +4,9 @@ namespace MicroEMR.Web.Services.PatientEncounters;
 
 public interface IPatientEncounterApiClient
 {
+    Task SaveContributionAsync(Guid patientUid, Guid encounterUid, MicroEMR.Application.PatientEncounters.SaveEncounterContributionRequest request,
+        CancellationToken token = default) => throw new NotSupportedException();
+
     Task<MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyResponse?> GetChronologyAsync(
         Guid patientUid, MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyRequest request,
         CancellationToken token = default) => throw new NotSupportedException();

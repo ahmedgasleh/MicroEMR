@@ -78,6 +78,26 @@ public sealed class PatientEncountersController : Controller
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "PDF preview is temporarily unavailable." });
         }
     }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequireWebPermission(PermissionKeys.EncountersEdit)]
+    public async Task<IActionResult> SaveContribution(Guid patientUid, Guid encounterUid,
+        MicroEMR.Application.PatientEncounters.SaveEncounterContributionRequest request, CancellationToken token)
+    {
+        try
+        {
+            await _encounterApiClient.SaveContributionAsync(patientUid, encounterUid, request, token);
+            return Json(new { success = true });
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode.HasValue)
+        { return StatusCode((int)exception.StatusCode.Value, new { success = false, message = "Contribution could not be saved. The encounter may have changed; reopen it before retrying." }); }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogError(exception, "Could not save contribution for encounter {EncounterUid}.", encounterUid);
+            return StatusCode(503, new { success = false, message = "Contribution could not be saved." });
+        }
+    }
+
     private readonly IPatientEncounterApiClient _encounterApiClient;
     private readonly IPatientApiClient _patientApiClient;
     private readonly IPatientCareTeamApiClient _careTeamApiClient;
@@ -468,7 +488,12 @@ public sealed class PatientEncountersController : Controller
         }
         catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
         {
-            return StatusCode((int)exception.StatusCode.Value, new { success = false, message = "Review the template fields and refresh if the encounter changed." });
+            if (exception.StatusCode == HttpStatusCode.Conflict)
+                return Conflict(new { success = false, message = "The encounter changed or cannot be edited. Reopen it before saving again." });
+
+            var message = TemplateValidationMessage(exception,
+                "The draft contains invalid template values. Review the fields and try again.");
+            return BadRequest(new { success = false, message });
         }
     }
 
@@ -512,6 +537,15 @@ public sealed class PatientEncountersController : Controller
                 encounter
             });
         }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var message = TemplateValidationMessage(exception, "The encounter has invalid or incomplete template fields.");
+            return BadRequest(new
+            {
+                success = false,
+                message = message + " Complete the required fields and save the draft before signing."
+            });
+        }
         catch (HttpRequestException exception)
             when (exception.StatusCode == HttpStatusCode.Conflict)
         {
@@ -540,6 +574,32 @@ public sealed class PatientEncountersController : Controller
                     message = "Encounter could not be signed."
                 });
         }
+    }
+
+    private static string TemplateValidationMessage(HttpRequestException exception, string fallback)
+    {
+        var body = SafeApiResponseException.ValidationBody(exception);
+        if (body.Length is > 0 and <= 65536)
+        {
+            try
+            {
+                using var validation = JsonDocument.Parse(body);
+                if (validation.RootElement.ValueKind == JsonValueKind.Object &&
+                    validation.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
+                {
+                    var details = errors.EnumerateObject()
+                        .Where(field => field.Value.ValueKind == JsonValueKind.Array)
+                        .SelectMany(field => field.Value.EnumerateArray())
+                        .Where(error => error.ValueKind == JsonValueKind.String)
+                        .Select(error => error.GetString())
+                        .Where(error => !string.IsNullOrWhiteSpace(error) && error.Length <= 300)
+                        .Take(10).ToArray();
+                    if (details.Length > 0) return string.Join(" ", details);
+                }
+            }
+            catch (JsonException) { /* Keep the safe fallback for non-validation responses. */ }
+        }
+        return fallback;
     }
 
     [HttpGet]
