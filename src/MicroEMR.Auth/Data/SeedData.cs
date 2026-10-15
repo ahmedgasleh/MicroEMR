@@ -254,6 +254,9 @@ public class SeedData : IHostedService
         applicationDescriptor.RedirectUris.Add(
             new Uri("https://localhost:7002/signin-oidc"));
 
+        applicationDescriptor.RedirectUris.Add(
+            new Uri("https://oauth.pstmn.io/v1/browser-callback"));
+
         applicationDescriptor.PostLogoutRedirectUris.Add(
             new Uri(
                 "https://localhost:7002/signout-callback-oidc"));

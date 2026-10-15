@@ -71,5 +71,6 @@
   { "migrationId": "0069-encounter-diagnoses", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0069-encounter-diagnoses.sql" },
   { "migrationId": "0070-scheduling-ad-hoc-overlap", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0070-scheduling-ad-hoc-overlap.sql" },
   { "migrationId": "0071-encounter-contribution-identity", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0071-encounter-contribution-identity.sql" },
-  { "migrationId": "0072-encounter-field-attribution", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0072-encounter-field-attribution.sql" }
+  { "migrationId": "0072-encounter-field-attribution", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0072-encounter-field-attribution.sql" },
+  { "migrationId": "0073-prescription-refill-instructions", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0073-prescription-refill-instructions.sql" }
 ]
