@@ -263,6 +263,16 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
                 LegacyRowVersion = Convert.ToBase64String(await Scalar<byte[]>("SELECT RowVersion FROM dbo.PatientPrescription WHERE PatientUid=@Uid", LegacyPatient));
             }
             await Migrate(database, "0073-prescription-refill-instructions.sql");
+            await Run(database, """
+                ALTER TABLE dbo.Patient ADD HealthCardNumber nvarchar(50),PhoneNumber nvarchar(30),AddressLine1 nvarchar(255),AddressLine2 nvarchar(255),City nvarchar(100),Province nvarchar(50),PostalCode nvarchar(20);
+                ALTER TABLE dbo.ApplicationUser ADD AuthSubjectId nvarchar(450),DisplayName nvarchar(200);
+                ALTER TABLE dbo.AuditLog ADD AuditEventUid uniqueidentifier,PatientUid uniqueidentifier,ResourceType nvarchar(100),ResourceUid uniqueidentifier,Outcome varchar(30),RequestCorrelationId nvarchar(100),SourceApplication nvarchar(50);
+                EXEC(N'CREATE UNIQUE INDEX UX_TestAuditOccurrence ON dbo.AuditLog(AuditEventUid) WHERE AuditEventUid IS NOT NULL;');
+                CREATE TABLE dbo.ClinicProfile(ClinicProfileId tinyint PRIMARY KEY,LegalName nvarchar(200),Phone nvarchar(50),AddressLine1 nvarchar(200),AddressLine2 nvarchar(200),City nvarchar(100),ProvinceState nvarchar(100),PostalCode nvarchar(30));
+                INSERT dbo.ClinicProfile VALUES(1,N'Mock clinic',N'416-555-0100',N'20 Mock Clinic Lane',NULL,N'Toronto',N'ON',N'M5V 0A1');
+                """);
+            await Run(database, "UPDATE dbo.ApplicationUser SET AuthSubjectId=CONCAT(N'test-subject-',UserId),DisplayName=CONCAT(N'Test actor ',UserId);");
+            await Migrate(database, "0074-prescription-print-signing.sql");
         }
     }
 
@@ -271,6 +281,7 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
     private Task SeedPatient(Guid patient) => Run(primary, "INSERT dbo.Patient(PatientUid,FirstName,LastName,DateOfBirth) VALUES(@Uid,N'Synthetic',N'Patient','1990-01-01')", patient);
     public Task Execute(string sql) => Run(primary, sql);
     public Task<int> AuditCount(Guid prescription, string action) => Scalar<int>($"SELECT COUNT(*) FROM dbo.AuditLog WHERE EntityId=CONVERT(nvarchar(100),@Uid) AND ActionName=N'{action}'", prescription);
+    public Task<T> Read<T>(string sql, Guid uid) => Scalar<T>(sql, uid);
     private async Task<T> Scalar<T>(string sql, Guid uid)
     {
         await using var connection = new SqlConnection(Connection(primary)); await connection.OpenAsync();

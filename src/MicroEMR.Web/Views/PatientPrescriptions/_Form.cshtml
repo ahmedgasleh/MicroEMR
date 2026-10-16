@@ -2,6 +2,8 @@
 @model PrescriptionDraftRequest
 <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 <div class="row g-3">
+ <div class="col-md-6"><label asp-for="MedicationForm" class="form-label">Medication form (optional)</label><input asp-for="MedicationForm" class="form-control" maxlength="100"/><span asp-validation-for="MedicationForm" class="text-danger"></span></div>
+ <div class="col-12"><label asp-for="NotesToPharmacist" class="form-label">Notes to pharmacist (optional)</label><textarea asp-for="NotesToPharmacist" class="form-control" maxlength="1000" rows="3"></textarea><span asp-validation-for="NotesToPharmacist" class="text-danger"></span></div>
  <div class="col-md-6"><label asp-for="ProductName" class="form-label"></label><input asp-for="ProductName" class="form-control"/><span asp-validation-for="ProductName" class="text-danger"></span></div>
  <div class="col-md-6"><label asp-for="ProductDisplayText" class="form-label">Product display</label><input asp-for="ProductDisplayText" class="form-control"/></div>
  <div class="col-md-6"><label asp-for="ProductIdentifierNamespace" class="form-label">Identifier namespace (optional)</label><input asp-for="ProductIdentifierNamespace" class="form-control"/></div><div class="col-md-6"><label asp-for="ProductIdentifierValue" class="form-label">Identifier value (optional)</label><input asp-for="ProductIdentifierValue" class="form-control"/></div>

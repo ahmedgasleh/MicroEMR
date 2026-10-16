@@ -96,7 +96,9 @@ public static class DependencyInjection
     {
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
         services.AddScoped<ICppDisplayPreferencesRepository, CppDisplayPreferencesRepository>();
-        services.AddSingleton<IPdfRenderer, PlaywrightPdfRenderer>();
+        services.AddSingleton<PlaywrightPdfRenderer>();
+        services.AddSingleton<IPdfRenderer>(sp => sp.GetRequiredService<PlaywrightPdfRenderer>());
+        services.AddSingleton<IPrescriptionPdfRenderer>(sp => sp.GetRequiredService<PlaywrightPdfRenderer>());
         services.AddSingleton<IPdfPageNumberer, PdfPageNumberer>();
         services.AddSingleton<IReferralPdfAssembler, ReferralPdfAssembler>();
         services.AddScoped<IClinicalOutputArtifactRepository, ClinicalOutputArtifactRepository>();
@@ -129,6 +131,7 @@ public static class DependencyInjection
             services.AddScoped<MicroEMR.Application.PatientEncounters.IEncounterDiagnosisRepository, EncounterDiagnosisRepository>();
             services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
             services.AddScoped<IPatientPrescriptionRepository, PatientPrescriptionRepository>();
+            services.AddScoped<IPrescriptionOutputRepository, PatientPrescriptionRepository>();
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
             services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();
             services.AddScoped<IPatientImmunizationRepository, PatientImmunizationRepository>();

@@ -6,10 +6,12 @@ using MicroEMR.Web.Services;
 namespace MicroEMR.Web.Services.PatientPrescriptions;
 public interface IPatientPrescriptionApiClient
 {
+ Task<PatientPrescriptionResponse?> SignAndFinalizeAsync(Guid patient,Guid prescription,PrescriptionSigningRequest request,CancellationToken token=default);
  Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid patientUid,CancellationToken token=default);Task<PatientPrescriptionResponse?> GetAsync(Guid patientUid,Guid uid,CancellationToken token=default);Task<PatientPrescriptionResponse> CreateAsync(Guid patientUid,CreatePrescriptionDraftRequest request,CancellationToken token=default);Task<PatientPrescriptionResponse?> UpdateAsync(Guid patientUid,Guid uid,PrescriptionDraftRequest request,CancellationToken token=default);Task<PatientPrescriptionResponse?> ActionAsync(Guid patientUid,Guid uid,string action,PrescriptionTransitionRequest request,CancellationToken token=default);Task<byte[]?> ArtifactAsync(Guid patientUid,Guid uid,CancellationToken token=default);
 }
 public sealed class PatientPrescriptionApiClient(HttpClient http):IPatientPrescriptionApiClient
 {
+ public async Task<PatientPrescriptionResponse?> SignAndFinalizeAsync(Guid p,Guid u,PrescriptionSigningRequest r,CancellationToken t=default){using var x=await http.PostAsJsonAsync($"api/patients/{p}/prescriptions/{u}/sign-and-finalize",r,t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t); }
  public async Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid p,CancellationToken t=default)=>await http.GetFromJsonAsync<List<PatientPrescriptionResponse>>($"api/patients/{p}/prescriptions",t)??[];
  public async Task<PatientPrescriptionResponse?> GetAsync(Guid p,Guid u,CancellationToken t=default){var x=await http.GetAsync($"api/patients/{p}/prescriptions/{u}",t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t);}
  public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,CancellationToken t=default){var x=await http.PostAsJsonAsync($"api/patients/{p}/prescriptions",r,t);await Ensure(x,t);return (await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t))!;}

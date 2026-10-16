@@ -1,16 +1,21 @@
+using MicroEMR.Application.PatientPrescriptions;
 using MicroEMR.Application.ClinicalOutput;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 
 namespace MicroEMR.Infrastructure.ClinicalOutput;
 
-public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger) : IPdfRenderer, IAsyncDisposable
+public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger) : IPdfRenderer, IPrescriptionPdfRenderer, IAsyncDisposable
 {
     private readonly SemaphoreSlim _startupLock = new(1, 1);
     private IPlaywright? _playwright;
     private IBrowser? _browser;
 
-    public async Task<byte[]> RenderAsync(string html, CancellationToken cancellationToken = default)
+    public Task<byte[]> RenderAsync(string html, CancellationToken cancellationToken = default) => RenderCoreAsync(html, null, cancellationToken);
+
+    public Task<byte[]> RenderPrescriptionAsync(PrescriptionPdfLayout layout, CancellationToken token = default) => RenderCoreAsync(layout.Body, layout, token);
+
+    private async Task<byte[]> RenderCoreAsync(string html, PrescriptionPdfLayout? layout, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(html)) throw new ArgumentException("Printable HTML is required.", nameof(html));
         try
@@ -27,9 +32,12 @@ public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger)
             return await page.PdfAsync(new PagePdfOptions
             {
                 Format = "Letter",
+                DisplayHeaderFooter = layout is not null,
+                HeaderTemplate = layout?.Header,
+                FooterTemplate = layout?.Footer,
                 PrintBackground = true,
                 PreferCSSPageSize = true,
-                Margin = new Margin { Top = "0.65in", Right = "0.65in", Bottom = "0.65in", Left = "0.65in" }
+                Margin = new Margin { Top = layout is null ? "0.65in" : "1in", Right = "0.65in", Bottom = layout is null ? "0.65in" : "1.5in", Left = "0.65in" }
             });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
