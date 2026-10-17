@@ -1,0 +1,19 @@
+@model MicroEMR.Application.PatientCpp.PatientCppSection<MicroEMR.Application.PatientCpp.PatientCppFamilyHistory>
+<div data-cpp-category="FamilyHistory" class="col-12">
+    <div class="card"><div class="card-body"><h4 class="h6">Family Medical History</h4><div id="familyHistorySummary">
+        @if (Model.State == "Unavailable") { <p>Family medical history is temporarily unavailable.</p> }
+        else if (Model.State == "NotAuthorized") { <p>Restricted.</p> }
+        else if (Model.Items.Count == 0) { <p>Family medical history not documented.</p> }
+        else {
+            @foreach (var item in Model.Items) {
+                <dl class="border-top py-2 mb-0">
+                    @foreach (var field in new[] { ("Relationship", "Relationship", item.Relationship), ("ConditionDescription", "Condition / diagnosis / procedure", item.ConditionDescription), ("AgeAtOnset", "Age at onset", item.AgeAtOnset), ("LifeStage", "Life stage", item.LifeStage), ("Treatment", "Treatment", item.Treatment), ("Notes", "Notes", item.Notes) }) {
+                        <div data-cpp-field="FamilyHistory.@field.Item1"><dt class="small">@field.Item2</dt><dd class="mb-1 text-break" style="white-space:pre-wrap">@(string.IsNullOrWhiteSpace(field.Item3) ? "Not recorded" : field.Item3)</dd></div>
+                    }
+                </dl>
+            }
+            @if (Model.TotalCount > Model.Items.Count) { <small>+ @(Model.TotalCount - Model.Items.Count) more</small> }
+        }
+    </div><p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div>
+    <div class="card-footer bg-transparent"><button type="button" class="btn btn-sm btn-link summary-tab-link" data-tab-target="family-history">View all family history</button></div></div>
+</div>

@@ -29,6 +29,35 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppSelectivePrintTests
 {
     [Fact]
+    public async Task FamilyHistoryPrintIncludesCompleteSixFieldProjectionAndRespectsSelection()
+    {
+        var f = new Fixture();
+        f.Data = f.Data with { FamilyHistory = PatientCppSection<PatientCppFamilyHistory>.From(
+            Enumerable.Range(0,12).Select(i => new PatientCppFamilyHistory(Guid.NewGuid(), "Mother", $"Family condition {i}", "45 years", "Adult", "Treatment <script>", "Recorded note")).ToArray(),12) };
+        var html = Encoding.UTF8.GetString((await f.Print("FamilyHistory"))!);
+        foreach (var value in new[] { "Family Medical History", "Family condition 11", "45 years", "Adult", "Treatment &lt;script&gt;", "Recorded note" }) Assert.Contains(value,html);
+        Assert.DoesNotContain("<script>",html); Assert.DoesNotContain("Unselected allergen",html);
+        Assert.DoesNotContain("Family condition",Encoding.UTF8.GetString((await f.Print("Problems"))!));
+        f.Data = f.Data with { FamilyHistory = PatientCppSection<PatientCppFamilyHistory>.Unavailable() };
+        await Assert.ThrowsAsync<CppPrintUnavailableException>(() => f.Print("FamilyHistory"));
+    }
+
+    [Fact]
+    public async Task FamilyHistoryAggregationLimitsSummaryButPrintReadsAllActiveOwnedRows()
+    {
+        var patient=Guid.NewGuid();
+        IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse> rows = Enumerable.Range(0,8)
+            .Select(i => new MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse { PatientUid=patient,FamilyHistoryUid=Guid.NewGuid(),Relationship="Mother",ConditionDescription=$"Condition {i}",LifeStageCode="A",Status=i==7?"Archived":"Active" }).ToArray();
+        var family=Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_)=>Task.FromResult(rows));
+        var source=Source(patient,null!,Stub<IPatientChartReadAuditService>((_,_)=>Task.FromResult(Guid.NewGuid())),family);
+        var summary=await source.GetAsync(patient,"test");
+        Assert.Equal(5,summary!.FamilyHistory.Items.Count); Assert.Equal(7,summary.FamilyHistory.TotalCount);
+        var full=await source.GetForPrintAsync(patient,["FamilyHistory"],"test"); Assert.Equal(7,full!.FamilyHistory.Items.Count);
+        rows = [new() { PatientUid=Guid.NewGuid(),Relationship="Foreign",ConditionDescription="Never reveal" }];
+        Assert.Equal(PatientCppSectionStates.Unavailable,(await source.GetForPrintAsync(patient,["FamilyHistory"],"test"))!.FamilyHistory.State);
+    }
+
+    [Fact]
     public async Task OneOperationPrintsCompleteSelectedCategoriesInCatalogOrderWithRequiredContext()
     {
         var f = new Fixture();
@@ -202,11 +231,12 @@ public sealed class CppSelectivePrintTests
         Assert.Equal(503,result.StatusCode);
     }
 
-    private static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit) => new(
+    private static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null) => new(
         Stub<IPatientRepository>((_,args)=>Task.FromResult<PatientDetailsResponse?>((Guid)args[0]! == patient ? new() {PatientUid=patient}:null)),
         problems,null!,null!,null!,null!,null!,null!,null!,null!,null!,
         Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string> {PermissionKeys.PatientsView})),audit,
-        NullLogger<PatientCppService>.Instance);
+        NullLogger<PatientCppService>.Instance,
+        family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])));
     public class Proxy : DispatchProxy
     { public Func<string,object?[],object> Call=null!; protected override object Invoke(MethodInfo? method,object?[]? args)=>Call(method!.Name,args!); }
     private static T Stub<T>(Func<string,object?[],object> call) where T:class

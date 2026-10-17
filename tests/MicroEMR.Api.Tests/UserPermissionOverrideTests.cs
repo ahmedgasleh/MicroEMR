@@ -46,6 +46,38 @@ public sealed class UserPermissionOverrideTests
     }
 
     private static UserPermissionAccessItem Item(UserEffectiveAccess x,string key)=>Assert.Single(x.Permissions,p=>p.PermissionKey==key);
+    [Fact]
+    public async Task EveryPermissionDisplaysExplicitDenyEvenWhenProfileAllowsIt()
+    {
+        var profile = PermissionCatalog.Keys.ToHashSet(StringComparer.Ordinal);
+        var overrides = profile.ToDictionary(key => key, _ => PermissionOverrideState.Deny, StringComparer.Ordinal);
+        var access = await Service(Data("Active", profile, overrides)).GetUserAccessAsync("user");
+
+        Assert.Equal(PermissionCatalog.All.Count, access!.Permissions.Count);
+        Assert.All(access.Permissions, item =>
+        {
+            Assert.True(item.ProfileAllowed);
+            Assert.Equal(PermissionOverrideState.Deny, item.OverrideState);
+            Assert.False(item.EffectiveAllowed);
+        });
+    }
+
+    [Fact]
+    public void AccessReadRepairScopesBothPermissionSourcesBeforeCombiningThem()
+    {
+        var sql = File.ReadAllText(Path.Combine(Root(), "db", "platform", "026_user_permission_access_scope_repair.sql"));
+        Assert.Contains("CREATE OR ALTER PROCEDURE dbo.UserPermissionAccess_Get", sql);
+        var profile = sql[sql.IndexOf("WITH ProfilePermissions", StringComparison.Ordinal)..sql.IndexOf("UserOverrides AS", StringComparison.Ordinal)];
+        Assert.Contains("m.TenantUid=@TenantUid AND m.UserId=@UserId", profile);
+        Assert.Contains("p.TenantUid=m.TenantUid AND p.IsActive=1", profile);
+        var overrides = sql[sql.IndexOf("UserOverrides AS", StringComparison.Ordinal)..sql.IndexOf("PermissionKeys AS", StringComparison.Ordinal)];
+        Assert.Contains("o.TenantUid=@TenantUid AND o.UserId=@UserId", overrides);
+        Assert.Contains("m.TenantUid=o.TenantUid AND m.UserId=o.UserId", overrides);
+        Assert.Contains("UNION", sql);
+        Assert.Contains("LEFT JOIN UserOverrides o ON o.PermissionKey=k.PermissionKey", sql);
+        Assert.DoesNotContain("FULL JOIN dbo.UserPermissionOverride", sql);
+    }
+
     private static UserPermissionAccessData Data(string status,IReadOnlySet<string> profile,IReadOnlyDictionary<string,PermissionOverrideState> overrides)=>new(status,Guid.NewGuid(),"Profile","AAAAAAAAAAA=",profile,overrides);
     private static AccessProfileService Service(UserPermissionAccessData data)=>Service(new Repo(data));
     private static AccessProfileService Service(Repo repo)=>new(new TenantContext(Guid.NewGuid(),"t","Tenant"),repo,new Subject());

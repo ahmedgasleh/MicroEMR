@@ -49,6 +49,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
             body.Append($"<section class=\"cpp-print-category\"><h2>{E(category.Label)}</h2>");
             switch (category.Key)
             {
+                case "FamilyHistory": Append(body,data.FamilyHistory); break;
                 case "Problems": Append(body,data.Problems); break;
                 case "Allergies": Append(body,data.Allergies); break;
                 case "Medications": Append(body,data.Medications); break;

@@ -1,3 +1,4 @@
+using MicroEMR.Application.PatientFamilyHistory;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using MicroEMR.Application.AccessProfiles;
@@ -40,7 +41,8 @@ public sealed partial class PatientCppService(
     IPatientDocumentRepository documents,
     ICurrentUserPermissionService permissions,
     IPatientChartReadAuditService readAudit,
-    ILogger<PatientCppService> logger) : IPatientCppService
+    ILogger<PatientCppService> logger,
+    IPatientFamilyHistoryService familyHistory) : IPatientCppService
 {
     private const int ClinicalLimit = 5;
     private const int ContextLimit = 1;
@@ -59,6 +61,7 @@ public sealed partial class PatientCppService(
         await readAudit.RecordOpenedAsync(patientUid, requestCorrelationId, cancellationToken);
 
         var effective = await permissions.GetEffectivePermissionsAsync(cancellationToken);
+        var familyTask = LoadFamilyHistory(patientUid, requestCorrelationId, cancellationToken);
         var problemTask = LoadProblems(patientUid, requestCorrelationId, cancellationToken);
         var allergyTask = LoadAllergies(patientUid, requestCorrelationId, cancellationToken);
         var medicationTask = LoadMedications(patientUid, requestCorrelationId, cancellationToken);
@@ -78,7 +81,7 @@ public sealed partial class PatientCppService(
             ? LoadDocuments(patientUid, requestCorrelationId, cancellationToken)
             : Task.FromResult(PatientCppSection<PatientCppDocument>.NotAuthorized());
 
-        await Task.WhenAll(problemTask, allergyTask, medicationTask, prescriptionTask, immunizationTask,
+        await Task.WhenAll(familyTask, problemTask, allergyTask, medicationTask, prescriptionTask, immunizationTask,
             vitalTask, resultTask, encounterTask, referralTask, documentTask);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -92,8 +95,19 @@ public sealed partial class PatientCppService(
                 patient.SexAtBirth, patient.GenderIdentity, contact),
             await problemTask, await allergyTask, await medicationTask, await prescriptionTask,
             await immunizationTask, await resultTask, await vitalTask, await encounterTask,
-            await referralTask, await documentTask);
+            await referralTask, await documentTask) { FamilyHistory = await familyTask };
     }
+
+    private async Task<PatientCppSection<PatientCppFamilyHistory>> LoadFamilyHistory(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
+        await Load("FamilyHistory", trace, async () =>
+        {
+            var rows = await familyHistory.ListAsync(patientUid, "Active", token);
+            EnsureOwned(rows, patientUid);
+            var active = rows.Where(x => x.Status == "Active").OrderByDescending(x => x.CreatedAt).ThenBy(x => x.FamilyHistoryUid).ToArray();
+            return PatientCppSection<PatientCppFamilyHistory>.From(active.Take(full ? int.MaxValue : ClinicalLimit)
+                .Select(x => new PatientCppFamilyHistory(x.FamilyHistoryUid, x.Relationship, x.ConditionDescription,
+                    x.AgeAtOnset, x.LifeStage, x.Treatment, x.Notes)).ToArray(), active.Length);
+        });
 
     private static bool Authorized(IReadOnlySet<string> effective, string permission) => effective.Contains(permission);
 

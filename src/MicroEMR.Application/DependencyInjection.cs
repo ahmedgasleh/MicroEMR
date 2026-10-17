@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<PrescriptionOutputService>();
         services.AddScoped<IPatientProblemService, PatientProblemService>();
         services.AddScoped<IPatientClinicalHistoryService, PatientClinicalHistoryService>();
+        services.AddScoped<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService, MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryService>();
         services.AddScoped<IPatientImmunizationService, PatientImmunizationService>();
         services.AddScoped<IPatientImmunizationSummaryService, PatientImmunizationSummaryService>();
         services.AddScoped<IPatientVitalService, PatientVitalService>();

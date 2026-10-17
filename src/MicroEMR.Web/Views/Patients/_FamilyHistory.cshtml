@@ -1,0 +1,37 @@
+@model MicroEMR.Web.Models.Patients.PatientChartViewModel
+@using MicroEMR.Application.AccessProfiles
+@inject MicroEMR.Web.Authorization.IWebPermissionService Permissions
+@{ var canManage = (await Permissions.GetAsync(Context.RequestAborted)).Contains(PermissionKeys.ClinicalDataManage); }
+<div class="tab-pane fade @(Model.ActiveTab == "family-history" ? "show active" : null)" id="family-history" role="tabpanel">
+    <section id="patientFamilyHistoryRoot" data-list-url="@Url.Action("List", "PatientFamilyHistory", new { patientUid = Model.Patient.PatientUid })" data-can-manage="@canManage.ToString().ToLowerInvariant()">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div><h5>Family Medical History</h5><p class="text-body-secondary">Reported conditions in blood relatives, distinct from the patient's own medical history.</p></div>
+            @if (canManage) { <button type="button" class="btn btn-primary" id="addFamilyHistoryButton">Add family history</button> }
+        </div>
+        <div id="familyHistoryMessage" class="alert alert-danger d-none" role="alert"></div>
+        <div class="d-flex justify-content-end mb-3"><label class="visually-hidden" for="familyHistoryStatus">Family history status</label><select id="familyHistoryStatus" class="form-select form-select-sm w-auto"><option>Active</option><option>Archived</option><option>All</option></select></div>
+        <div id="familyHistoryList" aria-live="polite">Loading family medical history...</div>
+    </section>
+</div>
+<div class="modal fade" id="familyHistoryModal" tabindex="-1" aria-labelledby="familyHistoryModalTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header"><h2 class="modal-title fs-5" id="familyHistoryModalTitle">Add family history</h2></div>
+        <div class="modal-body">
+            <form id="familyHistoryForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="FamilyHistoryUid" /><input type="hidden" name="RowVersion" />
+                <div class="mb-3"><label class="form-label" for="familyRelationship">Blood relationship to patient</label><input class="form-control" id="familyRelationship" name="Relationship" maxlength="100" required /></div>
+                <div class="mb-3"><label class="form-label" for="familyCondition">Condition / diagnosis / procedure</label><textarea class="form-control" id="familyCondition" name="ConditionDescription" maxlength="1000" required rows="2"></textarea></div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><label class="form-label" for="familyAge">Age at onset <span class="text-body-secondary">(if known)</span></label><input class="form-control" id="familyAge" name="AgeAtOnset" maxlength="100" placeholder="For example, 45 years" /></div>
+                    <div class="col-md-6"><label class="form-label" for="familyLifeStage">Life stage at onset</label><select class="form-select" id="familyLifeStage" name="LifeStageCode"><option value="">Not recorded</option>@foreach (var stage in MicroEMR.Core.Domain.FamilyHistoryLifeStages.Labels) { <option value="@stage.Key">@stage.Value</option> }</select></div>
+                </div>
+                <div class="mb-3"><label class="form-label" for="familyTreatment">Treatment</label><textarea class="form-control" id="familyTreatment" name="Treatment" maxlength="1000" rows="2"></textarea></div>
+                <div class="mb-3"><label class="form-label" for="familyNotes">Clinical notes</label><textarea class="form-control" id="familyNotes" name="Notes" maxlength="1000" rows="3"></textarea></div>
+                <p class="small text-body-secondary">Leave unknown values blank. An empty list does not establish negative family history.</p>
+            </form>
+            <div id="familyHistoryEditorMessage" class="alert alert-danger d-none" role="alert"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary d-none" id="reloadFamilyHistoryButton">Reload saved entry</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>@if (canManage) { <button type="submit" form="familyHistoryForm" class="btn btn-primary" id="saveFamilyHistoryButton">Save</button> }</div>
+    </div></div>
+</div>

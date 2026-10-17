@@ -35,6 +35,7 @@ public sealed partial class PatientCppService
         {
             data = category.Key switch
             {
+                "FamilyHistory" => data with { FamilyHistory = await LoadFamilyHistory(patientUid,correlation,token,true) },
                 "Problems" => data with { Problems = await LoadProblems(patientUid,correlation,token,true) },
                 "Allergies" => data with { Allergies = await LoadAllergies(patientUid,correlation,token,true) },
                 "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true) },

@@ -41,6 +41,13 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 22. `022_membership_initial_access_profile_resolution.sql`
 23. `023_provider_management_permissions.sql`
 24. `024_access_management_administrator_repair.sql`
+25. `025_document_sign_permission.sql`
+26. `026_user_permission_access_scope_repair.sql`
+
+Script 026 repairs the Manage Access read procedure so only the selected user's
+overrides in the selected tenant are displayed. It also excludes permissions from
+inactive profiles, matching effective permission enforcement. Apply it after 025;
+it does not change stored permissions or overrides and is not applied at startup.
 
 Script 006 adds internal administration procedures, platform audit events,
 optimistic row versions, and a filtered unique index that permits at most one

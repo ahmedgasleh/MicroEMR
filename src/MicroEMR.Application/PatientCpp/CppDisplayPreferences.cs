@@ -20,6 +20,7 @@ public static class CppDisplayCatalog
         Category("Encounters", "Latest Signed Encounter", ("Type", "Encounter type"), ("EncounterDate", "Encounter date"), ("ProviderOrReason", "Provider / reason")),
         Category("Referrals", "Referrals", ("RecipientName", "Recipient"), ("Status", "Status"), ("OpenCount", "Open referral count")),
         Category("Documents", "Recent Documents", ("Title", "Title"), ("DocumentType", "Document type"), ("CreatedAt", "Created date")),
+        Category("FamilyHistory", "Family Medical History", ("Relationship", "Relationship"), ("ConditionDescription", "Condition / diagnosis / procedure"), ("AgeAtOnset", "Age at onset"), ("LifeStage", "Life stage"), ("Treatment", "Treatment"), ("Notes", "Notes")),
         Category("History", "Past Medical and Surgical History", ("HistoryType", "History type"), ("Description", "Description"), ("RelevantDate", "Relevant date"))
     });
 

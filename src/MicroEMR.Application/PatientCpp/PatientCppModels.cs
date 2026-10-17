@@ -37,6 +37,8 @@ public sealed record PatientCppDemographics(
     string? GenderIdentity,
     string? PreferredContact);
 
+public sealed record PatientCppFamilyHistory(Guid FamilyHistoryUid, string Relationship, string ConditionDescription, string? AgeAtOnset, string LifeStage, string? Treatment, string? Notes);
+
 public sealed record PatientCppProblem(Guid ProblemUid, string DisplayName, string Status, DateTime? OnsetDate);
 public sealed record PatientCppAllergy(Guid AllergyUid, string DisplayName, string Status, string? Reaction, string? Severity);
 public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName, string? Strength, string? Route, string? Frequency, DateTime? StartDate);
@@ -60,5 +62,8 @@ public sealed record PatientCppSummaryResponse(
     PatientCppSection<PatientCppVitals> Vitals,
     PatientCppSection<PatientCppEncounter> Encounters,
     PatientCppSection<PatientCppReferral> Referrals,
-    PatientCppSection<PatientCppDocument> Documents);
+    PatientCppSection<PatientCppDocument> Documents)
+{
+    public PatientCppSection<PatientCppFamilyHistory> FamilyHistory { get; init; } = PatientCppSection<PatientCppFamilyHistory>.From([], 0);
+}
 

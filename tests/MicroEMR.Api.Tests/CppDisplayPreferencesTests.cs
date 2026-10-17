@@ -14,6 +14,18 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task ExistingPreferencesPreserveDefaultsForNewFamilyCategoryAndCanHideItsFields()
+    {
+        var store=new Store();
+        await Service(store,7).SaveAsync(new() { HiddenCategories=["Documents"],HiddenFields=["Allergies.Reaction"] });
+        var old=await Service(store,7).GetAsync();
+        Assert.DoesNotContain("FamilyHistory",old.HiddenCategories);
+        var saved=await Service(store,7).SaveAsync(new() { HiddenCategories=["FamilyHistory"],HiddenFields=["FamilyHistory.Treatment","FamilyHistory.LifeStage"],RowVersion=old.RowVersion });
+        Assert.Equal(saved.HiddenFields,(await Service(store,7).GetAsync()).HiddenFields);
+        Assert.Equal(6,Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="FamilyHistory").Fields.Count);
+    }
+
+    [Fact]
     public async Task MissingPreferencesKeepEveryExistingCategoryAndFieldVisible()
     {
         var repository = new Store();
@@ -193,12 +205,14 @@ public sealed class CppDisplayPreferencesTests
     {
         var view = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Views", "Patients", "Details.cshtml"));
         var history = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "ClientApp", "patients", "patient-clinical-history.ts"));
-        Assert.Equal(11, CppDisplayCatalog.Categories.Count);
+        var familyView = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Views", "Patients", "_FamilyHistorySummary.cshtml"));
+        Assert.Equal(12, CppDisplayCatalog.Categories.Count);
         foreach (var category in CppDisplayCatalog.Categories)
         {
-            Assert.Contains($"data-cpp-category=\"{category.Key}\"", view);
+            Assert.Contains($"data-cpp-category=\"{category.Key}\"", view + familyView);
             foreach (var field in category.Fields)
-                Assert.Contains($"data-cpp-field=\"{field.Key}\"", view + history);
+                if (category.Key == "FamilyHistory") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", familyView);
+                else Assert.Contains($"data-cpp-field=\"{field.Key}\"", view + history);
         }
         Assert.Contains("View all allergies", view);
         Assert.Contains("Allergy status not documented.", view);
