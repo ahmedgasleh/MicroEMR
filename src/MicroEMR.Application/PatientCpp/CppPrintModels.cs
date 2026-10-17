@@ -4,6 +4,7 @@ namespace MicroEMR.Application.PatientCpp;
 
 public sealed class CppPrintRequest
 {
+    public string MedicationScope { get; set; } = "Ongoing";
     public Guid ClinicianUid { get; set; }
     [Required] public List<string> Categories { get; set; } = [];
 }

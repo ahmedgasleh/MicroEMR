@@ -8,6 +8,9 @@ namespace MicroEMR.Infrastructure.ClinicalOutput;
 public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger) : IPdfRenderer, IPrescriptionPdfRenderer, IAsyncDisposable
 {
     private readonly SemaphoreSlim _startupLock = new(1, 1);
+    private readonly object _disposeLock = new();
+    private Task? _disposeTask;
+    private bool _disposed;
     private IPlaywright? _playwright;
     private IBrowser? _browser;
 
@@ -51,10 +54,12 @@ public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger)
 
     private async Task<IBrowser> GetBrowserAsync(CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
         if (_browser?.IsConnected == true) return _browser;
         await _startupLock.WaitAsync(cancellationToken);
         try
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
             if (_browser?.IsConnected == true) return _browser;
             _playwright ??= await Playwright.CreateAsync();
             _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
@@ -63,10 +68,36 @@ public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger)
         finally { _startupLock.Release(); }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_browser is not null) await _browser.DisposeAsync();
-        _playwright?.Dispose();
-        _startupLock.Dispose();
+        // DI tracks this singleton through each disposable service alias.
+        // Every caller must await the same cleanup, including concurrent callers.
+        lock (_disposeLock)
+            return new ValueTask(_disposeTask ??= DisposeCoreAsync());
+    }
+
+    private async Task DisposeCoreAsync()
+    {
+        Volatile.Write(ref _disposed, true);
+        await _startupLock.WaitAsync();
+        try
+        {
+            try
+            {
+                if (_browser is not null) await _browser.DisposeAsync();
+            }
+            finally
+            {
+                _browser = null;
+                _playwright?.Dispose();
+                _playwright = null;
+            }
+        }
+        finally
+        {
+            // A startup caller may already be waiting. Let it acquire the gate
+            // and observe _disposed rather than disposing a semaphore in use.
+            _startupLock.Release();
+        }
     }
 }

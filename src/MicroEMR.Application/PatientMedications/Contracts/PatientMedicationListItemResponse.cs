@@ -2,6 +2,8 @@ namespace MicroEMR.Application.PatientMedications.Contracts;
 
 public sealed class PatientMedicationListItemResponse
 {
+    public string? Classification { get; set; }
+
     public Guid MedicationUid { get; set; }
 
     public Guid PatientUid { get; set; }

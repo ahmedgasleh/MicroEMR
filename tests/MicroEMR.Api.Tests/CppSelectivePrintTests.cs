@@ -266,9 +266,9 @@ public sealed class CppSelectivePrintTests
         Assert.Equal(503,result.StatusCode);
     }
 
-    private static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null) => new(
+    internal static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null, MicroEMR.Application.PatientMedications.Services.IPatientMedicationService? medication=null) => new(
         Stub<IPatientRepository>((_,args)=>Task.FromResult<PatientDetailsResponse?>((Guid)args[0]! == patient ? new() {PatientUid=patient}:null)),
-        problems,null!,null!,null!,null!,null!,null!,null!,null!,null!,
+        problems,null!,medication!,null!,null!,null!,null!,null!,null!,null!,
         Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string> {PermissionKeys.PatientsView})),audit,
         NullLogger<PatientCppService>.Instance,
         family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])),
@@ -278,11 +278,12 @@ public sealed class CppSelectivePrintTests
     private static T Stub<T>(Func<string,object?[],object> call) where T:class
     { var proxy=DispatchProxy.Create<T,Proxy>();((Proxy)(object)proxy).Call=call;return proxy; }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public PatientDetailsResponse Patient=new() {PatientUid=Guid.NewGuid(),FirstName="Ada",LastName="Lee",DateOfBirth=new(1980,1,1),
             ChartNumber="SECRET-CHART",HealthCardNumber="1234567890",HealthCardVersion="AB",AddressLine1="20 Patient Street",City="Toronto",Province="ON",PostalCode="M1M1M1",PhoneNumber="416-999-9999"};
         public Guid ClinicianUid=Guid.NewGuid();public string Failure="";public int RenderCalls,NumberCalls,SourceCalls;public IReadOnlyList<string> Requested=[];
+        public IPatientCppService? ActualSource;
         public PatientCppSummaryResponse Data;
         public CppPrintService Service;
         public Fixture()
@@ -296,6 +297,7 @@ public sealed class CppSelectivePrintTests
             Service=new(Stub<IPatientCppService>((_,args)=>
                 {
                     SourceCalls++;Requested=(IReadOnlyList<string>)args[1]!;
+                    if (ActualSource is not null) return ActualSource.GetForPrintAsync((Guid)args[0]!,Requested,(string)args[2]!, (CancellationToken)args[3]!, (string)args[4]!);
                     return Task.FromResult<PatientCppSummaryResponse?>((Guid)args[0]! != Patient.PatientUid?null:
                         Failure=="wrong-summary"?Data with {PatientUid=Guid.NewGuid()}:Failure=="unavailable"?Data with {Problems=PatientCppSection<PatientCppProblem>.Unavailable()}:Data);
                 }),Stub<IPatientRepository>((_,_)=>Task.FromResult<PatientDetailsResponse?>(Failure=="wrong-patient"?new() {PatientUid=Guid.NewGuid()}:Patient)),

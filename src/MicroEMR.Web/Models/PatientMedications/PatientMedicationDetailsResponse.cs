@@ -2,6 +2,8 @@ namespace MicroEMR.Web.Models.PatientMedications;
 
 public sealed class PatientMedicationDetailsResponse
 {
+    public string? Classification { get; set; }
+
     public Guid MedicationUid { get; set; }
 
     public Guid PatientUid { get; set; }

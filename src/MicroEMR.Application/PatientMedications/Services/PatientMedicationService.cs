@@ -39,6 +39,7 @@ public sealed class PatientMedicationService : IPatientMedicationService
         string? createdByDisplayName,
         CancellationToken cancellationToken = default)
     {
+        request.Classification = MicroEMR.Core.PatientMedications.MedicationClassifications.Normalize(request.Classification);
         return _repository.CreateAsync(
             patientUid,
             request,
@@ -52,6 +53,7 @@ public sealed class PatientMedicationService : IPatientMedicationService
         long? updatedBy, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        request.Classification = MicroEMR.Core.PatientMedications.MedicationClassifications.Normalize(request.Classification);
         return _repository.UpdateAsync(patientUid, medicationUid, request, updatedBy, cancellationToken);
     }
     public Task<PatientMedicationDetailsResponse?> DiscontinueAsync(

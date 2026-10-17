@@ -28,12 +28,13 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
     public async Task<byte[]?> PrintAsync(Guid patientUid, CppPrintRequest request, string correlation, CancellationToken token = default)
     {
         CppPrintSelection.Validate(request.Categories);
+        MedicationPrintScopes.Validate(request.MedicationScope);
         if (patientUid == Guid.Empty || request.ClinicianUid == Guid.Empty) throw new ArgumentException("Patient and clinician are required.");
         await RequireAccess(token);
         var clinician = await providers.GetAsync(request.ClinicianUid, token);
         if (clinician is null || !clinician.IsActive || clinician.ProviderUid != request.ClinicianUid)
             throw new ArgumentException("Select an available clinician for the letterhead.");
-        var data = await cpp.GetForPrintAsync(patientUid, request.Categories, correlation, token);
+        var data = await cpp.GetForPrintAsync(patientUid, request.Categories, correlation, token, request.MedicationScope);
         if (data is null) return null;
         if (data.PatientUid != patientUid) throw new UnauthorizedAccessException("Patient context is unavailable.");
         var patient = await patients.GetByUidAsync(patientUid, token);
@@ -46,14 +47,18 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
         var body = new StringBuilder("<style>.cpp-print-category h2{break-after:avoid}.cpp-print-item{white-space:pre-wrap;overflow-wrap:anywhere;break-inside:auto;margin-bottom:12pt}.cpp-print-item dl{margin:0}.cpp-print-item dt{font-weight:bold}.cpp-print-item dd{margin:0 0 4pt}</style>");
         foreach (var category in CppDisplayCatalog.Categories.Where(x => request.Categories.Contains(x.Key)))
         {
-            body.Append($"<section class=\"cpp-print-category\"><h2>{E(category.Label)}</h2>");
+            body.Append($"<section class=\"cpp-print-category\"><h2>{E(category.Key == "Medications" ? $"Medications - {MedicationPrintScopes.Label(request.MedicationScope)}" : category.Label)}</h2>");
             switch (category.Key)
             {
                 case "RiskFactors": Append(body,data.RiskFactors); break;
                 case "FamilyHistory": Append(body,data.FamilyHistory); break;
                 case "Problems": Append(body,data.Problems); break;
                 case "Allergies": Append(body,data.Allergies); break;
-                case "Medications": Append(body,data.Medications); break;
+                case "Medications":
+                    if (data.Medications.State == PatientCppSectionStates.NotDocumented)
+                        body.Append($"<p>No {E(MedicationPrintScopes.Label(request.MedicationScope).ToLowerInvariant())} medications recorded.</p>");
+                    else Append(body,data.Medications);
+                    break;
                 case "Prescriptions": Append(body,data.Prescriptions); break;
                 case "Immunizations": Append(body,data.Immunizations); break;
                 case "Results": Append(body,data.Results); break;

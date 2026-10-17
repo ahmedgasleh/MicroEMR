@@ -14,6 +14,19 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task MedicationClassificationPreservesExistingCategoryAndFieldPreferenceKeys()
+    {
+        var store = new Store();
+        var saved = await Service(store,7).SaveAsync(new() { HiddenCategories=["Medications"], HiddenFields=["Medications.Strength"] });
+        var reloaded = await Service(store,7).GetAsync();
+        Assert.Equal(saved.RowVersion,reloaded.RowVersion);
+        Assert.Contains("Medications",reloaded.HiddenCategories);
+        Assert.Contains("Medications.Strength",reloaded.HiddenFields);
+        Assert.Equal("Medications (ongoing by default)",Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="Medications").Label);
+        Assert.DoesNotContain("MedicationScope",typeof(SaveCppDisplayPreferencesRequest).GetProperties().Select(x=>x.Name));
+    }
+
+    [Fact]
     public async Task RiskFactorsCategoryDefaultsAndFourFieldPreferencesPreserveFamilySettings()
     {
         var store = new Store();

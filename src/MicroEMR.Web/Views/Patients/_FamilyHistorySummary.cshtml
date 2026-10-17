@@ -1,6 +1,6 @@
 @model MicroEMR.Application.PatientCpp.PatientCppSection<MicroEMR.Application.PatientCpp.PatientCppFamilyHistory>
-<div data-cpp-category="FamilyHistory" class="col-12">
-    <div class="card"><div class="card-body"><h4 class="h6">Family Medical History</h4><div id="familyHistorySummary">
+<div data-cpp-category="FamilyHistory" class="col-12 col-lg-4">
+    <div class="card h-100"><div class="card-body"><h4 class="h6">Family Medical History</h4><div id="familyHistorySummary">
         @if (Model.State == "Unavailable") { <p>Family medical history is temporarily unavailable.</p> }
         else if (Model.State == "NotAuthorized") { <p>Restricted.</p> }
         else if (Model.Items.Count == 0) { <p>Family medical history not documented.</p> }

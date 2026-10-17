@@ -5,9 +5,10 @@ namespace MicroEMR.Application.PatientCpp;
 public sealed partial class PatientCppService
 {
     public async Task<PatientCppSummaryResponse?> GetForPrintAsync(Guid patientUid, IReadOnlyList<string> categories,
-        string correlation, CancellationToken token = default)
+        string correlation, CancellationToken token = default, string medicationScope = "Ongoing")
     {
         CppPrintSelection.Validate(categories);
+        MedicationPrintScopes.Validate(medicationScope);
         if (patientUid == Guid.Empty) throw new ArgumentException("A patient is required.");
         var access = await permissions.GetEffectivePermissionsAsync(token);
         if (!access.Contains(PermissionKeys.PatientsView)) throw new UnauthorizedAccessException("CPP printing is restricted.");
@@ -39,7 +40,7 @@ public sealed partial class PatientCppService
                 "FamilyHistory" => data with { FamilyHistory = await LoadFamilyHistory(patientUid,correlation,token,true) },
                 "Problems" => data with { Problems = await LoadProblems(patientUid,correlation,token,true) },
                 "Allergies" => data with { Allergies = await LoadAllergies(patientUid,correlation,token,true) },
-                "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true) },
+                "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true,medicationScope) },
                 "Prescriptions" => data with { Prescriptions = await LoadPrescriptions(patientUid,correlation,token,true) },
                 "Immunizations" => data with { Immunizations = await LoadImmunizations(patientUid,correlation,token,true) },
                 "Results" => data with { Results = await LoadResults(patientUid,correlation,token,true) },

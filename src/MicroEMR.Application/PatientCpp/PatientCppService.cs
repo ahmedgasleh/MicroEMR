@@ -21,7 +21,7 @@ namespace MicroEMR.Application.PatientCpp;
 public interface IPatientCppService
 {
     Task<PatientCppSummaryResponse?> GetForPrintAsync(Guid patientUid, IReadOnlyList<string> categories,
-        string correlation, CancellationToken token = default) => throw new NotSupportedException("CPP printing is unavailable.");
+        string correlation, CancellationToken token = default, string medicationScope = "Ongoing") => throw new NotSupportedException("CPP printing is unavailable.");
     Task<PatientCppSummaryResponse?> GetAsync(
         Guid patientUid,
         string requestCorrelationId,
@@ -149,14 +149,15 @@ public sealed partial class PatientCppService(
                 : PatientCppSection<PatientCppAllergy>.From([], 0);
         });
 
-    private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
+    private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token, bool full = false, string scope = "Ongoing") =>
         await Load("Medications", trace, async () =>
         {
-            var rows = (await medications.GetByPatientUidAsync(patientUid, token))
-                .Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (full) EnsureOwned(rows, patientUid);
+            var all = await medications.GetByPatientUidAsync(patientUid, token);
+            EnsureOwned(all, patientUid);
+            var rows = all.Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                && MedicationPrintScopes.Includes(scope, x.Classification)).ToArray();
             return PatientCppSection<PatientCppMedication>.From(rows.OrderByDescending(x => x.StartDate ?? x.CreatedAt)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppMedication(x.MedicationUid, x.MedicationName, x.Strength, x.Route, x.Frequency, x.StartDate)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppMedication(x.MedicationUid, x.MedicationName, x.Strength, x.Route, x.Frequency, x.StartDate) { Classification = MicroEMR.Core.PatientMedications.MedicationClassifications.Label(x.Classification) }).ToArray(), rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppPrescription>> LoadPrescriptions(Guid patientUid, string trace, CancellationToken token, bool full = false) =>

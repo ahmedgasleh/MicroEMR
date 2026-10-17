@@ -9,6 +9,11 @@
         <p class="small text-body-secondary">Choose categories for one printable CPP. These choices include all eligible CPP entries and fields, independently of your screen display preferences.</p>
         <label for="cppPrintClinician" class="form-label">Clinician for letterhead</label>
         <select id="cppPrintClinician" name="ClinicianUid" class="form-select mb-3" required><option value="">Select a clinician</option></select>
+        <label for="cppMedicationScope" class="form-label">Medication scope (active medication list)</label>
+        <select id="cppMedicationScope" name="MedicationScope" class="form-select mb-3">
+            <option value="Ongoing">Ongoing (default)</option><option value="Acute">Acute</option>
+            <option value="Unclassified">Unclassified / unknown</option><option value="AllActive">All active classifications</option>
+        </select>
         <fieldset id="cppPrintCategories"><legend class="fs-6">Categories to print</legend>
             @foreach (var category in CppDisplayCatalog.Categories)
             {

@@ -112,7 +112,7 @@ public sealed class DerivedCppSummaryFoundationTests
 
         var view = Source("src", "MicroEMR.Web", "Views", "Patients", "Details.cshtml");
         Assert.Contains("Allergy status not documented.", view);
-        Assert.Contains("Medication status not documented.", view);
+        Assert.Contains("No ongoing medications recorded.", view);
         Assert.Contains("No active problem records documented.", view);
         Assert.Contains("No Known Allergies", view);
         Assert.DoesNotContain("No Current Medications", view);

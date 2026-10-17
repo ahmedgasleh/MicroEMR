@@ -224,6 +224,7 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
     public Guid LegacyPrescription { get; private set; }
     public string LegacyJson { get; private set; } = "";
     public string LegacyRowVersion { get; private set; } = "";
+    internal ITenantSqlConnectionFactory MedicationFactory => new Factory(Connection(primary));
     public PatientPrescriptionRepository Repository => new(new Factory(Connection(primary)));
     public PatientPrescriptionRepository OtherRepository => new(new Factory(Connection(secondary)));
     private string Connection(string database) => new SqlConnectionStringBuilder(master) { InitialCatalog = database }.ConnectionString;

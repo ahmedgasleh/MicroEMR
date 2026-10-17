@@ -4,6 +4,8 @@ namespace MicroEMR.Web.Models.PatientMedications;
 
 public sealed class CreatePatientMedicationRequest : IValidatableObject
 {
+    public string? Classification { get; set; }
+
     [Required]
     [StringLength(200)]
     public string MedicationName { get; set; } = string.Empty;
@@ -39,6 +41,9 @@ public sealed class CreatePatientMedicationRequest : IValidatableObject
     public IEnumerable<ValidationResult> Validate(
         ValidationContext validationContext)
     {
+        if (!MicroEMR.Core.PatientMedications.MedicationClassifications.IsValid(Classification))
+            yield return new ValidationResult("Select Ongoing, Acute or Unclassified.", new[] { nameof(Classification) });
+
         if (StartDate.HasValue
             && EndDate.HasValue
             && EndDate.Value.Date < StartDate.Value.Date)

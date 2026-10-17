@@ -130,6 +130,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             SqlDbType.NVarChar,
             200,
             request.MedicationName);
+        AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
 
         AddNullableString(
             command,
@@ -250,6 +251,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
         AddRequiredString(command, "@MedicationName", SqlDbType.NVarChar, 200, request.MedicationName);
+        AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
         AddNullableString(command, "@Strength", SqlDbType.NVarChar, 100, request.Strength);
         AddNullableString(command, "@DosageForm", SqlDbType.NVarChar, 100, request.DosageForm);
         AddNullableString(command, "@Route", SqlDbType.NVarChar, 100, request.Route);
@@ -317,6 +319,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             MedicationUid = reader.GetGuid(reader.GetOrdinal("MedicationUid")),
             PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+            Classification = GetNullableString(reader, "Classification"),
             MedicationName = reader.GetString(reader.GetOrdinal("MedicationName")),
             Strength = GetNullableString(reader, "Strength"),
             DosageForm = GetNullableString(reader, "DosageForm"),
@@ -344,6 +347,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             MedicationUid = reader.GetGuid(reader.GetOrdinal("MedicationUid")),
             PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+            Classification = GetNullableString(reader, "Classification"),
             MedicationName = reader.GetString(reader.GetOrdinal("MedicationName")),
             Strength = GetNullableString(reader, "Strength"),
             DosageForm = GetNullableString(reader, "DosageForm"),

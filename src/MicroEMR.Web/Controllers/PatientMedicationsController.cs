@@ -105,6 +105,7 @@ public sealed class PatientMedicationsController : Controller
         var request = new CreatePatientMedicationRequest
         {
             MedicationName = model.MedicationName,
+            Classification = model.Classification,
             Strength = model.Strength,
             DosageForm = model.DosageForm,
             Route = model.Route,
@@ -197,7 +198,7 @@ public sealed class PatientMedicationsController : Controller
         var item = await _medicationApiClient.GetByUidAsync(medicationUid, cancellationToken);
         if (item is null) return NotFound();
         var model = new EditPatientMedicationViewModel {
-            PatientUid=item.PatientUid, MedicationUid=item.MedicationUid, MedicationName=item.MedicationName,
+            PatientUid=item.PatientUid, MedicationUid=item.MedicationUid, MedicationName=item.MedicationName, Classification=item.Classification,
             Strength=item.Strength, DosageForm=item.DosageForm, Route=item.Route, Directions=item.Directions,
             Frequency=item.Frequency, StartDate=item.StartDate, EndDate=item.EndDate, Indication=item.Indication,
             PrescriberName=item.PrescriberName, Status=item.Status, Notes=item.Notes, RowVersion=item.RowVersion };
@@ -211,7 +212,7 @@ public sealed class PatientMedicationsController : Controller
         if (!ModelState.IsValid) return IsModalRequest() ? BadRequest(new { errors = ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() }) : View(model);
         try {
             var result = await _medicationApiClient.UpdateAsync(model.PatientUid, model.MedicationUid,
-                new UpdatePatientMedicationRequest { MedicationName=model.MedicationName, Strength=model.Strength,
+                new UpdatePatientMedicationRequest { MedicationName=model.MedicationName, Classification=model.Classification, Strength=model.Strength,
                     DosageForm=model.DosageForm, Route=model.Route, Directions=model.Directions, Frequency=model.Frequency,
                     StartDate=model.StartDate, EndDate=model.EndDate, Indication=model.Indication,
                     PrescriberName=model.PrescriberName, Status=model.Status, Notes=model.Notes, RowVersion=model.RowVersion }, cancellationToken);

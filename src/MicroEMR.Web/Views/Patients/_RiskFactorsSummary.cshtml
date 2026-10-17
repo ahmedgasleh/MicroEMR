@@ -1,6 +1,6 @@
 @model MicroEMR.Application.PatientCpp.PatientCppSection<MicroEMR.Application.PatientCpp.PatientCppRiskFactor>
-<div data-cpp-category="RiskFactors" class="col-12">
-    <div class="card"><div class="card-body"><h4 class="h6">Risk Factors</h4><div id="riskFactorSummary">
+<div data-cpp-category="RiskFactors" class="col-12 col-lg-4">
+    <div class="card h-100"><div class="card-body"><h4 class="h6">Risk Factors</h4><div id="riskFactorSummary">
         @if (Model.State == "Unavailable") { <p>Risk factors are temporarily unavailable.</p> }
         else if (Model.State == "NotAuthorized") { <p>Restricted.</p> }
         else if (Model.Items.Count == 0) { <p>No risk factors recorded.</p> }

@@ -43,7 +43,10 @@ public sealed record PatientCppFamilyHistory(Guid FamilyHistoryUid, string Relat
 
 public sealed record PatientCppProblem(Guid ProblemUid, string DisplayName, string Status, DateTime? OnsetDate);
 public sealed record PatientCppAllergy(Guid AllergyUid, string DisplayName, string Status, string? Reaction, string? Severity);
-public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName, string? Strength, string? Route, string? Frequency, DateTime? StartDate);
+public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName, string? Strength, string? Route, string? Frequency, DateTime? StartDate)
+{
+    public string Classification { get; init; } = "Unclassified";
+}
 public sealed record PatientCppPrescription(Guid PrescriptionUid, string DisplayName, DateOnly PrescribedDate, string Directions);
 public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly AdministrationDate, string SourceType);
 public sealed record PatientCppResult(Guid ResultUid, string Name, string Type, DateTime ResultDate, string? Value, string? Unit, string Abnormality, string ReviewStatus, string Provenance);
