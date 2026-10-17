@@ -14,6 +14,23 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task RiskFactorsCategoryDefaultsAndFourFieldPreferencesPreserveFamilySettings()
+    {
+        var store = new Store();
+        var initial = await Service(store,7).GetAsync();
+        var family = await Service(store,7).SaveAsync(new() { HiddenCategories=["FamilyHistory"],HiddenFields=["FamilyHistory.Notes"],RowVersion=initial.RowVersion });
+        Assert.DoesNotContain("RiskFactors",family.HiddenCategories);
+        var risk = await Service(store,7).SaveAsync(new() { HiddenCategories=["FamilyHistory","RiskFactors"],HiddenFields=["FamilyHistory.Notes","RiskFactors.ExposureDetails","RiskFactors.LifeStage"],RowVersion=family.RowVersion });
+        var loaded = await Service(store,7).GetAsync();
+        Assert.Equal(risk.HiddenFields,loaded.HiddenFields);
+        Assert.Equal(risk.HiddenCategories,loaded.HiddenCategories);
+        Assert.Equal(risk.RowVersion,loaded.RowVersion);
+        Assert.Contains("FamilyHistory",loaded.HiddenCategories); Assert.Contains("RiskFactors",loaded.HiddenCategories);
+        Assert.Contains("FamilyHistory.Notes",loaded.HiddenFields); Assert.Contains("RiskFactors.ExposureDetails",loaded.HiddenFields);
+        Assert.Equal(4,Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="RiskFactors").Fields.Count);
+    }
+
+    [Fact]
     public async Task ExistingPreferencesPreserveDefaultsForNewFamilyCategoryAndCanHideItsFields()
     {
         var store=new Store();
@@ -206,12 +223,14 @@ public sealed class CppDisplayPreferencesTests
         var view = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Views", "Patients", "Details.cshtml"));
         var history = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "ClientApp", "patients", "patient-clinical-history.ts"));
         var familyView = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Views", "Patients", "_FamilyHistorySummary.cshtml"));
-        Assert.Equal(12, CppDisplayCatalog.Categories.Count);
+        var riskView = File.ReadAllText(Path.Combine(Root(), "src", "MicroEMR.Web", "Views", "Patients", "_RiskFactorsSummary.cshtml"));
+        Assert.Equal(13, CppDisplayCatalog.Categories.Count);
         foreach (var category in CppDisplayCatalog.Categories)
         {
-            Assert.Contains($"data-cpp-category=\"{category.Key}\"", view + familyView);
+            Assert.Contains($"data-cpp-category=\"{category.Key}\"", view + familyView + riskView);
             foreach (var field in category.Fields)
-                if (category.Key == "FamilyHistory") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", familyView);
+                if (category.Key == "RiskFactors") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", riskView);
+                else if (category.Key == "FamilyHistory") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", familyView);
                 else Assert.Contains($"data-cpp-field=\"{field.Key}\"", view + history);
         }
         Assert.Contains("View all allergies", view);

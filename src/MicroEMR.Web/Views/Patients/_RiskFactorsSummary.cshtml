@@ -1,0 +1,19 @@
+@model MicroEMR.Application.PatientCpp.PatientCppSection<MicroEMR.Application.PatientCpp.PatientCppRiskFactor>
+<div data-cpp-category="RiskFactors" class="col-12">
+    <div class="card"><div class="card-body"><h4 class="h6">Risk Factors</h4><div id="riskFactorSummary">
+        @if (Model.State == "Unavailable") { <p>Risk factors are temporarily unavailable.</p> }
+        else if (Model.State == "NotAuthorized") { <p>Restricted.</p> }
+        else if (Model.Items.Count == 0) { <p>No risk factors recorded.</p> }
+        else {
+            @foreach (var item in Model.Items) {
+                <dl class="border-top py-2 mb-0">
+                    @foreach (var field in new[] { ("RiskFactor", "Risk factor", item.RiskFactor), ("ExposureDetails", "Exposure details", item.ExposureDetails), ("LifeStage", "Life stage at first exposure", item.LifeStage), ("Notes", "Notes", item.Notes) }) {
+                        <div data-cpp-field="RiskFactors.@field.Item1"><dt class="small">@field.Item2</dt><dd class="mb-1 text-break" style="white-space:pre-wrap">@(string.IsNullOrWhiteSpace(field.Item3) ? "Not recorded" : field.Item3)</dd></div>
+                    }
+                </dl>
+            }
+            @if (Model.TotalCount > Model.Items.Count) { <small>+ @(Model.TotalCount - Model.Items.Count) more</small> }
+        }
+    </div><p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div>
+    <div class="card-footer bg-transparent"><button type="button" class="btn btn-sm btn-link summary-tab-link" data-tab-target="risk-factors">View all risk factors</button></div></div>
+</div>

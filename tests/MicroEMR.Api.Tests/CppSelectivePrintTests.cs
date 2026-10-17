@@ -29,6 +29,41 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppSelectivePrintTests
 {
     [Fact]
+    public async Task RiskFactorsPrintAllFourFieldsAndAllActiveRowsWithoutChangingFamilyHistory()
+    {
+        var f = new Fixture();
+        f.Data = f.Data with { RiskFactors = PatientCppSection<PatientCppRiskFactor>.From(
+            Enumerable.Range(0,12).Select(i => new PatientCppRiskFactor(Guid.NewGuid(), $"TEST ONLY - risk {i}", "Exposure <script>", "Adult", "Recorded risk notes")).ToArray(),12),
+            FamilyHistory = PatientCppSection<PatientCppFamilyHistory>.From([new(Guid.NewGuid(),"Mother","Existing family condition",null,"Not recorded",null,null)],1) };
+        var html = Encoding.UTF8.GetString((await f.Print("RiskFactors","FamilyHistory"))!);
+        foreach (var value in new[] { "Risk Factors", "risk 11", "Exposure &lt;script&gt;", "Adult", "Recorded risk notes", "Existing family condition" }) Assert.Contains(value,html);
+        Assert.DoesNotContain("<script>",html);
+        Assert.DoesNotContain("risk 11",Encoding.UTF8.GetString((await f.Print("FamilyHistory"))!));
+        f.Data = f.Data with { RiskFactors = PatientCppSection<PatientCppRiskFactor>.Unavailable() };
+        await Assert.ThrowsAsync<CppPrintUnavailableException>(() => f.Print("RiskFactors"));
+    }
+
+    [Fact]
+    public async Task RiskFactorsSummaryIsBoundedWhileSelectedPrintReadsAllOwnedActiveRows()
+    {
+        var patient = Guid.NewGuid(); var calls = 0;
+        IReadOnlyList<MicroEMR.Application.PatientRiskFactors.PatientRiskFactorResponse> rows = Enumerable.Range(0,8)
+            .Select(i => new MicroEMR.Application.PatientRiskFactors.PatientRiskFactorResponse { PatientUid=patient,RiskFactorUid=Guid.NewGuid(),RiskFactor=$"Risk {i}",LifeStageCode="A",Status=i==7?"Archived":"Active" }).ToArray();
+        var risk = Stub<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService>((_,_) => { calls++; return Task.FromResult(rows); });
+        var source = Source(patient,null!,Stub<IPatientChartReadAuditService>((_,_)=>Task.FromResult(Guid.NewGuid())),risk:risk);
+        var summary = await source.GetAsync(patient,"test");
+        Assert.Equal(5,summary!.RiskFactors.Items.Count); Assert.Equal(7,summary.RiskFactors.TotalCount);
+        Assert.Empty(summary.FamilyHistory.Items);
+        Assert.Equal(7,(await source.GetForPrintAsync(patient,["RiskFactors"],"test"))!.RiskFactors.Items.Count);
+        var previousCalls = calls;
+        await source.GetForPrintAsync(patient,["FamilyHistory"],"test"); Assert.Equal(previousCalls,calls);
+        rows = [new() { PatientUid=Guid.NewGuid(),RiskFactor="Foreign risk" }];
+        Assert.Equal(PatientCppSectionStates.Unavailable,(await source.GetForPrintAsync(patient,["RiskFactors"],"test"))!.RiskFactors.State);
+        rows = [];
+        Assert.Equal(PatientCppSectionStates.NotDocumented,(await source.GetForPrintAsync(patient,["RiskFactors"],"test"))!.RiskFactors.State);
+    }
+
+    [Fact]
     public async Task FamilyHistoryPrintIncludesCompleteSixFieldProjectionAndRespectsSelection()
     {
         var f = new Fixture();
@@ -231,12 +266,13 @@ public sealed class CppSelectivePrintTests
         Assert.Equal(503,result.StatusCode);
     }
 
-    private static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null) => new(
+    private static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null) => new(
         Stub<IPatientRepository>((_,args)=>Task.FromResult<PatientDetailsResponse?>((Guid)args[0]! == patient ? new() {PatientUid=patient}:null)),
         problems,null!,null!,null!,null!,null!,null!,null!,null!,null!,
         Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string> {PermissionKeys.PatientsView})),audit,
         NullLogger<PatientCppService>.Instance,
-        family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])));
+        family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])),
+        risk ?? Stub<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientRiskFactors.PatientRiskFactorResponse>>([])));
     public class Proxy : DispatchProxy
     { public Func<string,object?[],object> Call=null!; protected override object Invoke(MethodInfo? method,object?[]? args)=>Call(method!.Name,args!); }
     private static T Stub<T>(Func<string,object?[],object> call) where T:class

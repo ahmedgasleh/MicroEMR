@@ -190,7 +190,7 @@ public sealed class FamilyHistoryAcceptanceDatabase : IAsyncLifetime
 {
     private readonly FamilyHistorySqlDatabase databases = new();
     private readonly Guid tenantA = Guid.NewGuid(), tenantB = Guid.NewGuid();
-    internal sealed record User(string Subject, long Actor, bool CanWrite);
+    internal sealed record User(string Subject, long Actor, bool CanWrite, bool CanRead = true);
     internal sealed record AuditRow(Guid Entity, Guid Patient, long Actor, string Subject, string Action, string? Old, string New, DateTime At);
     internal TenantContext Tenant(bool other) => new(other ? tenantB : tenantA, other ? "fixture-b" : "fixture-a", "Acceptance test tenant");
     internal async Task<SqlConnection> Open(bool other)
@@ -233,7 +233,7 @@ public sealed class FamilyHistoryAcceptanceDatabase : IAsyncLifetime
         command.Parameters.Add("@Uid", SqlDbType.UniqueIdentifier).Value = uid;
         await command.ExecuteNonQueryAsync(); return uid;
     }
-    internal async Task<User> SeedUser(bool other, bool canWrite = true)
+    internal async Task<User> SeedUser(bool other, bool canWrite = true, bool canRead = true)
     {
         var subject = "step97-" + Guid.NewGuid().ToString("N");
         await using var connection = await Open(other);
@@ -243,7 +243,7 @@ public sealed class FamilyHistoryAcceptanceDatabase : IAsyncLifetime
             SELECT MAX(UserId)+1,1,N'TEST ONLY acceptance user',@Subject FROM dbo.ApplicationUser;
             """, connection);
         command.Parameters.Add("@Subject", SqlDbType.NVarChar, 450).Value = subject;
-        return new(subject, (long)(await command.ExecuteScalarAsync())!, canWrite);
+        return new(subject, (long)(await command.ExecuteScalarAsync())!, canWrite, canRead);
     }
     internal async Task<DateTime> Utc(bool other)
     {
@@ -268,17 +268,18 @@ public sealed class FamilyHistoryAcceptanceDatabase : IAsyncLifetime
         command.Parameters.Add("@Uid", SqlDbType.UniqueIdentifier).Value = uid;
         return (int)(await command.ExecuteScalarAsync())!;
     }
-    internal async Task<List<AuditRow>> Audit(bool other, Guid uid)
+    internal async Task<List<AuditRow>> Audit(bool other, Guid uid, string entityName = "PatientFamilyMedicalHistory")
     {
         await using var connection = await Open(other);
         await using var command = new SqlCommand("""
             SELECT TRY_CONVERT(uniqueidentifier,l.EntityId),p.PatientUid,l.UserId,u.AuthSubjectId,l.ActionName,l.OldValue,l.NewValue,l.CreatedAt
             FROM dbo.AuditLog l JOIN dbo.Patient p ON p.PatientId=l.PatientId
             JOIN dbo.ApplicationUser u ON u.UserId=l.UserId
-            WHERE l.EntityName=N'PatientFamilyMedicalHistory' AND l.EntityId=CONVERT(nvarchar(100),@Uid)
+            WHERE l.EntityName=@EntityName AND l.EntityId=CONVERT(nvarchar(100),@Uid)
             ORDER BY l.AuditLogId
             """, connection);
         command.Parameters.Add("@Uid", SqlDbType.UniqueIdentifier).Value = uid;
+        command.Parameters.Add("@EntityName", SqlDbType.NVarChar, 100).Value = entityName;
         await using var reader = await command.ExecuteReaderAsync(); var rows = new List<AuditRow>();
         while (await reader.ReadAsync()) rows.Add(new(reader.GetGuid(0), reader.GetGuid(1), reader.GetInt64(2), reader.GetString(3), reader.GetString(4), reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), reader.GetDateTime(7)));
         return rows;
@@ -314,6 +315,8 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
         builder.Services.AddScoped<ITenantSqlConnectionFactory>(_ => db.Factory(other));
         builder.Services.AddScoped<IPatientFamilyHistoryRepository, PatientFamilyHistoryRepository>();
         builder.Services.AddScoped<IPatientFamilyHistoryService, PatientFamilyHistoryService>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorRepository, MicroEMR.Infrastructure.PatientRiskFactors.PatientRiskFactorRepository>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService, MicroEMR.Application.PatientRiskFactors.PatientRiskFactorService>();
         builder.Services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();
         builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
         builder.Services.AddScoped<ITenantContextAccessor>(_ => { var accessor = new TenantContextAccessor(); accessor.SetTenant(db.Tenant(other)); return accessor; });
@@ -342,7 +345,7 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
             var subject = Request.Headers.Authorization.ToString();
             var user = users.SingleOrDefault(x => subject == "Bearer " + x.Subject);
             if (user is null) return Task.FromResult(AuthenticateResult.Fail("Unknown fixture user"));
-            var claims = new[] { new Claim("sub", user.Subject), new Claim("fixture-write", user.CanWrite.ToString()) };
+            var claims = new[] { new Claim("sub", user.Subject), new Claim("fixture-write", user.CanWrite.ToString()), new Claim("fixture-read", user.CanRead.ToString()) };
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name)), Scheme.Name)));
         }
     }
@@ -353,7 +356,7 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
             var keys = new HashSet<string>(StringComparer.Ordinal);
             if (context.HttpContext!.User.Identity?.IsAuthenticated == true)
             {
-                keys.Add(PermissionKeys.PatientsView);
+                if (context.HttpContext.User.FindFirst("fixture-read")?.Value == "True") keys.Add(PermissionKeys.PatientsView);
                 if (context.HttpContext.User.FindFirst("fixture-write")?.Value == "True") keys.Add(PermissionKeys.ClinicalDataManage);
             }
             return Task.FromResult<IReadOnlySet<string>>(keys);

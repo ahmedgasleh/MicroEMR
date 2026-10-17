@@ -130,6 +130,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
     PatientProblemApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientClinicalHistoryApiClient,PatientClinicalHistoryApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<MicroEMR.Web.Services.PatientFamilyHistory.IPatientFamilyHistoryApiClient, MicroEMR.Web.Services.PatientFamilyHistory.PatientFamilyHistoryApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<MicroEMR.Web.Services.PatientRiskFactors.IPatientRiskFactorApiClient, MicroEMR.Web.Services.PatientRiskFactors.PatientRiskFactorApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientImmunizationApiClient,PatientImmunizationApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientVitalApiClient, PatientVitalApiClient>(ConfigureApiClient));

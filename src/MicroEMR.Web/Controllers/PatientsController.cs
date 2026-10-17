@@ -603,6 +603,7 @@ public sealed class PatientsController : Controller
         return tab?.ToLowerInvariant() switch
         {
             "family-history" => "family-history",
+            "risk-factors" => "risk-factors",
             "summary" => "summary",
             "timeline" => "timeline",
             "appointments" => "appointments",
