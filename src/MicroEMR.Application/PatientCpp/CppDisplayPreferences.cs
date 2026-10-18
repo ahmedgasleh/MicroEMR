@@ -16,7 +16,7 @@ public static class CppDisplayCatalog
         Category("Prescriptions", "Current Prescriptions", ("DisplayName", "Prescription"), ("PrescribedDate", "Prescribed date"), ("Directions", "Directions")),
         Category("Results", "Recent Results", ("Name", "Result name"), ("Abnormality", "Recorded abnormality"), ("ResultDate", "Result date"), ("ReviewStatus", "Review status"), ("Provenance", "Provenance")),
         Category("Vitals", "Latest Vitals", ("RecordedAt", "Recorded date/time"), ("BloodPressure", "Blood pressure"), ("HeartRate", "Heart rate"), ("WeightBmi", "Weight / BMI"), ("OxygenSaturation", "SpO2")),
-        Category("Immunizations", "Recent Immunizations", ("VaccineName", "Vaccine"), ("AdministrationDate", "Administration date"), ("SourceType", "Source")),
+        Category("Immunizations", "Recent Immunizations", ("VaccineName", "Vaccine"), ("AdministrationDate", "Administration date"), ("SourceType", "Source"), ("DIN", "DIN"), ("Manufacturer", "Manufacturer"), ("ImmunizationType", "Immunization type")),
         Category("Encounters", "Latest Signed Encounter", ("Type", "Encounter type"), ("EncounterDate", "Encounter date"), ("ProviderOrReason", "Provider / reason")),
         Category("Referrals", "Referrals", ("RecipientName", "Recipient"), ("Status", "Status"), ("OpenCount", "Open referral count")),
         Category("Documents", "Recent Documents", ("Title", "Title"), ("DocumentType", "Document type"), ("CreatedAt", "Created date")),

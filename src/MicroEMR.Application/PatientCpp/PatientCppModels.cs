@@ -53,7 +53,15 @@ public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName
     public string Classification { get; init; } = "Unclassified";
 }
 public sealed record PatientCppPrescription(Guid PrescriptionUid, string DisplayName, DateOnly PrescribedDate, string Directions);
-public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly AdministrationDate, string SourceType);
+public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly? AdministrationDate, string? SourceType)
+{
+    public string AdministrationDisplay { get; init; } = AdministrationDate?.ToString("yyyy-MM-dd") ?? "Not recorded";
+    public string? DIN { get; init; }
+    public string? Manufacturer { get; init; }
+    public string ImmunizationType { get; init; } = "Not recorded";
+}
+public sealed record PatientCppImmunizationPrint(string VaccineName,string Outcome,string AdministrationDate,string RefusalDate,string RefusedIndicator,
+    string? DIN,string? Manufacturer,string ImmunizationType,int? DoseNumber,string? Route,string? Site,string? LotNumber,string? SourceType,string? SourceDescription,string? AdministeredByName,string? Notes);
 public sealed record PatientCppResult(Guid ResultUid, string Name, string Type, DateTime ResultDate, string? Value, string? Unit, string Abnormality, string ReviewStatus, string Provenance);
 public sealed record PatientCppVitals(Guid VitalUid, DateTime RecordedAt, int? Systolic, int? Diastolic, int? HeartRate, decimal? WeightKg, decimal? Bmi, int? OxygenSaturation);
 public sealed record PatientCppEncounter(Guid EncounterUid, DateTime EncounterDateUtc, string Type, string? ProviderName, string? ReasonForVisit);
@@ -74,6 +82,8 @@ public sealed record PatientCppSummaryResponse(
     PatientCppSection<PatientCppReferral> Referrals,
     PatientCppSection<PatientCppDocument> Documents)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PatientCppSection<PatientCppImmunizationPrint>? ImmunizationsForPrint { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public PatientCppSection<PatientCppProblemPrint>? ProblemsForPrint { get; init; }
     public PatientCppSection<PatientCppRiskFactor> RiskFactors { get; init; } = PatientCppSection<PatientCppRiskFactor>.From([], 0);
     public PatientCppSection<PatientCppFamilyHistory> FamilyHistory { get; init; } = PatientCppSection<PatientCppFamilyHistory>.From([], 0);

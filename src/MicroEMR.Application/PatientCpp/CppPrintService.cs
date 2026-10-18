@@ -60,7 +60,17 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
                     else Append(body,data.Medications);
                     break;
                 case "Prescriptions": Append(body,data.Prescriptions); break;
-                case "Immunizations": Append(body,data.Immunizations); break;
+                case "Immunizations":
+                    var immunizationDetails=data.ImmunizationsForPrint ?? throw new CppPrintUnavailableException("Immunization details are unavailable. Reload before printing.");
+                    if(immunizationDetails.State is PatientCppSectionStates.Unavailable or PatientCppSectionStates.NotAuthorized)
+                        throw new CppPrintUnavailableException("Immunization details are unavailable.");
+                    foreach(var outcome in new[]{"Administered","Refused"})
+                    {
+                        body.Append(outcome=="Refused" ? "<h3>Refused immunizations</h3>" : "<h3>Administered immunizations</h3>");
+                        var events=immunizationDetails.Items.Where(x=>x.Outcome==outcome).ToArray();
+                        Append(body,PatientCppSection<PatientCppImmunizationPrint>.From(events,events.Length));
+                    }
+                    break;
                 case "Results": Append(body,data.Results); break;
                 case "Vitals": Append(body,data.Vitals); break;
                 case "Encounters": Append(body,data.Encounters); break;
@@ -115,6 +125,9 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
                 if (item is PrintHistory history &&
                     (history.HistoryType == "Medical" && property.Name == "ProcedureDate" ||
                      history.HistoryType == "Surgical" && property.Name is "OnsetDate" or "ClinicalResolutionDate" or "LifeStage" or "ClinicalStatus")) continue;
+                if(item is PatientCppImmunizationPrint immunization &&
+                    (immunization.Outcome=="Refused" && property.Name is "AdministrationDate" or "DIN" or "Manufacturer" or "DoseNumber" or "Route" or "Site" or "LotNumber" or "SourceType" or "AdministeredByName" ||
+                     immunization.Outcome=="Administered" && property.Name=="RefusalDate")) continue;
                 var value = property.GetValue(item);
                 var display = value switch
                 {

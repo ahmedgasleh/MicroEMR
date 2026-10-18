@@ -43,6 +43,16 @@ public sealed partial class PatientCppService
                 data=data with {Problems=compact,ProblemsForPrint=detail};
                 continue;
             }
+            if(category.Key=="Immunizations")
+            {
+                var details=PatientCppSection<PatientCppImmunizationPrint>.Unavailable();
+                var compact=await LoadImmunizations(patientUid,correlation,token,true,rows=>details=PatientCppSection<PatientCppImmunizationPrint>.From(
+                    rows.Select(x=>new PatientCppImmunizationPrint(x.VaccineName,x.Status=="Refused"?"Refused":"Administered",x.AdministrationDisplay,x.RefusalDisplay,
+                    x.ClinicalFields?.Refused is {} refused ? (refused?"Yes":"No") : "Not recorded",x.ClinicalFields?.DIN,x.ClinicalFields?.Manufacturer,x.ClinicalFields?.ImmunizationType ?? "Not recorded",
+                    x.DoseNumber,x.Route,x.Site,x.LotNumber,x.SourceType,x.SourceDescription,x.AdministeredByName,x.Notes)).ToArray(),rows.Count));
+                data=data with {Immunizations=compact,ImmunizationsForPrint=details};
+                continue;
+            }
             data = category.Key switch
             {
                 "RiskFactors" => data with { RiskFactors = await LoadRiskFactors(patientUid,correlation,token,true) },
@@ -50,7 +60,6 @@ public sealed partial class PatientCppService
                 "Allergies" => data with { Allergies = await LoadAllergies(patientUid,correlation,token,true) },
                 "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true,medicationScope) },
                 "Prescriptions" => data with { Prescriptions = await LoadPrescriptions(patientUid,correlation,token,true) },
-                "Immunizations" => data with { Immunizations = await LoadImmunizations(patientUid,correlation,token,true) },
                 "Results" => data with { Results = await LoadResults(patientUid,correlation,token,true) },
                 "Vitals" => data with { Vitals = await LoadVitals(patientUid,correlation,token,true) },
                 "Encounters" => data with { Encounters = await LoadEncounters(patientUid,correlation,token,true) },

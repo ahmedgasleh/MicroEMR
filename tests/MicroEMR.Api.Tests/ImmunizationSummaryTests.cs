@@ -25,6 +25,18 @@ namespace MicroEMR.Api.Tests;
 public sealed class ImmunizationSummaryTests
 {
     [Fact]
+    public async Task RefusedUnknownAndPartialDatesRemainDistinctInRetainedStandaloneHistory()
+    {
+        var f=new Fixture();
+        f.History=[new(){PatientUid=f.PatientUid,ImmunizationUid=Guid.NewGuid(),VaccineName="TEST ONLY refused",Status="Refused",RowVersion="token",ClinicalFields=new(){Refused=true,RefusalDate=new(){Year=2001},ImmunizationTypeCode="Inf"}},
+            new(){PatientUid=f.PatientUid,ImmunizationUid=Guid.NewGuid(),VaccineName="TEST ONLY administered",Status="Completed",SourceType="HistoricalExternal",RowVersion="token",ClinicalFields=new(){Refused=false,AdministrationDate=new(){Year=2000,Month=2},DIN="00123456",Manufacturer="TEST ONLY manufacturer",ImmunizationTypeCode="MMR"}},
+            new(){PatientUid=f.PatientUid,ImmunizationUid=Guid.NewGuid(),VaccineName="TEST ONLY unknown refusal",Status="EnteredInError",RowVersion="token",ClinicalFields=new(){Refused=true}}];
+        await f.Service.GenerateAsync(f.PatientUid,"trace");var html=f.Pdf.Html!;
+        foreach(var text in new[]{"TEST ONLY refused","Refusal: 2001","Administration: 2000-02","Refusal: Not recorded","00123456","TEST ONLY manufacturer","Measles, Mumps, Rubella","Entered in error"})Assert.Contains(text,html);
+        Assert.DoesNotContain("2000-02-01",html);Assert.DoesNotContain("Administration: 2001",html);Assert.Equal("All",f.RequestedStatus);
+    }
+
+    [Fact]
     public async Task CompleteHistoryIncludesDemographicsDatesHistoricalCliniciansAndCorrections()
     {
         var f = new Fixture();

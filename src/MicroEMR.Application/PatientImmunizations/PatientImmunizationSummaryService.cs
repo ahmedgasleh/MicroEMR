@@ -60,13 +60,18 @@ public sealed class PatientImmunizationSummaryService(
             body.Append("<p>No immunizations recorded.</p>");
         else
         {
-            body.Append("<p>Complete recorded history. Entries marked Entered in error are retained for history and are not valid immunization administrations.</p>")
+            body.Append("<p>Complete recorded history. Entries marked Entered in error are retained for history and are not valid immunization administrations. Refused entries record refusal, not administration.</p>")
                 .Append("<table class=\"immunization-summary\"><thead><tr><th>Immunization</th><th>Date</th><th>Administering Clinician</th><th>Status</th></tr></thead><tbody>");
-            foreach (var item in history.OrderByDescending(item => item.AdministrationDate)
+            foreach (var item in history.OrderByDescending(item => (item.ClinicalFields?.Refused==true ? item.ClinicalFields.RefusalDate : item.EffectiveAdministrationDate)?.Year)
+                         .ThenByDescending(item => (item.ClinicalFields?.Refused==true ? item.ClinicalFields.RefusalDate : item.EffectiveAdministrationDate)?.Month)
+                         .ThenByDescending(item => (item.ClinicalFields?.Refused==true ? item.ClinicalFields.RefusalDate : item.EffectiveAdministrationDate)?.Day)
                          .ThenByDescending(item => item.CreatedAtUtc).ThenBy(item => item.ImmunizationUid))
             {
                 body.Append("<tr><td>").Append(E(Value(item.VaccineName)))
-                    .Append("</td><td>").Append(item.AdministrationDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture))
+                    .Append("<div>DIN: ").Append(E(Value(item.ClinicalFields?.DIN))).Append("; Manufacturer: ").Append(E(Value(item.ClinicalFields?.Manufacturer)))
+                    .Append("; Type: ").Append(E(item.ClinicalFields?.ImmunizationType ?? "Not recorded")).Append("</div><div>").Append(E(Value(item.Notes))).Append("</div>")
+                    .Append("</td><td>").Append(item.ClinicalFields?.Refused==true?"Refusal: ":"Administration: ")
+                    .Append(E(item.ClinicalFields?.Refused==true ? item.RefusalDisplay : item.EffectiveAdministrationDate?.Day is not null && item.AdministrationDate is {} exact ? exact.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) : item.AdministrationDisplay))
                     .Append("</td><td>").Append(E(Value(item.AdministeredByName)))
                     .Append("</td><td>").Append(E(item.Status == "EnteredInError" ? "Entered in error" : item.Status))
                     .Append("</td></tr>");

@@ -81,7 +81,7 @@ public sealed class BasicImmunizationHistoryTests
     public void ScopeExcludesDeferredClinicalAndIntegrationFeatures()
     {
         var sql=Sql();var code=File.ReadAllText(Path.Combine(Root(),"src","MicroEMR.Application","PatientImmunizations","PatientImmunizationModels.cs"));
-        foreach(var term in new[]{"Manufacturer","ExpiryDate","VaccineCode","NextDose","Refused","NotGiven","DHIR"}){Assert.DoesNotContain(term,sql,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain(term,code,StringComparison.OrdinalIgnoreCase);}
+        foreach(var term in new[]{"ExpiryDate","VaccineCode","NextDose","NotGiven","DHIR"}){Assert.DoesNotContain(term,sql,StringComparison.OrdinalIgnoreCase);Assert.DoesNotContain(term,code,StringComparison.OrdinalIgnoreCase);}
     }
 
     private static IReadOnlyList<ValidationResult> Validate(object value){var results=new List<ValidationResult>();Validator.TryValidateObject(value,new ValidationContext(value),results,true);return results;}

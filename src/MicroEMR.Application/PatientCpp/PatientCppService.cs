@@ -172,14 +172,17 @@ public sealed partial class PatientCppService(
                 .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions)).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
+    private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token, bool full = false, Action<IReadOnlyList<PatientImmunizationResponse>>? capture = null) =>
         await Load("Immunizations", trace, async () =>
         {
-            var rows = (await immunizations.ListAsync(patientUid, "Completed", token))
-                .Where(x => string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (full) EnsureOwned(rows, patientUid);
-            return PatientCppSection<PatientCppImmunization>.From(rows.OrderByDescending(x => x.AdministrationDate)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppImmunization(x.ImmunizationUid, x.VaccineName, x.AdministrationDate, x.SourceType)).ToArray(), rows.Length);
+            var source = await immunizations.ListAsync(patientUid, full ? "All" : "Completed", token);
+            EnsureOwned(source, patientUid);
+            capture?.Invoke(source.Where(x=>x.Status is "Completed" or "Refused").ToArray());
+            var rows=source.Where(x=>string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase) && x.ClinicalFields?.Refused!=true).ToArray();
+            return PatientCppSection<PatientCppImmunization>.From(rows.OrderByDescending(x=>x.EffectiveAdministrationDate?.Year)
+                .ThenByDescending(x=>x.EffectiveAdministrationDate?.Month).ThenByDescending(x=>x.EffectiveAdministrationDate?.Day).ThenBy(x=>x.ImmunizationUid)
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x=>new PatientCppImmunization(x.ImmunizationUid,x.VaccineName,x.AdministrationDate,x.SourceType)
+                {AdministrationDisplay=x.AdministrationDisplay,DIN=x.ClinicalFields?.DIN,Manufacturer=x.ClinicalFields?.Manufacturer,ImmunizationType=x.ClinicalFields?.ImmunizationType ?? "Not recorded"}).ToArray(),rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppResult>> LoadResults(Guid patientUid, string trace, CancellationToken token, bool full = false) =>

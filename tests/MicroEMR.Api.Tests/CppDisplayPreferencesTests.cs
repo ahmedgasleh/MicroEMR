@@ -14,6 +14,20 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task ImmunizationFieldsPreserveExistingDateKeyAndDefaultNewFieldsVisible()
+    {
+        var store=new Store();var service=Service(store,7);
+        var old=await service.SaveAsync(new(){HiddenFields=["Immunizations.AdministrationDate"]});
+        var initial=await service.GetAsync();Assert.Equal(old.HiddenFields,initial.HiddenFields);
+        var keys=Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="Immunizations").Fields.Select(x=>x.Key).ToArray();
+        foreach(var key in new[]{"VaccineName","AdministrationDate","SourceType","DIN","Manufacturer","ImmunizationType"})Assert.Contains("Immunizations."+key,keys);
+        Assert.DoesNotContain("Immunizations.Manufacturer",initial.HiddenFields);
+        var hidden=await service.SaveAsync(new(){HiddenFields=["Immunizations.AdministrationDate","Immunizations.DIN","Immunizations.Manufacturer","Immunizations.ImmunizationType"],RowVersion=old.RowVersion});
+        Assert.Equal(hidden.HiddenFields,(await Service(store,7).GetAsync()).HiddenFields);
+        var reset=await service.SaveAsync(new(){RowVersion=hidden.RowVersion});Assert.Empty(reset.HiddenFields);Assert.Empty(reset.HiddenCategories);
+    }
+
+    [Fact]
     public async Task ProblemsLifeStagePreservesOldOnsetKeyAndSavedPreferences()
     {
         var store=new Store();var service=Service(store,7);
