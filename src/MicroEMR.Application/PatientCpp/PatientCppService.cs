@@ -1,3 +1,4 @@
+using MicroEMR.Application.PatientChartAlerts;
 using MicroEMR.Application.PatientProblems.Contracts;
 using MicroEMR.Application.PatientFamilyHistory;
 using MicroEMR.Application.PatientRiskFactors;
@@ -45,7 +46,8 @@ public sealed partial class PatientCppService(
     IPatientChartReadAuditService readAudit,
     ILogger<PatientCppService> logger,
     IPatientFamilyHistoryService familyHistory,
-    IPatientRiskFactorService riskFactors) : IPatientCppService
+    IPatientRiskFactorService riskFactors,
+    IPatientChartAlertService? chartAlerts = null) : IPatientCppService
 {
     private const int ClinicalLimit = 5;
     private const int ContextLimit = 1;
@@ -64,6 +66,7 @@ public sealed partial class PatientCppService(
         await readAudit.RecordOpenedAsync(patientUid, requestCorrelationId, cancellationToken);
 
         var effective = await permissions.GetEffectivePermissionsAsync(cancellationToken);
+        var alertTask = LoadAlerts(patientUid, requestCorrelationId, cancellationToken);
         var riskTask = LoadRiskFactors(patientUid, requestCorrelationId, cancellationToken);
         var familyTask = LoadFamilyHistory(patientUid, requestCorrelationId, cancellationToken);
         var problemTask = LoadProblems(patientUid, requestCorrelationId, cancellationToken);
@@ -85,7 +88,7 @@ public sealed partial class PatientCppService(
             ? LoadDocuments(patientUid, requestCorrelationId, cancellationToken)
             : Task.FromResult(PatientCppSection<PatientCppDocument>.NotAuthorized());
 
-        await Task.WhenAll(riskTask, familyTask, problemTask, allergyTask, medicationTask, prescriptionTask, immunizationTask,
+        await Task.WhenAll(alertTask, riskTask, familyTask, problemTask, allergyTask, medicationTask, prescriptionTask, immunizationTask,
             vitalTask, resultTask, encounterTask, referralTask, documentTask);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -99,7 +102,7 @@ public sealed partial class PatientCppService(
                 patient.SexAtBirth, patient.GenderIdentity, contact),
             await problemTask, await allergyTask, await medicationTask, await prescriptionTask,
             await immunizationTask, await resultTask, await vitalTask, await encounterTask,
-            await referralTask, await documentTask) { FamilyHistory = await familyTask, RiskFactors = await riskTask };
+            await referralTask, await documentTask) { FamilyHistory = await familyTask, RiskFactors = await riskTask, Alerts = await alertTask };
     }
 
     private async Task<PatientCppSection<PatientCppRiskFactor>> LoadRiskFactors(Guid patientUid, string trace, CancellationToken token, bool full = false) =>

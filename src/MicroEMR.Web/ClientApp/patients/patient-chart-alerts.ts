@@ -1,7 +1,7 @@
 interface AlertItem {
   patientChartAlertUid: string; alertTitle: string; alertMessage?: string;
   alertType: string; alertPriority: string; alertStatus: string; createdAt: string;
-  resolutionReason?: string;
+  resolutionReason?: string; rowVersion?: string;
 }
 interface AlertResult { success: boolean; alerts?: AlertItem[]; message?: string; }
 declare const bootstrap: {
@@ -18,6 +18,7 @@ const resolveForm = document.querySelector<HTMLFormElement>("#resolveChartAlertF
 const modal = new bootstrap.Modal(document.querySelector("#chartAlertModal")!);
 const resolveModal = new bootstrap.Modal(document.querySelector("#resolveChartAlertModal")!);
 const token = document.querySelector<HTMLInputElement>('#chartAlertAntiforgery input[name="__RequestVerificationToken"]')!;
+const canManage = list.dataset.canManage === "true";
 let alerts: AlertItem[] = [];
 const escapeHtml = (value?: string): string => { const node = document.createElement("div"); node.textContent = value ?? ""; return node.innerHTML; };
 
@@ -29,27 +30,32 @@ function updateHeader(items: AlertItem[]): void {
 }
 function render(): void {
   if (!alerts.length) { list.innerHTML = `<div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-flag"></i></div><div class="microemr-empty-state__title">No ${filter.value.toLowerCase()} alerts</div><div class="microemr-empty-state__text">Patient-specific alerts and flags will appear here.</div></div>`; return; }
-  list.innerHTML = alerts.map(a => `<div class="card mb-2"><div class="card-body d-flex justify-content-between"><div><span class="badge ${a.alertPriority === "Critical" ? "text-bg-danger" : a.alertPriority === "High" ? "text-bg-warning" : "text-bg-secondary"}">${escapeHtml(a.alertPriority)}</span> <strong>${escapeHtml(a.alertTitle)}</strong><div class="small text-body-secondary">${escapeHtml(a.alertType)} · ${new Date(a.createdAt).toLocaleString()}</div>${a.alertMessage ? `<p class="mb-0 mt-2">${escapeHtml(a.alertMessage)}</p>` : ""}${a.resolutionReason ? `<div class="small">Resolution: ${escapeHtml(a.resolutionReason)}</div>` : ""}</div><div>${a.alertStatus === "Active" ? `<button class="btn btn-sm btn-outline-primary edit-alert" data-id="${a.patientChartAlertUid}">Edit</button> <button class="btn btn-sm btn-outline-success resolve-alert" data-id="${a.patientChartAlertUid}">Resolve</button>` : `<span class="badge text-bg-secondary">Resolved</span>`}</div></div></div>`).join("");
+  list.innerHTML = alerts.map(a => `<div class="card mb-2"><div class="card-body d-flex justify-content-between"><div><span class="badge ${a.alertPriority === "Critical" ? "text-bg-danger" : a.alertPriority === "High" ? "text-bg-warning" : "text-bg-secondary"}">${escapeHtml(a.alertPriority)}</span> <strong>${escapeHtml(a.alertTitle)}</strong><div class="small text-body-secondary">${escapeHtml(a.alertType)} · ${new Date(a.createdAt).toLocaleString()}</div>${a.alertMessage ? `<p class="mb-0 mt-2">${escapeHtml(a.alertMessage)}</p>` : ""}${a.resolutionReason ? `<div class="small">Resolution: ${escapeHtml(a.resolutionReason)}</div>` : ""}</div><div>${a.alertStatus === "Active" && canManage ? `<button class="btn btn-sm btn-outline-primary edit-alert" data-id="${a.patientChartAlertUid}">Edit</button> <button class="btn btn-sm btn-outline-success resolve-alert" data-id="${a.patientChartAlertUid}">Resolve</button>` : `<span class="badge text-bg-secondary">${escapeHtml(a.alertStatus)}</span>`}</div></div></div>`).join("");
   list.querySelectorAll<HTMLElement>(".edit-alert").forEach(button => button.onclick = () => openAlert(alerts.find(x => x.patientChartAlertUid === button.dataset.id)));
-  list.querySelectorAll<HTMLElement>(".resolve-alert").forEach(button => button.onclick = () => { resolveForm.reset(); (resolveForm.elements.namedItem("PatientChartAlertUid") as HTMLInputElement).value = button.dataset.id ?? ""; resolveModal.show(); });
+  list.querySelectorAll<HTMLElement>(".resolve-alert").forEach(button => button.onclick = () => { resolveForm.reset(); (resolveForm.elements.namedItem("RowVersion") as HTMLInputElement).value = alerts.find(a => a.patientChartAlertUid === button.dataset.id)?.rowVersion ?? ""; (resolveForm.elements.namedItem("PatientChartAlertUid") as HTMLInputElement).value = button.dataset.id ?? ""; resolveModal.show(); });
 }
 async function load(status = filter.value): Promise<void> {
+  const feedback = document.querySelector<HTMLElement>("#chartAlertMessage")!;
+  feedback.classList.add("d-none");
   list.setAttribute("aria-busy", "true");
   list.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div>`;
   try {
     const response = await fetch(`/PatientChartAlerts/List?patientUid=${patientUid}&status=${encodeURIComponent(status)}`);
-    const result = await response.json() as AlertResult;
+    const result = await response.json().catch(() => ({success:false,message:"Chart Alert information is unavailable. Reload and review."})) as AlertResult;
     if (!response.ok) throw new Error(result.message ?? "Alerts could not be loaded.");
     alerts = result.alerts ?? []; render(); if (status === "Active") updateHeader(alerts);
   } catch (error: unknown) {
     list.replaceChildren();
+    feedback.textContent = error instanceof Error ? error.message : "Chart Alert information is unavailable.";
+    feedback.className = "alert alert-warning";
     throw error;
   } finally {
     list.setAttribute("aria-busy", "false");
   }
 }
 function openAlert(alert?: AlertItem): void {
-  form.reset(); (form.elements.namedItem("PatientUid") as HTMLInputElement).value = patientUid;
+  if (!canManage) return;
+  form.reset(); (form.elements.namedItem("RowVersion") as HTMLInputElement).value = alert?.rowVersion ?? ""; (form.elements.namedItem("PatientUid") as HTMLInputElement).value = patientUid;
   (form.elements.namedItem("PatientChartAlertUid") as HTMLInputElement).value = alert?.patientChartAlertUid ?? "";
   (form.elements.namedItem("AlertTitle") as HTMLInputElement).value = alert?.alertTitle ?? "";
   (form.elements.namedItem("AlertMessage") as HTMLTextAreaElement).value = alert?.alertMessage ?? "";
@@ -57,10 +63,25 @@ function openAlert(alert?: AlertItem): void {
   (form.elements.namedItem("AlertPriority") as HTMLSelectElement).value = alert?.alertPriority ?? "Normal"; modal.show();
 }
 async function post(url: string, target: HTMLFormElement): Promise<void> {
+  if (!canManage) return;
   const body = new FormData(target); body.set("__RequestVerificationToken", token.value);
-  const response = await fetch(url, { method: "POST", body }); const result = await response.json() as AlertResult;
-  if (!response.ok || !result.success) throw new Error(result.message ?? "Alert operation failed."); window.location.reload();
+  const isEdit = url !== "/PatientChartAlerts/Create";
+  const feedback = document.querySelector<HTMLElement>(target === form ? "#chartAlertModalMessage" : "#resolveChartAlertModalMessage")!;
+  feedback.classList.add("d-none");
+  const button = document.querySelector<HTMLButtonElement>(target === form ? "#saveChartAlert" : "#confirmResolveChartAlert")!;
+  if (isEdit && !body.get("RowVersion")) { feedback.textContent = "Reload and review the alert before saving."; feedback.classList.remove("d-none"); return; }
+  button.disabled = true;
+  try {
+    const response = await fetch(url, { method: "POST", body });
+    const result = await response.json().catch(() => ({success:false,message:"Chart Alert information is unavailable. Reload and review."})) as AlertResult;
+    if (!response.ok || !result.success) throw new Error(result.message ?? "Alert operation failed. Reload and review.");
+    window.location.reload();
+  } catch (error) {
+    feedback.textContent = error instanceof Error ? error.message : "Alert operation failed. Reload and review.";
+    feedback.classList.remove("d-none");
+  } finally { button.disabled = false; }
 }
+
 document.querySelector("#addChartAlert")?.addEventListener("click", () => openAlert());
 filter.onchange = () => void load().catch(error => window.alert(error instanceof Error ? error.message : "Alerts could not be loaded."));
 document.querySelector("#saveChartAlert")?.addEventListener("click", () => void post((form.elements.namedItem("PatientChartAlertUid") as HTMLInputElement).value ? "/PatientChartAlerts/Update" : "/PatientChartAlerts/Create", form).catch(error => window.alert(error.message)));

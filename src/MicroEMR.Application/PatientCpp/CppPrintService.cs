@@ -75,6 +75,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
                 case "Vitals": Append(body,data.Vitals); break;
                 case "Encounters": Append(body,data.Encounters); break;
                 case "Referrals": Append(body,data.Referrals); break;
+                case "Alerts": Append(body,data.Alerts); break;
                 case "Documents": Append(body,data.Documents); break;
                 case "History":
                     var rows = await history.ListAsync(patientUid,"Active",token);

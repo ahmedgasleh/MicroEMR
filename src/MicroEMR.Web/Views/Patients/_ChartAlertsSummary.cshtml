@@ -1,0 +1,20 @@
+@model MicroEMR.Application.PatientCpp.PatientCppSection<MicroEMR.Application.PatientCpp.PatientCppChartAlert>
+<div data-cpp-category="Alerts" class="col-12 col-lg-4">
+ <div class="card h-100"><div class="card-body"><h4 class="h6">Chart Alerts</h4>
+ @if (Model.State == "Unavailable" || Model.State == "NotAuthorized") {
+  <p class="text-muted">Chart Alert information is unavailable.</p>
+ } else if (Model.Items.Count == 0) {
+  <p class="text-muted">No active chart alerts recorded.</p>
+ } else {
+  @foreach (var alert in Model.Items) {
+   <div class="border-top py-2">
+    <div class="fw-semibold" data-cpp-field="Alerts.Description">@alert.Description</div>
+    <div class="small"><span data-cpp-field="Alerts.Type">@alert.Type</span><span data-cpp-separator> &#183; </span><span data-cpp-field="Alerts.Priority">@alert.Priority</span></div>
+    <div class="small" data-cpp-field="Alerts.Notes">@(string.IsNullOrWhiteSpace(alert.Notes) ? "Not recorded" : alert.Notes)</div>
+   </div>
+  }
+  @if (Model.TotalCount > Model.Items.Count) { <p class="small text-muted">+ @(Model.TotalCount - Model.Items.Count) more</p> }
+ }
+ <p data-cpp-fields-hidden class="small text-body-secondary d-none">Information hidden by your display preferences. Full records remain available in the chart tabs.</p>
+ </div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="alerts">View all chart alerts</button></div></div>
+</div>

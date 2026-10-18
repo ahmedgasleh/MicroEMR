@@ -1,3 +1,61 @@
-using System.Security.Claims;using Microsoft.AspNetCore.Authorization;using Microsoft.AspNetCore.Mvc;using Microsoft.Data.SqlClient;using MicroEMR.Application.PatientChartAlerts;using MicroEMR.Api.Authorization;using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Api.ClinicalUsers;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MicroEMR.Application.PatientChartAlerts;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.ReadAudit;
+using MicroEMR.Api.Authorization;
+
 namespace MicroEMR.Api.Controllers;
-[ApiController,Authorize,RequirePermission(PermissionKeys.PatientsView),Route("api/patients/{patientUid:guid}/chart-alerts")]public sealed class PatientChartAlertsController:ControllerBase{private readonly IPatientChartAlertRepository _repo;private readonly ILogger<PatientChartAlertsController>_log;public PatientChartAlertsController(IPatientChartAlertRepository r,ILogger<PatientChartAlertsController>l){_repo=r;_log=l;}[HttpGet]public async Task<IActionResult>List(Guid patientUid,string status="Active",CancellationToken t=default)=>patientUid==Guid.Empty?BadRequest():Ok(await _repo.GetByPatientUidAsync(patientUid,status,t));[HttpGet("{uid:guid}")]public async Task<IActionResult>Get(Guid patientUid,Guid uid,CancellationToken t)=>await _repo.GetByUidAsync(patientUid,uid,t)is{}x?Ok(x):NotFound();[HttpPost,RequirePermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Create(Guid patientUid,CreatePatientChartAlertRequest x,CancellationToken t)=>await Mutate(()=>_repo.CreateAsync(patientUid,x,UserId(),t),true);[HttpPut("{uid:guid}"),RequirePermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Update(Guid patientUid,Guid uid,UpdatePatientChartAlertRequest x,CancellationToken t)=>await Mutate(()=>_repo.UpdateAsync(patientUid,uid,x,UserId(),t));[HttpPost("{uid:guid}/resolve"),RequirePermission(PermissionKeys.ClinicalDataManage)]public async Task<IActionResult>Resolve(Guid patientUid,Guid uid,ResolvePatientChartAlertRequest x,CancellationToken t)=>await Mutate(()=>_repo.ResolveAsync(patientUid,uid,x,UserId(),t));private async Task<IActionResult>Mutate(Func<Task<PatientChartAlertResponse?>>a,bool created=false){try{var x=await a();return x is null?NotFound():created?CreatedAtAction(nameof(Get),new{patientUid=x.PatientUid,uid=x.PatientChartAlertUid},x):Ok(x);}catch(SqlException e)when(e.Number==51202){return Conflict(new{message="Resolved alerts cannot be edited."});}catch(Exception e){_log.LogError(e,"Patient chart alert operation failed.");return StatusCode(500,new{message="The chart alert operation could not be completed."});}}private long UserId()=>ClinicalUserActorContext.GetRequired(HttpContext);}
+
+[ApiController, Authorize, RequirePermission(PermissionKeys.PatientsView)]
+[Route("api/patients/{patientUid:guid}/chart-alerts")]
+public sealed class PatientChartAlertsController(IPatientChartAlertService service, IPatientChartReadAuditService readAudit, ILogger<PatientChartAlertsController> logger) : ControllerBase
+{
+    [HttpGet]
+    public Task<IActionResult> List(Guid patientUid, string status = "Active", CancellationToken t = default) => Run(async () =>
+    {
+        var rows = await service.ListAsync(patientUid, status, t);
+        if (rows.Any(x => x.PatientUid != patientUid)) return Forbid();
+        await readAudit.RecordOpenedAsync(patientUid, HttpContext.TraceIdentifier, t);
+        return Ok(rows);
+    });
+    [HttpGet("{uid:guid}")]
+    public Task<IActionResult> Get(Guid patientUid, Guid uid, CancellationToken t) => Run(async () =>
+    {
+        var row = await service.GetAsync(patientUid, uid, t);
+        if (row is null) return NotFound();
+        if (row.PatientUid != patientUid) return Forbid();
+        await readAudit.RecordOpenedAsync(patientUid, HttpContext.TraceIdentifier, t);
+        return Ok(row);
+    });
+    [HttpPost, RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> Create(Guid patientUid, CreatePatientChartAlertRequest x, CancellationToken t)
+    {
+        x.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Run(async () => await service.CreateAsync(patientUid, x, ClinicalUserActorContext.GetRequired(HttpContext), t) is {} row
+            ? CreatedAtAction(nameof(Get), new { patientUid, uid = row.PatientChartAlertUid }, row) : NotFound());
+    }
+    [HttpPut("{uid:guid}"), RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> Update(Guid patientUid, Guid uid, UpdatePatientChartAlertRequest x, CancellationToken t)
+    {
+        x.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Run(async () => await service.UpdateAsync(patientUid, uid, x, ClinicalUserActorContext.GetRequired(HttpContext), t) is {} row ? Ok(row) : NotFound());
+    }
+    [HttpPost("{uid:guid}/resolve"), RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> Resolve(Guid patientUid, Guid uid, ResolvePatientChartAlertRequest x, CancellationToken t)
+    {
+        x.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Run(async () => await service.ResolveAsync(patientUid, uid, x, ClinicalUserActorContext.GetRequired(HttpContext), t) is {} row ? Ok(row) : NotFound());
+    }
+    private async Task<IActionResult> Run(Func<Task<IActionResult>> action)
+    {
+        try { return await action(); }
+        catch (ChartAlertValidationException e) { return BadRequest(new { message = e.Message }); }
+        catch (ChartAlertNotFoundException) { return NotFound(); }
+        catch (ChartAlertConcurrencyException e) { return Conflict(new { message = e.Message }); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested) { throw; }
+        catch (Exception e) { logger.LogError(e, "Chart Alert operation failed."); return StatusCode(503, new { message = "Alerts could not be processed. Reload and review before retrying." }); }
+    }
+}

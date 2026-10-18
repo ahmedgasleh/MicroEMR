@@ -9,6 +9,7 @@ const resolveForm = document.querySelector("#resolveChartAlertForm");
 const modal = new bootstrap.Modal(document.querySelector("#chartAlertModal"));
 const resolveModal = new bootstrap.Modal(document.querySelector("#resolveChartAlertModal"));
 const token = document.querySelector('#chartAlertAntiforgery input[name="__RequestVerificationToken"]');
+const canManage = list.dataset.canManage === "true";
 let alerts = [];
 const escapeHtml = (value) => { const node = document.createElement("div"); node.textContent = value ?? ""; return node.innerHTML; };
 function updateHeader(items) {
@@ -23,16 +24,18 @@ function render() {
         list.innerHTML = `<div class="microemr-empty-state"><div class="microemr-empty-state__icon"><i class="bi bi-flag"></i></div><div class="microemr-empty-state__title">No ${filter.value.toLowerCase()} alerts</div><div class="microemr-empty-state__text">Patient-specific alerts and flags will appear here.</div></div>`;
         return;
     }
-    list.innerHTML = alerts.map(a => `<div class="card mb-2"><div class="card-body d-flex justify-content-between"><div><span class="badge ${a.alertPriority === "Critical" ? "text-bg-danger" : a.alertPriority === "High" ? "text-bg-warning" : "text-bg-secondary"}">${escapeHtml(a.alertPriority)}</span> <strong>${escapeHtml(a.alertTitle)}</strong><div class="small text-body-secondary">${escapeHtml(a.alertType)} · ${new Date(a.createdAt).toLocaleString()}</div>${a.alertMessage ? `<p class="mb-0 mt-2">${escapeHtml(a.alertMessage)}</p>` : ""}${a.resolutionReason ? `<div class="small">Resolution: ${escapeHtml(a.resolutionReason)}</div>` : ""}</div><div>${a.alertStatus === "Active" ? `<button class="btn btn-sm btn-outline-primary edit-alert" data-id="${a.patientChartAlertUid}">Edit</button> <button class="btn btn-sm btn-outline-success resolve-alert" data-id="${a.patientChartAlertUid}">Resolve</button>` : `<span class="badge text-bg-secondary">Resolved</span>`}</div></div></div>`).join("");
+    list.innerHTML = alerts.map(a => `<div class="card mb-2"><div class="card-body d-flex justify-content-between"><div><span class="badge ${a.alertPriority === "Critical" ? "text-bg-danger" : a.alertPriority === "High" ? "text-bg-warning" : "text-bg-secondary"}">${escapeHtml(a.alertPriority)}</span> <strong>${escapeHtml(a.alertTitle)}</strong><div class="small text-body-secondary">${escapeHtml(a.alertType)} · ${new Date(a.createdAt).toLocaleString()}</div>${a.alertMessage ? `<p class="mb-0 mt-2">${escapeHtml(a.alertMessage)}</p>` : ""}${a.resolutionReason ? `<div class="small">Resolution: ${escapeHtml(a.resolutionReason)}</div>` : ""}</div><div>${a.alertStatus === "Active" && canManage ? `<button class="btn btn-sm btn-outline-primary edit-alert" data-id="${a.patientChartAlertUid}">Edit</button> <button class="btn btn-sm btn-outline-success resolve-alert" data-id="${a.patientChartAlertUid}">Resolve</button>` : `<span class="badge text-bg-secondary">${escapeHtml(a.alertStatus)}</span>`}</div></div></div>`).join("");
     list.querySelectorAll(".edit-alert").forEach(button => button.onclick = () => openAlert(alerts.find(x => x.patientChartAlertUid === button.dataset.id)));
-    list.querySelectorAll(".resolve-alert").forEach(button => button.onclick = () => { resolveForm.reset(); resolveForm.elements.namedItem("PatientChartAlertUid").value = button.dataset.id ?? ""; resolveModal.show(); });
+    list.querySelectorAll(".resolve-alert").forEach(button => button.onclick = () => { resolveForm.reset(); resolveForm.elements.namedItem("RowVersion").value = alerts.find(a => a.patientChartAlertUid === button.dataset.id)?.rowVersion ?? ""; resolveForm.elements.namedItem("PatientChartAlertUid").value = button.dataset.id ?? ""; resolveModal.show(); });
 }
 async function load(status = filter.value) {
+    const feedback = document.querySelector("#chartAlertMessage");
+    feedback.classList.add("d-none");
     list.setAttribute("aria-busy", "true");
     list.innerHTML = `<div class="microemr-loading-state" role="status"><span class="microemr-loading-spinner" aria-hidden="true"></span><span>Loading alerts...</span></div>`;
     try {
         const response = await fetch(`/PatientChartAlerts/List?patientUid=${patientUid}&status=${encodeURIComponent(status)}`);
-        const result = await response.json();
+        const result = await response.json().catch(() => ({ success: false, message: "Chart Alert information is unavailable. Reload and review." }));
         if (!response.ok)
             throw new Error(result.message ?? "Alerts could not be loaded.");
         alerts = result.alerts ?? [];
@@ -42,6 +45,8 @@ async function load(status = filter.value) {
     }
     catch (error) {
         list.replaceChildren();
+        feedback.textContent = error instanceof Error ? error.message : "Chart Alert information is unavailable.";
+        feedback.className = "alert alert-warning";
         throw error;
     }
     finally {
@@ -49,7 +54,10 @@ async function load(status = filter.value) {
     }
 }
 function openAlert(alert) {
+    if (!canManage)
+        return;
     form.reset();
+    form.elements.namedItem("RowVersion").value = alert?.rowVersion ?? "";
     form.elements.namedItem("PatientUid").value = patientUid;
     form.elements.namedItem("PatientChartAlertUid").value = alert?.patientChartAlertUid ?? "";
     form.elements.namedItem("AlertTitle").value = alert?.alertTitle ?? "";
@@ -59,13 +67,34 @@ function openAlert(alert) {
     modal.show();
 }
 async function post(url, target) {
+    if (!canManage)
+        return;
     const body = new FormData(target);
     body.set("__RequestVerificationToken", token.value);
-    const response = await fetch(url, { method: "POST", body });
-    const result = await response.json();
-    if (!response.ok || !result.success)
-        throw new Error(result.message ?? "Alert operation failed.");
-    window.location.reload();
+    const isEdit = url !== "/PatientChartAlerts/Create";
+    const feedback = document.querySelector(target === form ? "#chartAlertModalMessage" : "#resolveChartAlertModalMessage");
+    feedback.classList.add("d-none");
+    const button = document.querySelector(target === form ? "#saveChartAlert" : "#confirmResolveChartAlert");
+    if (isEdit && !body.get("RowVersion")) {
+        feedback.textContent = "Reload and review the alert before saving.";
+        feedback.classList.remove("d-none");
+        return;
+    }
+    button.disabled = true;
+    try {
+        const response = await fetch(url, { method: "POST", body });
+        const result = await response.json().catch(() => ({ success: false, message: "Chart Alert information is unavailable. Reload and review." }));
+        if (!response.ok || !result.success)
+            throw new Error(result.message ?? "Alert operation failed. Reload and review.");
+        window.location.reload();
+    }
+    catch (error) {
+        feedback.textContent = error instanceof Error ? error.message : "Alert operation failed. Reload and review.";
+        feedback.classList.remove("d-none");
+    }
+    finally {
+        button.disabled = false;
+    }
 }
 document.querySelector("#addChartAlert")?.addEventListener("click", () => openAlert());
 filter.onchange = () => void load().catch(error => window.alert(error instanceof Error ? error.message : "Alerts could not be loaded."));

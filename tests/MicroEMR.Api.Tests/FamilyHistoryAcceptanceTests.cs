@@ -327,6 +327,8 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
         builder.Services.AddScoped<MicroEMR.Application.PatientImmunizations.IPatientImmunizationService, MicroEMR.Application.PatientImmunizations.PatientImmunizationService>();
         builder.Services.AddScoped<MicroEMR.Application.PatientAllergies.Repositories.IPatientAllergyRepository, MicroEMR.Infrastructure.PatientAllergies.PatientAllergyRepository>();
         builder.Services.AddScoped<MicroEMR.Application.PatientAllergies.Services.IPatientAllergyService, MicroEMR.Application.PatientAllergies.Services.PatientAllergyService>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientChartAlerts.IPatientChartAlertRepository, MicroEMR.Infrastructure.PatientChartAlerts.PatientChartAlertRepository>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientChartAlerts.IPatientChartAlertService, MicroEMR.Application.PatientChartAlerts.PatientChartAlertService>();
         builder.Services.AddScoped<MicroEMR.Application.ReadAudit.IReadAuditRepository, MicroEMR.Infrastructure.ReadAudit.ReadAuditRepository>();
         builder.Services.AddScoped<MicroEMR.Application.ReadAudit.IPatientChartReadAuditService, MicroEMR.Application.ReadAudit.PatientChartReadAuditService>();
         builder.Services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();

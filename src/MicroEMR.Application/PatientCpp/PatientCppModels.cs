@@ -71,6 +71,7 @@ public sealed record PatientCppResult(Guid ResultUid, string Name, string Type, 
 public sealed record PatientCppVitals(Guid VitalUid, DateTime RecordedAt, int? Systolic, int? Diastolic, int? HeartRate, decimal? WeightKg, decimal? Bmi, int? OxygenSaturation);
 public sealed record PatientCppEncounter(Guid EncounterUid, DateTime EncounterDateUtc, string Type, string? ProviderName, string? ReasonForVisit);
 public sealed record PatientCppReferral(Guid ReferralUid, string RecipientName, string? RecipientOrganization, string Status, DateTime CreatedAtUtc);
+public sealed record PatientCppChartAlert(string Description, string? Notes, string Type, string Priority, string Status);
 public sealed record PatientCppDocument(Guid DocumentUid, string Title, string DocumentType, string Status, DateTime CreatedAtUtc);
 
 public sealed record PatientCppSummaryResponse(
@@ -91,6 +92,7 @@ public sealed record PatientCppSummaryResponse(
     [System.Text.Json.Serialization.JsonIgnore]
     public PatientCppSection<PatientCppImmunizationPrint>? ImmunizationsForPrint { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public PatientCppSection<PatientCppProblemPrint>? ProblemsForPrint { get; init; }
+    public PatientCppSection<PatientCppChartAlert> Alerts { get; init; } = PatientCppSection<PatientCppChartAlert>.From([], 0);
     public PatientCppSection<PatientCppRiskFactor> RiskFactors { get; init; } = PatientCppSection<PatientCppRiskFactor>.From([], 0);
     public PatientCppSection<PatientCppFamilyHistory> FamilyHistory { get; init; } = PatientCppSection<PatientCppFamilyHistory>.From([], 0);
 }

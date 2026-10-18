@@ -1,6 +1,6 @@
 # Step 112 - PC07.01 bounded Allergies implementation
 
-Date: 2026-10-18. Continues [Step 111](146-step111-pc07-01-allergies-field-date-design.md), reusing its authoritative mapping and [Step 103](138-step103-pc07-01-field-date-life-stage-design.md). **PC07.01 remains PARTIAL; inventory remains 10 mandatory IDs / three packages.** Implementation and automated evidence below do not constitute release certification or human visual acceptance.
+Date: 2026-10-18. Continues [Step 111](146-step111-pc07-01-allergies-field-date-design.md), reusing its authoritative mapping and [Step 103](138-step103-pc07-01-field-date-life-stage-design.md). **PC07.01 remains PARTIAL; inventory remains 10 mandatory IDs / three packages.** Implementation and automated evidence below do not constitute release certification. Human visual acceptance is recorded separately in section 7.
 
 ## 1. Actual checkpoint and preserved work
 
@@ -77,11 +77,11 @@ Existing NKA, derived CPP, preference and selected-print coverage was reused bef
 - TypeScript emission of the new module: exit 0. Project `tsc --project src/MicroEMR.Web/tsconfig.json --noEmit`: exit 0. A preceding attempt used nonexistent `ClientApp/tsconfig.json` and returned TS5058; corrected to the existing project path.
 - Final diff/whitespace, migration-manifest uniqueness and preserved-report hashes checked. Generated JS/map accompany the TypeScript. Build/TRX artifacts are ignored local evidence, not tracked release artifacts.
 
-## 7. Essential human visual checks - PENDING
+## 7. Essential human visual checks - USER-REPORTED PASS
 
-Use fictional records only in the local test tenant. Existing Step 109 Immunization V1-V3 remain user-reported PASS; none is reopened. No Step 112 user-reported visual PASS exists yet. API, SQL, audit, security, race and isolation checks above are automated; no manual SQL/API checklist is required.
+Use fictional records only in the local test tenant. Existing Step 109 Immunization V1-V3 remain user-reported PASS; none is reopened. On 2026-10-18, the user reported **PASS** for all three Step 112 checks below. These are user-reported visual results, distinct from automated evidence; no additional agent browser verification is claimed. API, SQL, audit, security, race and isolation checks above are automated; no manual SQL/API checklist is required.
 
-### V1 - Allergy editor and partial-date controls
+### V1 - Allergy editor and partial-date controls - USER-REPORTED PASS
 
 Fixtures: fictional patient **Morgan Allergy-Test**; agent **TEST ONLY Medication A**, Medication, DIN `00123456`, reaction `TEST ONLY rash`, Mild, Child, onset year `2000`, month `2`, day blank, notes `TEST ONLY visual fixture`.
 
@@ -92,7 +92,7 @@ Fixtures: fictional patient **Morgan Allergy-Test**; agent **TEST ONLY Medicatio
 
 PASS: readable Bootstrap layout, five correct stage labels plus Not recorded, independently blank date parts, no invented day/month, full/quick forms visually consistent, DIN preserved and leading zeroes visible. FAIL: clipping/overlap, padded dates, wrong labels or silent DIN disappearance. This is an appearance check; server rejection rules already have automated evidence.
 
-### V2 - Allergy/NKA history and permission-sensitive appearance
+### V2 - Allergy/NKA history and permission-sensitive appearance - USER-REPORTED PASS
 
 Fixtures: Morgan Allergy-Test above; separate fictional **Morgan NKA-Test** with no positive Allergy records; a permitted read-only clinical account in the same test tenant.
 
@@ -102,7 +102,7 @@ Fixtures: Morgan Allergy-Test above; separate fictional **Morgan NKA-Test** with
 
 PASS: explicit negative banner differs clearly from unknown; partial/unknown onset remains honest; system timestamp is separately labelled; read-only appearance is clear and readable. FAIL: unknown looks like NKA, date precision is invented, or usable mutation actions appear for read-only user. Restore the writer account afterward.
 
-### V3 - CPP preferences and selected PDF appearance
+### V3 - CPP preferences and selected PDF appearance - USER-REPORTED PASS
 
 Fixture: Morgan Allergy-Test with at least the known year-month/Child row; retain a fictional long note for line-wrap inspection. For visual pagination only, reuse an existing >5-active-row fictional fixture if available; the full-count/multipage guarantee is already automated.
 
@@ -119,7 +119,7 @@ PASS: readable, unclipped fields/notes and page layout, accurate partial/unknown
 - DIN coverage is bounded to explicit Medication; ambiguous Contrast/Other/arbitrary classifications need authoritative resolution. No inferred recoding, numeric-format claim or registry verification.
 - Preserve OntarioMD release qualifications: Baseline folder 5.5/document 1.7 versus CDS-S folder 5.2 DFU/workbook 2.1 Final, external OntarioMD/CPSO acceptance, matching controlled migration/application deployment, target SQL engine and deployed OIDC/session/role/tenant provenance. Local fixture evidence does not verify deployment or release applicability.
 - Preserve deferred Immunization numeric dose/unit/pairing policy, Family M7/M8 and all prior completed evidence. Inventory remains 5 prescribing IDs (PC04.01/.06/.07/.09/.14), 4 CPP IDs (PC07.01/.04/.07/.10), 1 scheduling ID (PC09.03), three packages. No SATISFIED - VERIFIED promotion.
-- Recommended Step 113: record Allergy V1-V3 outcomes and perform bounded requirement resolution of the external recorded-date and ambiguous DIN questions using the retained exact source locators before proposing any further implementation. Do not infer clinical policy or start additional coding under Step 112.
+- Recommended Step 113: perform bounded requirement resolution of the external recorded-date and ambiguous DIN questions using the retained exact source locators before proposing any further implementation. Do not infer clinical policy or start additional coding under Step 112.
 
 ## 9. Files changed
 
@@ -183,3 +183,13 @@ The previously built database tool used its old copied manifest: it reported 81/
 Applied the single pending migration to **local-dev / MicroEMR_Db** using the existing audited provisioning runner. Result: Migrated, applied migrations 1. Follow-up status: **82/82, Current YES, latest 0081, no missing/hash mismatches/failure**. This follow-up is the first application-tenant upgrade; the earlier implementation-stage statement about disposable test stores describes the earlier checkpoint.
 
 A temporary ignored diagnostic reused trusted configuration, tenant resolution/connection validation and the real Allergy repository. Read-only snapshot smoke test against a live local-dev patient: **PASS for procedure execution, field mapping and ownership**, with no patient data printed or changed. Diagnostic build succeeded with 0 errors and 2 NU1900 warnings because the NuGet vulnerability feed was unreachable. No authenticated browser HTTP replay was performed; reload the chart to confirm the user session. Final whitespace check passed. Only this report is edited by the follow-up; temporary diagnostics/build assets are ignored. Certification and visual-check status remain unchanged.
+
+## 11. Visual acceptance follow-up
+
+On 2026-10-18 the user reported:
+
+- V1 - Allergy editor and partial-date controls: **PASS**.
+- V2 - Allergy/NKA history and permission-sensitive appearance: **PASS**.
+- V3 - CPP preferences and selected PDF appearance: **PASS**.
+
+Recorded these outcomes in section 7 and updated the Step 113 recommendation because visual outcomes are now recorded. Actual checkout at this documentation update: main, initially clean; retained the current branch. Only this report changed. Checked the resulting text and whitespace; no code changes or test/build reruns were needed. PC07.01 remains PARTIAL, inventory remains 10 mandatory IDs / three packages, and external recorded-date, ambiguous DIN and release qualifications remain unchanged. No commit or merge.
