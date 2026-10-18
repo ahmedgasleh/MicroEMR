@@ -22,7 +22,7 @@ public static class CppDisplayCatalog
         Category("Documents", "Recent Documents", ("Title", "Title"), ("DocumentType", "Document type"), ("CreatedAt", "Created date")),
         Category("RiskFactors", "Risk Factors", ("RiskFactor", "Risk factor"), ("ExposureDetails", "Exposure details"), ("LifeStage", "Life stage at first exposure"), ("Notes", "Notes")),
         Category("FamilyHistory", "Family Medical History", ("Relationship", "Relationship"), ("ConditionDescription", "Condition / diagnosis / procedure"), ("AgeAtOnset", "Age at onset"), ("LifeStage", "Life stage"), ("Treatment", "Treatment"), ("Notes", "Notes")),
-        Category("History", "Past Medical and Surgical History", ("HistoryType", "History type"), ("Description", "Description"), ("RelevantDate", "Relevant date"))
+        Category("History", "Past Medical and Surgical History", ("HistoryType", "History type"), ("Description", "Description"), ("RelevantDate", "Relevant date"), ("OnsetDate", "Medical onset"), ("ResolutionDate", "Clinical resolution"), ("ProcedureDate", "Procedure date"), ("LifeStage", "Life stage"), ("ClinicalStatus", "Clinical status"), ("Notes", "Clinical notes"))
     });
 
     private static CppDisplayCategory Category(string key, string label, params (string Key, string Label)[] fields) =>

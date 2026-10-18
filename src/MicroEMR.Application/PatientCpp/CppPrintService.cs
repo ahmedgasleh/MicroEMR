@@ -44,7 +44,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
         var name = string.IsNullOrWhiteSpace(configuration.LegalName) ? configuration.ClinicName : configuration.LegalName;
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(clinician.DisplayName))
             throw new CppPrintUnavailableException("Configure the clinic and clinician letterhead before printing CPP.");
-        var body = new StringBuilder("<style>.cpp-print-category h2{break-after:avoid}.cpp-print-item{white-space:pre-wrap;overflow-wrap:anywhere;break-inside:auto;margin-bottom:12pt}.cpp-print-item dl{margin:0}.cpp-print-item dt{font-weight:bold}.cpp-print-item dd{margin:0 0 4pt}</style>");
+        var body = new StringBuilder("<style>.cpp-print-category h2{break-after:avoid}.cpp-print-item{white-space:pre-wrap;overflow-wrap:anywhere;break-inside:auto;margin-bottom:12pt}.cpp-print-item dl{display:grid;grid-template-columns:42mm minmax(0,1fr);column-gap:3mm;row-gap:2pt;align-items:start;margin:0}.cpp-print-item dt{font-weight:bold;white-space:normal}.cpp-print-item dd{margin:0;min-width:0;white-space:pre-wrap}</style>");
         foreach (var category in CppDisplayCatalog.Categories.Where(x => request.Categories.Contains(x.Key)))
         {
             body.Append($"<section class=\"cpp-print-category\"><h2>{E(category.Key == "Medications" ? $"Medications - {MedicationPrintScopes.Label(request.MedicationScope)}" : category.Label)}</h2>");
@@ -71,7 +71,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
                     if (rows.Any(x => x.PatientUid != patientUid)) throw new UnauthorizedAccessException("History ownership is invalid.");
                     Append(body,PatientCppSection<PrintHistory>.From(rows.Where(x => x.Status == "Active")
                         .OrderByDescending(x => x.RelevantDate).ThenBy(x => x.HistoryUid)
-                        .Select(x => new PrintHistory(x.HistoryType,x.Description,x.RelevantDate)).ToArray(),rows.Count));
+                        .Select(x => new PrintHistory(x.HistoryType,x.Description,x.RelevantDate,x.ClinicalFields?.OnsetDate?.Display,x.ClinicalFields?.ResolutionDate?.Display,x.ClinicalFields?.ProcedureDate?.Display,x.ClinicalFields?.LifeStage,x.ClinicalFields?.ClinicalStatus,x.ClinicalFields?.Notes)).ToArray(),rows.Count));
                     break;
             }
             body.Append("</section>");
@@ -112,6 +112,9 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
             // Print every clinical field in the established CPP projection. Internal UIDs are not output.
             foreach (var property in typeof(T).GetProperties().Where(x => !x.Name.EndsWith("Uid",StringComparison.Ordinal)))
             {
+                if (item is PrintHistory history &&
+                    (history.HistoryType == "Medical" && property.Name == "ProcedureDate" ||
+                     history.HistoryType == "Surgical" && property.Name is "OnsetDate" or "ClinicalResolutionDate" or "LifeStage" or "ClinicalStatus")) continue;
                 var value = property.GetValue(item);
                 var display = value switch
                 {
@@ -127,5 +130,5 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
     }
     private static string Recorded(string? value) => string.IsNullOrWhiteSpace(value) ? "Not recorded" : value;
     private static string E(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
-    private sealed record PrintHistory(string HistoryType,string Description,DateOnly? RelevantDate);
+    private sealed record PrintHistory(string HistoryType,string Description,DateOnly? RelevantDate,string? OnsetDate,string? ClinicalResolutionDate,string? ProcedureDate,string? LifeStage,string? ClinicalStatus,string? Notes);
 }

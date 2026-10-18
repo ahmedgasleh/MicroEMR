@@ -9,6 +9,7 @@ public sealed class PatientClinicalHistoryResponse
     public required string HistoryType { get; init; }
     public required string Description { get; init; }
     public DateOnly? RelevantDate { get; init; }
+    public HistoryClinicalFields? ClinicalFields { get; init; }
     public required string Status { get; init; }
     public DateTime CreatedAt { get; init; }
     public long CreatedBy { get; init; }
@@ -24,7 +25,8 @@ public sealed class CreatePatientClinicalHistoryRequest : IValidatableObject
     [Required, StringLength(20)] public string HistoryType { get; set; } = string.Empty;
     [Required, StringLength(1000)] public string Description { get; set; } = string.Empty;
     public DateOnly? RelevantDate { get; set; }
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => ValidateValues(HistoryType, Description, RelevantDate);
+    public HistoryClinicalFields? ClinicalFields { get; set; }
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => ValidateValues(HistoryType, Description, RelevantDate).Concat(ClinicalFields?.Validate(HistoryType) ?? []);
     internal static IEnumerable<ValidationResult> ValidateValues(string? type, string? description, DateOnly? date)
     {
         if (type is not ("Medical" or "Surgical")) yield return new("History type must be Medical or Surgical.", [nameof(HistoryType)]);
@@ -38,8 +40,9 @@ public sealed class UpdatePatientClinicalHistoryRequest : IValidatableObject
     [Required, StringLength(20)] public string HistoryType { get; set; } = string.Empty;
     [Required, StringLength(1000)] public string Description { get; set; } = string.Empty;
     public DateOnly? RelevantDate { get; set; }
+    public HistoryClinicalFields? ClinicalFields { get; set; }
     [Required] public string RowVersion { get; set; } = string.Empty;
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => CreatePatientClinicalHistoryRequest.ValidateValues(HistoryType, Description, RelevantDate);
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => CreatePatientClinicalHistoryRequest.ValidateValues(HistoryType, Description, RelevantDate).Concat(ClinicalFields?.Validate(HistoryType) ?? []);
 }
 
 public sealed class ArchivePatientClinicalHistoryRequest
@@ -49,3 +52,7 @@ public sealed class ArchivePatientClinicalHistoryRequest
 
 public sealed class PatientClinicalHistoryConcurrencyException : Exception;
 public sealed class PatientClinicalHistoryArchivedException : Exception;
+
+public sealed class PatientClinicalHistoryValidationException(string message) : Exception(message);
+
+public sealed class PatientClinicalHistoryPatientNotFoundException : Exception;

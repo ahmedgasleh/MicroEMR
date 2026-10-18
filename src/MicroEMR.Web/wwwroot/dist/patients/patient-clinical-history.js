@@ -1,3 +1,4 @@
+import { clinicalItems } from "./history-clinical-fields.js";
 document.addEventListener("DOMContentLoaded", () => {
     const root = document.querySelector("#patientClinicalHistoryRoot");
     if (!root)
@@ -7,18 +8,40 @@ document.addEventListener("DOMContentLoaded", () => {
     const canManage = root.dataset.canManage === "true", escape = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])), day = (v) => v ? new Date(`${v}T00:00:00`).toLocaleDateString() : "Date not recorded";
     let items = [], summaryItems = [];
     const endpoint = (suffix = "") => `${root.dataset.mutationUrl.replace(/\/$/, "")}${suffix}`;
+    const clinical = (x, preferences = false) => clinicalItems(x.historyType, x.clinicalFields).map(([key, label, value]) => `<div ${preferences ? `data-cpp-field="History.${key}"` : ""} class="small text-break" style="white-space:pre-wrap"><strong>${escape(label)}:</strong> ${escape(value)}</div>`).join("");
     function render() {
-        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span data-cpp-field="History.HistoryType" class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span data-cpp-field="History.Description">${escape(x.description)}</span><span data-cpp-field="History.RelevantDate" class="small text-body-secondary ms-2">${escape(day(x.relevantDate))}</span></div>`).join("")}</div>` : '<span class="text-muted">No past medical or surgical history recorded.</span>';
+        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span data-cpp-field="History.HistoryType" class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span data-cpp-field="History.Description">${escape(x.description)}</span><span data-cpp-field="History.RelevantDate" class="small text-body-secondary ms-2">Relevant date: ${escape(day(x.relevantDate))}</span>${clinical(x, true)}</div>`).join("")}</div>` : '<span class="text-muted">No past medical or surgical history recorded.</span>';
         if (!items.length) {
             list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__title">No history recorded</div></div>';
             return;
         }
-        list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Type</th><th>Description</th><th>Relevant date</th><th>Status</th><th>Recorded</th><th class="text-end">Actions</th></tr></thead><tbody>${items.map(x => { const actions = x.status === "Active" && canManage ? `<button class="btn btn-sm btn-outline-primary edit-history" data-uid="${x.historyUid}">Edit</button> <button class="btn btn-sm btn-outline-warning archive-history" data-uid="${x.historyUid}" data-version="${escape(x.rowVersion)}">Archive</button>` : ""; return `<tr><td><span class="badge text-bg-light border">${escape(x.historyType)}</span></td><td>${escape(x.description)}</td><td>${escape(day(x.relevantDate))}</td><td>${escape(x.status)}</td><td class="small">${escape(x.createdByDisplayName || "Unknown")}<br>${new Date(x.createdAt).toLocaleString()}</td><td class="text-end text-nowrap">${actions}</td></tr>`; }).join("")}</tbody></table></div>`;
+        list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Type</th><th>Description</th><th>Relevant date</th><th>Status</th><th>Recorded</th><th class="text-end">Actions</th></tr></thead><tbody>${items.map(x => { const actions = x.status === "Active" && canManage ? `<button class="btn btn-sm btn-outline-primary edit-history" data-uid="${x.historyUid}">Edit</button> <button class="btn btn-sm btn-outline-warning archive-history" data-uid="${x.historyUid}" data-version="${escape(x.rowVersion)}">Archive</button>` : ""; return `<tr><td><span class="badge text-bg-light border">${escape(x.historyType)}</span></td><td>${escape(x.description)}${clinical(x)}</td><td>${escape(day(x.relevantDate))}</td><td>${escape(x.status)}</td><td class="small">${escape(x.createdByDisplayName || "Unknown")}<br>${new Date(x.createdAt).toLocaleString()}</td><td class="text-end text-nowrap">${actions}</td></tr>`; }).join("")}</tbody></table></div>`;
     }
     async function load(status = filter.value) { const r = await fetch(`${root.dataset.listUrl}?status=${encodeURIComponent(status)}`, { headers: { Accept: "application/json" } }), j = await r.json(); if (!r.ok || !j.success)
         throw new Error(j.message || "History could not be loaded."); items = j.items; if (status === "Active")
         summaryItems = items; render(); }
-    function open(item) { form.reset(); editorMessage.classList.add("d-none"); form.elements.namedItem("HistoryUid").value = item?.historyUid || ""; form.elements.namedItem("RowVersion").value = item?.rowVersion || ""; form.elements.namedItem("HistoryType").value = item?.historyType || "Medical"; form.elements.namedItem("Description").value = item?.description || ""; form.elements.namedItem("RelevantDate").value = item?.relevantDate || ""; document.querySelector("#clinicalHistoryModalTitle").textContent = item ? "Edit History" : "Add History"; modal.show(); }
+    function open(item) {
+        form.reset();
+        editorMessage.classList.add("d-none");
+        form.elements.namedItem("HistoryUid").value = item?.historyUid || "";
+        form.elements.namedItem("RowVersion").value = item?.rowVersion || "";
+        form.elements.namedItem("HistoryType").value = item?.historyType || "Medical";
+        form.elements.namedItem("Description").value = item?.description || "";
+        form.elements.namedItem("RelevantDate").value = item?.relevantDate || "";
+        const f = item?.clinicalFields;
+        for (const prefix of ["Onset", "Resolution", "Procedure"]) {
+            const date = f?.[`${prefix.toLowerCase()}Date`];
+            for (const part of ["Year", "Month", "Day"])
+                form.elements.namedItem(`ClinicalFields.${prefix}Date.${part}`).value = String(date?.[part.toLowerCase()] ?? "");
+        }
+        for (const [name, value] of [["LifeStageCode", f?.lifeStageCode], ["ClinicalStatus", f?.clinicalStatus], ["Notes", f?.notes]])
+            form.elements.namedItem(`ClinicalFields.${name}`).value = value ?? "";
+        kindFields();
+        document.querySelector("#clinicalHistoryModalTitle").textContent = item ? "Edit History" : "Add History";
+        modal.show();
+    }
+    function kindFields() { const kind = form.elements.namedItem("HistoryType").value; form.querySelectorAll("[data-history-kind]").forEach(section => { const hidden = section.dataset.historyKind !== kind; section.hidden = hidden; section.querySelectorAll("input,select").forEach(input => { input.disabled = hidden; }); }); }
+    form.elements.namedItem("HistoryType").addEventListener("change", kindFields);
     async function post(url, body) { const token = form.querySelector('input[name="__RequestVerificationToken"]').value; const r = await fetch(url, { method: "POST", headers: { RequestVerificationToken: token, Accept: "application/json" }, body }), j = await r.json().catch(() => ({})); if (!r.ok || !j.success)
         throw new Error(j.message || "History could not be saved."); return j; }
     document.querySelector("#addClinicalHistoryButton")?.addEventListener("click", () => open());
@@ -30,7 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const uid = form.elements.namedItem("HistoryUid").value;
         await post(endpoint(uid ? `/${uid}` : ""), new FormData(form));
         modal.hide();
-        await load();
+        await load("Active");
+        if (filter.value !== "Active")
+            await load();
     }
     catch (e) {
         showEditor(e instanceof Error ? e.message : "History could not be saved.");
@@ -44,7 +69,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } if (archive && confirm("Archive this history item? It will remain retained.")) {
         try {
             await post(endpoint(`/${archive.dataset.uid}/archive`), new URLSearchParams({ rowVersion: archive.dataset.version }));
-            await load();
+            await load("Active");
+            if (filter.value !== "Active")
+                await load();
         }
         catch (error) {
             show(error);
@@ -54,5 +81,4 @@ document.addEventListener("DOMContentLoaded", () => {
     function showEditor(text) { editorMessage.textContent = text; editorMessage.classList.remove("d-none"); }
     void load("Active").catch(show);
 });
-export {};
 //# sourceMappingURL=patient-clinical-history.js.map

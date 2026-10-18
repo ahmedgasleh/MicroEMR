@@ -14,6 +14,20 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task HistoryClinicalFieldsPreserveOldKeysAndDefaultNewFieldsVisible()
+    {
+        var store=new Store();var service=Service(store,7);
+        var old=await service.SaveAsync(new(){HiddenCategories=["Documents"],HiddenFields=["History.RelevantDate"]});
+        var keys=Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="History").Fields.Select(x=>x.Key).ToArray();
+        Assert.Equal(9,keys.Length);Assert.Contains("History.Description",keys);
+        foreach(var key in new[]{"OnsetDate","ResolutionDate","ProcedureDate","LifeStage","ClinicalStatus","Notes"})Assert.Contains("History."+key,keys);
+        var initial=await service.GetAsync();Assert.Equal(old.HiddenFields,initial.HiddenFields);Assert.DoesNotContain("History.Notes",initial.HiddenFields);
+        var saved=await service.SaveAsync(new(){HiddenCategories=["Documents","History"],HiddenFields=["History.RelevantDate","History.Notes"],RowVersion=old.RowVersion});
+        Assert.Equal(saved.HiddenFields,(await Service(store,7).GetAsync()).HiddenFields);
+        var reset=await service.SaveAsync(new(){RowVersion=saved.RowVersion});Assert.Empty(reset.HiddenFields);Assert.Empty(reset.HiddenCategories);
+    }
+
+    [Fact]
     public async Task MedicationClassificationPreservesExistingCategoryAndFieldPreferenceKeys()
     {
         var store = new Store();
@@ -244,6 +258,12 @@ public sealed class CppDisplayPreferencesTests
             foreach (var field in category.Fields)
                 if (category.Key == "RiskFactors") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", riskView);
                 else if (category.Key == "FamilyHistory") Assert.Contains($"\"{field.Key.Split('.')[1]}\"", familyView);
+                else if(category.Key=="History" && field.Key is not ("History.HistoryType" or "History.Description" or "History.RelevantDate"))
+                {
+                    var fields=File.ReadAllText(Path.Combine(Root(),"src","MicroEMR.Web","ClientApp","patients","history-clinical-fields.ts"));
+                    Assert.Contains($"\"{field.Key.Split('.')[1]}\"",fields);
+                    Assert.Contains("data-cpp-field=\"History.${key}\"",history);
+                }
                 else Assert.Contains($"data-cpp-field=\"{field.Key}\"", view + history);
         }
         Assert.Contains("View all allergies", view);

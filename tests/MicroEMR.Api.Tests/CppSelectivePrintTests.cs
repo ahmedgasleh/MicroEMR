@@ -93,6 +93,21 @@ public sealed class CppSelectivePrintTests
     }
 
     [Fact]
+    public async Task PrintedLabelsAlignWithValuesAndLongHistoryContinuesAcrossPages()
+    {
+        var f=new Fixture();
+        var html=Encoding.UTF8.GetString((await f.Print("History"))!);
+        await using var renderer=new PlaywrightPdfRenderer(NullLogger<PlaywrightPdfRenderer>.Instance);
+        var bytes=await renderer.RenderAsync(html);
+        using var document=PdfDocument.Open(bytes);
+        Assert.True(document.NumberOfPages>1);
+        var words=document.GetPages().SelectMany(page=>page.GetWords().Select(word=>(Page:page.Number,Word:word))).ToArray();
+        var label=Assert.Single(words,x=>x.Word.Text=="Type");
+        Assert.Contains(words,x=>x.Page==label.Page && x.Word.Text=="Medical" && x.Word.BoundingBox.Left>label.Word.BoundingBox.Right && Math.Abs(x.Word.BoundingBox.Bottom-label.Word.BoundingBox.Bottom)<2);
+        Assert.Contains(words,x=>x.Word.Text=="599");
+    }
+
+    [Fact]
     public async Task OneOperationPrintsCompleteSelectedCategoriesInCatalogOrderWithRequiredContext()
     {
         var f = new Fixture();
@@ -275,7 +290,7 @@ public sealed class CppSelectivePrintTests
         risk ?? Stub<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientRiskFactors.PatientRiskFactorResponse>>([])));
     public class Proxy : DispatchProxy
     { public Func<string,object?[],object> Call=null!; protected override object Invoke(MethodInfo? method,object?[]? args)=>Call(method!.Name,args!); }
-    private static T Stub<T>(Func<string,object?[],object> call) where T:class
+    internal static T Stub<T>(Func<string,object?[],object> call) where T:class
     { var proxy=DispatchProxy.Create<T,Proxy>();((Proxy)(object)proxy).Call=call;return proxy; }
 
     internal sealed class Fixture
@@ -284,6 +299,7 @@ public sealed class CppSelectivePrintTests
             ChartNumber="SECRET-CHART",HealthCardNumber="1234567890",HealthCardVersion="AB",AddressLine1="20 Patient Street",City="Toronto",Province="ON",PostalCode="M1M1M1",PhoneNumber="416-999-9999"};
         public Guid ClinicianUid=Guid.NewGuid();public string Failure="";public int RenderCalls,NumberCalls,SourceCalls;public IReadOnlyList<string> Requested=[];
         public IPatientCppService? ActualSource;
+        public IPatientClinicalHistoryService? ActualHistory;
         public PatientCppSummaryResponse Data;
         public CppPrintService Service;
         public Fixture()
@@ -309,6 +325,7 @@ public sealed class CppSelectivePrintTests
                 Stub<IPatientClinicalHistoryService>((method,args)=>
                 {
                     Assert.Equal("ListAsync",method);Assert.Equal("Active",args[1]);
+                    if(ActualHistory is not null)return ActualHistory.ListAsync((Guid)args[0]!,"Active");
                     return Task.FromResult<IReadOnlyList<PatientClinicalHistoryResponse>>([new() {PatientUid=Failure=="wrong-history-patient"?Guid.NewGuid():Patient.PatientUid,
                         HistoryType="Medical",Status="Active",Description=string.Join("\n",Enumerable.Range(0,600).Select(i=>$"Long history line {i}"))+" <script>",RowVersion="version"}]);
                 }),Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(Failure=="permission"?new HashSet<string>():new HashSet<string> {PermissionKeys.PatientsView})),
