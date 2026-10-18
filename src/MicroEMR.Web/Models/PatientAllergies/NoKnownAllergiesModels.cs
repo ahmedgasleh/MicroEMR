@@ -6,6 +6,9 @@ public sealed record NoKnownAllergiesAssertionResponse(Guid AssertionUid, Guid P
 
 public sealed class RevokeNoKnownAllergiesRequest
 {
+    public Guid? AssertionUid {get;set;}
     public string RowVersion { get; set; } = string.Empty;
     public string? Reason { get; set; }
 }
+
+public sealed record AllergySnapshot(IReadOnlyList<PatientAllergyListItemResponse> Items,AllergyDocumentationStateResponse Documentation);

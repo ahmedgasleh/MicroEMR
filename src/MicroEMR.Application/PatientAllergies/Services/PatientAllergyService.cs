@@ -13,6 +13,8 @@ public sealed class PatientAllergyService : IPatientAllergyService
         _repository = repository;
     }
 
+    public Task<AllergySnapshot> GetSnapshotAsync(Guid patientUid,CancellationToken token=default)=>_repository.GetSnapshotAsync(patientUid,token);
+    public Task<PatientAllergyDetailsResponse?> GetForPatientAsync(Guid patientUid,Guid allergyUid,CancellationToken token=default)=>_repository.GetForPatientAsync(patientUid,allergyUid,token);
     public Task<IReadOnlyList<PatientAllergyListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,
@@ -26,8 +28,8 @@ public sealed class PatientAllergyService : IPatientAllergyService
     public Task<AllergyDocumentationStateResponse> GetDocumentationStateAsync(Guid patientUid, CancellationToken cancellationToken = default) =>
         _repository.GetDocumentationStateAsync(patientUid, cancellationToken);
 
-    public Task<NoKnownAllergiesAssertionResponse> AssertNoKnownAllergiesAsync(Guid patientUid, long verifiedBy, CancellationToken cancellationToken = default) =>
-        _repository.AssertNoKnownAllergiesAsync(patientUid, verifiedBy, cancellationToken);
+    public Task<NoKnownAllergiesAssertionResponse> AssertNoKnownAllergiesAsync(Guid patientUid, long verifiedBy, CancellationToken cancellationToken = default, string? correlation = null) =>
+        _repository.AssertNoKnownAllergiesAsync(patientUid, verifiedBy, cancellationToken, correlation);
 
     public Task<NoKnownAllergiesAssertionResponse?> RevokeNoKnownAllergiesAsync(Guid patientUid, RevokeNoKnownAllergiesRequest request, long revokedBy, CancellationToken cancellationToken = default) =>
         _repository.RevokeNoKnownAllergiesAsync(patientUid, request, revokedBy, cancellationToken);
@@ -48,6 +50,7 @@ public sealed class PatientAllergyService : IPatientAllergyService
         string? createdByDisplayName,
         CancellationToken cancellationToken = default)
     {
+        Validate(request);
         return _repository.CreateAsync(
             patientUid,
             request,
@@ -63,7 +66,7 @@ public sealed class PatientAllergyService : IPatientAllergyService
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        Validate(request);
         return _repository.UpdateAsync(
             patientUid, allergyUid, request, updatedBy, cancellationToken);
     }
@@ -71,7 +74,13 @@ public sealed class PatientAllergyService : IPatientAllergyService
         ResolvePatientAllergyRequest request, long? resolvedBy,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        Validate(request);
         return _repository.ResolveAsync(patientUid, allergyUid, request, resolvedBy, cancellationToken);
+    }
+    private static void Validate(object request)
+    {
+        var errors=new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        if(!System.ComponentModel.DataAnnotations.Validator.TryValidateObject(request,new(request),errors,true))
+            throw new PatientAllergyValidationException(errors[0].ErrorMessage ?? "Invalid allergy.");
     }
 }

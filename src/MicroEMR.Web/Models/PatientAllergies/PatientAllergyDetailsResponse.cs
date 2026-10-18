@@ -15,6 +15,8 @@ public sealed class PatientAllergyDetailsResponse
     public string? Severity { get; set; }
 
     public DateTime? OnsetDate { get; set; }
+    public MicroEMR.Application.PatientAllergies.Contracts.AllergyClinicalFields? ClinicalFields { get; set; }
+    public string OnsetDisplay => ClinicalFields?.OnsetDate?.Display ?? (OnsetDate?.ToString("yyyy-MM-dd") ?? "Not recorded");
 
     public string? Notes { get; set; }
 

@@ -31,6 +31,7 @@
 
         <input asp-for="PatientUid"
                type="hidden" />
+        <input type="hidden" name="ExpectedAssertionUid" value="@Model.ExpectedAssertionUid" /><input type="hidden" name="ExpectedAssertionRowVersion" value="@Model.ExpectedAssertionRowVersion" />
         <input asp-for="NoKnownAllergiesActive" type="hidden" />
 
         @if (Model.NoKnownAllergiesActive)
@@ -120,19 +121,7 @@
                 </span>
             </div>
 
-            <div class="col-12 col-lg-4">
-                <label asp-for="OnsetDate"
-                       class="form-label">
-                </label>
-
-                <input asp-for="OnsetDate"
-                       type="date"
-                       class="form-control" />
-
-                <span asp-validation-for="OnsetDate"
-                      class="text-danger">
-                </span>
-            </div>
+            <partial name="_AllergyClinicalFields" model="Model" />
 
             <div class="col-12">
                 <label asp-for="Notes"
@@ -190,3 +179,5 @@
         });
     </script>
 }
+
+<script type="module" src="~/dist/patients/patient-allergies.js" asp-append-version="true"></script>

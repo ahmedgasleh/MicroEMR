@@ -53,11 +53,21 @@ public sealed partial class PatientCppService
                 data=data with {Immunizations=compact,ImmunizationsForPrint=details};
                 continue;
             }
+            if(category.Key=="Allergies")
+            {
+                var detail=PatientCppSection<PatientCppAllergyPrint>.Unavailable();
+                var compact=await LoadAllergies(patientUid,correlation,token,true,snapshot=>
+                {
+                    var rows=snapshot.Items.Where(x=>x.Status=="Active").ToArray();
+                    detail=snapshot.Documentation.State==PatientCppSectionStates.ExplicitlyNone?PatientCppSection<PatientCppAllergyPrint>.ExplicitlyNone():PatientCppSection<PatientCppAllergyPrint>.From(
+                        rows.Select(x=>new PatientCppAllergyPrint(x.AllergenName,x.AllergenType,x.Status,x.Reaction,x.Severity,x.OnsetDisplay,x.ClinicalFields?.LifeStage??"Not recorded",x.Notes,x.CreatedAt.ToString("yyyy-MM-dd HH:mm 'UTC'",System.Globalization.CultureInfo.InvariantCulture))).ToArray(),rows.Length);
+                });
+                data=data with {Allergies=compact,AllergiesForPrint=detail};continue;
+            }
             data = category.Key switch
             {
                 "RiskFactors" => data with { RiskFactors = await LoadRiskFactors(patientUid,correlation,token,true) },
                 "FamilyHistory" => data with { FamilyHistory = await LoadFamilyHistory(patientUid,correlation,token,true) },
-                "Allergies" => data with { Allergies = await LoadAllergies(patientUid,correlation,token,true) },
                 "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true,medicationScope) },
                 "Prescriptions" => data with { Prescriptions = await LoadPrescriptions(patientUid,correlation,token,true) },
                 "Results" => data with { Results = await LoadResults(patientUid,correlation,token,true) },

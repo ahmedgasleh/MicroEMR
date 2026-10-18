@@ -1,255 +1,82 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MicroEMR.Api.Authorization;
+using MicroEMR.Api.ClinicalUsers;
+using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.PatientAllergies;
 using MicroEMR.Application.PatientAllergies.Contracts;
 using MicroEMR.Application.PatientAllergies.Services;
-using MicroEMR.Application.PatientAllergies;
-using MicroEMR.Api.Authorization;
-using MicroEMR.Application.AccessProfiles;
+using MicroEMR.Application.ReadAudit;
 
 namespace MicroEMR.Api.Controllers;
 
-[ApiController]
-[Authorize]
-[RequirePermission(PermissionKeys.PatientsView)]
-public sealed class PatientAllergiesController : ControllerBase
+[ApiController,Authorize,RequirePermission(PermissionKeys.PatientsView)]
+public sealed class PatientAllergiesController(IPatientAllergyService service,ILogger<PatientAllergiesController> logger,IPatientChartReadAuditService readAudit) : ControllerBase
 {
-    private readonly IPatientAllergyService _allergyService;
-    private readonly ILogger<PatientAllergiesController> _logger;
-
-    public PatientAllergiesController(
-        IPatientAllergyService allergyService,
-        ILogger<PatientAllergiesController> logger)
-    {
-        _allergyService = allergyService;
-        _logger = logger;
-    }
-
     [HttpGet("api/patients/{patientUid:guid}/allergies")]
-    [ProducesResponseType<IReadOnlyList<PatientAllergyListItemResponse>>(
-        StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IReadOnlyList<PatientAllergyListItemResponse>>>
-        GetPatientAllergies(
-            Guid patientUid,
-            CancellationToken cancellationToken)
-    {
-        if (patientUid == Guid.Empty)
-        {
-            return BadRequest();
-        }
-
-        var allergies =
-            await _allergyService.GetByPatientUidAsync(
-                patientUid,
-                cancellationToken);
-
-        return Ok(allergies);
-    }
-
+    public Task<IActionResult> GetPatientAllergies(Guid patientUid,CancellationToken token)=>Read(async()=>Ok((await Snapshot(patientUid,token)).Items));
+    [HttpGet("api/patients/{patientUid:guid}/allergies/snapshot")]
+    public Task<IActionResult> GetSnapshot(Guid patientUid,CancellationToken token)=>Read(async()=>Ok(await Snapshot(patientUid,token)));
     [HttpGet("api/patients/{patientUid:guid}/allergies/documentation-state")]
-    public async Task<ActionResult<AllergyDocumentationStateResponse>> GetDocumentationState(Guid patientUid, CancellationToken cancellationToken)
+    public Task<IActionResult> GetDocumentationState(Guid patientUid,CancellationToken token)=>Read(async()=>Ok((await Snapshot(patientUid,token)).Documentation));
+    private async Task<AllergySnapshot> Snapshot(Guid patient,CancellationToken token)
     {
-        if (patientUid == Guid.Empty) return BadRequest();
-        try { return Ok(await _allergyService.GetDocumentationStateAsync(patientUid, cancellationToken)); }
-        catch (InvalidOperationException) { return NotFound(); }
+        if(patient==Guid.Empty)throw new PatientAllergyNotFoundException();
+        var data=await service.GetSnapshotAsync(patient,token);
+        if(data.Items.Any(x=>x.PatientUid!=patient)||data.Documentation.NoKnownAllergies is {} assertion&&assertion.PatientUid!=patient)
+            throw new UnauthorizedAccessException("Allergy patient context is unavailable.");
+        await readAudit.RecordOpenedAsync(patient,HttpContext.TraceIdentifier,token);
+        return data;
     }
-
-    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies")]
-    [RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<NoKnownAllergiesAssertionResponse>> AssertNoKnownAllergies(Guid patientUid, CancellationToken cancellationToken)
+    [HttpGet("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}")]
+    public Task<IActionResult> GetForPatient(Guid patientUid,Guid allergyUid,CancellationToken token)=>Read(async()=>
     {
-        if (patientUid == Guid.Empty) return BadRequest();
-        try { return Ok(await _allergyService.AssertNoKnownAllergiesAsync(patientUid, GetAuthenticatedUserId(), cancellationToken)); }
-        catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
-    }
-
-    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies/revoke")]
-    [RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<NoKnownAllergiesAssertionResponse>> RevokeNoKnownAllergies(Guid patientUid, [FromBody] RevokeNoKnownAllergiesRequest request, CancellationToken cancellationToken)
-    {
-        if (patientUid == Guid.Empty || string.IsNullOrWhiteSpace(request.RowVersion)) return BadRequest();
-        try
-        {
-            var result = await _allergyService.RevokeNoKnownAllergiesAsync(patientUid, request, GetAuthenticatedUserId(), cancellationToken);
-            return result is null ? NotFound() : Ok(result);
-        }
-        catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
-        catch (PatientAllergyConcurrencyException exception) { return Conflict(new { message = exception.Message }); }
-    }
-
+        var row=await service.GetForPatientAsync(patientUid,allergyUid,token);
+        if(row is null)return NotFound();
+        if(row.PatientUid!=patientUid)throw new UnauthorizedAccessException();
+        await readAudit.RecordOpenedAsync(patientUid,HttpContext.TraceIdentifier,token);return Ok(row);
+    });
+    // Legacy route now requires explicit patient context; never resolve a hidden form's patient from an unscoped UID.
     [HttpGet("api/patient-allergies/{allergyUid:guid}")]
-    [ProducesResponseType<PatientAllergyDetailsResponse>(
-        StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PatientAllergyDetailsResponse>>
-        GetAllergy(
-            Guid allergyUid,
-            CancellationToken cancellationToken)
+    public Task<IActionResult> GetAllergy(Guid allergyUid,[FromQuery] Guid patientUid,CancellationToken token)
+        =>patientUid==Guid.Empty?Task.FromResult<IActionResult>(BadRequest(new{message="Patient context is required."})):GetForPatient(patientUid,allergyUid,token);
+    [HttpPost("api/patients/{patientUid:guid}/allergies"),RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> CreateAllergy(Guid patientUid,CreatePatientAllergyRequest request,CancellationToken token)
     {
-        if (allergyUid == Guid.Empty)
-        {
-            return BadRequest();
-        }
-
-        var allergy =
-            await _allergyService.GetByUidAsync(
-                allergyUid,
-                cancellationToken);
-
-        if (allergy is null)
-        {
-            return NotFound(new
-            {
-                message = "The requested allergy was not found."
-            });
-        }
-
-        return Ok(allergy);
+        request.RequestCorrelationId=HttpContext.TraceIdentifier;
+        return Write(async()=>{var row=await service.CreateAsync(patientUid,request,Actor(),null,token);return CreatedAtAction(nameof(GetForPatient),new{patientUid,allergyUid=row.AllergyUid},row);});
     }
-
-    [HttpPost("api/patients/{patientUid:guid}/allergies")]
-    [RequirePermission(PermissionKeys.ClinicalDataManage)]
-    [ProducesResponseType<PatientAllergyDetailsResponse>(
-        StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PatientAllergyDetailsResponse>>
-        CreateAllergy(
-            Guid patientUid,
-            [FromBody] CreatePatientAllergyRequest request,
-            CancellationToken cancellationToken)
+    [HttpPut("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}"),RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> UpdateAllergy(Guid patientUid,Guid allergyUid,UpdatePatientAllergyRequest request,CancellationToken token)
     {
-        if (patientUid == Guid.Empty)
-        {
-            return BadRequest();
-        }
-
-        if (string.IsNullOrWhiteSpace(request.AllergenName))
-        {
-            ModelState.AddModelError(
-                nameof(request.AllergenName),
-                "Allergen name is required.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
-        try
-        {
-            var allergy =
-                await _allergyService.CreateAsync(
-                    patientUid,
-                    request,
-                    GetAuthenticatedUserId(),
-                    GetAuthenticatedDisplayName(),
-                    cancellationToken);
-
-            return CreatedAtAction(
-                nameof(GetAllergy),
-                new
-                {
-                    allergyUid = allergy.AllergyUid
-                },
-                allergy);
-        }
-        catch (InvalidOperationException exception)
-        {
-            _logger.LogWarning(
-                exception,
-                "Unable to create allergy for patient {PatientUid}.",
-                patientUid);
-
-            return BadRequest(new
-            {
-                message = exception.Message
-            });
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(
-                exception,
-                "Failed to create allergy for patient {PatientUid}.",
-                patientUid);
-
-            throw;
-        }
+        request.RequestCorrelationId=HttpContext.TraceIdentifier;
+        return Write(async()=>await service.UpdateAsync(patientUid,allergyUid,request,Actor(),token) is {} row?Ok(row):NotFound());
     }
-
-    [HttpPut("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}")]
-    [RequirePermission(PermissionKeys.ClinicalDataManage)]
-    [ProducesResponseType<PatientAllergyDetailsResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<PatientAllergyDetailsResponse>> UpdateAllergy(
-        Guid patientUid,
-        Guid allergyUid,
-        [FromBody] UpdatePatientAllergyRequest request,
-        CancellationToken cancellationToken)
+    [HttpPost("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}/resolve"),RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> ResolveAllergy(Guid patientUid,Guid allergyUid,ResolvePatientAllergyRequest request,CancellationToken token)
     {
-        if (patientUid == Guid.Empty || allergyUid == Guid.Empty)
-            return BadRequest();
-
-        request.AllergenName = request.AllergenName?.Trim() ?? string.Empty;
-        request.AllergenType = request.AllergenType?.Trim();
-        request.Reaction = request.Reaction?.Trim();
-        request.Severity = request.Severity?.Trim();
-        request.Status = request.Status?.Trim() ?? string.Empty;
-        request.Notes = request.Notes?.Trim();
-
-        if (string.IsNullOrWhiteSpace(request.AllergenName))
-            ModelState.AddModelError(nameof(request.AllergenName), "Allergen name is required.");
-        if (string.IsNullOrWhiteSpace(request.Status))
-            ModelState.AddModelError(nameof(request.Status), "Status is required.");
-        if (string.IsNullOrWhiteSpace(request.RowVersion))
-            ModelState.AddModelError(nameof(request.RowVersion), "Row version is required.");
-        if (!ModelState.IsValid)
-            return ValidationProblem(ModelState);
-
-        try
-        {
-            var allergy = await _allergyService.UpdateAsync(
-                patientUid, allergyUid, request, GetAuthenticatedUserId(), cancellationToken);
-            return allergy is null ? NotFound() : Ok(allergy);
-        }
-        catch (FormatException)
-        {
-            return BadRequest(new { message = "The row version is invalid." });
-        }
-        catch (PatientAllergyConcurrencyException)
-        {
-            return Conflict(new { message = "The allergy was changed by another user. Reload and try again." });
-        }
-        catch (InvalidOperationException exception)
-        {
-            return Conflict(new { message = exception.Message });
-        }
+        request.RequestCorrelationId=HttpContext.TraceIdentifier;
+        return Write(async()=>await service.ResolveAsync(patientUid,allergyUid,request,Actor(),token) is {} row?Ok(row):NotFound());
     }
-
-    [HttpPost("api/patients/{patientUid:guid}/allergies/{allergyUid:guid}/resolve")]
-    [RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<PatientAllergyDetailsResponse>> ResolveAllergy(
-        Guid patientUid, Guid allergyUid, [FromBody] ResolvePatientAllergyRequest request,
-        CancellationToken cancellationToken)
+    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies"),RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> AssertNoKnownAllergies(Guid patientUid,CancellationToken token)
+        =>Write(async()=>Ok(await service.AssertNoKnownAllergiesAsync(patientUid,Actor(),token,HttpContext.TraceIdentifier)));
+    [HttpPost("api/patients/{patientUid:guid}/allergies/no-known-allergies/revoke"),RequirePermission(PermissionKeys.ClinicalDataManage)]
+    public Task<IActionResult> RevokeNoKnownAllergies(Guid patientUid,RevokeNoKnownAllergiesRequest request,CancellationToken token)
     {
-        if (patientUid == Guid.Empty || allergyUid == Guid.Empty) return BadRequest();
-        request.ResolveReason = request.ResolveReason?.Trim();
-        if (request.ResolveReason?.Length > 500) return BadRequest(new { message = "Resolve reason cannot exceed 500 characters." });
-        var result = await _allergyService.ResolveAsync(patientUid, allergyUid, request, GetAuthenticatedUserId(), cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        request.RequestCorrelationId=HttpContext.TraceIdentifier;
+        return Write(async()=>await service.RevokeNoKnownAllergiesAsync(patientUid,request,Actor(),token) is {} row?Ok(row):NotFound());
     }
-
-    private long GetAuthenticatedUserId() =>
-        ClinicalUserActorContext.GetRequired(HttpContext);
-
-    private string? GetAuthenticatedDisplayName()
+    private long Actor()=>ClinicalUserActorContext.GetRequired(HttpContext);
+    private Task<IActionResult> Read(Func<Task<IActionResult>> action)=>Write(action);
+    private async Task<IActionResult> Write(Func<Task<IActionResult>> action)
     {
-        return User.FindFirstValue("name")
-            ?? User.FindFirstValue(ClaimTypes.Name)
-            ?? User.Identity?.Name;
+        try{return await action();}
+        catch(PatientAllergyValidationException e){return BadRequest(new{message=e.Message});}
+        catch(PatientAllergyNotFoundException){return NotFound();}
+        catch(PatientAllergyConcurrencyException e){return Conflict(new{message=e.Message});}
+        catch(UnauthorizedAccessException){return Forbid();}
+        catch(OperationCanceledException) when(HttpContext.RequestAborted.IsCancellationRequested){throw;}
+        catch(Exception e){logger.LogError(e,"Allergy operation failed.");return StatusCode(503,new{message="Allergy information could not be processed. Reload and review before retrying."});}
     }
 }

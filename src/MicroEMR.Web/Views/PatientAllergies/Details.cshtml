@@ -84,11 +84,11 @@
 
                     <dt class="col-sm-5">Onset date</dt>
                     <dd class="col-sm-7">
-                        @(Model.OnsetDate.HasValue
-                            ? Model.OnsetDate.Value.ToString("MMM d, yyyy")
-                            : "—")
+                        @Model.OnsetDisplay
                     </dd>
 
+                    <dt class="col-sm-5">Drug DIN</dt><dd class="col-sm-7">@(Model.ClinicalFields?.DrugDIN ?? "Not recorded")</dd>
+                    <dt class="col-sm-5">Life stage</dt><dd class="col-sm-7">@(Model.ClinicalFields?.LifeStage ?? "Not recorded")</dd>
                     <dt class="col-sm-5">Status</dt>
                     <dd class="col-sm-7">
                         @if (string.Equals(
@@ -130,7 +130,7 @@
                         @(Model.CreatedByDisplayName ?? "Unknown")
                     </dd>
 
-                    <dt class="col-sm-5">Created</dt>
+                    <dt class="col-sm-5">System entry recorded</dt>
                     <dd class="col-sm-7">
                         @Model.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
                     </dd>

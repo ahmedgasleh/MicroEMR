@@ -47,7 +47,12 @@ public sealed record PatientCppProblem(Guid ProblemUid, string DisplayName, stri
     public string LifeStage { get; init; } = "Not recorded";
 }
 public sealed record PatientCppProblemPrint(string DisplayName, string? Description, string Status, string OnsetDate, string LifeStage, string? Notes);
-public sealed record PatientCppAllergy(Guid AllergyUid, string DisplayName, string Status, string? Reaction, string? Severity);
+public sealed record PatientCppAllergy(Guid AllergyUid, string DisplayName, string Status, string? Reaction, string? Severity)
+{
+    public string OnsetDisplay {get;init;}="Not recorded";
+    public string LifeStage {get;init;}="Not recorded";
+}
+public sealed record PatientCppAllergyPrint(string AllergenName,string? AllergenType,string Status,string? Reaction,string? Severity,string OnsetDate,string LifeStage,string? Notes,string SystemEntryRecordedAt);
 public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName, string? Strength, string? Route, string? Frequency, DateTime? StartDate)
 {
     public string Classification { get; init; } = "Unclassified";
@@ -82,6 +87,7 @@ public sealed record PatientCppSummaryResponse(
     PatientCppSection<PatientCppReferral> Referrals,
     PatientCppSection<PatientCppDocument> Documents)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public PatientCppSection<PatientCppAllergyPrint>? AllergiesForPrint {get;init;}
     [System.Text.Json.Serialization.JsonIgnore]
     public PatientCppSection<PatientCppImmunizationPrint>? ImmunizationsForPrint { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public PatientCppSection<PatientCppProblemPrint>? ProblemsForPrint { get; init; }

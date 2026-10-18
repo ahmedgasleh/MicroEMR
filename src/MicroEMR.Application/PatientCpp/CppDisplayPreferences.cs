@@ -11,7 +11,7 @@ public static class CppDisplayCatalog
     public static IReadOnlyList<CppDisplayCategory> Categories { get; } = Array.AsReadOnly(new[]
     {
         Category("Problems", "Active Problems", ("DisplayName", "Problem"), ("OnsetDate", "Onset date"), ("LifeStage", "Life stage"), ("AdditionalCount", "Additional record count")),
-        Category("Allergies", "Active Allergies", ("DisplayName", "Allergen"), ("Reaction", "Reaction"), ("Severity", "Severity")),
+        Category("Allergies", "Active Allergies", ("DisplayName", "Allergen"), ("Reaction", "Reaction"), ("Severity", "Severity"), ("OnsetDate", "Onset date"), ("LifeStage", "Life stage")),
         Category("Medications", "Medications (ongoing by default)", ("DisplayName", "Medication"), ("Strength", "Strength"), ("Frequency", "Frequency"), ("Route", "Route")),
         Category("Prescriptions", "Current Prescriptions", ("DisplayName", "Prescription"), ("PrescribedDate", "Prescribed date"), ("Directions", "Directions")),
         Category("Results", "Recent Results", ("Name", "Result name"), ("Abnormality", "Recorded abnormality"), ("ResultDate", "Result date"), ("ReviewStatus", "Review status"), ("Provenance", "Provenance")),

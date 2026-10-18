@@ -24,6 +24,18 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
         _logger = logger;
     }
 
+    public async Task<AllergySnapshot> GetSnapshotAsync(Guid patientUid,CancellationToken token=default)
+    {
+        using var q=new HttpRequestMessage(HttpMethod.Get,$"api/patients/{patientUid}/allergies/snapshot");await AddBearerTokenAsync(q);
+        using var r=await _httpClient.SendAsync(q,token);await EnsureSuccessAsync(r,token);
+        return await r.Content.ReadFromJsonAsync<AllergySnapshot>(cancellationToken:token)??throw new InvalidOperationException("Allergy snapshot unavailable.");
+    }
+    public async Task<PatientAllergyDetailsResponse?> GetForPatientAsync(Guid patientUid,Guid allergyUid,CancellationToken token=default)
+    {
+        using var q=new HttpRequestMessage(HttpMethod.Get,$"api/patients/{patientUid}/allergies/{allergyUid}");await AddBearerTokenAsync(q);
+        using var r=await _httpClient.SendAsync(q,token);if(r.StatusCode==HttpStatusCode.NotFound)return null;await EnsureSuccessAsync(r,token);
+        return await r.Content.ReadFromJsonAsync<PatientAllergyDetailsResponse>(cancellationToken:token);
+    }
     public async Task<IReadOnlyList<PatientAllergyListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,
@@ -116,7 +128,7 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
             HttpMethod.Post,
             $"api/patients/{patientUid}/allergies")
         {
-            Content = JsonContent.Create(allergyRequest)
+            Content = JsonContent.Create(Payload(allergyRequest))
         };
 
         await AddBearerTokenAsync(request);
@@ -144,7 +156,7 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
             HttpMethod.Put,
             $"api/patients/{patientUid}/allergies/{allergyUid}")
         {
-            Content = JsonContent.Create(allergyRequest)
+            Content = JsonContent.Create(Payload(allergyRequest))
         };
         await AddBearerTokenAsync(request);
 
@@ -163,7 +175,7 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
         ResolvePatientAllergyRequest allergyRequest, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/patients/{patientUid}/allergies/{allergyUid}/resolve")
-        { Content = JsonContent.Create(allergyRequest) };
+        { Content = JsonContent.Create(Payload(allergyRequest)) };
         await AddBearerTokenAsync(request);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound) return null;
@@ -171,6 +183,13 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
         return await response.Content.ReadFromJsonAsync<PatientAllergyDetailsResponse>(cancellationToken: cancellationToken);
     }
 
+    private static object Payload(object request)
+    {
+        var json=System.Text.Json.JsonSerializer.SerializeToElement(request,request.GetType(),new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        var body=json.EnumerateObject().ToDictionary(x=>x.Name,x=>(object?)x.Value.Clone());
+        if(request is MicroEMR.Application.PatientAllergies.Contracts.AllergySaveRequest save && save.OnsetDateSpecified)body["onsetDate"]=save.OnsetDate;
+        return body;
+    }
     private async Task AddBearerTokenAsync(
         HttpRequestMessage request)
     {
@@ -217,12 +236,6 @@ public sealed class PatientAllergyApiClient : IPatientAllergyApiClient
         {
             throw new UnauthorizedAccessException(
                 "The API rejected the access token. Sign in again.");
-        }
-
-        if (response.StatusCode == HttpStatusCode.Forbidden)
-        {
-            throw new UnauthorizedAccessException(
-                "You do not have permission to perform this action.");
         }
 
         throw new SafeApiResponseException(response.StatusCode, responseBody);

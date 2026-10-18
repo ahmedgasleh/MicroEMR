@@ -3,7 +3,7 @@
 
 <div class="modal fade" id="summaryAllergyModal" tabindex="-1" aria-labelledby="summaryAllergyModalLabel" aria-hidden="true">
  <div class="modal-dialog modal-lg"><div class="modal-content"><form asp-controller="PatientAllergies" asp-action="Create" method="post" id="summaryAllergyForm">
-  @Html.AntiForgeryToken()<input type="hidden" name="PatientUid" value="@patientUid" /><input type="hidden" name="ReturnTab" value="summary" />
+  @Html.AntiForgeryToken()<input type="hidden" name="PatientUid" value="@patientUid" /><input type="hidden" name="ReturnTab" value="summary" /><input type="hidden" name="ExpectedAssertionUid" value="@Model.AllergyDocumentationState?.NoKnownAllergies?.AssertionUid" /><input type="hidden" name="ExpectedAssertionRowVersion" value="@Model.AllergyDocumentationState?.NoKnownAllergies?.RowVersion" />
   <div class="modal-header"><h2 class="modal-title fs-5" id="summaryAllergyModalLabel">Add Allergy</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
   <div class="modal-body">
   @if (Model.AllergyDocumentationState?.State == "ExplicitlyNone")
@@ -17,7 +17,7 @@
    <div class="col-12 col-md-3"><label for="summaryAllergenType" class="form-label">Allergen type</label><select id="summaryAllergenType" name="AllergenType" class="form-select"><option value="">Select</option><option>Medication</option><option>Food</option><option>Environmental</option><option>Latex</option><option>Contrast</option><option>Other</option></select></div>
    <div class="col-12 col-md-3"><label for="summaryAllergySeverity" class="form-label">Severity</label><select id="summaryAllergySeverity" name="Severity" class="form-select"><option value="">Select</option><option>Unknown</option><option>Mild</option><option>Moderate</option><option>Severe</option></select></div>
    <div class="col-12 col-md-8"><label for="summaryAllergyReaction" class="form-label">Reaction</label><input id="summaryAllergyReaction" name="Reaction" class="form-control" maxlength="500" /></div>
-   <div class="col-12 col-md-4"><label for="summaryAllergyOnsetDate" class="form-label">Onset date</label><input id="summaryAllergyOnsetDate" name="OnsetDate" type="date" class="form-control" /></div>
+   <partial name="_AllergyClinicalFields" model="@(new MicroEMR.Web.Models.PatientAllergies.CreatePatientAllergyViewModel())" />
    <div class="col-12"><label for="summaryAllergyNotes" class="form-label">Notes</label><textarea id="summaryAllergyNotes" name="Notes" class="form-control" maxlength="1000" rows="3"></textarea></div>
   </div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary summary-modal-save">Save</button></div>
  </form></div></div>

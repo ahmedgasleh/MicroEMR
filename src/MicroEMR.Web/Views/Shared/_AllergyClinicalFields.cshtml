@@ -1,0 +1,13 @@
+@model MicroEMR.Application.PatientAllergies.Contracts.AllergySaveRequest
+<input type="hidden" name="ClinicalFieldsIncluded" value="true" />
+<div class="col-12" data-allergy-clinical-fields>
+ <div class="row g-3">
+  <div class="col-md-6" data-allergy-din><label class="form-label">Drug DIN (Medication only)</label><input class="form-control" name="ClinicalFields.DrugDIN" value="@Model.ClinicalFields?.DrugDIN" maxlength="100" /><div class="form-text">Unknown may remain blank. Clear a recorded DIN deliberately before changing to a non-drug classification. Other drug mappings remain qualified.</div></div>
+  <div class="col-md-6"><label class="form-label">Life stage</label><select class="form-select" name="ClinicalFields.LifeStageCode"><option value="">Not recorded</option>@foreach(var item in MicroEMR.Core.Domain.FamilyHistoryLifeStages.Labels){<option value="@item.Key" selected="@(Model.ClinicalFields?.LifeStageCode==item.Key)">@item.Value</option>}</select></div>
+  <div class="col-12"><label class="form-label">Onset date (leave unknown parts blank)</label><div class="row g-2">
+   <div class="col-4"><label class="form-label small">Year</label><input class="form-control" type="number" min="1" max="9999" name="ClinicalFields.OnsetDate.Year" value="@Model.ClinicalFields?.OnsetDate?.Year" /></div>
+   <div class="col-4"><label class="form-label small">Month</label><input class="form-control" type="number" min="1" max="12" name="ClinicalFields.OnsetDate.Month" value="@Model.ClinicalFields?.OnsetDate?.Month" /></div>
+   <div class="col-4"><label class="form-label small">Day</label><input class="form-control" type="number" min="1" max="31" name="ClinicalFields.OnsetDate.Day" value="@Model.ClinicalFields?.OnsetDate?.Day" /></div>
+  </div></div>
+ </div>
+</div>

@@ -15,6 +15,9 @@ public sealed class PatientAllergyListItemResponse
     public string? Severity { get; set; }
 
     public DateTime? OnsetDate { get; set; }
+    public AllergyClinicalFields? ClinicalFields { get; set; }
+    public string OnsetDisplay => ClinicalFields?.OnsetDate?.Display ?? (OnsetDate?.ToString("yyyy-MM-dd") ?? "Not recorded");
+
 
     public string? Notes { get; set; }
 
@@ -27,4 +30,5 @@ public sealed class PatientAllergyListItemResponse
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    public string RowVersion { get; set; }="";
 }

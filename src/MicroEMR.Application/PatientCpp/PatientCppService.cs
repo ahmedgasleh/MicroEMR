@@ -136,19 +136,20 @@ public sealed partial class PatientCppService(
                 .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppProblem(x.PatientProblemUid, x.ProblemName, x.ProblemStatus, x.OnsetDate){OnsetDisplay=x.EffectiveOnset?.Display ?? "Not recorded",LifeStage=x.ClinicalFields?.LifeStage ?? "Not recorded"}).ToArray(), rows.Length);
         });
 
-    private async Task<PatientCppSection<PatientCppAllergy>> LoadAllergies(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
-        await Load("Allergies", trace, async () =>
+    private async Task<PatientCppSection<PatientCppAllergy>> LoadAllergies(Guid patientUid,string trace,CancellationToken token,bool full=false,Action<MicroEMR.Application.PatientAllergies.Contracts.AllergySnapshot>? capture=null) =>
+        await Load("Allergies",trace,async()=>
         {
-            var rows = (await allergies.GetByPatientUidAsync(patientUid, token))
-                .Where(x => string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (full) EnsureOwned(rows, patientUid);
-            var items = rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppAllergy(x.AllergyUid, x.AllergenName, x.Status, x.Reaction, x.Severity)).ToArray();
-            if (rows.Length > 0) return PatientCppSection<PatientCppAllergy>.From(items, rows.Length);
-            var documentation = await allergies.GetDocumentationStateAsync(patientUid, token);
-            return documentation.State == PatientCppSectionStates.ExplicitlyNone
-                ? PatientCppSection<PatientCppAllergy>.ExplicitlyNone()
-                : PatientCppSection<PatientCppAllergy>.From([], 0);
+            var snapshot=await allergies.GetSnapshotAsync(patientUid,token);
+            EnsureOwned(snapshot.Items,patientUid);
+            if(snapshot.Documentation.NoKnownAllergies is {} assertion && assertion.PatientUid!=patientUid)throw new UnauthorizedAccessException("NKA ownership is invalid.");
+            var rows=snapshot.Items.Where(x=>string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if((rows.Length>0)!=(snapshot.Documentation.State=="HasEntries"))throw new InvalidOperationException("Allergy documentation snapshot is inconsistent.");
+            if(snapshot.Documentation.State=="ExplicitlyNone" && snapshot.Documentation.NoKnownAllergies is null)throw new InvalidOperationException("An explicit assertion is required.");
+            capture?.Invoke(snapshot);
+            if(rows.Length==0)return snapshot.Documentation.State==PatientCppSectionStates.ExplicitlyNone?PatientCppSection<PatientCppAllergy>.ExplicitlyNone():PatientCppSection<PatientCppAllergy>.From([],0);
+            return PatientCppSection<PatientCppAllergy>.From(rows.OrderByDescending(x=>x.ClinicalFields?.OnsetDate?.Year??x.OnsetDate?.Year)
+                .ThenByDescending(x=>x.ClinicalFields?.OnsetDate?.Month??x.OnsetDate?.Month).ThenByDescending(x=>x.ClinicalFields?.OnsetDate?.Day??x.OnsetDate?.Day).ThenBy(x=>x.AllergyUid)
+                .Take(full?int.MaxValue:ClinicalLimit).Select(x=>new PatientCppAllergy(x.AllergyUid,x.AllergenName,x.Status,x.Reaction,x.Severity){OnsetDisplay=x.OnsetDisplay,LifeStage=x.ClinicalFields?.LifeStage??"Not recorded"}).ToArray(),rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppMedication>> LoadMedications(Guid patientUid, string trace, CancellationToken token, bool full = false, string scope = "Ongoing") =>

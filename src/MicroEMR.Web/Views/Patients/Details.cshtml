@@ -320,7 +320,7 @@
         <partial name="_CppPrint" />
         <div class="row g-3" id="cppSummaryCards">
             <div data-cpp-category="Problems" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if(cpp.Problems.State=="Unavailable"){<p class="text-muted mb-0">Problem information is temporarily unavailable.</p>}else if(cpp.Problems.Items.Count==0){<p class="text-muted mb-0">No active problem records documented.</p>}else{@foreach(var item in cpp.Problems.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Problems.DisplayName">@item.DisplayName</span></div><div><small data-cpp-field="Problems.OnsetDate" class="text-muted">Onset @item.OnsetDisplay</small></div><small data-cpp-field="Problems.LifeStage" class="text-muted">Life stage: @item.LifeStage</small></div>}@if(cpp.Problems.TotalCount>cpp.Problems.Items.Count){<small data-cpp-field="Problems.AdditionalCount" class="text-muted">+ @(cpp.Problems.TotalCount-cpp.Problems.Items.Count) more</small>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View all problems</button></div></div></div>
-            <div data-cpp-category="Allergies" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if(cpp.Allergies.State=="Unavailable"){<p class="text-muted mb-0">Allergy information is temporarily unavailable.</p>}else if(cpp.Allergies.State=="ExplicitlyNone"){<p class="mb-0"><strong>No Known Allergies</strong></p>}else if(cpp.Allergies.Items.Count==0){<p class="text-muted mb-0">Allergy status not documented.</p>}else{@foreach(var item in cpp.Allergies.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Allergies.DisplayName">@item.DisplayName</span></div><small>@if(!string.IsNullOrWhiteSpace(item.Reaction)){<span data-cpp-field="Allergies.Reaction">@item.Reaction</span>}@if(!string.IsNullOrWhiteSpace(item.Reaction)&&!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-separator> · </span>}@if(!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-field="Allergies.Severity">@item.Severity</span>}</small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View all allergies</button></div></div></div>
+            <div data-cpp-category="Allergies" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if(cpp.Allergies.State=="Unavailable"){<p class="text-muted mb-0">Allergy information is temporarily unavailable.</p>}else if(cpp.Allergies.State=="ExplicitlyNone"){<p class="mb-0"><strong>No Known Allergies</strong></p>}else if(cpp.Allergies.Items.Count==0){<p class="text-muted mb-0">Allergy status not documented.</p>}else{@foreach(var item in cpp.Allergies.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Allergies.DisplayName">@item.DisplayName</span></div><small>@if(!string.IsNullOrWhiteSpace(item.Reaction)){<span data-cpp-field="Allergies.Reaction">@item.Reaction</span>}@if(!string.IsNullOrWhiteSpace(item.Reaction)&&!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-separator> · </span>}@if(!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-field="Allergies.Severity">@item.Severity</span>}</small><div class="small"><span data-cpp-field="Allergies.OnsetDate">Onset: @item.OnsetDisplay</span><span data-cpp-separator> &#183; </span><span data-cpp-field="Allergies.LifeStage">Life stage: @item.LifeStage</span></div></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View all allergies</button></div></div></div>
             <div data-cpp-category="Medications" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Ongoing Medications</h4>@if(cpp.Medications.State=="Unavailable"){<p class="text-muted mb-0">Medication information is temporarily unavailable.</p>}else if(cpp.Medications.Items.Count==0){<p class="text-muted mb-0">No ongoing medications recorded.</p>}else{@foreach(var item in cpp.Medications.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Medications.DisplayName">@item.DisplayName</span> <span data-cpp-field="Medications.Strength">@item.Strength</span></div><small>@if(!string.IsNullOrWhiteSpace(item.Frequency)){<span data-cpp-field="Medications.Frequency">@item.Frequency</span>}@if(!string.IsNullOrWhiteSpace(item.Frequency)&&!string.IsNullOrWhiteSpace(item.Route)){<span data-cpp-separator> · </span>}@if(!string.IsNullOrWhiteSpace(item.Route)){<span data-cpp-field="Medications.Route">@item.Route</span>}</small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View all medication classifications</button></div></div></div>
             <div data-cpp-category="Prescriptions" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Current Prescriptions</h4><p class="small text-muted">Finalized prescribing records; not a reconciled medication list.</p>@if(cpp.Prescriptions.State=="Unavailable"){<p class="text-muted mb-0">Prescription information is temporarily unavailable.</p>}else if(cpp.Prescriptions.Items.Count==0){<p class="text-muted mb-0">No current finalized prescription records.</p>}else{@foreach(var item in cpp.Prescriptions.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Prescriptions.DisplayName">@item.DisplayName</span></div><small><span data-cpp-field="Prescriptions.PrescribedDate">@item.PrescribedDate.ToString("MMM d, yyyy")</span><span data-cpp-separator> · </span><span data-cpp-field="Prescriptions.Directions">@item.Directions</span></small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View prescriptions</button></div></div></div>
             <div data-cpp-category="Results" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Recent Results</h4>@if(cpp.Results.State=="NotAuthorized"){<p class="text-muted mb-0">Restricted.</p>}else if(cpp.Results.State=="Unavailable"){<p class="text-muted mb-0">Result information is temporarily unavailable.</p>}else if(cpp.Results.Items.Count==0){<p class="text-muted mb-0">No current result records documented.</p>}else{@foreach(var item in cpp.Results.Items){<div class="border-top py-2"><div class="d-flex justify-content-between"><span data-cpp-field="Results.Name" class="fw-semibold">@item.Name</span><span data-cpp-field="Results.Abnormality" class="badge text-bg-secondary">@item.Abnormality</span></div><small><span data-cpp-field="Results.ResultDate">@item.ResultDate.ToLocalTime().ToString("MMM d, yyyy")</span><span data-cpp-separator> · </span><span data-cpp-field="Results.ReviewStatus">@item.ReviewStatus</span><span data-cpp-separator> · </span><span data-cpp-field="Results.Provenance">@item.Provenance</span></small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="results">View all results</button></div></div></div>
@@ -914,7 +914,7 @@
                 <form asp-controller="PatientAllergies" asp-action="RevokeNoKnownAllergies" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="patientUid" value="@Model.Patient.PatientUid" />
-                    <input type="hidden" name="rowVersion" value="@nka.RowVersion" />
+                    <input type="hidden" name="rowVersion" value="@nka.RowVersion" /><input type="hidden" name="assertionUid" value="@nka.AssertionUid" />
                     <input type="hidden" name="reason" value="Revoked from Patient Chart" />
                     <button class="btn btn-sm btn-outline-danger" disabled="@(!Model.CanManageClinicalData)">Revoke NKA</button>
                 </form>
@@ -1007,9 +1007,7 @@
                                 </td>
 
                                 <td>
-                                    @(allergy.OnsetDate.HasValue
-                                        ? allergy.OnsetDate.Value.ToString("MMM d, yyyy")
-                                        : "—")
+                                    @allergy.OnsetDisplay
                                 </td>
 
                                 <td>
@@ -1056,22 +1054,22 @@
                                 </td>
 
                                 <td class="text-end">
-                                    @if (string.Equals(allergy.Status, "Active", StringComparison.OrdinalIgnoreCase))
+                                    @if (canManageClinicalData && string.Equals(allergy.Status, "Active", StringComparison.OrdinalIgnoreCase))
                                     {
                                         <button type="button" class="btn btn-sm btn-outline-danger resolve-allergy-button"
-                                                data-patient-uid="@allergy.PatientUid" data-allergy-uid="@allergy.AllergyUid">
+                                                data-patient-uid="@allergy.PatientUid" data-allergy-uid="@allergy.AllergyUid" data-row-version="@allergy.RowVersion">
                                             Resolve Allergy
                                         </button>
                                         <a asp-controller="PatientAllergies"
                                            asp-action="Edit"
-                                           asp-route-allergyUid="@allergy.AllergyUid"
+                                           asp-route-allergyUid="@allergy.AllergyUid" asp-route-patientUid="@allergy.PatientUid"
                                            class="btn btn-sm btn-outline-secondary">
                                             Edit
                                         </a>
                                     }
                                     <a asp-controller="PatientAllergies"
                                        asp-action="Details"
-                                       asp-route-allergyUid="@allergy.AllergyUid"
+                                       asp-route-allergyUid="@allergy.AllergyUid" asp-route-patientUid="@allergy.PatientUid"
                                        class="btn btn-sm btn-outline-primary">
                                         Open
                                     </a>
@@ -1579,7 +1577,7 @@
 </div>
 <form id="encounterNoteAntiforgeryForm" class="d-none">@Html.AntiForgeryToken()</form>
 
-<div class="modal fade" id="resolveAllergyModal" tabindex="-1" aria-labelledby="resolveAllergyModalLabel" aria-hidden="true">
+<div class="modal fade" id="resolveAllergyModal" data-url="@Url.Action("ResolveAllergy", "PatientAllergies")" tabindex="-1" aria-labelledby="resolveAllergyModalLabel" aria-hidden="true">
  <div class="modal-dialog"><div class="modal-content">
   <div class="modal-header"><h2 class="modal-title fs-5" id="resolveAllergyModalLabel">Resolve Allergy</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
   <div class="modal-body"><div id="resolveAllergyMessage" class="alert alert-danger d-none"></div><p>Are you sure you want to resolve this allergy?</p><label for="resolveAllergyReason" class="form-label">Reason (optional)</label><textarea id="resolveAllergyReason" class="form-control" maxlength="500" rows="3"></textarea></div>
@@ -2526,29 +2524,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-    const modal = new bootstrap.Modal(document.getElementById("resolveAllergyModal"));
-    const reason = document.getElementById("resolveAllergyReason");
-    const message = document.getElementById("resolveAllergyMessage");
-    const confirmButton = document.getElementById("confirmResolveAllergyButton");
-    let patientUid = null, allergyUid = null;
-    document.querySelectorAll(".resolve-allergy-button").forEach(button => button.addEventListener("click", () => {
-        patientUid = button.dataset.patientUid; allergyUid = button.dataset.allergyUid;
-        reason.value = ""; message.classList.add("d-none"); modal.show();
-    }));
-    confirmButton.addEventListener("click", async () => {
-        if (!patientUid || !allergyUid) return;
-        confirmButton.disabled = true; message.classList.add("d-none");
-        try {
-            const data = new FormData(); data.append("PatientUid", patientUid); data.append("AllergyUid", allergyUid); data.append("ResolveReason", reason.value);
-            const token = document.querySelector('#allergyAntiforgeryForm input[name="__RequestVerificationToken"]').value;
-            const response = await fetch('@Url.Action("ResolveAllergy", "PatientAllergies")', { method: "POST", headers: { "RequestVerificationToken": token }, body: data });
-            const result = await response.json().catch(() => ({}));
-            if (!response.ok || !result.success) { message.textContent = result.message || "Allergy could not be resolved."; message.classList.remove("d-none"); return; }
-            window.location.href = '@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "allergies" })';
-        } catch { message.textContent = "Allergy could not be resolved."; message.classList.remove("d-none"); }
-        finally { confirmButton.disabled = false; }
-    });
+
 });
+
 
 document.addEventListener("DOMContentLoaded", () => {
     const modalElement = document.getElementById("discontinueMedicationModal");
@@ -2578,6 +2556,7 @@ document.addEventListener("DOMContentLoaded", () => {
         finally { confirmButton.disabled = false; }
     });
 });
+
 </script>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -2710,3 +2689,5 @@ document.addEventListener("DOMContentLoaded", () => {
 @section Styles {
     <link rel="stylesheet" href="~/css/patient-chart.css" asp-append-version="true" />
 }
+
+<script type="module" src="~/dist/patients/patient-allergies.js" asp-append-version="true"></script>

@@ -4,6 +4,8 @@ namespace MicroEMR.Web.Services.PatientAllergies;
 
 public interface IPatientAllergyApiClient
 {
+    Task<AllergySnapshot> GetSnapshotAsync(Guid patientUid,CancellationToken token=default)=>throw new NotSupportedException();
+    Task<PatientAllergyDetailsResponse?> GetForPatientAsync(Guid patientUid,Guid allergyUid,CancellationToken token=default)=>throw new NotSupportedException();
     Task<IReadOnlyList<PatientAllergyListItemResponse>>
         GetByPatientUidAsync(
             Guid patientUid,

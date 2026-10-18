@@ -281,9 +281,9 @@ public sealed class CppSelectivePrintTests
         Assert.Equal(503,result.StatusCode);
     }
 
-    internal static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null, MicroEMR.Application.PatientMedications.Services.IPatientMedicationService? medication=null,MicroEMR.Application.PatientImmunizations.IPatientImmunizationService? immunizations=null) => new(
+    internal static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null, MicroEMR.Application.PatientMedications.Services.IPatientMedicationService? medication=null,MicroEMR.Application.PatientImmunizations.IPatientImmunizationService? immunizations=null,MicroEMR.Application.PatientAllergies.Services.IPatientAllergyService? allergies=null) => new(
         Stub<IPatientRepository>((_,args)=>Task.FromResult<PatientDetailsResponse?>((Guid)args[0]! == patient ? new() {PatientUid=patient}:null)),
-        problems,null!,medication!,null!,immunizations!,null!,null!,null!,null!,null!,
+        problems,allergies!,medication!,null!,immunizations!,null!,null!,null!,null!,null!,
         Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string> {PermissionKeys.PatientsView})),audit,
         NullLogger<PatientCppService>.Instance,
         family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])),
@@ -316,6 +316,7 @@ public sealed class CppSelectivePrintTests
                     if (ActualSource is not null) return ActualSource.GetForPrintAsync((Guid)args[0]!,Requested,(string)args[2]!, (CancellationToken)args[3]!, (string)args[4]!);
                     var value=Failure=="wrong-summary"?Data with {PatientUid=Guid.NewGuid()}:Failure=="unavailable"?Data with {Problems=PatientCppSection<PatientCppProblem>.Unavailable()}:Data;
                     if(value.ProblemsForPrint is null) value=value with {ProblemsForPrint=new(value.Problems.State,value.Problems.Items.Select(x=>new PatientCppProblemPrint(x.DisplayName,null,x.Status,x.OnsetDisplay,x.LifeStage,null)).ToArray(),value.Problems.TotalCount)};
+                    if(value.AllergiesForPrint is null)value=value with {AllergiesForPrint=new(value.Allergies.State,value.Allergies.Items.Select(x=>new PatientCppAllergyPrint(x.DisplayName,null,x.Status,x.Reaction,x.Severity,x.OnsetDisplay,x.LifeStage,null,"Not recorded")).ToArray(),value.Allergies.TotalCount)};
                     if(value.ImmunizationsForPrint is null) value=value with {ImmunizationsForPrint=new(value.Immunizations.State,value.Immunizations.Items.Select(x=>new PatientCppImmunizationPrint(x.VaccineName,"Administered",x.AdministrationDisplay,"Not recorded","Not recorded",x.DIN,x.Manufacturer,x.ImmunizationType,null,null,null,null,x.SourceType,null,null,null)).ToArray(),value.Immunizations.TotalCount)};
                     return Task.FromResult<PatientCppSummaryResponse?>((Guid)args[0]! != Patient.PatientUid ? null : value);
                 }),Stub<IPatientRepository>((_,_)=>Task.FromResult<PatientDetailsResponse?>(Failure=="wrong-patient"?new() {PatientUid=Guid.NewGuid()}:Patient)),

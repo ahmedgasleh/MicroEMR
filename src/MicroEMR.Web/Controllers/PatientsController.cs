@@ -405,11 +405,13 @@ public sealed class PatientsController : Controller
                 patientUid,
                 cancellationToken);
 
-        var allergies =
-            await LoadAllergiesForChartAsync(
-                patientUid,
-                cancellationToken);
-        var allergyDocumentationState = await _patientAllergyApiClient.GetDocumentationStateAsync(patientUid, cancellationToken);
+        MicroEMR.Web.Models.PatientAllergies.AllergySnapshot allergySnapshot;
+        try { allergySnapshot=await _patientAllergyApiClient.GetSnapshotAsync(patientUid,cancellationToken); }
+        catch(UnauthorizedAccessException){return Unauthorized();}
+        catch(HttpRequestException e) when(e.StatusCode==System.Net.HttpStatusCode.Forbidden){return Forbid();}
+        catch(HttpRequestException e){_logger.LogWarning(e,"Allergy snapshot unavailable for {PatientUid}.",patientUid);return StatusCode(503);}
+        var allergies=allergySnapshot.Items;
+        var allergyDocumentationState=allergySnapshot.Documentation;
 
         var medications =
             await LoadMedicationsForChartAsync(

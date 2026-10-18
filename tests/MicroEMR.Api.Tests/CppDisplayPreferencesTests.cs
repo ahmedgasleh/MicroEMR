@@ -14,6 +14,16 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task AllergyOnsetAndStagePreserveExistingPreferencesAndNativeDefaults()
+    {
+        var store=new Store();var service=Service(store,7);var old=await service.SaveAsync(new(){HiddenFields=["Allergies.Reaction"]});
+        var initial=await service.GetAsync();Assert.Equal(old.HiddenFields,initial.HiddenFields);Assert.DoesNotContain("Allergies.LifeStage",initial.HiddenFields);
+        var keys=Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="Allergies").Fields.Select(x=>x.Key);Assert.Contains("Allergies.OnsetDate",keys);Assert.Contains("Allergies.LifeStage",keys);Assert.DoesNotContain("Allergies.DrugDIN",keys);
+        var hidden=await service.SaveAsync(new(){HiddenFields=["Allergies.Reaction","Allergies.OnsetDate","Allergies.LifeStage"],RowVersion=old.RowVersion});Assert.Equal(hidden.HiddenFields,(await Service(store,7).GetAsync()).HiddenFields);
+        var reset=await service.SaveAsync(new(){RowVersion=hidden.RowVersion});Assert.Empty(reset.HiddenFields);
+    }
+
+    [Fact]
     public async Task ImmunizationFieldsPreserveExistingDateKeyAndDefaultNewFieldsVisible()
     {
         var store=new Store();var service=Service(store,7);

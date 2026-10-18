@@ -18,6 +18,8 @@ public sealed record NoKnownAllergiesAssertionResponse(
 
 public sealed class RevokeNoKnownAllergiesRequest
 {
+    public Guid? AssertionUid { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public string? RequestCorrelationId { get; set; }
     public string RowVersion { get; set; } = string.Empty;
     public string? Reason { get; set; }
 }

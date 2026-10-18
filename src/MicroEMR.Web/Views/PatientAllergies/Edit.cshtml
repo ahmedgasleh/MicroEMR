@@ -58,10 +58,7 @@
                 <input asp-for="Reaction" class="form-control" autocomplete="off" />
                 <span asp-validation-for="Reaction" class="text-danger"></span>
             </div>
-            <div class="col-12 col-lg-3">
-                <label asp-for="OnsetDate" class="form-label"></label>
-                <input asp-for="OnsetDate" type="date" class="form-control" />
-            </div>
+            <partial name="_AllergyClinicalFields" model="Model" />
             <div class="col-12 col-lg-3">
                 <label asp-for="Status" class="form-label"></label>
                 <select asp-for="Status" class="form-select">
@@ -90,3 +87,5 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
+
+<script type="module" src="~/dist/patients/patient-allergies.js" asp-append-version="true"></script>
