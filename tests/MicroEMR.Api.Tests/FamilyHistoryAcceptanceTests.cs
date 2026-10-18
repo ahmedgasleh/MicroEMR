@@ -321,6 +321,8 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
         builder.Services.AddScoped<MicroEMR.Application.PatientMedications.Services.IPatientMedicationService, MicroEMR.Application.PatientMedications.Services.PatientMedicationService>();
         builder.Services.AddScoped<MicroEMR.Application.PatientClinicalHistory.IPatientClinicalHistoryRepository, MicroEMR.Infrastructure.PatientClinicalHistory.PatientClinicalHistoryRepository>();
         builder.Services.AddScoped<MicroEMR.Application.PatientClinicalHistory.IPatientClinicalHistoryService, MicroEMR.Application.PatientClinicalHistory.PatientClinicalHistoryService>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientProblems.Repositories.IPatientProblemRepository, MicroEMR.Infrastructure.PatientProblems.PatientProblemRepository>();
+        builder.Services.AddScoped<MicroEMR.Application.PatientProblems.Services.IPatientProblemService, MicroEMR.Application.PatientProblems.Services.PatientProblemService>();
         builder.Services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>();
         builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
         builder.Services.AddScoped<ITenantContextAccessor>(_ => { var accessor = new TenantContextAccessor(); accessor.SetTenant(db.Tenant(other)); return accessor; });

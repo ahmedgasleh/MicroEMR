@@ -41,7 +41,12 @@ public sealed record PatientCppRiskFactor(Guid RiskFactorUid, string RiskFactor,
 
 public sealed record PatientCppFamilyHistory(Guid FamilyHistoryUid, string Relationship, string ConditionDescription, string? AgeAtOnset, string LifeStage, string? Treatment, string? Notes);
 
-public sealed record PatientCppProblem(Guid ProblemUid, string DisplayName, string Status, DateTime? OnsetDate);
+public sealed record PatientCppProblem(Guid ProblemUid, string DisplayName, string Status, DateTime? OnsetDate)
+{
+    public string OnsetDisplay { get; init; } = OnsetDate?.ToString("yyyy-MM-dd") ?? "Not recorded";
+    public string LifeStage { get; init; } = "Not recorded";
+}
+public sealed record PatientCppProblemPrint(string DisplayName, string? Description, string Status, string OnsetDate, string LifeStage, string? Notes);
 public sealed record PatientCppAllergy(Guid AllergyUid, string DisplayName, string Status, string? Reaction, string? Severity);
 public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName, string? Strength, string? Route, string? Frequency, DateTime? StartDate)
 {
@@ -69,6 +74,7 @@ public sealed record PatientCppSummaryResponse(
     PatientCppSection<PatientCppReferral> Referrals,
     PatientCppSection<PatientCppDocument> Documents)
 {
+    [System.Text.Json.Serialization.JsonIgnore] public PatientCppSection<PatientCppProblemPrint>? ProblemsForPrint { get; init; }
     public PatientCppSection<PatientCppRiskFactor> RiskFactors { get; init; } = PatientCppSection<PatientCppRiskFactor>.From([], 0);
     public PatientCppSection<PatientCppFamilyHistory> FamilyHistory { get; init; } = PatientCppSection<PatientCppFamilyHistory>.From([], 0);
 }

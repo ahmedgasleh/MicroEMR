@@ -1,3 +1,4 @@
+using MicroEMR.Application.PatientProblems.Contracts;
 using MicroEMR.Application.PatientFamilyHistory;
 using MicroEMR.Application.PatientRiskFactors;
 using System.Diagnostics;
@@ -124,14 +125,15 @@ public sealed partial class PatientCppService(
 
     private static bool Authorized(IReadOnlySet<string> effective, string permission) => effective.Contains(permission);
 
-    private async Task<PatientCppSection<PatientCppProblem>> LoadProblems(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
+    private async Task<PatientCppSection<PatientCppProblem>> LoadProblems(Guid patientUid, string trace, CancellationToken token, bool full = false, Action<IReadOnlyList<PatientProblemResponse>>? capture = null) =>
         await Load("Problems", trace, async () =>
         {
             var rows = (await problems.GetByPatientUidAsync(patientUid, "Active", token))
                 .Where(x => string.Equals(x.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (full) EnsureOwned(rows, patientUid);
+            EnsureOwned(rows, patientUid);
+            capture?.Invoke(rows);
             return PatientCppSection<PatientCppProblem>.From(rows.OrderByDescending(x => x.OnsetDate ?? x.CreatedAt)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppProblem(x.PatientProblemUid, x.ProblemName, x.ProblemStatus, x.OnsetDate)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppProblem(x.PatientProblemUid, x.ProblemName, x.ProblemStatus, x.OnsetDate){OnsetDisplay=x.EffectiveOnset?.Display ?? "Not recorded",LifeStage=x.ClinicalFields?.LifeStage ?? "Not recorded"}).ToArray(), rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppAllergy>> LoadAllergies(Guid patientUid, string trace, CancellationToken token, bool full = false) =>

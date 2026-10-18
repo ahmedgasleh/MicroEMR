@@ -34,11 +34,19 @@ public sealed partial class PatientCppService
             PatientCppSection<PatientCppReferral>.From([],0), PatientCppSection<PatientCppDocument>.From([],0));
         foreach (var category in CppDisplayCatalog.Categories.Where(x => categories.Contains(x.Key)))
         {
+            if(category.Key=="Problems")
+            {
+                var detail=PatientCppSection<PatientCppProblemPrint>.Unavailable();
+                var compact=await LoadProblems(patientUid,correlation,token,true,rows => detail=PatientCppSection<PatientCppProblemPrint>.From(
+                    rows.OrderByDescending(x=>x.EffectiveOnset?.Year).ThenByDescending(x=>x.EffectiveOnset?.Month).ThenByDescending(x=>x.EffectiveOnset?.Day).ThenBy(x=>x.PatientProblemUid)
+                    .Select(x=>new PatientCppProblemPrint(x.ProblemName,x.ProblemDescription,x.ProblemStatus,x.EffectiveOnset?.Display ?? "Not recorded",x.ClinicalFields?.LifeStage ?? "Not recorded",x.ClinicalFields?.Notes)).ToArray(),rows.Count));
+                data=data with {Problems=compact,ProblemsForPrint=detail};
+                continue;
+            }
             data = category.Key switch
             {
                 "RiskFactors" => data with { RiskFactors = await LoadRiskFactors(patientUid,correlation,token,true) },
                 "FamilyHistory" => data with { FamilyHistory = await LoadFamilyHistory(patientUid,correlation,token,true) },
-                "Problems" => data with { Problems = await LoadProblems(patientUid,correlation,token,true) },
                 "Allergies" => data with { Allergies = await LoadAllergies(patientUid,correlation,token,true) },
                 "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true,medicationScope) },
                 "Prescriptions" => data with { Prescriptions = await LoadPrescriptions(patientUid,correlation,token,true) },

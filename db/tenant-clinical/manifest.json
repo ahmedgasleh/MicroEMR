@@ -77,5 +77,6 @@
   { "migrationId": "0075-patient-family-medical-history", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0075-patient-family-medical-history.sql" },
   { "migrationId": "0076-patient-risk-factors", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0076-patient-risk-factors.sql" },
   { "migrationId": "0077-medication-classification", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0077-medication-classification.sql" },
-  { "migrationId": "0078-clinical-history-fields", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0078-clinical-history-fields.sql" }
+  { "migrationId": "0078-clinical-history-fields", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0078-clinical-history-fields.sql" },
+  { "migrationId": "0079-problem-fields-concurrency", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0079-problem-fields-concurrency.sql" }
 ]

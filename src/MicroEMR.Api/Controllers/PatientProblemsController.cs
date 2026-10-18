@@ -32,49 +32,54 @@ public sealed class PatientProblemsController(IPatientProblemService service, IL
     }
 
     [HttpPost, RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<PatientProblemResponse>> Create(Guid patientUid, CreatePatientProblemRequest request, CancellationToken cancellationToken = default)
+    public Task<ActionResult<PatientProblemResponse>> Create(Guid patientUid, CreatePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
-        if (patientUid == Guid.Empty) return BadRequest();
-        request.ProblemName = request.ProblemName?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(request.ProblemName)) ModelState.AddModelError(nameof(request.ProblemName), "Problem name is required.");
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        try
+        request.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Write(patientUid, async () =>
         {
             var created = await service.CreateAsync(patientUid, request, UserId(), cancellationToken);
             return CreatedAtAction(nameof(Get), new { patientUid, patientProblemUid = created.PatientProblemUid }, created);
-        }
-        catch (InvalidOperationException exception)
-        {
-            logger.LogWarning(exception, "Unable to create a problem for patient {PatientUid}.", patientUid);
-            return BadRequest(new { message = "The problem could not be created." });
-        }
+        }, cancellationToken);
     }
 
     [HttpPut("{patientProblemUid:guid}"), RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<PatientProblemResponse>> Update(Guid patientUid, Guid patientProblemUid, UpdatePatientProblemRequest request, CancellationToken cancellationToken = default)
+    public Task<ActionResult<PatientProblemResponse>> Update(Guid patientUid, Guid patientProblemUid, UpdatePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
-        if (patientUid == Guid.Empty || patientProblemUid == Guid.Empty) return BadRequest();
-        request.ProblemName = request.ProblemName?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(request.ProblemName)) ModelState.AddModelError(nameof(request.ProblemName), "Problem name is required.");
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        try
+        request.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Write(patientUid, async () =>
         {
+            if (patientProblemUid == Guid.Empty) return BadRequest();
             var result = await service.UpdateAsync(patientUid, patientProblemUid, request, UserId(), cancellationToken);
             return result is null ? NotFound() : Ok(result);
-        }
-        catch (PatientProblemResolvedException)
-        {
-            return Conflict(new { message = "Resolved problems cannot be edited." });
-        }
+        }, cancellationToken);
     }
 
     [HttpPost("{patientProblemUid:guid}/resolve"), RequirePermission(PermissionKeys.ClinicalDataManage)]
-    public async Task<ActionResult<PatientProblemResponse>> Resolve(Guid patientUid, Guid patientProblemUid, ResolvePatientProblemRequest request, CancellationToken cancellationToken = default)
+    public Task<ActionResult<PatientProblemResponse>> Resolve(Guid patientUid, Guid patientProblemUid, ResolvePatientProblemRequest request, CancellationToken cancellationToken = default)
     {
-        if (patientUid == Guid.Empty || patientProblemUid == Guid.Empty) return BadRequest();
-        if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        var result = await service.ResolveAsync(patientUid, patientProblemUid, request, UserId(), cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        request.RequestCorrelationId = HttpContext.TraceIdentifier;
+        return Write(patientUid, async () =>
+        {
+            if (patientProblemUid == Guid.Empty) return BadRequest();
+            var result = await service.ResolveAsync(patientUid, patientProblemUid, request, UserId(), cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }, cancellationToken);
+    }
+
+    private async Task<ActionResult<PatientProblemResponse>> Write(Guid patientUid, Func<Task<ActionResult<PatientProblemResponse>>> operation, CancellationToken token)
+    {
+        if (patientUid == Guid.Empty) return BadRequest();
+        try { return await operation(); }
+        catch (PatientProblemValidationException error) { return BadRequest(new { message = error.Message }); }
+        catch (PatientProblemNotFoundException) { return NotFound(); }
+        catch (PatientProblemConcurrencyException) { return Conflict(new { message = "This problem changed. Reload and review before saving again." }); }
+        catch (PatientProblemResolvedException) { return Conflict(new { message = "This problem is already resolved. Reload and review its history." }); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception error)
+        {
+            logger.LogError(error, "Patient problem mutation failed for patient {PatientUid}.", patientUid);
+            return StatusCode(503, new { message = "The problem could not be saved. Reload before retrying." });
+        }
     }
 
     private static bool IsValidStatus(string? status) => new[] { "Active", "Resolved", "All" }.Contains(status?.Trim(), StringComparer.OrdinalIgnoreCase);

@@ -314,8 +314,9 @@ public sealed class CppSelectivePrintTests
                 {
                     SourceCalls++;Requested=(IReadOnlyList<string>)args[1]!;
                     if (ActualSource is not null) return ActualSource.GetForPrintAsync((Guid)args[0]!,Requested,(string)args[2]!, (CancellationToken)args[3]!, (string)args[4]!);
-                    return Task.FromResult<PatientCppSummaryResponse?>((Guid)args[0]! != Patient.PatientUid?null:
-                        Failure=="wrong-summary"?Data with {PatientUid=Guid.NewGuid()}:Failure=="unavailable"?Data with {Problems=PatientCppSection<PatientCppProblem>.Unavailable()}:Data);
+                    var value=Failure=="wrong-summary"?Data with {PatientUid=Guid.NewGuid()}:Failure=="unavailable"?Data with {Problems=PatientCppSection<PatientCppProblem>.Unavailable()}:Data;
+                    if(value.ProblemsForPrint is null) value=value with {ProblemsForPrint=new(value.Problems.State,value.Problems.Items.Select(x=>new PatientCppProblemPrint(x.DisplayName,null,x.Status,x.OnsetDisplay,x.LifeStage,null)).ToArray(),value.Problems.TotalCount)};
+                    return Task.FromResult<PatientCppSummaryResponse?>((Guid)args[0]! != Patient.PatientUid ? null : value);
                 }),Stub<IPatientRepository>((_,_)=>Task.FromResult<PatientDetailsResponse?>(Failure=="wrong-patient"?new() {PatientUid=Guid.NewGuid()}:Patient)),
                 Stub<IProviderAdministrationRepository>((_,_)=>Task.FromResult<ProviderAdministrationItem?>(new(
                     Failure=="wrong-provider"?Guid.NewGuid():ClinicianUid,"Clinician","Name","Dr Clinician","Physician",null,"Family Medicine",null,null,null,

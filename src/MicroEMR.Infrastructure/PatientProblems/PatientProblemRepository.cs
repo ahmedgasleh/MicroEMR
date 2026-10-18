@@ -1,3 +1,5 @@
+using System.Text.Json;
+using MicroEMR.Application.PatientClinicalHistory;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using MicroEMR.Infrastructure.Tenancy;
@@ -51,6 +53,7 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
             AddString(command, "@ProblemDescription", 1000, request.ProblemDescription, true);
             AddDate(command, "@OnsetDate", request.OnsetDate);
             AddLong(command, "@CreatedBy", createdBy);
+            AddClinical(command, request);
         }, patientUid, cancellationToken);
 
     public Task<PatientProblemResponse?> UpdateAsync(Guid patientUid, Guid patientProblemUid, UpdatePatientProblemRequest request, long? updatedBy, CancellationToken cancellationToken = default)
@@ -62,6 +65,8 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
             AddString(command, "@ProblemDescription", 1000, request.ProblemDescription, true);
             AddDate(command, "@OnsetDate", request.OnsetDate);
             AddLong(command, "@UpdatedBy", updatedBy);
+            AddClinical(command, request);
+            AddVersion(command, request.RowVersion);
         }, patientUid, cancellationToken);
 
     public Task<PatientProblemResponse?> ResolveAsync(Guid patientUid, Guid patientProblemUid, ResolvePatientProblemRequest request, long? resolvedBy, CancellationToken cancellationToken = default)
@@ -71,6 +76,10 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
             command.Parameters.Add("@PatientProblemUid", SqlDbType.UniqueIdentifier).Value = patientProblemUid;
             AddString(command, "@ResolutionReason", 500, request.ResolutionReason, true);
             AddLong(command, "@ResolvedBy", resolvedBy);
+            AddVersion(command, request.RowVersion);
+            foreach (var (part, value) in new[] { ("Year",request.ClinicalResolutionDate?.Year), ("Month",request.ClinicalResolutionDate?.Month), ("Day",request.ClinicalResolutionDate?.Day) })
+                command.Parameters.Add("@ClinicalResolution"+part, SqlDbType.Int).Value = (object?)value ?? DBNull.Value;
+            AddString(command, "@RequestCorrelationId", 100, request.RequestCorrelationId, true);
         }, patientUid, cancellationToken);
 
     private async Task<PatientProblemResponse> ExecuteRequiredAsync(string procedure, Action<SqlCommand> configure, Guid patientUid, CancellationToken cancellationToken)
@@ -88,6 +97,9 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
         }
+        catch (SqlException exception) when (exception.Number == 51073) { throw new PatientProblemConcurrencyException(); }
+        catch (SqlException exception) when (exception.Number == 51074) { throw new PatientProblemValidationException(exception.Message); }
+        catch (SqlException exception) when (exception.Number == 51071) { throw new PatientProblemNotFoundException(); }
         catch (SqlException exception) when (exception.Number == 51072)
         {
             throw new PatientProblemResolvedException("Resolved problems cannot be edited.", exception);
@@ -99,6 +111,26 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
         }
     }
 
+    private static void AddClinical(SqlCommand command, ProblemSaveRequest request)
+    {
+        command.Parameters.Add("@ClinicalFields", SqlDbType.NVarChar, -1).Value = request.ClinicalFields is null ? DBNull.Value : JsonSerializer.Serialize(request.ClinicalFields);
+        command.Parameters.Add("@OnsetDateSpecified", SqlDbType.Bit).Value = request.OnsetDateSpecified;
+        AddString(command, "@RequestCorrelationId", 100, request.RequestCorrelationId, true);
+    }
+    private static void AddVersion(SqlCommand command, string? token)
+    {
+        byte[] version;
+        try { version = Convert.FromBase64String(token ?? ""); }
+        catch (FormatException) { throw new PatientProblemValidationException("Reload the problem before saving: invalid version."); }
+        if (version.Length != 8) throw new PatientProblemValidationException("Reload the problem before saving: invalid version.");
+        command.Parameters.Add("@ExpectedRowVersion", SqlDbType.Binary, 8).Value = version;
+    }
+    private static ClinicalPartialDate? Partial(SqlDataReader reader, string prefix, DateTime? legacy = null)
+    {
+        int? Part(string suffix) => reader[prefix+suffix] is DBNull ? null : Convert.ToInt32(reader[prefix+suffix]);
+        return Part("Year") is {} year ? new(){Year=year,Month=Part("Month"),Day=Part("Day")}
+            : legacy is {} exact ? new(){Year=exact.Year,Month=exact.Month,Day=exact.Day} : null;
+    }
     private static SqlCommand CreateCommand(SqlConnection connection, string procedure) => new(procedure, connection) { CommandType = CommandType.StoredProcedure };
     private static void AddString(SqlCommand command, string name, int size, string? value, bool nullable) =>
         command.Parameters.Add(name, SqlDbType.NVarChar, size).Value = nullable && string.IsNullOrWhiteSpace(value) ? DBNull.Value : value!.Trim();
@@ -123,6 +155,8 @@ public sealed class PatientProblemRepository : IPatientProblemRepository
         ProblemName = reader.GetString(reader.GetOrdinal("ProblemName")),
         ProblemDescription = NullableString(reader, "ProblemDescription"),
         OnsetDate = Nullable<DateTime>(reader, "OnsetDate"),
+        ClinicalFields = new(){OnsetDate=Partial(reader,"Onset",Nullable<DateTime>(reader,"OnsetDate")),LifeStageCode=NullableString(reader,"LifeStageCode"),Notes=NullableString(reader,"Notes")},
+        ClinicalResolutionDate=Partial(reader,"ClinicalResolution"),
         ProblemStatus = reader.GetString(reader.GetOrdinal("ProblemStatus")),
         ResolvedAt = Nullable<DateTime>(reader, "ResolvedAt"),
         ResolvedBy = Nullable<long>(reader, "ResolvedBy"),

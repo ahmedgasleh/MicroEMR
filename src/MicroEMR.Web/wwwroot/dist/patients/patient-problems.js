@@ -30,7 +30,9 @@ function initializePatientProblems() {
     const uidInput = byId("problemEditorUid");
     const nameInput = byId("problemName");
     const descriptionInput = byId("problemDescription");
-    const onsetInput = byId("problemOnsetDate");
+    const onsetYear = byId("problemOnsetYear"), onsetMonth = byId("problemOnsetMonth"), onsetDay = byId("problemOnsetDay");
+    const stageInput = byId("problemLifeStage"), notesInput = byId("problemNotes"), versionInput = byId("problemEditorVersion");
+    const resolutionYear = byId("problemResolutionYear"), resolutionMonth = byId("problemResolutionMonth"), resolutionDay = byId("problemResolutionDay");
     const editorMessage = byId("problemEditorMessage");
     const saveButton = byId("saveProblemButton");
     const resolveName = byId("resolveProblemName");
@@ -48,14 +50,13 @@ function initializePatientProblems() {
         !uidInput ||
         !nameInput ||
         !descriptionInput ||
-        !onsetInput ||
+        !onsetYear || !onsetMonth || !onsetDay || !stageInput || !notesInput || !versionInput || !resolutionYear || !resolutionMonth || !resolutionDay ||
         !editorMessage ||
         !saveButton ||
         !resolveName ||
         !resolveReason ||
         !resolveMessage ||
         !resolveButton ||
-        !addButton ||
         !filter ||
         !empty ||
         !tokenInput)
@@ -64,6 +65,7 @@ function initializePatientProblems() {
     const editorModal = new bootstrap.Modal(editorElement);
     const resolveModal = new bootstrap.Modal(resolveElement);
     let resolvingUid = null;
+    let resolvingVersion = "";
     let returnToSummary = false;
     const showError = (element, message) => {
         element.textContent = message;
@@ -104,13 +106,20 @@ function initializePatientProblems() {
         sessionStorage.removeItem(filterStorageKey);
     }
     applyFilter();
-    addButton.addEventListener("click", () => {
+    if (root.dataset.canManage !== "true")
+        return;
+    addButton?.addEventListener("click", () => {
         returnToSummary = addButton.dataset.returnTab === "summary";
         delete addButton.dataset.returnTab;
         uidInput.value = "";
         nameInput.value = "";
         descriptionInput.value = "";
-        onsetInput.value = "";
+        onsetYear.value = "";
+        onsetMonth.value = "";
+        onsetDay.value = "";
+        stageInput.value = "";
+        notesInput.value = "";
+        versionInput.value = "";
         nameInput.classList.remove("is-invalid");
         editorMessage.classList.add("d-none");
         editorTitle.textContent = "Add Problem";
@@ -126,7 +135,12 @@ function initializePatientProblems() {
         uidInput.value = row.dataset.problemUid ?? "";
         nameInput.value = row.dataset.problemName ?? "";
         descriptionInput.value = row.dataset.problemDescription ?? "";
-        onsetInput.value = row.dataset.problemOnset ?? "";
+        onsetYear.value = row.dataset.problemOnsetYear ?? "";
+        onsetMonth.value = row.dataset.problemOnsetMonth ?? "";
+        onsetDay.value = row.dataset.problemOnsetDay ?? "";
+        stageInput.value = row.dataset.problemStage ?? "";
+        notesInput.value = row.dataset.problemNotes ?? "";
+        versionInput.value = row.dataset.problemVersion ?? "";
         nameInput.classList.remove("is-invalid");
         editorMessage.classList.add("d-none");
         editorTitle.textContent = "Edit Problem";
@@ -139,6 +153,10 @@ function initializePatientProblems() {
         if (!row)
             return;
         resolvingUid = row.dataset.problemUid ?? null;
+        resolvingVersion = row.dataset.problemVersion ?? "";
+        resolutionYear.value = "";
+        resolutionMonth.value = "";
+        resolutionDay.value = "";
         resolveName.textContent = row.dataset.problemName ?? "";
         resolveReason.value = "";
         resolveMessage.classList.add("d-none");
@@ -155,10 +173,17 @@ function initializePatientProblems() {
             PatientUid: patientUid,
             ProblemName: problemName,
             ProblemDescription: descriptionInput.value,
-            OnsetDate: onsetInput.value,
+            ClinicalFieldsIncluded: "true",
+            "ClinicalFields.OnsetDate.Year": onsetYear.value,
+            "ClinicalFields.OnsetDate.Month": onsetMonth.value,
+            "ClinicalFields.OnsetDate.Day": onsetDay.value,
+            "ClinicalFields.LifeStageCode": stageInput.value,
+            "ClinicalFields.Notes": notesInput.value,
         };
-        if (uidInput.value)
+        if (uidInput.value) {
             request.PatientProblemUid = uidInput.value;
+            request.RowVersion = versionInput.value;
+        }
         try {
             const data = new FormData();
             appendRequest(data, request);
@@ -195,6 +220,10 @@ function initializePatientProblems() {
             PatientUid: patientUid,
             PatientProblemUid: resolvingUid,
             ResolutionReason: resolveReason.value,
+            RowVersion: resolvingVersion,
+            "ClinicalResolutionDate.Year": resolutionYear.value,
+            "ClinicalResolutionDate.Month": resolutionMonth.value,
+            "ClinicalResolutionDate.Day": resolutionDay.value,
         };
         try {
             const data = new FormData();

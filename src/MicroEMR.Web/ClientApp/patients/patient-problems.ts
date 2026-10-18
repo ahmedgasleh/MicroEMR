@@ -11,6 +11,7 @@ interface PatientProblemResponse {
   problemName: string;
   problemDescription: string | null;
   onsetDate: string | null;
+  rowVersion: string;
   problemStatus: string;
   resolvedAt: string | null;
   resolvedByDisplayName: string | null;
@@ -28,13 +29,23 @@ interface SaveProblemRequest {
   PatientProblemUid?: string;
   ProblemName: string;
   ProblemDescription: string;
-  OnsetDate: string;
+  RowVersion?: string;
+  ClinicalFieldsIncluded: string;
+  "ClinicalFields.OnsetDate.Year": string;
+  "ClinicalFields.OnsetDate.Month": string;
+  "ClinicalFields.OnsetDate.Day": string;
+  "ClinicalFields.LifeStageCode": string;
+  "ClinicalFields.Notes": string;
 }
 
 interface ResolveProblemRequest {
   PatientUid: string;
   PatientProblemUid: string;
   ResolutionReason: string;
+  RowVersion: string;
+  "ClinicalResolutionDate.Year": string;
+  "ClinicalResolutionDate.Month": string;
+  "ClinicalResolutionDate.Day": string;
 }
 
 type ProblemFilter = "Active" | "Resolved" | "All";
@@ -86,7 +97,9 @@ function initializePatientProblems(): void {
   const uidInput = byId<HTMLInputElement>("problemEditorUid");
   const nameInput = byId<HTMLInputElement>("problemName");
   const descriptionInput = byId<HTMLTextAreaElement>("problemDescription");
-  const onsetInput = byId<HTMLInputElement>("problemOnsetDate");
+  const onsetYear = byId<HTMLInputElement>("problemOnsetYear"),onsetMonth = byId<HTMLInputElement>("problemOnsetMonth"),onsetDay = byId<HTMLInputElement>("problemOnsetDay");
+  const stageInput=byId<HTMLSelectElement>("problemLifeStage"),notesInput=byId<HTMLTextAreaElement>("problemNotes"),versionInput=byId<HTMLInputElement>("problemEditorVersion");
+  const resolutionYear=byId<HTMLInputElement>("problemResolutionYear"),resolutionMonth=byId<HTMLInputElement>("problemResolutionMonth"),resolutionDay=byId<HTMLInputElement>("problemResolutionDay");
   const editorMessage = byId<HTMLElement>("problemEditorMessage");
   const saveButton = byId<HTMLButtonElement>("saveProblemButton");
   const resolveName = byId<HTMLElement>("resolveProblemName");
@@ -108,14 +121,13 @@ function initializePatientProblems(): void {
     !uidInput ||
     !nameInput ||
     !descriptionInput ||
-    !onsetInput ||
+    !onsetYear || !onsetMonth || !onsetDay || !stageInput || !notesInput || !versionInput || !resolutionYear || !resolutionMonth || !resolutionDay ||
     !editorMessage ||
     !saveButton ||
     !resolveName ||
     !resolveReason ||
     !resolveMessage ||
     !resolveButton ||
-    !addButton ||
     !filter ||
     !empty ||
     !tokenInput
@@ -126,6 +138,7 @@ function initializePatientProblems(): void {
   const editorModal = new bootstrap.Modal(editorElement);
   const resolveModal = new bootstrap.Modal(resolveElement);
   let resolvingUid: string | null = null;
+  let resolvingVersion = "";
   let returnToSummary = false;
 
   const showError = (element: HTMLElement, message: string): void => {
@@ -170,13 +183,14 @@ function initializePatientProblems(): void {
   }
   applyFilter();
 
-  addButton.addEventListener("click", () => {
-    returnToSummary = addButton.dataset.returnTab === "summary";
-    delete addButton.dataset.returnTab;
+  if(root.dataset.canManage!=="true")return;
+  addButton?.addEventListener("click", () => {
+    returnToSummary = addButton!.dataset.returnTab === "summary";
+    delete addButton!.dataset.returnTab;
     uidInput.value = "";
     nameInput.value = "";
     descriptionInput.value = "";
-    onsetInput.value = "";
+    onsetYear.value="";onsetMonth.value="";onsetDay.value="";stageInput.value="";notesInput.value="";versionInput.value="";
     nameInput.classList.remove("is-invalid");
     editorMessage.classList.add("d-none");
     editorTitle.textContent = "Add Problem";
@@ -193,7 +207,7 @@ function initializePatientProblems(): void {
         uidInput.value = row.dataset.problemUid ?? "";
         nameInput.value = row.dataset.problemName ?? "";
         descriptionInput.value = row.dataset.problemDescription ?? "";
-        onsetInput.value = row.dataset.problemOnset ?? "";
+        onsetYear.value=row.dataset.problemOnsetYear??"";onsetMonth.value=row.dataset.problemOnsetMonth??"";onsetDay.value=row.dataset.problemOnsetDay??"";stageInput.value=row.dataset.problemStage??"";notesInput.value=row.dataset.problemNotes??"";versionInput.value=row.dataset.problemVersion??"";
         nameInput.classList.remove("is-invalid");
         editorMessage.classList.add("d-none");
         editorTitle.textContent = "Edit Problem";
@@ -208,6 +222,7 @@ function initializePatientProblems(): void {
         const row = button.closest<HTMLTableRowElement>("tr");
         if (!row) return;
         resolvingUid = row.dataset.problemUid ?? null;
+        resolvingVersion=row.dataset.problemVersion??"";resolutionYear.value="";resolutionMonth.value="";resolutionDay.value="";
         resolveName.textContent = row.dataset.problemName ?? "";
         resolveReason.value = "";
         resolveMessage.classList.add("d-none");
@@ -225,9 +240,14 @@ function initializePatientProblems(): void {
       PatientUid: patientUid,
       ProblemName: problemName,
       ProblemDescription: descriptionInput.value,
-      OnsetDate: onsetInput.value,
+      ClinicalFieldsIncluded:"true",
+      "ClinicalFields.OnsetDate.Year":onsetYear.value,
+      "ClinicalFields.OnsetDate.Month":onsetMonth.value,
+      "ClinicalFields.OnsetDate.Day":onsetDay.value,
+      "ClinicalFields.LifeStageCode":stageInput.value,
+      "ClinicalFields.Notes":notesInput.value,
     };
-    if (uidInput.value) request.PatientProblemUid = uidInput.value;
+    if (uidInput.value) {request.PatientProblemUid = uidInput.value;request.RowVersion=versionInput.value;}
     try {
       const data = new FormData();
       appendRequest(data, request);
@@ -263,6 +283,10 @@ function initializePatientProblems(): void {
       PatientUid: patientUid,
       PatientProblemUid: resolvingUid,
       ResolutionReason: resolveReason.value,
+      RowVersion:resolvingVersion,
+      "ClinicalResolutionDate.Year":resolutionYear.value,
+      "ClinicalResolutionDate.Month":resolutionMonth.value,
+      "ClinicalResolutionDate.Day":resolutionDay.value,
     };
     try {
       const data = new FormData();

@@ -52,7 +52,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
             {
                 case "RiskFactors": Append(body,data.RiskFactors); break;
                 case "FamilyHistory": Append(body,data.FamilyHistory); break;
-                case "Problems": Append(body,data.Problems); break;
+                case "Problems": Append(body,data.ProblemsForPrint ?? throw new CppPrintUnavailableException("Problem details are unavailable. Reload before printing.")); break;
                 case "Allergies": Append(body,data.Allergies); break;
                 case "Medications":
                     if (data.Medications.State == PatientCppSectionStates.NotDocumented)

@@ -29,6 +29,8 @@ public sealed class EncounterDiagnosisSqlTests(EncounterDiagnosisSqlDatabase db)
     {
         var (p,e)=await db.Seed();
         await db.Execute("INSERT dbo.PatientProblem(PatientUid,ProblemName,ProblemDescription,OnsetDate,CreatedBy) VALUES(@p,N'Existing',N'Original details','20000101',7)",p);
+        await db.Execute("UPDATE dbo.PatientProblem SET OnsetYear=2000,OnsetMonth=1,OnsetDay=1,LifeStageCode=N'C',Notes=N'TEST ONLY retained notes' WHERE PatientUid=@p AND ProblemName=N'Existing'",p);
+        var problemToken=Convert.ToBase64String(await db.Scalar<byte[]>("SELECT RowVersion FROM dbo.PatientProblem WHERE PatientUid=@p AND ProblemName=N'Existing'",p));
         var initial=(await db.Repository.GetAsync(p,e))!;
         var saved=(await Save(p,e,initial.RowVersion,true,new EncounterDiagnosisInput {Name=" existing ",Description="Encounter details"},new EncounterDiagnosisInput {Name="New problem"}))!;
         Assert.All(saved.Diagnoses,x=>Assert.NotNull(x.PatientProblemUid));
@@ -38,6 +40,11 @@ public sealed class EncounterDiagnosisSqlTests(EncounterDiagnosisSqlDatabase db)
         var second=(await Save(p,e,saved.RowVersion,true,Inputs(saved)))!;
         Assert.Equal(saved.Diagnoses.Select(x=>x.DiagnosisUid),second.Diagnoses.Select(x=>x.DiagnosisUid));
         Assert.Equal(2,await db.Scalar<int>("SELECT COUNT(*) FROM dbo.PatientProblem WHERE PatientUid=@p",p));
+        Assert.Equal(problemToken,Convert.ToBase64String(await db.Scalar<byte[]>("SELECT RowVersion FROM dbo.PatientProblem WHERE PatientUid=@p AND ProblemName=N'Existing'",p)));
+        Assert.Equal("TEST ONLY retained notes",await db.Scalar<string>("SELECT Notes FROM dbo.PatientProblem WHERE PatientUid=@p AND ProblemName=N'Existing'",p));
+        Assert.Equal("C",await db.Scalar<string>("SELECT LifeStageCode FROM dbo.PatientProblem WHERE PatientUid=@p AND ProblemName=N'Existing'",p));
+        var problemAudit=await db.Scalar<string>("SELECT TOP(1) NewValue FROM dbo.AuditLog WHERE PatientId=(SELECT PatientId FROM dbo.Patient WHERE PatientUid=@p) AND EntityName=N'PatientProblem' ORDER BY AuditLogId DESC",p);
+        Assert.Contains("step106-encounter",problemAudit);Assert.Contains("TenantUid",problemAudit);
         Assert.Equal(1,await db.Scalar<int>("SELECT COUNT(*) FROM dbo.AuditLog WHERE PatientId=(SELECT PatientId FROM dbo.Patient WHERE PatientUid=@p) AND EntityName='PatientProblem' AND ActionName='Create'",p));
         var audit=await db.Scalar<string>("SELECT TOP(1) NewValue FROM dbo.AuditLog WHERE EntityId=CONVERT(nvarchar(100),@p) ORDER BY AuditLogId DESC",e);
         Assert.Contains("PatientProblemUid",audit);Assert.Contains("Encounter details",audit);
@@ -108,7 +115,7 @@ public sealed class EncounterDiagnosisSqlTests(EncounterDiagnosisSqlDatabase db)
         Assert.Equal(1,await db.Scalar<int>("SELECT COUNT(*) FROM dbo.PatientProblem WHERE PatientUid=@p AND ProblemStatus='Resolved'",p));
     }
     private Task<EncounterDiagnosesResponse?> Save(Guid p,Guid e,string version,bool cpp,params EncounterDiagnosisInput[] items)
-        =>db.Repository.SaveAsync(p,e,new() {RowVersion=version,SaveToCpp=cpp,Diagnoses=items},7);
+        =>db.Repository.SaveAsync(p,e,new() {RowVersion=version,SaveToCpp=cpp,Diagnoses=items,RequestCorrelationId="step106-encounter"},7);
     private static EncounterDiagnosisInput[] Inputs(EncounterDiagnosesResponse response)=>response.Diagnoses.Select(x=>new EncounterDiagnosisInput {DiagnosisUid=x.DiagnosisUid,Name=x.Name,Description=x.Description,OnsetDate=x.OnsetDate}).ToArray();
     public sealed class Factory(string connection):ITenantSqlConnectionFactory
     {public async Task<SqlConnection> OpenConnectionAsync(CancellationToken token=default) {var sql=new SqlConnection(connection);await sql.OpenAsync(token);return sql;}}
@@ -155,6 +162,9 @@ public sealed class EncounterDiagnosisSqlDatabase : IAsyncLifetime
             var encounterBatches=Regex.Split(File.ReadAllText(Path.Combine(root,"db/patient_encounter_stored_procedures.sql")),@"^\s*GO\s*$",RegexOptions.Multiline|RegexOptions.IgnoreCase);
             await Batches(connection,encounterBatches.Single(x=>x.TrimStart().StartsWith("CREATE OR ALTER PROCEDURE dbo.PatientEncounterHistory_Create",StringComparison.Ordinal)));
             await Batches(connection,File.ReadAllText(Path.Combine(root,"db/tenant-clinical/migrations/0069-encounter-diagnoses.sql")));
+            await new SqlCommand("ALTER TABLE dbo.ApplicationUser ADD IsActive bit NOT NULL DEFAULT 1; CREATE TABLE dbo.TenantDatabaseIdentity(TenantUid uniqueidentifier NOT NULL); INSERT dbo.TenantDatabaseIdentity VALUES(NEWID());",connection).ExecuteNonQueryAsync();
+            foreach(var migration in new[]{"0043-patient-chart-read-audit.sql","0041-patient-clinical-history.sql","0078-clinical-history-fields.sql","0079-problem-fields-concurrency.sql"})
+                await Batches(connection,File.ReadAllText(Path.Combine(root,"db/tenant-clinical/migrations",migration)));
         }
     }
     private static async Task Batches(SqlConnection connection,string text)

@@ -319,7 +319,7 @@
         <partial name="_CppDisplayPreferences" />
         <partial name="_CppPrint" />
         <div class="row g-3" id="cppSummaryCards">
-            <div data-cpp-category="Problems" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if(cpp.Problems.State=="Unavailable"){<p class="text-muted mb-0">Problem information is temporarily unavailable.</p>}else if(cpp.Problems.Items.Count==0){<p class="text-muted mb-0">No active problem records documented.</p>}else{@foreach(var item in cpp.Problems.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Problems.DisplayName">@item.DisplayName</span></div>@if(item.OnsetDate.HasValue){<small data-cpp-field="Problems.OnsetDate" class="text-muted">Onset @item.OnsetDate.Value.ToString("MMM d, yyyy")</small>}</div>}@if(cpp.Problems.TotalCount>cpp.Problems.Items.Count){<small data-cpp-field="Problems.AdditionalCount" class="text-muted">+ @(cpp.Problems.TotalCount-cpp.Problems.Items.Count) more</small>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View all problems</button></div></div></div>
+            <div data-cpp-category="Problems" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Problems</h4>@if(cpp.Problems.State=="Unavailable"){<p class="text-muted mb-0">Problem information is temporarily unavailable.</p>}else if(cpp.Problems.Items.Count==0){<p class="text-muted mb-0">No active problem records documented.</p>}else{@foreach(var item in cpp.Problems.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Problems.DisplayName">@item.DisplayName</span></div><div><small data-cpp-field="Problems.OnsetDate" class="text-muted">Onset @item.OnsetDisplay</small></div><small data-cpp-field="Problems.LifeStage" class="text-muted">Life stage: @item.LifeStage</small></div>}@if(cpp.Problems.TotalCount>cpp.Problems.Items.Count){<small data-cpp-field="Problems.AdditionalCount" class="text-muted">+ @(cpp.Problems.TotalCount-cpp.Problems.Items.Count) more</small>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="problems">View all problems</button></div></div></div>
             <div data-cpp-category="Allergies" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Active Allergies</h4>@if(cpp.Allergies.State=="Unavailable"){<p class="text-muted mb-0">Allergy information is temporarily unavailable.</p>}else if(cpp.Allergies.State=="ExplicitlyNone"){<p class="mb-0"><strong>No Known Allergies</strong></p>}else if(cpp.Allergies.Items.Count==0){<p class="text-muted mb-0">Allergy status not documented.</p>}else{@foreach(var item in cpp.Allergies.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Allergies.DisplayName">@item.DisplayName</span></div><small>@if(!string.IsNullOrWhiteSpace(item.Reaction)){<span data-cpp-field="Allergies.Reaction">@item.Reaction</span>}@if(!string.IsNullOrWhiteSpace(item.Reaction)&&!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-separator> · </span>}@if(!string.IsNullOrWhiteSpace(item.Severity)){<span data-cpp-field="Allergies.Severity">@item.Severity</span>}</small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="allergies">View all allergies</button></div></div></div>
             <div data-cpp-category="Medications" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Ongoing Medications</h4>@if(cpp.Medications.State=="Unavailable"){<p class="text-muted mb-0">Medication information is temporarily unavailable.</p>}else if(cpp.Medications.Items.Count==0){<p class="text-muted mb-0">No ongoing medications recorded.</p>}else{@foreach(var item in cpp.Medications.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Medications.DisplayName">@item.DisplayName</span> <span data-cpp-field="Medications.Strength">@item.Strength</span></div><small>@if(!string.IsNullOrWhiteSpace(item.Frequency)){<span data-cpp-field="Medications.Frequency">@item.Frequency</span>}@if(!string.IsNullOrWhiteSpace(item.Frequency)&&!string.IsNullOrWhiteSpace(item.Route)){<span data-cpp-separator> · </span>}@if(!string.IsNullOrWhiteSpace(item.Route)){<span data-cpp-field="Medications.Route">@item.Route</span>}</small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View all medication classifications</button></div></div></div>
             <div data-cpp-category="Prescriptions" class="col-12 col-lg-4"><div class="card h-100"><div class="card-body"><h4 class="h6">Current Prescriptions</h4><p class="small text-muted">Finalized prescribing records; not a reconciled medication list.</p>@if(cpp.Prescriptions.State=="Unavailable"){<p class="text-muted mb-0">Prescription information is temporarily unavailable.</p>}else if(cpp.Prescriptions.Items.Count==0){<p class="text-muted mb-0">No current finalized prescription records.</p>}else{@foreach(var item in cpp.Prescriptions.Items){<div class="border-top py-2"><div class="fw-semibold"><span data-cpp-field="Prescriptions.DisplayName">@item.DisplayName</span></div><small><span data-cpp-field="Prescriptions.PrescribedDate">@item.PrescribedDate.ToString("MMM d, yyyy")</span><span data-cpp-separator> · </span><span data-cpp-field="Prescriptions.Directions">@item.Directions</span></small></div>}}<p data-cpp-fields-hidden class="small text-body-secondary d-none mb-0">Information hidden by your display preferences. Full records remain available in the chart tabs.</p></div><div class="card-footer bg-transparent"><button class="btn btn-sm btn-link px-0 summary-tab-link" data-tab-target="medications">View prescriptions</button></div></div></div>
@@ -820,7 +820,7 @@
              data-update-url="@Url.Action("UpdateProblem", "PatientProblems")"
              data-resolve-url="@Url.Action("ResolveProblem", "PatientProblems")"
              data-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "problems" })"
-             data-summary-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "summary" })"></div>
+             data-summary-refresh-url="@Url.Action("Details", "Patients", new { patientUid = patient.PatientUid, tab = "summary" })" data-can-manage="@canManageClinicalData.ToString().ToLowerInvariant()"></div>
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
             <h5 class="mb-0">Problems</h5>
             <div class="d-flex align-items-center gap-2">
@@ -830,7 +830,7 @@
                     <option value="Resolved">Resolved</option>
                     <option value="All">All</option>
                 </select>
-                <button type="button" id="addProblemButton" class="btn btn-primary text-nowrap">
+                <button type="button" id="addProblemButton" class="btn btn-primary text-nowrap" disabled="@(!canManageClinicalData)">
                     <i class="bi bi-plus-circle me-1"></i>Add Problem
                 </button>
             </div>
@@ -852,22 +852,27 @@
                         data-problem-uid="@problem.PatientProblemUid"
                         data-problem-name="@problem.ProblemName"
                         data-problem-description="@problem.ProblemDescription"
-                        data-problem-onset="@(problem.OnsetDate?.ToString("yyyy-MM-dd") ?? "")">
+                        data-problem-onset-year="@(problem.ClinicalFields?.OnsetDate?.Year ?? problem.OnsetDate?.Year)"
+                        data-problem-onset-month="@(problem.ClinicalFields?.OnsetDate?.Month ?? problem.OnsetDate?.Month)"
+                        data-problem-onset-day="@(problem.ClinicalFields?.OnsetDate?.Day ?? problem.OnsetDate?.Day)"
+                        data-problem-stage="@problem.ClinicalFields?.LifeStageCode"
+                        data-problem-notes="@problem.ClinicalFields?.Notes"
+                        data-problem-version="@problem.RowVersion">
                         <td><strong>@problem.ProblemName</strong></td>
                         <td>@(problem.ProblemDescription ?? "—")</td>
-                        <td>@(problem.OnsetDate?.ToString("MMM d, yyyy") ?? "—")</td>
+                        <td>@problem.OnsetDisplay</td>
                         <td><span class="badge @(problem.ProblemStatus == "Active" ? "text-bg-success" : "text-bg-secondary")">@problem.ProblemStatus</span></td>
                         <td>
-                            @if (problem.ResolvedAt.HasValue)
+                            @if (problem.ProblemStatus == "Resolved")
                             {
-                                <div>@problem.ResolvedAt.Value.ToLocalTime().ToString("MMM d, yyyy")</div>
+                                <div>Clinical resolution: @(problem.ClinicalResolutionDate?.Display ?? "Not recorded")</div><div class="small">Recorded transition: @(problem.ResolvedAt?.ToLocalTime().ToString("MMM d, yyyy h:mm tt") ?? "Not recorded")</div>
                                 <div class="small text-muted">@(problem.ResolvedByDisplayName ?? "Unknown user")</div>
                                 @if (!string.IsNullOrWhiteSpace(problem.ResolutionReason)) { <div class="small">@problem.ResolutionReason</div> }
                             }
                             else { <span>—</span> }
                         </td>
                         <td class="text-end">
-                            @if (string.Equals(problem.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase))
+                            @if (canManageClinicalData && string.Equals(problem.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase))
                             {
                                 <button type="button" class="btn btn-sm btn-outline-secondary edit-problem-button">Edit</button>
                                 <button type="button" class="btn btn-sm btn-outline-danger resolve-problem-button">Resolve</button>
@@ -1380,10 +1385,10 @@
         <div class="modal-header"><h2 class="modal-title fs-5" id="problemEditorModalLabel">Add Problem</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
         <div class="modal-body">
             <div id="problemEditorMessage" class="alert alert-danger d-none"></div>
-            <input type="hidden" id="problemEditorUid" />
+            <input type="hidden" id="problemEditorUid" /><input type="hidden" id="problemEditorVersion" />
             <div class="mb-3"><label for="problemName" class="form-label">Problem Name <span class="text-danger">*</span></label><input id="problemName" class="form-control" maxlength="200" required /><div id="problemNameValidation" class="invalid-feedback">Problem name is required.</div></div>
             <div class="mb-3"><label for="problemDescription" class="form-label">Description</label><textarea id="problemDescription" class="form-control" maxlength="1000" rows="3"></textarea></div>
-            <div><label for="problemOnsetDate" class="form-label">Onset Date</label><input id="problemOnsetDate" type="date" class="form-control" /></div>
+            <p class="small text-body-secondary">Leave unknown values blank. Enter only the known year, month and day; do not fill in missing date parts.</p><fieldset class="mb-3"><legend class="fs-6">Onset date</legend><div class="row g-2"><div class="col-4"><label for="problemOnsetYear" class="form-label">Year</label><input id="problemOnsetYear" class="form-control" type="number" min="1" max="9999" step="1"/></div><div class="col-4"><label for="problemOnsetMonth" class="form-label">Month</label><input id="problemOnsetMonth" class="form-control" type="number" min="1" max="12" step="1"/></div><div class="col-4"><label for="problemOnsetDay" class="form-label">Day</label><input id="problemOnsetDay" class="form-control" type="number" min="1" max="31" step="1"/></div></div></fieldset><div class="mb-3"><label for="problemLifeStage" class="form-label">Life stage at onset</label><select id="problemLifeStage" class="form-select"><option value="">Not recorded</option><option value="N">New born</option><option value="I">Infant</option><option value="C">Child</option><option value="T">Adolescent</option><option value="A">Adult</option></select></div><div class="mb-3"><label for="problemNotes" class="form-label">Clinical notes</label><textarea id="problemNotes" class="form-control" maxlength="1000" rows="3"></textarea></div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" id="saveProblemButton">Save Problem</button></div>
     </div></div>
@@ -1392,7 +1397,7 @@
 <div class="modal fade" id="resolveProblemModal" tabindex="-1" aria-labelledby="resolveProblemModalLabel" aria-hidden="true">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h2 class="modal-title fs-5" id="resolveProblemModalLabel">Resolve Problem</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-        <div class="modal-body"><div id="resolveProblemMessage" class="alert alert-danger d-none"></div><p>Resolve <strong id="resolveProblemName"></strong>?</p><label for="problemResolutionReason" class="form-label">Resolution Reason (optional)</label><textarea id="problemResolutionReason" class="form-control" maxlength="500" rows="3"></textarea></div>
+        <div class="modal-body"><div id="resolveProblemMessage" class="alert alert-danger d-none"></div><p>Resolve <strong id="resolveProblemName"></strong>?</p><fieldset class="mb-3"><legend class="fs-6">Clinical resolution date (optional; separate from recorded transition time)</legend><div class="row g-2"><div class="col-4"><label for="problemResolutionYear" class="form-label">Year</label><input id="problemResolutionYear" class="form-control" type="number" min="1" max="9999" step="1"/></div><div class="col-4"><label for="problemResolutionMonth" class="form-label">Month</label><input id="problemResolutionMonth" class="form-control" type="number" min="1" max="12" step="1"/></div><div class="col-4"><label for="problemResolutionDay" class="form-label">Day</label><input id="problemResolutionDay" class="form-control" type="number" min="1" max="31" step="1"/></div></div></fieldset><label for="problemResolutionReason" class="form-label">Resolution Reason (optional)</label><textarea id="problemResolutionReason" class="form-control" maxlength="500" rows="3"></textarea></div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="confirmResolveProblemButton">Resolve Problem</button></div>
     </div></div>
 </div>

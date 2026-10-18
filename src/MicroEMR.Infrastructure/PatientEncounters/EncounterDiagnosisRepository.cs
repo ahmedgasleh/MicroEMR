@@ -26,6 +26,7 @@ public sealed class EncounterDiagnosisRepository(ITenantSqlConnectionFactory con
             command.Parameters.Add("@SaveToCpp",SqlDbType.Bit).Value = input.SaveToCpp;
             command.Parameters.Add("@DiagnosesJson",SqlDbType.NVarChar,-1).Value = JsonSerializer.Serialize(input.Diagnoses);
             command.Parameters.Add("@Actor",SqlDbType.BigInt).Value = actor;
+            command.Parameters.Add("@RequestCorrelationId",SqlDbType.NVarChar,100).Value = (object?)input.RequestCorrelationId ?? DBNull.Value;
         }
         try
         {

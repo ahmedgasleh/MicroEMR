@@ -21,13 +21,24 @@ public sealed class PatientProblemApiClient(HttpClient httpClient, IHttpContextA
     public async Task<PatientProblemViewModel?> GetByUidAsync(Guid patientUid, Guid patientProblemUid, CancellationToken cancellationToken = default)
         => await SendOptionalAsync(HttpMethod.Get, $"api/patients/{patientUid}/problems/{patientProblemUid}", null, cancellationToken);
     public async Task<PatientProblemViewModel> CreateAsync(Guid patientUid, CreatePatientProblemRequest requestBody, CancellationToken cancellationToken = default)
-        => await SendOptionalAsync(HttpMethod.Post, $"api/patients/{patientUid}/problems", JsonContent.Create(requestBody), cancellationToken)
+        => await SendOptionalAsync(HttpMethod.Post, $"api/patients/{patientUid}/problems", Content(requestBody), cancellationToken)
             ?? throw new InvalidOperationException("The API created the problem but returned no problem data.");
     public Task<PatientProblemViewModel?> UpdateAsync(Guid patientUid, Guid patientProblemUid, UpdatePatientProblemRequest requestBody, CancellationToken cancellationToken = default)
-        => SendOptionalAsync(HttpMethod.Put, $"api/patients/{patientUid}/problems/{patientProblemUid}", JsonContent.Create(requestBody), cancellationToken);
+        => SendOptionalAsync(HttpMethod.Put, $"api/patients/{patientUid}/problems/{patientProblemUid}", Content(requestBody), cancellationToken);
     public Task<PatientProblemViewModel?> ResolveAsync(Guid patientUid, Guid patientProblemUid, ResolvePatientProblemRequest requestBody, CancellationToken cancellationToken = default)
-        => SendOptionalAsync(HttpMethod.Post, $"api/patients/{patientUid}/problems/{patientProblemUid}/resolve", JsonContent.Create(requestBody), cancellationToken);
+        => SendOptionalAsync(HttpMethod.Post, $"api/patients/{patientUid}/problems/{patientProblemUid}/resolve", Content(requestBody), cancellationToken);
 
+    private static HttpContent Content(object body)
+    {
+        if(body is MicroEMR.Application.PatientProblems.Contracts.ProblemSaveRequest input)
+        {
+            var payload=new Dictionary<string,object?>{["ProblemName"]=input.ProblemName,["ProblemDescription"]=input.ProblemDescription,["ClinicalFields"]=input.ClinicalFields};
+            if(input.OnsetDateSpecified)payload["OnsetDate"]=input.OnsetDate;
+            if(input is MicroEMR.Application.PatientProblems.Contracts.UpdatePatientProblemRequest update)payload["RowVersion"]=update.RowVersion;
+            return JsonContent.Create(payload);
+        }
+        return JsonContent.Create(body);
+    }
     private async Task<PatientProblemViewModel?> SendOptionalAsync(HttpMethod method, string uri, HttpContent? content, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(method, uri) { Content = content };

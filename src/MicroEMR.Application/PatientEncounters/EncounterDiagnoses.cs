@@ -15,6 +15,7 @@ public sealed class EncounterDiagnosisInput
 }
 public sealed class SaveEncounterDiagnosesRequest
 {
+    [System.Text.Json.Serialization.JsonIgnore] public string? RequestCorrelationId { get; set; }
     [Required] public string RowVersion { get; set; } = string.Empty;
     public bool SaveToCpp { get; set; }
     [Required] public IReadOnlyList<EncounterDiagnosisInput> Diagnoses { get; set; } = [];

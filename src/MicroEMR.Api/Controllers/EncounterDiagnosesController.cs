@@ -18,7 +18,7 @@ public sealed class EncounterDiagnosesController(IEncounterDiagnosisService serv
         => Run(() => service.GetAsync(patientUid,encounterUid,HttpContext.TraceIdentifier,token),token);
     [HttpPost, RequirePermission(PermissionKeys.EncountersEdit)]
     public Task<IActionResult> Save(Guid patientUid, Guid encounterUid, SaveEncounterDiagnosesRequest request, CancellationToken token)
-        => Run(() => service.SaveAsync(patientUid,encounterUid,request,token),token);
+        { request.RequestCorrelationId=HttpContext.TraceIdentifier; return Run(() => service.SaveAsync(patientUid,encounterUid,request,token),token); }
     private async Task<IActionResult> Run(Func<Task<EncounterDiagnosesResponse?>> action, CancellationToken token)
     {
         try { var result = await action(); return result is null ? NotFound() : Ok(result); }
