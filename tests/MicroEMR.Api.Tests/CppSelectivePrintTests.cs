@@ -281,9 +281,9 @@ public sealed class CppSelectivePrintTests
         Assert.Equal(503,result.StatusCode);
     }
 
-    internal static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null, MicroEMR.Application.PatientMedications.Services.IPatientMedicationService? medication=null,MicroEMR.Application.PatientImmunizations.IPatientImmunizationService? immunizations=null,MicroEMR.Application.PatientAllergies.Services.IPatientAllergyService? allergies=null, MicroEMR.Application.PatientChartAlerts.IPatientChartAlertService? alerts=null) => new(
+    internal static PatientCppService Source(Guid patient,IPatientProblemService problems,IPatientChartReadAuditService audit,MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService? family=null,MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorService? risk=null, MicroEMR.Application.PatientMedications.Services.IPatientMedicationService? medication=null,MicroEMR.Application.PatientImmunizations.IPatientImmunizationService? immunizations=null,MicroEMR.Application.PatientAllergies.Services.IPatientAllergyService? allergies=null, MicroEMR.Application.PatientChartAlerts.IPatientChartAlertService? alerts=null, MicroEMR.Application.PatientPrescriptions.IPatientPrescriptionService? prescriptions=null) => new(
         Stub<IPatientRepository>((_,args)=>Task.FromResult<PatientDetailsResponse?>((Guid)args[0]! == patient ? new() {PatientUid=patient}:null)),
-        problems,allergies!,medication!,null!,immunizations!,null!,null!,null!,null!,null!,
+        problems,allergies!,medication!,prescriptions!,immunizations!,null!,null!,null!,null!,null!,
         Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string> {PermissionKeys.PatientsView})),audit,
         NullLogger<PatientCppService>.Instance,
         family ?? Stub<MicroEMR.Application.PatientFamilyHistory.IPatientFamilyHistoryService>((_,_) => Task.FromResult<IReadOnlyList<MicroEMR.Application.PatientFamilyHistory.PatientFamilyHistoryResponse>>([])),

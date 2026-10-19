@@ -173,7 +173,7 @@ public sealed partial class PatientCppService(
                 .Where(x => string.Equals(x.Status, PrescriptionStatuses.Finalized, StringComparison.Ordinal)).ToArray();
             if (full) EnsureOwned(rows, patientUid);
             return PatientCppSection<PatientCppPrescription>.From(rows.OrderByDescending(x => x.PrescribedDate)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions)).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions) { PrescribedDateDisplay=x.PrescribedDateDisplay }).ToArray(), rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token, bool full = false, Action<IReadOnlyList<PatientImmunizationResponse>>? capture = null) =>

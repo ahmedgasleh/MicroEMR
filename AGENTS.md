@@ -74,3 +74,15 @@ For each task:
 - Do not perform speculative cleanup or refactoring.
 - Do not change stable functionality merely to improve style.
 - If a requirement conflicts with the existing architecture or these rules, stop and explain the conflict before making the change.
+
+# Repository Safety Rules
+
+- Work only in the local MicroEMR repository.
+- Never push changes to GitHub or any remote.
+- Never create remote branches or pull requests.
+- Never run git push, git remote modifications, or GitHub CLI write operations.
+- Do not use Codex Cloud for this project.
+- Local file edits, builds, and tests are permitted.
+- Local Git commits are permitted only when explicitly requested.
+- Ask for approval before any remote Git operation.
+- Preserve existing uncommitted changes.

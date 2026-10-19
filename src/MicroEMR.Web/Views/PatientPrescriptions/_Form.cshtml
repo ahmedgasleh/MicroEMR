@@ -1,6 +1,9 @@
 @using MicroEMR.Application.PatientPrescriptions
 @model PrescriptionDraftRequest
-<div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+@if (!ViewData.ModelState.IsValid)
+{
+ <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+}
 <div class="row g-3">
  <div class="col-md-6"><label asp-for="MedicationForm" class="form-label">Medication form (optional)</label><input asp-for="MedicationForm" class="form-control" maxlength="100"/><span asp-validation-for="MedicationForm" class="text-danger"></span></div>
  <div class="col-12"><label asp-for="NotesToPharmacist" class="form-label">Notes to pharmacist (optional)</label><textarea asp-for="NotesToPharmacist" class="form-control" maxlength="1000" rows="3"></textarea><span asp-validation-for="NotesToPharmacist" class="text-danger"></span></div>
@@ -20,6 +23,29 @@
  <div class="col-md-3"><label asp-for="RefillQuantity" class="form-label">Refill quantity (optional)</label><input asp-for="RefillQuantity" type="number" min="0.001" step="0.001" class="form-control"/><span asp-validation-for="RefillQuantity" class="text-danger"></span></div>
  <div class="col-md-3"><label asp-for="RefillQuantityUnit" class="form-label">Refill quantity unit</label><input asp-for="RefillQuantityUnit" class="form-control"/><span asp-validation-for="RefillQuantityUnit" class="text-danger"></span></div>
  <div class="col-md-3"><label asp-for="RefillDaysSupply" class="form-label">Refill days' supply (optional)</label><input asp-for="RefillDaysSupply" type="number" min="1" step="1" class="form-control"/><span asp-validation-for="RefillDaysSupply" class="text-danger"></span></div>
- <div class="col-md-6"><label asp-for="PrescribedDate" class="form-label">Prescribed date</label><input asp-for="PrescribedDate" type="date" class="form-control"/></div>
- <div class="col-md-6"><label asp-for="StartDate" class="form-label">Start date (optional)</label><input asp-for="StartDate" type="date" class="form-control"/></div><div class="col-md-6"><label asp-for="Indication" class="form-label">Indication (optional)</label><input asp-for="Indication" class="form-control"/></div>
+ @{
+  var writtenDate = Model.DateFields?.WrittenDate ?? PrescriptionDateValue.From(Model.PrescribedDate);
+  var startDate = Model.DateFields?.StartDate ?? PrescriptionDateValue.From(Model.StartDate);
+ }
+ @foreach (var date in new[] { ("WrittenDate", "Written date", writtenDate, false), ("StartDate", "Start date (optional)", startDate, true) })
+ {
+  var dateId = "rxdate-" + Guid.NewGuid().ToString("N");
+  <fieldset class="col-md-6" data-prescription-date="@date.Item1">
+   <legend class="form-label fs-6">@date.Item2</legend>
+   <label class="form-label small" for="@(dateId)-precision">Precision</label>
+   <select class="form-select mb-2" name="DateFields.@(date.Item1).Precision" id="@(dateId)-precision">
+    @foreach(var precision in date.Item4 ? new[]{"Unknown","Year","Month","Day"} : new[]{"Year","Month","Day"})
+    { <option value="@precision" selected="@(date.Item3.Precision==precision)">@(precision=="Unknown"?"Not recorded":precision=="Year"?"Year only":precision=="Month"?"Year and month":"Full date")</option> }
+   </select>
+   <div class="row g-2">
+    @foreach(var part in new[]{("Year",date.Item3.Year,1,9999),("Month",date.Item3.Month,1,12),("Day",date.Item3.Day,1,31)})
+    {
+     <div class="col" data-date-control><label class="form-label small" for="@(dateId)-@(part.Item1)">@part.Item1</label><input class="form-control" type="number" step="1" min="@part.Item3" max="@part.Item4" value="@part.Item2" id="@(dateId)-@(part.Item1)" name="DateFields.@(date.Item1).@(part.Item1)" data-date-part="@part.Item1"/></div>
+    }
+   </div>
+  </fieldset>
+ }
+ <div class="col-md-6"><label asp-for="Indication" class="form-label">Indication (optional)</label><input asp-for="Indication" class="form-control"/></div>
 </div><input asp-for="RowVersion" type="hidden"/>
+
+<script type="module" src="~/dist/patients/prescription-dates.js" asp-append-version="true"></script>

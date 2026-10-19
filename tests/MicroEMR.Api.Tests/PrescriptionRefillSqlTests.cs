@@ -225,6 +225,7 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
     public string LegacyJson { get; private set; } = "";
     public string LegacyRowVersion { get; private set; } = "";
     internal ITenantSqlConnectionFactory MedicationFactory => new Factory(Connection(primary));
+    internal ITenantSqlConnectionFactory PrescriptionFactory(bool other) => new Factory(Connection(other?secondary:primary));
     public PatientPrescriptionRepository Repository => new(new Factory(Connection(primary)));
     public PatientPrescriptionRepository OtherRepository => new(new Factory(Connection(secondary)));
     private string Connection(string database) => new SqlConnectionStringBuilder(master) { InitialCatalog = database }.ConnectionString;
@@ -274,6 +275,7 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
                 """);
             await Run(database, "UPDATE dbo.ApplicationUser SET AuthSubjectId=CONCAT(N'test-subject-',UserId),DisplayName=CONCAT(N'Test actor ',UserId);");
             await Migrate(database, "0074-prescription-print-signing.sql");
+            await Migrate(database, "0083-prescription-date-precision.sql");
         }
     }
 

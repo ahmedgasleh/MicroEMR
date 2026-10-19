@@ -24,6 +24,19 @@ namespace MicroEMR.Api.Tests;
 public sealed class EncounterChronologyTests
 {
     [Fact]
+    public async Task PartialPrescriptionDateIsQualifiedRatherThanAssignedAnInventedDay()
+    {
+        var f=new Fixture();f.Populate();
+        var prescription=f.Prescriptions[0];
+        prescription.PrescribedDate=null;
+        prescription.DateFields=new(){WrittenDate=new(){Precision="Month",Year=2030,Month=1}};
+        var response=(await f.Read())!;
+        Assert.DoesNotContain(response.Entries,x=>x.SourceType=="Prescription" && x.SourceUid==prescription.PrescriptionUid);
+        Assert.Contains(response.Qualifications,x=>x.Contains("2030-01") && x.Contains("no exact day"));
+        Assert.False(response.IsComplete);
+    }
+
+    [Fact]
     public async Task AllSupportedCategoriesHaveContentOrActualPrintableIdentityWithoutInferredEncounterLinks()
     {
         var f = new Fixture(); f.Populate();

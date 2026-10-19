@@ -57,7 +57,10 @@ public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName
 {
     public string Classification { get; init; } = "Unclassified";
 }
-public sealed record PatientCppPrescription(Guid PrescriptionUid, string DisplayName, DateOnly PrescribedDate, string Directions);
+public sealed record PatientCppPrescription(Guid PrescriptionUid, string DisplayName, DateOnly? PrescribedDate, string Directions)
+{
+    public string? PrescribedDateDisplay { get; init; }
+}
 public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly? AdministrationDate, string? SourceType)
 {
     public string AdministrationDisplay { get; init; } = AdministrationDate?.ToString("yyyy-MM-dd") ?? "Not recorded";

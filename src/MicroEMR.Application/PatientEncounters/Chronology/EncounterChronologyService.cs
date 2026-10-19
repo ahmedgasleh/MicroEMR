@@ -89,7 +89,12 @@ public sealed class EncounterChronologyService(IPatientRepository patients, IPat
         foreach (var prescription in (await prescriptions.ListAsync(patientUid, token)).DistinctBy(x => x.PrescriptionUid))
         {
             Owned(patientUid, prescription.PatientUid);
-            if (!Included(prescription.PrescribedDate)) continue;
+            if (prescription.PrescribedDate is not { } writtenDate)
+            {
+                qualifications.Add($"Prescription written date {prescription.PrescribedDateDisplay} has no exact day; view prescription history for this record. It cannot be placed in this exact-day chronology.");
+                continue;
+            }
+            if (!Included(writtenDate)) continue;
             string content; ChronologyAttachment? attachment = null; string? warning = null;
             if (prescription.Status != PrescriptionStatuses.Draft)
             {
@@ -111,7 +116,7 @@ public sealed class EncounterChronologyService(IPatientRepository patients, IPat
             else content = string.Join("\n", new[] { "Draft — not finalized", prescription.ProductDisplayText,
                 Text("Directions", prescription.Directions), Text("Route / frequency", prescription.Route + " / " + prescription.FrequencyDisplay),
                 Text("Quantity / repeats", $"{prescription.Quantity} {prescription.QuantityUnit} / {prescription.AuthorizedRepeats}"), Text("Indication", prescription.Indication) });
-            Add(new("Prescription", prescription.PrescriptionUid, prescription.PrescribedDate, null,
+            Add(new("Prescription", prescription.PrescriptionUid, writtenDate, null,
                 "Prescription history", prescription.Status, null, content, attachment, warning));
         }
 

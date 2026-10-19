@@ -80,9 +80,9 @@ public sealed class PrescriptionPrintTests(PrescriptionRefillSqlDatabase db) : I
         Assert.Equal("2026-10-17", json.RootElement.GetProperty("StartDate").GetString());
         await service.GenerateAsync(patient, signed.PrescriptionUid, Requester);
         var first = renderer.Last!;
-        Assert.Contains("Medication form</dt><dd>tablet", first.Body);
-        Assert.Contains("Strength</dt><dd>5.000000", first.Body);
-        Assert.Contains("Dose</dt><dd>1.000000", first.Body);
+        Assert.Contains("Medication form</th><td>tablet", first.Body);
+        Assert.Contains("Strength</th><td>5.000000", first.Body);
+        Assert.Contains("Dose</th><td>1.000000", first.Body);
         Assert.Contains("2026-10-17", first.Body);
         Assert.Contains("&lt;b&gt;mock packaging&lt;/b&gt;", first.Body);
         Assert.Contains("Mock clinic", first.Header);

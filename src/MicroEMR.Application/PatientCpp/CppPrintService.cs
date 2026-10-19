@@ -129,7 +129,9 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
                 if(item is PatientCppImmunizationPrint immunization &&
                     (immunization.Outcome=="Refused" && property.Name is "AdministrationDate" or "DIN" or "Manufacturer" or "DoseNumber" or "Route" or "Site" or "LotNumber" or "SourceType" or "AdministeredByName" ||
                      immunization.Outcome=="Administered" && property.Name=="RefusalDate")) continue;
-                var value = property.GetValue(item);
+                if(item is PatientCppPrescription && property.Name==nameof(PatientCppPrescription.PrescribedDateDisplay)) continue;
+                var value = item is PatientCppPrescription rx && property.Name==nameof(PatientCppPrescription.PrescribedDate)
+                    ? rx.PrescribedDateDisplay ?? property.GetValue(item) : property.GetValue(item);
                 var display = value switch
                 {
                     DateOnly date => date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture),

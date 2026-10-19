@@ -1,12 +1,17 @@
 # Step 114 - PC07.01 Chart Alert safeguards and CPP integration
 
-Date: 2026-10-18. Continues [Step 113](148-step113-pc07-01-remaining-cpp-gap-reconciliation.md), reusing Step 101 G7/G8 and retained DE13 mapping. **PC07.01 remains PARTIAL; inventory remains 10 mandatory IDs / three packages.** Automated evidence is separate from pending user visual acceptance and release/deployment qualification.
+Date: 2026-10-18. Continues [Step 113](148-step113-pc07-01-remaining-cpp-gap-reconciliation.md), reusing Step 101 G7/G8 and retained DE13 mapping. **PC07.01 remains PARTIAL; inventory remains 10 mandatory IDs / three packages.** Automated evidence is separate from user-reported visual acceptance and release/deployment qualification.
 
 ## 1. Actual Git checkpoint
 
 - Started on main, HEAD `c48a820be77318b8f8e1401a6e6d6cbda1522f7a`.
 - Initial tree: modified Step 112 report and untracked Step 113 report. Preserved exactly: Step 112 SHA256 `42C40F9A5C6910E62304205977EA885E5371040372749B88B8B568B3241056C7`; Step 113 SHA256 `667975A87CEA74702D29DDFCFAF1E6105D330634C40EEF1298AD7413A4E383D8`.
 - Created `feature/step-114-pc07-01-chart-alert-safeguards`. HEAD unchanged; no staging, commit or merge. Read AGENTS.md first. No specification extraction, external research, repository-wide scan or unrelated clinical implementation.
+
+### Visual acceptance closure checkpoint - 2026-10-19
+
+- Actual branch: `main`; HEAD: `6f381a8fa488bb167e12c33e5a88596a4e4ddf64`. The implementation checkpoint above is historical.
+- Initial working tree: modified `AGENTS.md` only; preserved without edits. This closure changes only this report. No commit or merge.
 
 ## 2. Existing meaning and bounded implementation
 
@@ -72,9 +77,19 @@ Existing shared CPP preference/full-source/denial/PDF fixtures were inspected an
 - TypeScript project `--noEmit` and targeted ES2020 module/JS-map emission: exit 0. No completed Family/Risk/Medication/History/Problems/Immunization/Allergy acceptance suites or visual checks rerun.
 - Final diff review restored baseline Unicode bytes on unaffected chart lines after detecting an editor encoding conversion. Only intended Alert chart hunks remain; generated module re-emitted from corrected TypeScript. Manifest uniqueness, unchanged historical SQL, preserved-report hashes and whitespace checked. Build/TRX artifacts are ignored local evidence.
 
-## 7. Essential human visual acceptance - PENDING
+## 7. Essential human visual acceptance - USER-REPORTED PASS
 
-No Step 114 user-reported PASS exists yet. Earlier Family/Risk/Medication/History/Problems/Immunization/Allergy evidence and Family M7/M8 deferrals are unchanged. No manual API/SQL, audit, permission, tenant or atomic-concurrency verification is requested; those guarantees are automated.
+Recorded 2026-10-19 from the user's report:
+
+| Visual acceptance | Result |
+|---|---|
+| V1 - Chart Alert editor, saved state and conflict feedback | USER-REPORTED PASS |
+| V2 - CPP Alert placement and preference visibility | USER-REPORTED PASS |
+| V3 - Selected-print appearance and unselected exclusion | USER-REPORTED PASS |
+
+Step 114 visual acceptance is closed on this user-reported basis. No tests, builds or visual checks were rerun for this documentation closure, and no migrations were run. Retained automated results: **53 .NET tests PASS; 11 frontend tests PASS (5 Alert + 6 preferences); print script PASS; TypeScript PASS; final build 0 warnings / 0 errors.** These remain the existing execution evidence in section 6.
+
+The user-reported visual outcomes do not establish application-tenant deployment or migration 0082 verification. The deployment qualification below remains unchanged. Earlier Family/Risk/Medication/History/Problems/Immunization/Allergy evidence and Family M7/M8 deferrals are unchanged. No manual API/SQL, audit, permission, tenant or atomic-concurrency verification is requested; those guarantees are automated. The retained visual checklist follows for traceability.
 
 **Deployment prerequisite:** apply 0082 with the matching API/Web before these checks. This task migrated disposable test stores only, not the application tenant. Rebuild the database tool so it has the current copied manifest (an old --no-build tool can incorrectly report current). For an authorized local-dev deployment, the existing runner command is `dotnet run --project src/MicroEMR.DatabaseTool -- tenant provision --tenant-key local-dev`. Use the intended tenant key; this is deployment, not a manual SQL check. No automatic application-tenant deployment is claimed.
 
@@ -115,7 +130,7 @@ PASS: readable, unclipped and escaped text, sensible note wrapping/page breaks/c
 - PC07.01 remains PARTIAL; inventory 10 mandatory IDs / three packages: prescribing PC04.01/.06/.07/.09/.14 (5), CPP PC07.01/.04/.07/.10 (4), scheduling PC09.03 (1). No SATISFIED - VERIFIED promotion.
 - Preserve accepted-release/source applicability (Baseline folder 5.5/document 1.7 versus CDS-S folder 5.2 DFU/workbook 2.1 Final), external OntarioMD/CPSO acceptance, controlled matching migration/deployment, target SQL-engine and deployed OIDC/session/role/tenant qualifications. Disposable fixture authentication is not deployed identity proof.
 - Preserve Medication DE09 source/date/identifier/clinical blockers, Immunization dose numeric/unit/pairing decisions, Allergy external recorded-date/ambiguous DIN decisions, Family M7/M8 deferrals and separate PC07.10 obligations. None implemented or reopened here.
-- **Recommended Step 115:** bounded Medication DE09 field-to-source/date/identifier and output requirement resolution, reusing Step 113's matrix; approve clinical/unknown/default/source decisions before any independent implementation. Record Step 114 visual outcomes when supplied; do not infer PASS or combine unrelated code changes.
+- **Recommended Step 115:** bounded Medication DE09 field-to-source/date/identifier and output requirement resolution, reusing Step 113's matrix; approve clinical/unknown/default/source decisions before any independent implementation. Step 114 V1-V3 visual outcomes are recorded above as USER-REPORTED PASS; no Step 115 work is performed in this closure.
 
 ## 9. Files changed
 
