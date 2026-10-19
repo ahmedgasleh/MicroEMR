@@ -86,7 +86,7 @@ public sealed class PrescriptionOutputService(IPatientPrescriptionRepository pre
             "Generated output; physical printing not confirmed. · Page <span class='pageNumber'></span> of <span class='totalPages'></span></div>";
         var body = "<!doctype html><html><head><meta charset='utf-8'><style>body{margin:0;font:11px/1.4 Arial;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{text-align:left;vertical-align:top;padding:3px 0}th{width:30%;padding-right:12px}td{white-space:pre-wrap}h1{font-size:18px;margin:0 0 12px}</style></head><body><h1>Prescription</h1><table>" +
             Pair("Prescription ID", "PrescriptionUid") + Pair("Prescribed date", "PrescribedDate") +
-            Pair("Medication", "ProductDisplayText") + Pair("Strength", "StrengthValue") + Pair("Strength unit", "StrengthUnit") +
+            Pair("Medication", "ProductDisplayText") + (x.TryGetProperty("GenericNameVersion",out _) ? Pair("Generic name", "GenericName") : "") + Pair("Strength", "StrengthValue") + Pair("Strength unit", "StrengthUnit") +
             Pair("Medication form", "MedicationForm") + Pair("Dose", "DoseAmount") + Pair("Dose unit", "DoseUnit") +
             Pair("Route", "Route") + Pair("Frequency", "FrequencyDisplay") + Pair("As needed (PRN)", "Prn") +
             Pair("Directions", "Directions") + Pair("Start date", "StartDate") +

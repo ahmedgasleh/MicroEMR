@@ -28,6 +28,8 @@ using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Application.PatientCpp;
 using MicroEMR.Application.PatientPrescriptions;
 using MicroEMR.Application.SecurityAudit;
+using MicroEMR.Application.ReadAudit;
+using MicroEMR.Infrastructure.ReadAudit;
 using MicroEMR.Application.Tenancy;
 using MicroEMR.Infrastructure.ClinicalUsers;
 using MicroEMR.Infrastructure.PatientPrescriptions;
@@ -257,7 +259,7 @@ public sealed class PrescriptionDateDatabase:IAsyncLifetime
             await using var c=await Stores.PrescriptionFactory(other).OpenConnectionAsync();connections[other]=c.ConnectionString;
             await using var setup=new SqlCommand("ALTER TABLE dbo.ApplicationUser ADD UserUid uniqueidentifier NOT NULL DEFAULT NEWID(),Username nvarchar(100) NOT NULL DEFAULT N'fixture'; CREATE TABLE dbo.TenantDatabaseIdentity(TenantUid uniqueidentifier NOT NULL); INSERT dbo.TenantDatabaseIdentity VALUES(@Tenant); INSERT dbo.ApplicationUser(UserId,IsActive,AuthSubjectId) VALUES(9,0,N'test-subject-9');",c);
             setup.Parameters.AddWithValue("@Tenant",tenants[other]);await setup.ExecuteNonQueryAsync();
-            var sql=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0018-clinical-user-auth-subject.sql"));
+            var sql=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0018-clinical-user-auth-subject.sql"))+"\nGO\n"+File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0043-patient-chart-read-audit.sql"));
             foreach(var batch in Regex.Split(sql,@"^\s*GO\s*$",RegexOptions.Multiline|RegexOptions.IgnoreCase))if(!string.IsNullOrWhiteSpace(batch)){await using var cmd=new SqlCommand(batch,c);await cmd.ExecuteNonQueryAsync();}
         }
     }
@@ -279,6 +281,7 @@ internal sealed class PrescriptionDateHost(WebApplication app):IAsyncDisposable
         builder.Services.AddSingleton<IAuthorizationPolicyProvider,PermissionPolicyProvider>();builder.Services.AddScoped<IAuthorizationHandler,PermissionAuthorizationHandler>();builder.Services.AddScoped<ICurrentUserPermissionService,Permissions>();
         builder.Services.AddScoped<ITenantSqlConnectionFactory>(_=>db.Factory(other));builder.Services.AddScoped<IPatientPrescriptionRepository,PatientPrescriptionRepository>();builder.Services.AddScoped<IPrescriptionOutputRepository,PatientPrescriptionRepository>();
         builder.Services.AddScoped<IPdfRenderer,PrescriptionDatePrecisionTests.Capture>();builder.Services.AddScoped<IPrescriptionPdfRenderer,PrescriptionDatePrecisionTests.Capture>();builder.Services.AddSingleton(TimeProvider.System);builder.Services.AddScoped<IPatientPrescriptionService,PatientPrescriptionService>();builder.Services.AddScoped<PrescriptionOutputService>();
+        builder.Services.AddScoped<IPatientChartReadAuditService,PatientChartReadAuditService>();builder.Services.AddScoped<IReadAuditRepository,ReadAuditRepository>();
         builder.Services.AddScoped<IClinicalUserRepository,ClinicalUserRepository>();builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor,AuthenticatedClinicalUserAccessor>();
         builder.Services.AddScoped<ITenantContextAccessor>(_=>{var accessor=new TenantContextAccessor();accessor.SetTenant(db.Tenant(other));return accessor;});
         var audit=DispatchProxy.Create<IPlatformSecurityAuditRepository,CppSelectivePrintTests.Proxy>();((CppSelectivePrintTests.Proxy)(object)audit).Call=(_,_)=>throw new InvalidOperationException("Unexpected platform audit");builder.Services.AddSingleton(audit);
@@ -289,11 +292,11 @@ internal sealed class PrescriptionDateHost(WebApplication app):IAsyncDisposable
     public async ValueTask DisposeAsync(){await app.StopAsync();await app.DisposeAsync();}
     private sealed class Authentication(IOptionsMonitor<AuthenticationSchemeOptions> options,ILoggerFactory logger,UrlEncoder encoder):AuthenticationHandler<AuthenticationSchemeOptions>(options,logger,encoder)
     {
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync(){var name=Request.Headers.Authorization.ToString().Replace("Bearer ","");if(name is not("writer" or "reader" or "inactive"))return Task.FromResult(AuthenticateResult.NoResult());var subject=name=="inactive"?"test-subject-9":"test-subject-7";return Task.FromResult(AuthenticateResult.Success(new(new ClaimsPrincipal(new ClaimsIdentity([new("sub",subject),new("write",(name!="reader").ToString())],Scheme.Name)),Scheme.Name)));}
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync(){var name=Request.Headers.Authorization.ToString().Replace("Bearer ","");if(name is not("writer" or "reader" or "inactive" or "unresolved" or "no-view"))return Task.FromResult(AuthenticateResult.NoResult());var subject=name=="inactive"?"test-subject-9":name=="unresolved"?"test-subject-missing":"test-subject-7";return Task.FromResult(AuthenticateResult.Success(new(new ClaimsPrincipal(new ClaimsIdentity([new("sub",subject),new("write",(name!="reader").ToString()),new("view",(name!="no-view").ToString())],Scheme.Name)),Scheme.Name)));}
     }
     private sealed class Permissions(IHttpContextAccessor context):ICurrentUserPermissionService
     {
-        public Task<IReadOnlySet<string>> GetEffectivePermissionsAsync(CancellationToken token=default){var keys=new HashSet<string>{PermissionKeys.PatientsView};if(context.HttpContext!.User.FindFirst("write")?.Value=="True")keys.Add(PermissionKeys.PrescriptionsPrescribe);return Task.FromResult<IReadOnlySet<string>>(keys);}
+        public Task<IReadOnlySet<string>> GetEffectivePermissionsAsync(CancellationToken token=default){var keys=new HashSet<string>();if(context.HttpContext!.User.FindFirst("view")?.Value=="True")keys.Add(PermissionKeys.PatientsView);if(context.HttpContext!.User.FindFirst("write")?.Value=="True")keys.Add(PermissionKeys.PrescriptionsPrescribe);return Task.FromResult<IReadOnlySet<string>>(keys);}
         public async Task<bool> HasPermissionAsync(string permission,CancellationToken token=default)=>(await GetEffectivePermissionsAsync(token)).Contains(permission);
     }
 }

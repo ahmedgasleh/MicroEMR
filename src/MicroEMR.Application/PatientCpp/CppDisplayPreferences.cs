@@ -13,7 +13,7 @@ public static class CppDisplayCatalog
         Category("Problems", "Active Problems", ("DisplayName", "Problem"), ("OnsetDate", "Onset date"), ("LifeStage", "Life stage"), ("AdditionalCount", "Additional record count")),
         Category("Allergies", "Active Allergies", ("DisplayName", "Allergen"), ("Reaction", "Reaction"), ("Severity", "Severity"), ("OnsetDate", "Onset date"), ("LifeStage", "Life stage")),
         Category("Medications", "Medications (ongoing by default)", ("DisplayName", "Medication"), ("Strength", "Strength"), ("Frequency", "Frequency"), ("Route", "Route")),
-        Category("Prescriptions", "Current Prescriptions", ("DisplayName", "Prescription"), ("PrescribedDate", "Prescribed date"), ("Directions", "Directions")),
+        Category("Prescriptions", "Current Prescriptions", ("DisplayName", "Prescription"), ("PrescribedDate", "Prescribed date"), ("Directions", "Directions"), ("GenericName", "Generic name")),
         Category("Results", "Recent Results", ("Name", "Result name"), ("Abnormality", "Recorded abnormality"), ("ResultDate", "Result date"), ("ReviewStatus", "Review status"), ("Provenance", "Provenance")),
         Category("Vitals", "Latest Vitals", ("RecordedAt", "Recorded date/time"), ("BloodPressure", "Blood pressure"), ("HeartRate", "Heart rate"), ("WeightBmi", "Weight / BMI"), ("OxygenSaturation", "SpO2")),
         Category("Immunizations", "Recent Immunizations", ("VaccineName", "Vaccine"), ("AdministrationDate", "Administration date"), ("SourceType", "Source"), ("DIN", "DIN"), ("Manufacturer", "Manufacturer"), ("ImmunizationType", "Immunization type")),

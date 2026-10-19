@@ -14,6 +14,19 @@ namespace MicroEMR.Api.Tests;
 public sealed class CppDisplayPreferencesTests
 {
     [Fact]
+    public async Task PrescriptionGenericNamePreferencePreservesOldKeysAndCanHideAndRestore()
+    {
+        var store=new Store();var service=Service(store,7);
+        var previous=await service.SaveAsync(new(){HiddenFields=["Prescriptions.PrescribedDate"],HiddenCategories=["Documents"]});
+        var initial=await Service(store,7).GetAsync();Assert.Equal(previous.HiddenFields,initial.HiddenFields);
+        var keys=Assert.Single(CppDisplayCatalog.Categories,x=>x.Key=="Prescriptions").Fields.Select(x=>x.Key);
+        Assert.Equal(new[]{"Prescriptions.DisplayName","Prescriptions.PrescribedDate","Prescriptions.Directions","Prescriptions.GenericName"},keys);
+        var hidden=await service.SaveAsync(new(){HiddenFields=["Prescriptions.PrescribedDate","Prescriptions.GenericName"],HiddenCategories=["Documents"],RowVersion=previous.RowVersion});
+        Assert.Equal(hidden.HiddenFields,(await Service(store,7).GetAsync()).HiddenFields);
+        var restored=await service.SaveAsync(new(){HiddenFields=["Prescriptions.PrescribedDate"],HiddenCategories=["Documents"],RowVersion=hidden.RowVersion});
+        Assert.DoesNotContain("Prescriptions.GenericName",restored.HiddenFields);Assert.Contains("Prescriptions.PrescribedDate",restored.HiddenFields);Assert.Contains("Documents",restored.HiddenCategories);
+    }
+    [Fact]
     public async Task AlertKeysPreserveExistingOverridesDefaultVisibleAndPersistAcrossSessions()
     {
         var store=new Store();var service=Service(store,7);

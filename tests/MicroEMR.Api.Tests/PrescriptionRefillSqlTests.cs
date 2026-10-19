@@ -224,6 +224,10 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
     public Guid LegacyPrescription { get; private set; }
     public string LegacyJson { get; private set; } = "";
     public string LegacyRowVersion { get; private set; } = "";
+    internal Guid PriorSignedPatient { get; } = Guid.NewGuid();
+    internal Guid PriorSignedPrescription { get; private set; }
+    internal string PriorSignedJson { get; private set; } = "";
+    internal string PriorSignedRowVersion { get; private set; } = "";
     internal ITenantSqlConnectionFactory MedicationFactory => new Factory(Connection(primary));
     internal ITenantSqlConnectionFactory PrescriptionFactory(bool other) => new Factory(Connection(other?secondary:primary));
     public PatientPrescriptionRepository Repository => new(new Factory(Connection(primary)));
@@ -275,7 +279,23 @@ public sealed class PrescriptionRefillSqlDatabase : IAsyncLifetime
                 """);
             await Run(database, "UPDATE dbo.ApplicationUser SET AuthSubjectId=CONCAT(N'test-subject-',UserId),DisplayName=CONCAT(N'Test actor ',UserId);");
             await Migrate(database, "0074-prescription-print-signing.sql");
+            if(database==primary)
+            {
+                await SeedPatient(PriorSignedPatient);
+                await Run(primary,"""
+                    EXEC dbo.PatientPrescription_CreateDraft @PatientUid=@Uid,@ProductName=N'TEST ONLY old signed',@ProductDisplayText=N'TEST ONLY old signed tablet',
+                        @Route=N'Oral',@FrequencyCode=N'ONCE_DAILY',@FrequencyDisplay=N'Once daily',@Prn=0,@Directions=N'TEST ONLY historical',
+                        @Quantity=1,@QuantityUnit=N'tablet',@AuthorizedRepeats=0,@PrescribedDate='2020-02-29',@ActorUserId=7;
+                    DECLARE @Prescription uniqueidentifier,@Version binary(8);
+                    SELECT @Prescription=PrescriptionUid,@Version=RowVersion FROM dbo.PatientPrescription WHERE PatientUid=@Uid;
+                    EXEC dbo.PatientPrescription_SignAndFinalize @PatientUid=@Uid,@PrescriptionUid=@Prescription,@ActorUserId=7,@RowVersion=@Version,@ConfirmSignature=1;
+                    """,PriorSignedPatient);
+                PriorSignedPrescription=await Scalar<Guid>("SELECT PrescriptionUid FROM dbo.PatientPrescription WHERE PatientUid=@Uid",PriorSignedPatient);
+                PriorSignedJson=await Scalar<string>("SELECT ArtifactJson FROM dbo.PatientPrescriptionArtifact WHERE PatientUid=@Uid",PriorSignedPatient);
+                PriorSignedRowVersion=Convert.ToBase64String(await Scalar<byte[]>("SELECT RowVersion FROM dbo.PatientPrescription WHERE PatientUid=@Uid",PriorSignedPatient));
+            }
             await Migrate(database, "0083-prescription-date-precision.sql");
+            await Migrate(database, "0084-prescription-generic-name.sql");
         }
     }
 

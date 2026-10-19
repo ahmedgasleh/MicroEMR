@@ -1,3 +1,8 @@
+export function loadGenericName(form, draft) {
+    const input = form.querySelector('[name="GenericName"]');
+    if (input)
+        input.value = draft.genericName ?? "";
+}
 export function legacyDate(value) {
     if (!value)
         return { precision: "Unknown" };
@@ -35,5 +40,10 @@ document.addEventListener("change", event => {
         applyPrecision(group);
 });
 document.addEventListener("reset", event => queueMicrotask(() => event.target.querySelectorAll("[data-prescription-date]").forEach(applyPrecision)));
-document.addEventListener("prescription-dates-loaded", event => loadDates(event.target, event.detail));
+document.addEventListener("prescription-dates-loaded", event => {
+    const form = event.target;
+    const draft = event.detail;
+    loadDates(form, draft);
+    loadGenericName(form, draft);
+});
 //# sourceMappingURL=prescription-dates.js.map

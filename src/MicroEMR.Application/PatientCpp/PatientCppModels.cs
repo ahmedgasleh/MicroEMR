@@ -60,6 +60,7 @@ public sealed record PatientCppMedication(Guid MedicationUid, string DisplayName
 public sealed record PatientCppPrescription(Guid PrescriptionUid, string DisplayName, DateOnly? PrescribedDate, string Directions)
 {
     public string? PrescribedDateDisplay { get; init; }
+    public string? GenericName { get; init; }
 }
 public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly? AdministrationDate, string? SourceType)
 {

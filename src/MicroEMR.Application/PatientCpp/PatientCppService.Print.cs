@@ -21,6 +21,12 @@ public sealed partial class PatientCppService
         var patient = await patients.GetByUidAsync(patientUid, token);
         if (patient is null) return null;
         if (patient.PatientUid != patientUid) throw new UnauthorizedAccessException("Patient context is unavailable.");
+        PatientCppSection<PatientCppPrescription>? prescriptionSection = null;
+        if (categories.Contains("Prescriptions"))
+        {
+            prescriptionSection = await LoadPrescriptions(patientUid,correlation,token,true);
+            if (prescriptionSection.State == PatientCppSectionStates.Unavailable) throw new CppPrintUnavailableException("Prescription information is unavailable.");
+        }
         await readAudit.RecordOpenedAsync(patientUid, correlation, token);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var age = today.Year - patient.DateOfBirth.Year;
@@ -70,7 +76,7 @@ public sealed partial class PatientCppService
                 "RiskFactors" => data with { RiskFactors = await LoadRiskFactors(patientUid,correlation,token,true) },
                 "FamilyHistory" => data with { FamilyHistory = await LoadFamilyHistory(patientUid,correlation,token,true) },
                 "Medications" => data with { Medications = await LoadMedications(patientUid,correlation,token,true,medicationScope) },
-                "Prescriptions" => data with { Prescriptions = await LoadPrescriptions(patientUid,correlation,token,true) },
+                "Prescriptions" => data with { Prescriptions = prescriptionSection! },
                 "Results" => data with { Results = await LoadResults(patientUid,correlation,token,true) },
                 "Vitals" => data with { Vitals = await LoadVitals(patientUid,correlation,token,true) },
                 "Encounters" => data with { Encounters = await LoadEncounters(patientUid,correlation,token,true) },

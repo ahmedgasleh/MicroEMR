@@ -5,9 +5,10 @@
  <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
 }
 <div class="row g-3">
+ <div class="col-md-6"><label asp-for="GenericName" class="form-label">Generic Name (optional)</label><input asp-for="GenericName" class="form-control" maxlength="300" aria-describedby="generic-name-help"/><div id="generic-name-help" class="form-text">Record the generic name separately from the product/brand name. Leave blank if unknown.</div><span asp-validation-for="GenericName" class="text-danger"></span></div>
  <div class="col-md-6"><label asp-for="MedicationForm" class="form-label">Medication form (optional)</label><input asp-for="MedicationForm" class="form-control" maxlength="100"/><span asp-validation-for="MedicationForm" class="text-danger"></span></div>
  <div class="col-12"><label asp-for="NotesToPharmacist" class="form-label">Notes to pharmacist (optional)</label><textarea asp-for="NotesToPharmacist" class="form-control" maxlength="1000" rows="3"></textarea><span asp-validation-for="NotesToPharmacist" class="text-danger"></span></div>
- <div class="col-md-6"><label asp-for="ProductName" class="form-label"></label><input asp-for="ProductName" class="form-control"/><span asp-validation-for="ProductName" class="text-danger"></span></div>
+ <div class="col-md-6"><label asp-for="ProductName" class="form-label">Product/Brand Name</label><input asp-for="ProductName" class="form-control"/><span asp-validation-for="ProductName" class="text-danger"></span></div>
  <div class="col-md-6"><label asp-for="ProductDisplayText" class="form-label">Product display</label><input asp-for="ProductDisplayText" class="form-control"/></div>
  <div class="col-md-6"><label asp-for="ProductIdentifierNamespace" class="form-label">Identifier namespace (optional)</label><input asp-for="ProductIdentifierNamespace" class="form-control"/></div><div class="col-md-6"><label asp-for="ProductIdentifierValue" class="form-label">Identifier value (optional)</label><input asp-for="ProductIdentifierValue" class="form-control"/></div>
  <div class="col-md-3"><label asp-for="StrengthValue" class="form-label">Strength</label><input asp-for="StrengthValue" class="form-control"/></div><div class="col-md-3"><label asp-for="StrengthUnit" class="form-label">Strength unit</label><input asp-for="StrengthUnit" class="form-control"/></div>

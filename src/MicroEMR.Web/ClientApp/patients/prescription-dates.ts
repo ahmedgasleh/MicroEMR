@@ -1,5 +1,10 @@
 type DateValue = { precision: string; year?: number | null; month?: number | null; day?: number | null };
-type DraftDates = { dateFields?: { writtenDate?: DateValue; startDate?: DateValue }; prescribedDate?: string; startDate?: string };
+type DraftDates = { dateFields?: { writtenDate?: DateValue; startDate?: DateValue }; prescribedDate?: string; startDate?: string; genericName?: string | null };
+
+export function loadGenericName(form: HTMLFormElement, draft: DraftDates): void {
+    const input = form.querySelector<HTMLInputElement>('[name="GenericName"]');
+    if (input) input.value = draft.genericName ?? "";
+}
 
 export function legacyDate(value?: string): DateValue {
     if (!value) return { precision: "Unknown" };
@@ -38,4 +43,9 @@ document.addEventListener("change", event => {
     if (group && target.tagName === "SELECT") applyPrecision(group);
 });
 document.addEventListener("reset", event => queueMicrotask(() => (event.target as HTMLFormElement).querySelectorAll<HTMLElement>("[data-prescription-date]").forEach(applyPrecision)));
-document.addEventListener("prescription-dates-loaded", event => loadDates(event.target as HTMLFormElement, (event as CustomEvent<DraftDates>).detail));
+document.addEventListener("prescription-dates-loaded", event => {
+    const form = event.target as HTMLFormElement;
+    const draft = (event as CustomEvent<DraftDates>).detail;
+    loadDates(form, draft);
+    loadGenericName(form, draft);
+});

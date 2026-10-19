@@ -62,6 +62,10 @@ public sealed partial class PatientCppService(
         var patient = await patients.GetByUidAsync(patientUid, cancellationToken);
         if (patient is null) return null;
 
+        if (patient.PatientUid != patientUid) throw new UnauthorizedAccessException("Patient context is unavailable.");
+        // Validate the affected source before recording a successful chart read.
+        var prescriptionSection = await LoadPrescriptions(patientUid, requestCorrelationId, cancellationToken);
+        if (prescriptionSection.State == PatientCppSectionStates.Unavailable) throw new InvalidOperationException("Prescription information is unavailable.");
         // This is the single fail-closed read-audit boundary for a normal chart + CPP load.
         await readAudit.RecordOpenedAsync(patientUid, requestCorrelationId, cancellationToken);
 
@@ -72,7 +76,7 @@ public sealed partial class PatientCppService(
         var problemTask = LoadProblems(patientUid, requestCorrelationId, cancellationToken);
         var allergyTask = LoadAllergies(patientUid, requestCorrelationId, cancellationToken);
         var medicationTask = LoadMedications(patientUid, requestCorrelationId, cancellationToken);
-        var prescriptionTask = LoadPrescriptions(patientUid, requestCorrelationId, cancellationToken);
+        var prescriptionTask = Task.FromResult(prescriptionSection);
         var immunizationTask = LoadImmunizations(patientUid, requestCorrelationId, cancellationToken);
         var vitalTask = LoadVitals(patientUid, requestCorrelationId, cancellationToken);
         var resultTask = Authorized(effective, PermissionKeys.ResultsView)
@@ -169,11 +173,11 @@ public sealed partial class PatientCppService(
     private async Task<PatientCppSection<PatientCppPrescription>> LoadPrescriptions(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
         await Load("Prescriptions", trace, async () =>
         {
-            var rows = (await prescriptions.ListAsync(patientUid, token))
-                .Where(x => string.Equals(x.Status, PrescriptionStatuses.Finalized, StringComparison.Ordinal)).ToArray();
-            if (full) EnsureOwned(rows, patientUid);
+            var source = await prescriptions.ListAsync(patientUid, token);
+            EnsureOwned(source, patientUid);
+            var rows = source.Where(x => string.Equals(x.Status, PrescriptionStatuses.Finalized, StringComparison.Ordinal)).ToArray();
             return PatientCppSection<PatientCppPrescription>.From(rows.OrderByDescending(x => x.PrescribedDate)
-                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions) { PrescribedDateDisplay=x.PrescribedDateDisplay }).ToArray(), rows.Length);
+                .Take(full ? int.MaxValue : ClinicalLimit).Select(x => new PatientCppPrescription(x.PrescriptionUid, x.ProductDisplayText, x.PrescribedDate, x.Directions) { PrescribedDateDisplay=x.PrescribedDateDisplay, GenericName=x.GenericName }).ToArray(), rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppImmunization>> LoadImmunizations(Guid patientUid, string trace, CancellationToken token, bool full = false, Action<IReadOnlyList<PatientImmunizationResponse>>? capture = null) =>
