@@ -5,9 +5,9 @@ using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Infrastructure.Tenancy;
 
-public sealed class SqlTenantRoleManagementRepository(IConfiguration configuration) : ITenantRoleManagementRepository
+public sealed class SqlTenantRoleManagementRepository(IAdministrativePlatformConnectionStringProvider administrative) : ITenantRoleManagementRepository
 {
-    private readonly string _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration);
+    private string _connectionString => administrative.GetConnectionString();
 
     public async Task<TenantRoleUpdateResult> ReplaceRolesAsync(string authUserId, Guid tenantUid,
         IReadOnlyCollection<string> roles, string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default)

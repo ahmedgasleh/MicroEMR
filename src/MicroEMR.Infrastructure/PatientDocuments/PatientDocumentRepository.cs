@@ -14,13 +14,16 @@ public sealed partial class PatientDocumentRepository
     : IPatientDocumentRepository
 {
     private readonly ITenantSqlConnectionFactory _connectionFactory;
+    private readonly IAdministrativeTenantSqlConnectionFactory _administrative;
     private readonly ILogger<PatientDocumentRepository> _logger;
 
     public PatientDocumentRepository(
         ITenantSqlConnectionFactory connectionFactory,
+        IAdministrativeTenantSqlConnectionFactory administrative,
         ILogger<PatientDocumentRepository> logger)
     {
         _connectionFactory = connectionFactory;
+        _administrative = administrative;
 
         _logger = logger;
     }
@@ -334,7 +337,7 @@ public sealed partial class PatientDocumentRepository
         string procedure, Guid? templateUid, string? name, string? type, string? content,
         bool? isActive, long? userId, CancellationToken cancellationToken)
     {
-        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var connection = await _administrative.OpenConnectionAsync(cancellationToken);
         await using var command = new SqlCommand(procedure, connection) { CommandType = CommandType.StoredProcedure };
         if (templateUid.HasValue) command.Parameters.Add(new SqlParameter("@TemplateUid", SqlDbType.UniqueIdentifier) { Value = templateUid.Value });
         if (name is not null) AddRequiredString(command, "@TemplateName", SqlDbType.NVarChar, 200, name);

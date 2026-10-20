@@ -15,6 +15,10 @@ var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .AddUserSecrets(userSecretsId: "MicroEMR.Auth-local-development")
     .AddUserSecrets<Program>()
+    // Operator-only overrides; keep deployment credentials out of the API secret store.
+    // Existing local configuration remains compatible until a separately approved cutover.
+    .AddUserSecrets(userSecretsId: "MicroEMR.DatabaseTool-local-development")
+    .AddEnvironmentVariables()
     .AddInMemoryCollection(new Dictionary<string, string?> { ["TenantProvisioning:SqlAssetsPath"] = Path.Combine(AppContext.BaseDirectory, "database") }).Build();
 
 if (!configuration.GetValue<bool>("PlatformAdministration:Enabled"))

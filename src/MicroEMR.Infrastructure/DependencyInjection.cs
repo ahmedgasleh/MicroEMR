@@ -72,6 +72,7 @@ public static class DependencyInjection
     public static IServiceCollection AddMicroEmrPlatformInfrastructure(
         this IServiceCollection services)
     {
+        services.AddScoped<IAdministrativePlatformConnectionStringProvider, AdministrativePlatformConnectionStringProvider>();
         services.AddScoped<ITenantCatalog, SqlTenantCatalog>();
         services.AddScoped<ITenantDatabaseResolver, SqlTenantDatabaseResolver>();
         services.AddScoped<
@@ -95,6 +96,8 @@ public static class DependencyInjection
         this IServiceCollection services)
     {
         services.AddScoped<ITenantSqlConnectionFactory, TenantSqlConnectionFactory>();
+        services.AddScoped<IAdministrativeTenantSqlConnectionFactory, AdministrativeTenantSqlConnectionFactory>();
+        services.AddScoped<ITenantDatabaseSecretProvider, ConfigurationTenantDatabaseSecretProvider>();
         services.AddScoped<ICppDisplayPreferencesRepository, CppDisplayPreferencesRepository>();
         services.AddSingleton<PlaywrightPdfRenderer>();
         services.AddSingleton<IPdfRenderer>(sp => sp.GetRequiredService<PlaywrightPdfRenderer>());
@@ -145,7 +148,6 @@ public static class DependencyInjection
             services.AddScoped<ISchedulingAppointmentRepository, SchedulingAppointmentRepository>();
             services.AddScoped<IAppointmentStatusReportRepository, AppointmentStatusReportRepository>();
             services.AddMicroEmrPlatformInfrastructure();
-            services.AddMicroEmrTenantProvisioning();
 
             return services;
         }
@@ -153,6 +155,8 @@ public static class DependencyInjection
     public static IServiceCollection AddMicroEmrTenantProvisioning(
         this IServiceCollection services)
     {
+        services.AddScoped<IAdministrativePlatformConnectionStringProvider, DeploymentPlatformConnectionStringProvider>();
+        services.AddScoped<IAdministrativeTenantSqlConnectionFactory, DeploymentTenantSqlConnectionFactory>();
         services.AddScoped<ITenantDatabaseSecretProvider, ConfigurationTenantDatabaseSecretProvider>();
         services.AddScoped<ITenantDatabaseMigrationSource, FileTenantDatabaseMigrationSource>();
         services.AddScoped<ITenantProvisioningStatusRepository, SqlTenantProvisioningStatusRepository>();

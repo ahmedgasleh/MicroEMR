@@ -6,10 +6,10 @@ using MicroEMR.Infrastructure.Tenancy;
 
 namespace MicroEMR.Infrastructure.SecurityAudit;
 
-public sealed class SqlPlatformSecurityAuditReviewRepository(IConfiguration configuration)
+public sealed class SqlPlatformSecurityAuditReviewRepository(IAdministrativePlatformConnectionStringProvider administrative)
     : IPlatformSecurityAuditReviewRepository
 {
-    private readonly string _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration);
+    private string _connectionString => administrative.GetConnectionString();
 
     public async Task<IReadOnlyList<SecurityAuditListItem>> SearchAsync(
         SecurityAuditSearchCriteria criteria, CancellationToken cancellationToken = default)

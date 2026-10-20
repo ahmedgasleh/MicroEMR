@@ -5,7 +5,7 @@ using MicroEMR.Infrastructure.Tenancy;
 
 namespace MicroEMR.Infrastructure.ClinicalDataMigration;
 
-public sealed class ClinicalDataMigrationRepository(ITenantSqlConnectionFactory connections) : IClinicalDataMigrationRepository,IClinicalDataMigrationImportRepository
+public sealed class ClinicalDataMigrationRepository(IAdministrativeTenantSqlConnectionFactory connections) : IClinicalDataMigrationRepository,IClinicalDataMigrationImportRepository
 {
     public async Task<ClinicalMigrationBatchStart> BeginValidationAsync(ClinicalMigrationPackageV1 package,string fingerprint,long actor,CancellationToken token=default)
     {

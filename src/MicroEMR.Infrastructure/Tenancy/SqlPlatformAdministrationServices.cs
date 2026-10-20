@@ -140,8 +140,9 @@ public sealed class SqlPlatformMembershipAdministrationService : IPlatformMember
     private readonly string _connectionString;
     private readonly string _actor;
     private readonly IIdentityUserLookup _users;
-    public SqlPlatformMembershipAdministrationService(IConfiguration configuration, IIdentityUserLookup users)
-    { _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration); _actor = configuration["PlatformAdministration:ActorId"]?.Trim() ?? "local-cli"; _users = users; }
+    private readonly IAdministrativePlatformConnectionStringProvider _administrative;
+    public SqlPlatformMembershipAdministrationService(IConfiguration configuration, IIdentityUserLookup users, IAdministrativePlatformConnectionStringProvider administrative)
+    { _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration); _actor = configuration["PlatformAdministration:ActorId"]?.Trim() ?? "local-cli"; _users = users; _administrative = administrative; }
 
     public Task<IReadOnlyList<PlatformMembershipInfo>> GetMembershipsAsync(string userId, CancellationToken cancellationToken = default) => QueryAsync("dbo.PlatformMembership_ListByUser", "@UserId", RequireUser(userId), cancellationToken);
     public Task<IReadOnlyList<PlatformMembershipInfo>> GetTenantMembershipsAsync(Guid tenantUid, CancellationToken cancellationToken = default) => QueryAsync("dbo.PlatformMembership_ListByTenant", "@TenantUid", tenantUid, cancellationToken);
@@ -165,13 +166,13 @@ public sealed class SqlPlatformMembershipAdministrationService : IPlatformMember
     private static string NormalizeStatus(string value) => value.Trim().ToLowerInvariant() switch { "active" => "Active", "suspended" => "Suspended", "revoked" => "Revoked", _ => throw new ArgumentException("Membership status must be Active, Suspended, or Revoked.") };
     private async Task ExecuteAsync(string procedure, CancellationToken cancellationToken, params (string, object)[] parameters)
     {
-        try { await using var c = new SqlConnection(_connectionString); await using var cmd = new SqlCommand(procedure, c) { CommandType = CommandType.StoredProcedure }; foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Item1, p.Item2); await c.OpenAsync(cancellationToken); await cmd.ExecuteNonQueryAsync(cancellationToken); }
+        try { await using var c = new SqlConnection(_administrative.GetConnectionString()); await using var cmd = new SqlCommand(procedure, c) { CommandType = CommandType.StoredProcedure }; foreach (var p in parameters) cmd.Parameters.AddWithValue(p.Item1, p.Item2); await c.OpenAsync(cancellationToken); await cmd.ExecuteNonQueryAsync(cancellationToken); }
         catch (SqlException ex) { throw new InvalidOperationException(ex.Number switch { 51301 => "The user already has a membership in this tenant.", 51302 => "The tenant is not active.", 51303 => "The membership was not found.", _ => "The membership administration operation could not be completed." }, ex); }
     }
     private async Task<IReadOnlyList<PlatformMembershipInfo>> QueryAsync(string procedure, string name, object value, CancellationToken token)
     {
         var builders = new Dictionary<(string, Guid), (string Key, string Name, string Status, bool Default, List<string> Roles, DateTimeOffset? UpdatedAt, string? RowVersion)>();
-        await using var c = new SqlConnection(_connectionString); await using var cmd = new SqlCommand(procedure, c) { CommandType = CommandType.StoredProcedure }; cmd.Parameters.AddWithValue(name, value); await c.OpenAsync(token); await using var r = await cmd.ExecuteReaderAsync(token);
+        await using var c = new SqlConnection(procedure == "dbo.PlatformMembership_ListByUser" ? _connectionString : _administrative.GetConnectionString()); await using var cmd = new SqlCommand(procedure, c) { CommandType = CommandType.StoredProcedure }; cmd.Parameters.AddWithValue(name, value); await c.OpenAsync(token); await using var r = await cmd.ExecuteReaderAsync(token);
         while (await r.ReadAsync(token))
         {
             var k = (r.GetString(0), r.GetGuid(1));

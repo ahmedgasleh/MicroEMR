@@ -84,9 +84,10 @@ public sealed class TenantUserAdministrationService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var role = NormalizeRole(request.InitialRole);
+        // Resolve the administrative Platform path before potentially creating an Auth identity.
+        var existing = await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid, cancellationToken);
         var identity = await identityAdministration.ResolveOrCreateAsync(
             new(request.FirstName, request.LastName, request.Email, request.TemporaryPassword), cancellationToken);
-        var existing = await memberships.GetTenantMembershipsAsync(tenantContext.TenantUid, cancellationToken);
         if (existing.Any(x => string.Equals(x.UserId, identity.Profile.UserId, StringComparison.Ordinal)))
             throw new TenantMembershipAlreadyExistsException("This user already belongs to this clinic.");
 

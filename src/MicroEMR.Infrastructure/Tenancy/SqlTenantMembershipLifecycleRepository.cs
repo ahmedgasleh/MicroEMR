@@ -5,10 +5,10 @@ using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Infrastructure.Tenancy;
 
-public sealed class SqlTenantMembershipLifecycleRepository(IConfiguration configuration)
+public sealed class SqlTenantMembershipLifecycleRepository(IAdministrativePlatformConnectionStringProvider administrative)
     : ITenantMembershipLifecycleRepository
 {
-    private readonly string _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration);
+    private string _connectionString => administrative.GetConnectionString();
 
     public Task<TenantMembershipLifecycleResult> DeactivateAsync(string authUserId, Guid tenantUid,
         string rowVersion, string actorAuthUserId, CancellationToken cancellationToken = default) =>

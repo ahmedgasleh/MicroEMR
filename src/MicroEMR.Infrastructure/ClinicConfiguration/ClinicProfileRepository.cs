@@ -8,6 +8,7 @@ namespace MicroEMR.Infrastructure.ClinicConfiguration;
 
 public sealed class ClinicProfileRepository(
     ITenantSqlConnectionFactory connectionFactory,
+    IAdministrativeTenantSqlConnectionFactory administrative,
     ILogger<ClinicProfileRepository> logger) : IClinicProfileRepository
 {
     public async Task<ClinicProfileData?> GetAsync(CancellationToken cancellationToken = default)
@@ -21,7 +22,7 @@ public sealed class ClinicProfileRepository(
     public async Task<ClinicProfileData> SaveAsync(SaveClinicConfigurationRequest request, long actorUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var connection = await administrative.OpenConnectionAsync(cancellationToken);
         await using var command = Command(connection, "dbo.ClinicProfile_Save");
         AddText(command, "@LegalName", 200, request.LegalName);
         AddText(command, "@Phone", 50, request.Phone);

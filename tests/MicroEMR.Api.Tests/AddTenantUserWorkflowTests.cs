@@ -74,6 +74,17 @@ public sealed class AddTenantUserWorkflowTests
     }
 
     [Fact]
+    public async Task AdministrativePlatformFailureIsRejectedBeforeCreatingIdentityOrMembership()
+    {
+        var harness = new Harness(created: true, failMembershipLookup: true);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            harness.Service.AddTenantUserAsync(new("Jane", "Doe", "jane@example.test", "Nurse", true)));
+        Assert.Equal(0, harness.Identity.Calls);
+        Assert.Null(harness.Creation.Last);
+        Assert.Equal(0, harness.Clinical.ProvisionCalls);
+    }
+
+    [Fact]
     public async Task ClinicalFailureReportsRecoverablePartialResultWithoutRecreatingMembership()
     {
         var harness = new Harness(created: true, failClinical: true);
@@ -91,12 +102,12 @@ public sealed class AddTenantUserWorkflowTests
         public ClinicalRepository Clinical { get; }
         public TenantUserAdministrationService Service { get; }
 
-        public Harness(bool created, bool alreadyMember = false, bool failClinical = false)
+        public Harness(bool created, bool alreadyMember = false, bool failClinical = false, bool failMembershipLookup = false)
         {
             var profile = new IdentityUserProfile("auth-jane", "jane@example.test", "Jane Doe", "jane@example.test", true);
             Identity = new(profile, created);
             Clinical = new(failClinical);
-            var memberships = new Memberships(profile, Creation, alreadyMember);
+            var memberships = new Memberships(profile, Creation, alreadyMember, failMembershipLookup);
             Service = new(new TenantContext(Tenant, "clinic", "Clinic"), memberships, new Profiles(profile), Clinical,
                 new Lifecycle(), new Roles(), new Subject(), Identity, Creation,
                 NullLogger<TenantUserAdministrationService>.Instance);
@@ -118,10 +129,11 @@ public sealed class AddTenantUserWorkflowTests
         public Task CreateAsync(string authUserId, Guid tenantUid, string initialRole, string actorAuthUserId, CancellationToken cancellationToken = default)
         { Last = (authUserId, tenantUid, initialRole, actorAuthUserId); return Task.CompletedTask; }
     }
-    private sealed class Memberships(IdentityUserProfile profile, CreationRepository creation, bool existing) : IPlatformMembershipAdministrationService
+    private sealed class Memberships(IdentityUserProfile profile, CreationRepository creation, bool existing, bool failLookup) : IPlatformMembershipAdministrationService
     {
         public Task<IReadOnlyList<PlatformMembershipInfo>> GetTenantMembershipsAsync(Guid tenantUid, CancellationToken cancellationToken = default)
         {
+            if (failLookup) throw new InvalidOperationException("Administrative Platform configuration unavailable.");
             var present = existing || creation.Last is not null;
             IReadOnlyList<PlatformMembershipInfo> result = present
                 ? [new(profile.UserId, Tenant, "clinic", "Clinic", "Active", false,

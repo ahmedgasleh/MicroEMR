@@ -6,7 +6,7 @@ using MicroEMR.Infrastructure.Tenancy;
 namespace MicroEMR.Infrastructure.ClinicalUsers;
 
 public sealed class ClinicalUserRepository(
-    ITenantSqlConnectionFactory connectionFactory) : IClinicalUserRepository
+    ITenantSqlConnectionFactory connectionFactory, IAdministrativeTenantSqlConnectionFactory administrative) : IClinicalUserRepository
 {
     public async Task<ClinicalUser?> GetByAuthSubjectIdAsync(
         string authSubjectId,
@@ -59,7 +59,7 @@ public sealed class ClinicalUserRepository(
     {
         if (userId <= 0) throw new ArgumentOutOfRangeException(nameof(userId));
         ValidateSubject(authSubjectId);
-        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var connection = await administrative.OpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, "dbo.ApplicationUser_SetAuthSubjectId");
         command.Parameters.Add("@UserId", SqlDbType.BigInt).Value = userId;
         AddSubject(command, authSubjectId);
@@ -79,7 +79,7 @@ public sealed class ClinicalUserRepository(
         ValidateSubject(authSubjectId);
         ArgumentException.ThrowIfNullOrWhiteSpace(username);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
-        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var connection = await administrative.OpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, "dbo.ApplicationUser_Provision");
         AddSubject(command, authSubjectId);
         command.Parameters.Add("@Username", SqlDbType.NVarChar, 100).Value = username.Trim();

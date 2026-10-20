@@ -5,9 +5,9 @@ using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Infrastructure.Tenancy;
 
-public sealed class SqlTenantUserCreationRepository(IConfiguration configuration) : ITenantUserCreationRepository
+public sealed class SqlTenantUserCreationRepository(IAdministrativePlatformConnectionStringProvider administrative) : ITenantUserCreationRepository
 {
-    private readonly string _connectionString = PlatformDatabaseConnection.GetConnectionString(configuration);
+    private string _connectionString => administrative.GetConnectionString();
 
     public async Task CreateAsync(string authUserId, Guid tenantUid, string initialRole, string actorAuthUserId,
         CancellationToken cancellationToken = default)
