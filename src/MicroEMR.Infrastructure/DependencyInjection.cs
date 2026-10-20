@@ -131,6 +131,7 @@ public static class DependencyInjection
             services.AddScoped<MicroEMR.Application.PatientEncounters.IEncounterDiagnosisRepository, EncounterDiagnosisRepository>();
             services.AddScoped<IPatientMedicationRepository, PatientMedicationRepository>();
             services.AddScoped<IPatientPrescriptionRepository, PatientPrescriptionRepository>();
+            services.AddScoped<IPrescriptionPrivateNoteRepository, PrescriptionPrivateNoteRepository>();
             services.AddScoped<IPrescriptionOutputRepository, PatientPrescriptionRepository>();
             services.AddScoped<IPatientProblemRepository, PatientProblemRepository>();
             services.AddScoped<IPatientClinicalHistoryRepository, PatientClinicalHistoryRepository>();

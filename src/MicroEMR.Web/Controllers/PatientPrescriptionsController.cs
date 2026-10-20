@@ -9,7 +9,8 @@ using MicroEMR.Web.Services;
 
 namespace MicroEMR.Web.Controllers;
 [Authorize,RequireWebPermission(PermissionKeys.PatientsView)]
-public sealed class PatientPrescriptionsController(IPatientPrescriptionApiClient api):Controller
+[ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
+public sealed class PatientPrescriptionsController(IPatientPrescriptionApiClient api, IWebPermissionService? permissions=null):Controller
 {
  [HttpGet,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public IActionResult Create(Guid patientUid)=>View(new CreatePrescriptionDraftRequest{PrescribedDate=DateOnly.FromDateTime(DateTime.Today)});
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Create(Guid patientUid,CreatePrescriptionDraftRequest model,CancellationToken t)
@@ -31,8 +32,8 @@ public sealed class PatientPrescriptionsController(IPatientPrescriptionApiClient
    return View(model);
   }
  }
- [HttpGet,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Edit(Guid patientUid,Guid prescriptionUid,CancellationToken t){var x=await api.GetAsync(patientUid,prescriptionUid,t);if(x is null)return NotFound();if(x.Status!=PrescriptionStatuses.Draft)return Conflict();var model=new PrescriptionDraftRequest{GenericName=x.GenericName,MedicationForm=x.MedicationForm,NotesToPharmacist=x.NotesToPharmacist,ProductName=x.ProductName,ProductIdentifierNamespace=x.ProductIdentifierNamespace,ProductIdentifierValue=x.ProductIdentifierValue,ProductDisplayText=x.ProductDisplayText,StrengthValue=x.StrengthValue,StrengthUnit=x.StrengthUnit,DoseAmount=x.DoseAmount,DoseUnit=x.DoseUnit,Route=x.Route,FrequencyCode=x.FrequencyCode,Prn=x.Prn,Directions=x.Directions,Quantity=x.Quantity,QuantityUnit=x.QuantityUnit,InitialDaysSupply=x.InitialDaysSupply,RefillQuantity=x.RefillQuantity,RefillQuantityUnit=x.RefillQuantityUnit,RefillDaysSupply=x.RefillDaysSupply,AuthorizedRepeats=x.AuthorizedRepeats,Indication=x.Indication,DateFields=x.DateFields??PrescriptionDateFields.From(x.PrescribedDate,x.StartDate),RowVersion=x.RowVersion};return IsModalRequest()?Json(model):View(model);}
- [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Edit(Guid patientUid,Guid prescriptionUid,PrescriptionDraftRequest model,CancellationToken t){if(!ModelState.IsValid)return IsModalRequest()?BadRequest(new{errors=ModelState.Values.SelectMany(x=>x.Errors).Select(x=>x.ErrorMessage).Where(x=>!string.IsNullOrWhiteSpace(x)).ToArray()}):View(model);try{var updated=await api.UpdateAsync(patientUid,prescriptionUid,model,t);if(updated is null)return NotFound();TempData["SuccessMessage"]="Prescription draft updated.";return IsModalRequest()?Json(new{success=true,redirectUrl=Url.Action("Details","Patients",new{patientUid,tab="medications"})}):RedirectToAction("Details","Patients",new{patientUid,tab="medications"});}catch(HttpRequestException e){var message=e.StatusCode==System.Net.HttpStatusCode.Conflict?"The prescription changed. Reload the chart and try again.":GetErrorMessage(e);if(IsModalRequest())return BadRequest(new{errors=new[]{message}});ModelState.AddModelError("",message);return View(model);}}
+ [HttpGet,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Edit(Guid patientUid,Guid prescriptionUid,CancellationToken t){var x=await api.GetAsync(patientUid,prescriptionUid,t);if(x is null)return NotFound();if(x.Status!=PrescriptionStatuses.Draft)return Conflict();var model=new PrescriptionDraftRequest{GenericName=x.GenericName,MedicationForm=x.MedicationForm,NotesToPharmacist=x.NotesToPharmacist,ProductName=x.ProductName,ProductIdentifierNamespace=x.ProductIdentifierNamespace,ProductIdentifierValue=x.ProductIdentifierValue,ProductDisplayText=x.ProductDisplayText,StrengthValue=x.StrengthValue,StrengthUnit=x.StrengthUnit,DoseAmount=x.DoseAmount,DoseUnit=x.DoseUnit,Route=x.Route,FrequencyCode=x.FrequencyCode,Prn=x.Prn,Directions=x.Directions,Quantity=x.Quantity,QuantityUnit=x.QuantityUnit,InitialDaysSupply=x.InitialDaysSupply,RefillQuantity=x.RefillQuantity,RefillQuantityUnit=x.RefillQuantityUnit,RefillDaysSupply=x.RefillDaysSupply,AuthorizedRepeats=x.AuthorizedRepeats,Indication=x.Indication,DateFields=x.DateFields??PrescriptionDateFields.From(x.PrescribedDate,x.StartDate),RowVersion=x.RowVersion};if(!IsModalRequest() && permissions is not null && await permissions.HasAsync(PermissionKeys.PrescriptionsViewPrivateNotes,t)){var note=await api.PrivateNoteAsync(patientUid,prescriptionUid,t);ViewData["CanEditPrivateNote"]=note?.CanEdit==true;if(note?.CanEdit==true){if(model.RowVersion!=note.RowVersion)return Conflict("The prescription changed. Reload and try again.");model.PrivateNote=note.NoteText;}}return IsModalRequest()?Json(model):View(model);}
+ [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Edit(Guid patientUid,Guid prescriptionUid,PrescriptionDraftRequest model,CancellationToken t){await PreparePrivateEditorAsync(patientUid,prescriptionUid,t);if(!ModelState.IsValid)return IsModalRequest()?BadRequest(new{errors=ModelState.Values.SelectMany(x=>x.Errors).Select(x=>x.ErrorMessage).Where(x=>!string.IsNullOrWhiteSpace(x)).ToArray()}):View(model);try{var updated=await api.UpdateAsync(patientUid,prescriptionUid,model,t);if(updated is null)return NotFound();TempData["SuccessMessage"]="Prescription draft updated.";return IsModalRequest()?Json(new{success=true,redirectUrl=Url.Action("Details","Patients",new{patientUid,tab="medications"})}):RedirectToAction("Details","Patients",new{patientUid,tab="medications"});}catch(HttpRequestException e){var message=e.StatusCode==System.Net.HttpStatusCode.Conflict?"The prescription changed. Reload the chart and try again.":GetErrorMessage(e);if(IsModalRequest())return BadRequest(new{errors=new[]{message}});ModelState.AddModelError("",message);return View(model);}}
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Finalize(Guid patientUid,Guid prescriptionUid,string rowVersion,CancellationToken t){try{await api.ActionAsync(patientUid,prescriptionUid,"finalize",new(){RowVersion=rowVersion},t);TempData["SuccessMessage"]="Prescription finalized.";}catch(HttpRequestException e){TempData["ErrorMessage"]=GetErrorMessage(e);}return RedirectToAction("Details","Patients",new{patientUid,tab="medications"});}
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)]
  public async Task<IActionResult> SignAndFinalize(Guid patientUid,Guid prescriptionUid,string rowVersion,bool confirmSignature,CancellationToken t)
@@ -45,6 +46,35 @@ public sealed class PatientPrescriptionsController(IPatientPrescriptionApiClient
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Cancel(Guid patientUid,Guid prescriptionUid,string rowVersion,string? reason,CancellationToken t){await api.ActionAsync(patientUid,prescriptionUid,"cancel",new(){RowVersion=rowVersion,Reason=reason},t);return RedirectToAction("Details","Patients",new{patientUid,tab="medications"});}
  [HttpPost,ValidateAntiForgeryToken,RequireWebPermission(PermissionKeys.PrescriptionsPrescribe)] public async Task<IActionResult> Correction(Guid patientUid,Guid prescriptionUid,string rowVersion,CancellationToken t){try{var x=await api.ActionAsync(patientUid,prescriptionUid,"correction",new(){RowVersion=rowVersion},t);return x is null?NotFound():RedirectToAction(nameof(Edit),new{patientUid,prescriptionUid=x.PrescriptionUid});}catch(HttpRequestException e){TempData["ErrorMessage"]=GetErrorMessage(e);return RedirectToAction("Details","Patients",new{patientUid,tab="medications"});}}
  [HttpGet,ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)] public async Task<IActionResult> Artifact(Guid patientUid,Guid prescriptionUid,CancellationToken t){var x=await api.ArtifactAsync(patientUid,prescriptionUid,t);return x is null?NotFound():File(x,"application/pdf",$"prescription-{prescriptionUid:N}.pdf");}
+ [HttpGet,ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
+ public async Task<IActionResult> Detail(Guid patientUid,Guid prescriptionUid,CancellationToken t)
+ {
+  var prescription=await api.GetAsync(patientUid,prescriptionUid,t);
+  if(prescription is null)return NotFound();
+  PrescriptionPrivateNoteDetail? note=null;
+  IReadOnlyList<PrescriptionPrivateNoteRevision> history=[];
+  if(permissions is not null && await permissions.HasAsync(PermissionKeys.PrescriptionsViewPrivateNotes,t))
+  {
+   note=await api.PrivateNoteAsync(patientUid,prescriptionUid,t);
+   if(note is null)return NotFound();
+   history=await api.PrivateNoteHistoryAsync(patientUid,prescriptionUid,t);
+  }
+  return View(new MicroEMR.Web.Models.PrescriptionDetailViewModel(prescription,note,history));
+ }
+ [HttpGet,RequireWebPermission(PermissionKeys.PrescriptionsViewPrivateNotes),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
+ [MicroEMR.Application.SecurityAudit.SensitiveCapability(MicroEMR.Application.SecurityAudit.SecurityAuditCapabilities.PrescriptionPrivateNoteView)]
+ public async Task<IActionResult> PrivateNoteEditor(Guid patientUid,Guid prescriptionUid,CancellationToken t)
+ {
+  var note=await api.PrivateNoteAsync(patientUid,prescriptionUid,t);
+  return note is null?NotFound():Json(note.CanEdit?note:note with {NoteText=null});
+ }
+ private async Task PreparePrivateEditorAsync(Guid patientUid,Guid prescriptionUid,CancellationToken token)
+ {
+  ViewData["CanEditPrivateNote"]=false;
+  if(permissions is null || !await permissions.HasAsync(PermissionKeys.PrescriptionsViewPrivateNotes,token))return;
+  try {ViewData["CanEditPrivateNote"]=(await api.PrivateNoteAsync(patientUid,prescriptionUid,token))?.CanEdit==true;}
+  catch(HttpRequestException) { /* Keep the editor absent when protected access is unavailable. */ }
+ }
  private static string GetErrorMessage(HttpRequestException exception)
  {
   var body=SafeApiResponseException.ValidationBody(exception);

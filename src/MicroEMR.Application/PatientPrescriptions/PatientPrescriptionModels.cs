@@ -15,6 +15,20 @@ public static class PrescriptionFrequencies
 }
 public class PrescriptionDraftRequest:IValidatableObject
 {
+ private string? privateNote;
+ [JsonIgnore,StringLength(1000)] public string? PrivateNote { get => privateNote; set { privateNote=value; PrivateNoteSpecified=true; } }
+ [JsonIgnore] public bool PrivateNoteSpecified { get; private set; }
+ [JsonPropertyName("privateNote"),JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+ public JsonElement PrivateNoteInput
+ {
+  get => PrivateNoteSpecified ? JsonSerializer.SerializeToElement(PrivateNote) : default;
+  set
+  {
+   if(value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))throw new JsonException("Private note must be text or null.");
+   PrivateNote=value.ValueKind==JsonValueKind.Null?null:value.GetString();
+  }
+ }
+ [JsonIgnore] public string? PrivateNoteCorrelationId { get; internal set; }
  private string? genericName;
  [JsonIgnore,StringLength(300)] public string? GenericName { get => genericName; set { genericName=value; GenericNameSpecified=true; } }
  [JsonIgnore] public bool GenericNameSpecified { get; private set; }
@@ -113,10 +127,10 @@ public interface IPatientPrescriptionService
 {
  Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid patientUid,CancellationToken token=default); Task<PatientPrescriptionResponse?> GetAsync(Guid patientUid,Guid uid,CancellationToken token=default); Task<PatientPrescriptionResponse> CreateAsync(Guid patientUid,CreatePrescriptionDraftRequest request,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> UpdateAsync(Guid patientUid,Guid uid,PrescriptionDraftRequest request,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> FinalizeAsync(Guid patientUid,Guid uid,string version,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> CancelAsync(Guid patientUid,Guid uid,string version,string? reason,long actor,CancellationToken token=default); Task<byte[]?> RenderArtifactPdfAsync(Guid patientUid,Guid uid,CancellationToken token=default);
 }
-public sealed class PatientPrescriptionService(IPatientPrescriptionRepository repository,IPdfRenderer pdf):IPatientPrescriptionService
+public sealed class PatientPrescriptionService(IPatientPrescriptionRepository repository,IPdfRenderer pdf, IPrescriptionPrivateNoteService? privateNotes=null):IPatientPrescriptionService
 {
  public Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid p,CancellationToken t=default)=>repository.ListAsync(p,t); public Task<PatientPrescriptionResponse?> GetAsync(Guid p,Guid u,CancellationToken t=default)=>repository.GetAsync(p,u,t);
- public Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){Normalize(r);return repository.CreateAsync(p,r,a,t);} public Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");Normalize(r);return repository.UpdateAsync(p,u,r,a,t);}
+ public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);Normalize(r);return await repository.CreateAsync(p,r,a,t);} public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");Normalize(r);return await repository.UpdateAsync(p,u,r,a,t);}
  public Task<PatientPrescriptionResponse?> FinalizeAsync(Guid p,Guid u,string v,long a,CancellationToken t=default)=>repository.FinalizeAsync(p,u,v,a,t); public Task<PatientPrescriptionResponse?> CancelAsync(Guid p,Guid u,string v,string? reason,long a,CancellationToken t=default)=>repository.CancelAsync(p,u,v,reason,a,t);
  public async Task<byte[]?> RenderArtifactPdfAsync(Guid p,Guid u,CancellationToken t=default){var a=await repository.GetArtifactAsync(p,u,t);if(a is null)return null;using var d=JsonDocument.Parse(a.Json);var x=d.RootElement;string G(string n)=>WebUtility.HtmlEncode(x.TryGetProperty(n,out var v)&&v.ValueKind!=JsonValueKind.Null?v.ToString():"");// Old snapshots keep their original layout. Never infer new instructions from existing quantity/directions.
  var dispensing=x.TryGetProperty("RefillInstructionsVersion",out _)
@@ -124,7 +138,14 @@ public sealed class PatientPrescriptionService(IPatientPrescriptionRepository re
   : $"<dt>Quantity / repeats</dt><dd>{G("Quantity")} {G("QuantityUnit")} / {G("AuthorizedRepeats")}</dd>";
  string Recorded(string n)=>x.TryGetProperty(n,out var value)&&value.ValueKind!=JsonValueKind.Null?G(n):"Not recorded";
  var html=$"<!doctype html><html><head><meta charset='utf-8'><style>body{{font-family:Arial;margin:36px}}h1{{border-bottom:2px solid #222}}dt{{font-weight:bold}}dd{{margin:0 0 12px}}</style></head><body><h1>Prescription</h1><dl><dt>Patient</dt><dd>{G("PatientName")} (DOB {G("DateOfBirth")})</dd><dt>Prescribed date</dt><dd>{G("PrescribedDate")}</dd><dt>Product</dt><dd>{G("ProductDisplayText")}</dd>{(x.TryGetProperty("GenericNameVersion",out _)?$"<dt>Generic name</dt><dd>{Recorded("GenericName")}</dd>":"")}<dt>Directions</dt><dd>{G("Directions")}</dd><dt>Route / frequency</dt><dd>{G("Route")} / {G("FrequencyDisplay")}{(x.TryGetProperty("Prn",out var prn)&&prn.GetBoolean()?" / As needed":"")}</dd>{dispensing}<dt>Indication</dt><dd>{G("Indication")}</dd><dt>Prescriber</dt><dd>{G("PrescriberDisplayName")} — {G("PrescriberCredential")}</dd><dt>Prescription ID</dt><dd>{G("PrescriptionUid")}</dd></dl><p>Local structured prescription. Not electronically transmitted.</p></body></html>";return await pdf.RenderAsync(html,t);}
- private static void Normalize(PrescriptionDraftRequest r){if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
+ private async Task AuthorizePrivateInput(PrescriptionDraftRequest r,long actor,CancellationToken token)
+ {
+  if(!r.PrivateNoteSpecified)return;
+  if(privateNotes is null)throw new PrescriptionPrivateNoteAccessException();
+  await privateNotes.AuthorizeWriteAsync(actor,token);
+  r.PrivateNoteCorrelationId=privateNotes.CorrelationId;
+ }
+ private static void Normalize(PrescriptionDraftRequest r){if(r.PrivateNote?.Length>1000)throw new ArgumentException("Private note exceeds the supported length.");if(r.PrivateNoteSpecified)r.PrivateNote=string.IsNullOrWhiteSpace(r.PrivateNote)?null:r.PrivateNote.Trim();if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
 }
 public sealed class PatientPrescriptionConcurrencyException(string message,Exception? inner=null):Exception(message,inner);
 public sealed class PrescriberProviderMappingException(Exception? inner=null):Exception("Your account must be linked to an active Provider before you can prescribe. Ask a clinic administrator to link your user in Providers.",inner);

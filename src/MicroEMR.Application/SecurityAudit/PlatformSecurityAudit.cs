@@ -4,6 +4,8 @@ using MicroEMR.Application.AccessProfiles;
 
 public static class SecurityAuditCapabilities
 {
+    public const string PrescriptionPrivateNoteView = "PrescriptionPrivateNoteView";
+    public const string PrescriptionPrivateNoteWrite = "PrescriptionPrivateNoteWrite";
     public const string PatientChartView = "PatientChartView";
     public const string EncounterView = "EncounterView";
     public const string EncounterEdit = "EncounterEdit";
@@ -19,6 +21,8 @@ public static class SensitiveCapabilityCatalog
     private static readonly IReadOnlyDictionary<string, string> PermissionByCapability =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            [SecurityAuditCapabilities.PrescriptionPrivateNoteView] = PermissionKeys.PrescriptionsViewPrivateNotes,
+            [SecurityAuditCapabilities.PrescriptionPrivateNoteWrite] = PermissionKeys.PrescriptionsPrescribe,
             [SecurityAuditCapabilities.PatientChartView] = PermissionKeys.PatientsView,
             [SecurityAuditCapabilities.EncounterView] = PermissionKeys.EncountersView,
             [SecurityAuditCapabilities.EncounterEdit] = PermissionKeys.EncountersEdit,

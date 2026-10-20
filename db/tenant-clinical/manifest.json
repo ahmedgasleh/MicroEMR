@@ -83,5 +83,6 @@
   { "migrationId": "0081-allergy-fields-safeguards", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0081-allergy-fields-safeguards.sql" },
   { "migrationId": "0082-chart-alert-safeguards", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0082-chart-alert-safeguards.sql" },
   { "migrationId": "0083-prescription-date-precision", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0083-prescription-date-precision.sql" },
-  { "migrationId": "0084-prescription-generic-name", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0084-prescription-generic-name.sql" }
+  { "migrationId": "0084-prescription-generic-name", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0084-prescription-generic-name.sql" },
+  { "migrationId": "0085-private-prescription-notes", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0085-private-prescription-notes.sql" }
 ]

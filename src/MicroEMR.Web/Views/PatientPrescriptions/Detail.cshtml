@@ -1,0 +1,28 @@
+@model MicroEMR.Web.Models.PrescriptionDetailViewModel
+@{ViewData["Title"]="Prescription detail";var rx=Model.Prescription;}
+<div class="container py-4">
+ <h1 class="h3">Prescription detail</h1>
+ <p><strong>@rx.ProductDisplayText</strong> <span class="badge text-bg-secondary">@rx.Status</span></p>
+ <p>@rx.Directions</p>
+ @if(Model.PrivateNote is {} note)
+ {
+  <section class="card my-3 d-print-none" aria-label="Private prescription note">
+   <div class="card-body"><h2 class="h5">Private prescription note</h2>
+    <p class="text-muted small">Internal clinical detail. Excluded from prescription and CPP printing.</p>
+    <div class="text-break" style="white-space:pre-wrap">@(note.NoteText??"Not recorded")</div>
+    @if(note.CanEdit){<a class="btn btn-outline-secondary mt-3" asp-action="Edit" asp-route-patientUid="@rx.PatientUid" asp-route-prescriptionUid="@rx.PrescriptionUid">Edit draft</a>}
+    else{<p class="small text-muted mt-3">Read only</p>}
+    @if(Model.History.Count>0)
+    {
+     <details class="mt-3"><summary>Private note history</summary>
+      @foreach(var revision in Model.History)
+      {
+       <div class="border-top py-2"><span class="small text-muted">Revision @revision.RevisionNumber · @revision.Operation · clinical user @revision.ActorUserId · @revision.CreatedAtUtc.ToString("u")</span><div class="text-break" style="white-space:pre-wrap">@(revision.NoteText??"Cleared / not recorded")</div></div>
+      }
+     </details>
+    }
+   </div>
+  </section>
+ }
+ <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications">Back to prescriptions</a>
+</div>

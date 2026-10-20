@@ -122,6 +122,8 @@ builder.Services.AddIdentityCore<AdministrationIdentityUser>(options =>
     .AddDefaultTokenProviders();
 builder.Services.AddScoped<IIdentityUserAdministration, IdentityUserAdministration>();
 
+builder.Services.AddScoped<MicroEMR.Application.PatientPrescriptions.IPrescriptionPrivateNoteRequestContext, MicroEMR.Api.ClinicalUsers.PrescriptionPrivateNoteRequestContext>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -143,6 +145,7 @@ app.UseMiddleware<SafeRequestTelemetryMiddleware>();
 app.UseAuthentication();
 app.UseMiddleware<TenantDatabaseExceptionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseMiddleware<PrescriptionPrivateNoteDeniedAuditMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<ClinicalUserActorResolutionMiddleware>();
 

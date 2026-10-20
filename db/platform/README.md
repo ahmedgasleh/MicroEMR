@@ -43,6 +43,11 @@ Run the scripts with a SQL account permitted to create databases, in this order:
 24. `024_access_management_administrator_repair.sql`
 25. `025_document_sign_permission.sql`
 26. `026_user_permission_access_scope_repair.sql`
+27. `027_private_prescription_note_permission.sql`
+
+Script 027 adds opt-in private-note permission validation without default grants.
+Apply explicitly after 026, alongside matching API/Web and tenant migration 0085.
+Assign only to approved clinical staff through existing access management.
 
 Script 026 repairs the Manage Access read procedure so only the selected user's
 overrides in the selected tenant are displayed. It also excludes permissions from
