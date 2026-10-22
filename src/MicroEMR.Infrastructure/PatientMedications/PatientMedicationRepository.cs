@@ -131,6 +131,8 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             200,
             request.MedicationName);
         AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
+        request.ComplianceAssessment?.EnsureValid();
+        if(request.ComplianceAssessment is not null) AddNullableString(command, "@ComplianceAssessment", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.ComplianceAssessment));
         if(request.PlanFields is not null) AddNullableString(command, "@PlanFields", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.PlanFields));
 
         AddNullableString(
@@ -231,6 +233,10 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
 
             return MapDetails(reader);
         }
+        catch (SqlException exception) when (exception.Number == 53100)
+        {
+            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
+        }
         catch (SqlException exception)
         {
             _logger.LogError(
@@ -253,6 +259,8 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
         AddRequiredString(command, "@MedicationName", SqlDbType.NVarChar, 200, request.MedicationName);
         AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
+        request.ComplianceAssessment?.EnsureValid();
+        if(request.ComplianceAssessment is not null) AddNullableString(command, "@ComplianceAssessment", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.ComplianceAssessment));
         if(request.PlanFields is not null) AddNullableString(command, "@PlanFields", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.PlanFields));
         AddNullableString(command, "@Strength", SqlDbType.NVarChar, 100, request.Strength);
         AddNullableString(command, "@DosageForm", SqlDbType.NVarChar, 100, request.DosageForm);
@@ -276,6 +284,10 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         catch (SqlException exception) when (exception.Number == 51057)
         {
             throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 53100)
+        {
+            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
         }
         catch (SqlException exception)
         {
@@ -347,11 +359,15 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         };
     }
 
+    private static T? ComplianceJson<T>(SqlDataReader reader,string column) { for(var i=0;i<reader.FieldCount;i++) if(reader.GetName(i)==column) return reader.IsDBNull(i)?default:System.Text.Json.JsonSerializer.Deserialize<T>(reader.GetString(i)); return default; }
+
     private static PatientMedicationDetailsResponse MapDetails(
         SqlDataReader reader)
     {
         return new PatientMedicationDetailsResponse
         {
+            ComplianceAssessment = ComplianceJson<MedicationComplianceRevision>(reader,"ComplianceAssessment"),
+            ComplianceHistory = ComplianceJson<List<MedicationComplianceRevision>>(reader,"ComplianceHistory") ?? [],
             MedicationUid = reader.GetGuid(reader.GetOrdinal("MedicationUid")),
             PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
             LongTermIntent = OptionalLongTerm(reader),

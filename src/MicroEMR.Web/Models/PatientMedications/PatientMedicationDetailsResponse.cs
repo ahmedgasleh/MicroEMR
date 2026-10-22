@@ -2,6 +2,8 @@ namespace MicroEMR.Web.Models.PatientMedications;
 
 public sealed class PatientMedicationDetailsResponse
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceRevision? ComplianceAssessment { get; set; }
+    public IReadOnlyList<MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceRevision> ComplianceHistory { get; set; } = [];
     public bool? LongTermIntent { get; set; }
     public bool PastMedication => Status == "Discontinued";
     public string? Classification { get; set; }

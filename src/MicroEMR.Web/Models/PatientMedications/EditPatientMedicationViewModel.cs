@@ -4,6 +4,7 @@ public sealed class EditPatientMedicationViewModel : IValidatableObject
 {
     public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
     public bool PlanFieldsIncluded {get;set;}
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceAssessment? ComplianceAssessment { get; set; }
     public string? Classification { get; set; }
 
     public Guid PatientUid { get; set; } public Guid MedicationUid { get; set; }
@@ -17,6 +18,7 @@ public sealed class EditPatientMedicationViewModel : IValidatableObject
     [Required] public string RowVersion { get; set; } = string.Empty;
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (ComplianceAssessment is {} assessment) foreach (var error in assessment.Validate(new(assessment))) yield return error;
         if (!MicroEMR.Core.PatientMedications.MedicationClassifications.IsValid(Classification))
             yield return new ValidationResult("Select Ongoing, Acute or Unclassified.", new[] { nameof(Classification) });
 

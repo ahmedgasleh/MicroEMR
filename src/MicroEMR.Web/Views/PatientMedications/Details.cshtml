@@ -26,6 +26,23 @@
         </a>
     </div>
 
+    <section class="border rounded-3 p-3 mt-3" aria-label="Medication compliance assessment">
+        <h4 class="h5">Medication compliance assessment</h4>
+        <p><strong>Compliance assessment:</strong> @(Model.ComplianceAssessment?.State ?? "Not recorded")</p>
+        @if(Model.ComplianceAssessment is {} assessment) {
+            <p class="text-break" style="white-space:pre-wrap">@assessment.Explanation</p>
+            <p><strong>Assessment time:</strong> @(assessment.AssessmentAt?.ToString("o") ?? "Not recorded")</p>
+            <p><strong>Assessor:</strong> Clinical user @assessment.AssessorUserId <strong>Recorded UTC:</strong> @assessment.RecordedAtUtc.ToString("u")</p>
+        }
+        @if(Model.ComplianceHistory.Count>0) {
+            <details><summary>Compliance assessment history</summary>
+            @foreach(var revision in Model.ComplianceHistory) {
+                <div class="border-top py-2"><strong>Revision @revision.RevisionNumber — @(revision.State ?? "Cleared / not recorded")</strong>
+                <p class="text-break" style="white-space:pre-wrap">@revision.Explanation</p>
+                <p>Assessment time: @(revision.AssessmentAt?.ToString("o") ?? "Not recorded"); clinical user @revision.AssessorUserId; recorded UTC @revision.RecordedAtUtc.ToString("u")</p></div>
+            }</details>
+        }
+    </section>
     <div class="row g-4 mt-1">
         <div class="col-12 col-lg-6">
             <div class="border rounded-3 p-3 h-100">

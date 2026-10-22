@@ -3,6 +3,12 @@ document.getElementById("editMedicationForm")?.addEventListener("medication-load
     const form = event.currentTarget;
     const input = form.elements.namedItem("PlanFields.LongTermIntent");
     const medication = event.detail;
+    const assessment = medication.complianceAssessment;
+    for (const [name, value] of Object.entries({ State: assessment?.State ?? assessment?.state, Explanation: assessment?.Explanation ?? assessment?.explanation, AssessmentAt: assessment?.AssessmentAt ?? assessment?.assessmentAt })) {
+        const field = form.elements.namedItem(`ComplianceAssessment.${name}`);
+        if (field)
+            field.value = value ?? "";
+    }
     if (input)
         input.value = medication.planFields?.longTermIntent?.toString() ?? "";
 });

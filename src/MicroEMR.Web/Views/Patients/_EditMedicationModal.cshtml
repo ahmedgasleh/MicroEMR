@@ -16,7 +16,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="editMedicationMessage" class="alert alert-danger d-none" role="alert"></div>
-                    <div class="row g-3">
+                    <div class="row g-3"><partial name="_MedicationComplianceFields" model="@(new MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceAssessment())" />
                         <div class="col-md-6"><label for="editMedicationClassification" class="form-label">Classification</label><select id="editMedicationClassification" name="Classification" class="form-select"><option value="">Unclassified / unknown</option><option>Ongoing</option><option>Acute</option></select></div>
                         <div class="col-md-6"><label for="editMedicationName" class="form-label">Medication name</label><input id="editMedicationName" name="MedicationName" class="form-control" maxlength="200" required /></div>
                         <div class="col-md-3"><label for="editMedicationStrength" class="form-label">Strength</label><input id="editMedicationStrength" name="Strength" class="form-control" maxlength="100" /></div>

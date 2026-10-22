@@ -1,0 +1,30 @@
+@model MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceAssessment
+@{ var complianceId = "compliance-" + Guid.NewGuid().ToString("N");
+   var assessmentTimeText = ViewData.ModelState.TryGetValue("ComplianceAssessment.AssessmentAt", out var attemptedTime) ? attemptedTime.AttemptedValue : Model?.AssessmentAt?.ToString("o"); }
+<fieldset class="col-12" data-compliance-assessment>
+ <legend class="h6">Medication compliance assessment</legend>
+ <div class="row g-3">
+  <div class="col-md-6">
+   <label class="form-label" for="@(complianceId)-state">Compliance assessment</label>
+   <select class="form-select" id="@(complianceId)-state" name="ComplianceAssessment.State" aria-describedby="@(complianceId)-help">
+    <option value="">Not recorded</option>
+    @foreach(var state in MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceAssessment.States)
+    { <option value="@state" selected="@(Model?.State==state)">@state</option> }
+   </select>
+   <div id="@(complianceId)-help" class="form-text">As assessed for this medication as prescribed. Unknown means unable to determine; Not assessed means no assessment was performed. No score is inferred.</div>
+   @Html.ValidationMessage("ComplianceAssessment.State", null, new { @class="text-danger", role="alert" })
+  </div>
+  <div class="col-md-6">
+   <label class="form-label" for="@(complianceId)-assessed-at">Assessment time (optional, with UTC offset)</label>
+   <input class="form-control" id="@(complianceId)-assessed-at" name="ComplianceAssessment.AssessmentAt" value="@assessmentTimeText" placeholder="2026-10-22T14:30:00-04:00" aria-describedby="@(complianceId)-time-help" />
+   <div id="@(complianceId)-time-help" class="form-text">Leave blank if the assessment time is unknown. Recorded time and assessor are captured separately when saved.</div>
+   @Html.ValidationMessage("ComplianceAssessment.AssessmentAt", null, new { @class="text-danger", role="alert" })
+  </div>
+  <div class="col-12">
+   <label class="form-label" for="@(complianceId)-explanation">Compliance explanation (optional)</label>
+   <textarea class="form-control" id="@(complianceId)-explanation" name="ComplianceAssessment.Explanation" maxlength="1000" rows="3">@Model?.Explanation</textarea>
+   @Html.ValidationMessage("ComplianceAssessment.Explanation", null, new { @class="text-danger", role="alert" })
+   <div class="form-text">Up to 1,000 UTF-16 units. To clear the current assessment, choose Not recorded and clear the explanation and assessment time; revisions are retained.</div>
+  </div>
+ </div>
+</fieldset>

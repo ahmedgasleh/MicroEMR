@@ -125,6 +125,7 @@ public sealed class PatientMedicationsController : ControllerBase
                 },
                 medication);
         }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
         catch (InvalidOperationException exception)
         {
             _logger.LogWarning(
@@ -167,6 +168,7 @@ public sealed class PatientMedicationsController : ControllerBase
                 patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
         catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
         catch (PatientMedicationConcurrencyException)
         { return Conflict(new { message = "The medication was changed by another user. Reload and try again." }); }
@@ -191,12 +193,12 @@ public sealed class PatientMedicationsController : ControllerBase
                 patientUid, medicationUid, request, GetAuthenticatedUserId(), cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
         catch (FormatException) { return BadRequest(new { message = "The row version is invalid." }); }
         catch (PatientMedicationConcurrencyException)
         {
             return Conflict(new { message = "The medication was changed by another user. Refresh the patient chart and review the latest medication before discontinuing it." });
         }
-        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
     }
 
     private long GetAuthenticatedUserId() =>

@@ -2,7 +2,12 @@
 document.getElementById("editMedicationForm")?.addEventListener("medication-loaded", event => {
     const form = event.currentTarget as HTMLFormElement;
     const input = form.elements.namedItem("PlanFields.LongTermIntent") as HTMLSelectElement | null;
-    const medication = (event as CustomEvent<{planFields?: {longTermIntent?: boolean | null}}>).detail;
+    const medication = (event as CustomEvent<{planFields?: {longTermIntent?: boolean | null}, complianceAssessment?: Record<string,string|null>}>).detail;
+    const assessment = medication.complianceAssessment;
+    for (const [name,value] of Object.entries({State:assessment?.State ?? assessment?.state,Explanation:assessment?.Explanation ?? assessment?.explanation,AssessmentAt:assessment?.AssessmentAt ?? assessment?.assessmentAt})) {
+        const field = form.elements.namedItem(`ComplianceAssessment.${name}`) as HTMLInputElement | null;
+        if (field) field.value=value ?? "";
+    }
     if (input) input.value = medication.planFields?.longTermIntent?.toString() ?? "";
 });
 export function medicationMatches(status: string, classification: string, selectedStatus: string, selectedClass: string): boolean {

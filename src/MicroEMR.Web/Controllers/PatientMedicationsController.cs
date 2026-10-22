@@ -97,6 +97,7 @@ public sealed class PatientMedicationsController : Controller
                 "Medication name is required.");
         }
 
+        ValidateAssessmentTime();
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -105,7 +106,7 @@ public sealed class PatientMedicationsController : Controller
         var request = new CreatePatientMedicationRequest
         {
             MedicationName = model.MedicationName,
-            Classification = model.Classification, PlanFields = model.PlanFieldsIncluded ? model.PlanFields ?? new() : null,
+            Classification = model.Classification, ComplianceAssessment = model.ComplianceAssessment, PlanFields = model.PlanFieldsIncluded ? model.PlanFields ?? new() : null,
             Strength = model.Strength,
             DosageForm = model.DosageForm,
             Route = model.Route,
@@ -198,7 +199,7 @@ public sealed class PatientMedicationsController : Controller
         var item = await _medicationApiClient.GetByUidAsync(medicationUid, cancellationToken);
         if (item is null) return NotFound();
         var model = new EditPatientMedicationViewModel {
-            PatientUid=item.PatientUid, MedicationUid=item.MedicationUid, MedicationName=item.MedicationName, Classification=item.Classification, PlanFields=new(){LongTermIntent=item.LongTermIntent},PlanFieldsIncluded=true,
+            PatientUid=item.PatientUid, MedicationUid=item.MedicationUid, MedicationName=item.MedicationName, Classification=item.Classification, ComplianceAssessment=item.ComplianceAssessment is {} assessment ? new(){State=assessment.State,Explanation=assessment.Explanation,AssessmentAt=assessment.AssessmentAt}:null, PlanFields=new(){LongTermIntent=item.LongTermIntent},PlanFieldsIncluded=true,
             Strength=item.Strength, DosageForm=item.DosageForm, Route=item.Route, Directions=item.Directions,
             Frequency=item.Frequency, StartDate=item.StartDate, EndDate=item.EndDate, Indication=item.Indication,
             PrescriberName=item.PrescriberName, Status=item.Status, Notes=item.Notes, RowVersion=item.RowVersion };
@@ -209,10 +210,11 @@ public sealed class PatientMedicationsController : Controller
     public async Task<IActionResult> Edit(EditPatientMedicationViewModel model, CancellationToken cancellationToken)
     {
         if (model.PatientUid == Guid.Empty || model.MedicationUid == Guid.Empty) return BadRequest();
+        ValidateAssessmentTime();
         if (!ModelState.IsValid) return IsModalRequest() ? BadRequest(new { errors = ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() }) : View(model);
         try {
             var result = await _medicationApiClient.UpdateAsync(model.PatientUid, model.MedicationUid,
-                new UpdatePatientMedicationRequest { MedicationName=model.MedicationName, Classification=model.Classification, PlanFields=model.PlanFieldsIncluded?model.PlanFields??new():null, Strength=model.Strength,
+                new UpdatePatientMedicationRequest { MedicationName=model.MedicationName, Classification=model.Classification, ComplianceAssessment=model.ComplianceAssessment, PlanFields=model.PlanFieldsIncluded?model.PlanFields??new():null, Strength=model.Strength,
                     DosageForm=model.DosageForm, Route=model.Route, Directions=model.Directions, Frequency=model.Frequency,
                     StartDate=model.StartDate, EndDate=model.EndDate, Indication=model.Indication,
                     PrescriberName=model.PrescriberName, Status=model.Status, Notes=model.Notes, RowVersion=model.RowVersion }, cancellationToken);
@@ -235,6 +237,12 @@ public sealed class PatientMedicationsController : Controller
             ModelState.AddModelError(string.Empty, "The medication could not be updated. Please try again.");
             return IsModalRequest() ? StatusCode(StatusCodes.Status503ServiceUnavailable, new { errors = new[] { "The medication could not be updated. Please try again." } }) : View(model);
         }
+    }
+
+    private void ValidateAssessmentTime()
+    {
+        if (ModelState.TryGetValue("ComplianceAssessment.AssessmentAt",out var entry) && !string.IsNullOrWhiteSpace(entry.AttemptedValue) && !System.Text.RegularExpressions.Regex.IsMatch(entry.AttemptedValue,@"(?:Z|[+-]\d{2}:\d{2})$"))
+            ModelState.AddModelError("ComplianceAssessment.AssessmentAt","Supply the assessment time with a UTC offset, or leave it blank.");
     }
 
     private bool IsModalRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";

@@ -5,6 +5,7 @@ namespace MicroEMR.Web.Models.PatientMedications;
 public sealed class CreatePatientMedicationRequest : IValidatableObject
 {
     public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationComplianceAssessment? ComplianceAssessment { get; set; }
     public string? Classification { get; set; }
 
     [Required]
@@ -42,6 +43,7 @@ public sealed class CreatePatientMedicationRequest : IValidatableObject
     public IEnumerable<ValidationResult> Validate(
         ValidationContext validationContext)
     {
+        if (ComplianceAssessment is {} assessment) foreach (var error in assessment.Validate(new(assessment))) yield return error;
         if (!MicroEMR.Core.PatientMedications.MedicationClassifications.IsValid(Classification))
             yield return new ValidationResult("Select Ongoing, Acute or Unclassified.", new[] { nameof(Classification) });
 
