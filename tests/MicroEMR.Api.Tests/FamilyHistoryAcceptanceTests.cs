@@ -313,6 +313,8 @@ internal sealed class FamilyHistoryAcceptanceHost(WebApplication app) : IAsyncDi
         builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
         builder.Services.AddScoped<ICurrentUserPermissionService, Permissions>();
         builder.Services.AddScoped<ITenantSqlConnectionFactory>(_ => db.Factory(other));
+        builder.Services.AddSingleton(CppSelectivePrintTests.Stub<IAdministrativeTenantSqlConnectionFactory>((_, _) =>
+            throw new InvalidOperationException("Administrative writes are not expected in this isolated request fixture.")));
         builder.Services.AddScoped<IPatientFamilyHistoryRepository, PatientFamilyHistoryRepository>();
         builder.Services.AddScoped<IPatientFamilyHistoryService, PatientFamilyHistoryService>();
         builder.Services.AddScoped<MicroEMR.Application.PatientRiskFactors.IPatientRiskFactorRepository, MicroEMR.Infrastructure.PatientRiskFactors.PatientRiskFactorRepository>();

@@ -4,6 +4,7 @@ namespace MicroEMR.Web.Models.PatientMedications;
 
 public sealed class CreatePatientMedicationRequest : IValidatableObject
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
     public string? Classification { get; set; }
 
     [Required]

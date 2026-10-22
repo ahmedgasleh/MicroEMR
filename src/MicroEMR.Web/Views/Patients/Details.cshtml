@@ -1748,6 +1748,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) throw new Error("The medication could not be loaded. Refresh the chart and try again.");
             const medication = await response.json();
             form.reset();
+            form.dispatchEvent(new CustomEvent("medication-loaded", { detail: medication }));
             for (const field of ["PatientUid", "MedicationUid", "RowVersion", "MedicationName", "Classification", "Strength", "DosageForm", "Route", "Frequency", "Directions", "Status", "Indication", "PrescriberName", "Notes"]) {
                 const input = form.querySelector(`[name="${field}"]`);
                 if (input) input.value = medication[field.charAt(0).toLowerCase() + field.slice(1)] ?? "";

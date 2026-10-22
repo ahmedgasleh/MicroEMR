@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 namespace MicroEMR.Web.Models.PatientMedications;
 public sealed class EditPatientMedicationViewModel : IValidatableObject
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
+    public bool PlanFieldsIncluded {get;set;}
     public string? Classification { get; set; }
 
     public Guid PatientUid { get; set; } public Guid MedicationUid { get; set; }

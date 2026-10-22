@@ -17,3 +17,8 @@ test('all lifecycle states and all classifications keep history accessible',()=>
 test('inactive and discontinued filter retains existing lifecycle convention',()=>{const f=setup();f.select('Discontinued','All');assert.equal(f.visible().length,2);f.select('Discontinued','Acute');assert.equal(f.visible().length,1);});
 test('empty selection reports scope without claiming global absence',()=>{const f=setup();f.select('Discontinued','Unclassified');assert.equal(f.visible().length,0);assert.equal(f.table.classList.hidden,true);assert.match(f.text.textContent,/discontinued \/ unclassified/);});
 test('module tolerates non chart pages',()=>{vm.runInNewContext(source,{document:{getElementById:()=>null}});});
+test('editing loads explicit false and unknown long-term intent without classification inference',()=>{
+    const input={value:'stale'},form={elements:{namedItem:()=>input},addEventListener(_,fn){this.load=fn;}};
+    vm.runInNewContext(source,{document:{getElementById:id=>id==='editMedicationForm'?form:null}});
+    for(const value of [true,false,null]){form.load({currentTarget:form,detail:{classification:'Ongoing',planFields:{longTermIntent:value}}});assert.equal(input.value,value===null?'':String(value));}
+});

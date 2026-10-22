@@ -85,10 +85,11 @@ public sealed class PatientAllergyRepository(ITenantSqlConnectionFactory connect
     private static string? Text(SqlDataReader r,string n)=>r[n] is DBNull?null:(string)r[n];
     private static T? Value<T>(SqlDataReader r,string n) where T:struct=>r[n] is DBNull?null:(T)r[n];
     private static string Token(SqlDataReader r)=>Convert.ToBase64String((byte[])r["RowVersion"]);
+    private static string? OptionalApplicability(SqlDataReader r){for(var i=0;i<r.FieldCount;i++)if(r.GetName(i)=="DrugApplicability")return r.IsDBNull(i)?null:r.GetString(i);return null;}
     private static AllergyClinicalFields Fields(SqlDataReader r)
     {
         int? Part(string suffix)=>r["Onset"+suffix] is DBNull?null:Convert.ToInt32(r["Onset"+suffix]);var exact=Value<DateTime>(r,"OnsetDate");
-        return new(){DrugDIN=Text(r,"DrugDIN"),LifeStageCode=Text(r,"LifeStageCode"),OnsetDate=Part("Year") is {} y?new(){Year=y,Month=Part("Month"),Day=Part("Day")}:exact is {} d?new(){Year=d.Year,Month=d.Month,Day=d.Day}:null};
+        return new(){DrugApplicability=OptionalApplicability(r),DrugDIN=Text(r,"DrugDIN"),LifeStageCode=Text(r,"LifeStageCode"),OnsetDate=Part("Year") is {} y?new(){Year=y,Month=Part("Month"),Day=Part("Day")}:exact is {} d?new(){Year=d.Year,Month=d.Month,Day=d.Day}:null};
     }
     private static PatientAllergyListItemResponse ListItem(SqlDataReader r)=>new(){AllergyUid=(Guid)r["AllergyUid"],PatientUid=(Guid)r["PatientUid"],AllergenName=(string)r["AllergenName"],AllergenType=Text(r,"AllergenType"),Reaction=Text(r,"Reaction"),Severity=Text(r,"Severity"),OnsetDate=Value<DateTime>(r,"OnsetDate"),ClinicalFields=Fields(r),Notes=Text(r,"Notes"),Status=(string)r["AllergyStatus"],CreatedBy=Value<long>(r,"CreatedBy"),CreatedByDisplayName=Text(r,"ActorDisplayName"),CreatedAt=(DateTime)r["CreatedAt"],UpdatedAt=Value<DateTime>(r,"UpdatedAt"),RowVersion=Token(r)};
     private static PatientAllergyDetailsResponse Details(SqlDataReader r)=>new(){AllergyUid=(Guid)r["AllergyUid"],PatientUid=(Guid)r["PatientUid"],AllergenName=(string)r["AllergenName"],AllergenType=Text(r,"AllergenType"),Reaction=Text(r,"Reaction"),Severity=Text(r,"Severity"),OnsetDate=Value<DateTime>(r,"OnsetDate"),ClinicalFields=Fields(r),Notes=Text(r,"Notes"),Status=(string)r["AllergyStatus"],CreatedBy=Value<long>(r,"CreatedBy"),CreatedByDisplayName=Text(r,"ActorDisplayName"),CreatedAt=(DateTime)r["CreatedAt"],UpdatedAt=Value<DateTime>(r,"UpdatedAt"),RowVersion=Token(r)};

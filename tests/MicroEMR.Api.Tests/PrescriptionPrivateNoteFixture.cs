@@ -55,7 +55,6 @@ public sealed class PrescriptionPrivateNoteFixture : IAsyncLifetime
         foreach (var other in new[] { false, true })
         {
             await using var c = await Db.Factory(other).OpenConnectionAsync();
-            await Batches(c, Sql("tenant-clinical/migrations/0085-private-prescription-notes.sql"));
             await Batches(c, """
                 UPDATE dbo.ApplicationUser SET AuthSubjectId=CASE UserId WHEN 7 THEN N'writer' WHEN 8 THEN N'other' ELSE N'inactive' END;
                 INSERT dbo.ApplicationUser(UserId,IsActive,AuthSubjectId) VALUES(10,1,N'staff'),(11,1,N'chart'),(12,1,N'no-private'),(13,1,N'inactive-membership'),(14,1,N'no-view');
@@ -138,6 +137,8 @@ internal sealed class PrivateNoteHost(WebApplication app) : IAsyncDisposable
         builder.WebHost.UseUrls("http://127.0.0.1:0"); builder.Logging.ClearProviders(); builder.Logging.AddProvider(fixture.Logs);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:PlatformDatabase"] = fixture.PlatformConnection });
         builder.Services.AddHttpContextAccessor(); builder.Services.AddProblemDetails(); builder.Services.AddExceptionHandler<SafeApiExceptionHandler>();
+        builder.Services.AddSingleton(CppSelectivePrintTests.Stub<IAdministrativePlatformConnectionStringProvider>((_,_)=>
+            throw new InvalidOperationException("Administrative platform writes are not expected in this isolated request fixture.")));
         builder.Services.AddAuthentication("Private").AddScheme<AuthenticationSchemeOptions, Authentication>("Private", _ => { }); builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>(); builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>(); builder.Services.AddScoped<IAuthorizationMiddlewareResultHandler, MissingPermissionAuthorizationResultHandler>();
         builder.Services.AddScoped<IAuthenticatedSubjectAccessor, Subject>(); builder.Services.AddScoped<IAccessProfileRepository, SqlAccessProfileRepository>(); builder.Services.AddScoped<ICurrentUserPermissionService, CurrentUserPermissionService>();
@@ -146,6 +147,8 @@ internal sealed class PrivateNoteHost(WebApplication app) : IAsyncDisposable
         builder.Services.AddScoped<IPrescriptionPrivateNoteRepository, PrescriptionPrivateNoteRepository>(); builder.Services.AddScoped<IPrescriptionPrivateNoteService, PrescriptionPrivateNoteService>(); builder.Services.AddScoped<IPrescriptionPrivateNoteRequestContext, PrescriptionPrivateNoteRequestContext>();
         builder.Services.AddScoped<IPdfRenderer, PrescriptionDatePrecisionTests.Capture>(); builder.Services.AddScoped<IPrescriptionPdfRenderer, PrescriptionDatePrecisionTests.Capture>(); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddScoped<IPatientPrescriptionService, PatientPrescriptionService>(); builder.Services.AddScoped<PrescriptionOutputService>();
         builder.Services.AddScoped<IPatientChartReadAuditService, PatientChartReadAuditService>(); builder.Services.AddScoped<IReadAuditRepository, ReadAuditRepository>();
+        builder.Services.AddSingleton(CppSelectivePrintTests.Stub<IAdministrativeTenantSqlConnectionFactory>((_,_)=>
+            throw new InvalidOperationException("Administrative writes are not expected in this isolated request fixture.")));
         builder.Services.AddScoped<IClinicalUserRepository, ClinicalUserRepository>(); builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor, AuthenticatedClinicalUserAccessor>();
         builder.Services.AddScoped<ITenantContextAccessor>(_ => { var accessor = new TenantContextAccessor(); accessor.SetTenant(fixture.Db.Tenant(other)); return accessor; });
         builder.Services.AddScoped<IPlatformSecurityAuditRepository, SqlPlatformSecurityAuditRepository>();

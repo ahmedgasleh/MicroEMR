@@ -35,7 +35,7 @@
                     <dt class="col-sm-5">Medication</dt>
                     <dd class="col-sm-7">@Model.MedicationName</dd>
 
-                    <dt class="col-sm-5">Classification</dt><dd class="col-sm-7">@(Model.Classification ?? "Unclassified / unknown")</dd>
+                    <dt class="col-sm-5">Long-term treatment intent</dt><dd class="col-sm-7">@(Model.LongTermIntent is null ? "Unknown" : Model.LongTermIntent.Value ? "Yes" : "No")</dd><dt class="col-sm-5">Past medication (discontinued plan)</dt><dd class="col-sm-7">@(Model.PastMedication ? "Yes" : "No")</dd><dt class="col-sm-5">Classification</dt><dd class="col-sm-7">@(Model.Classification ?? "Unclassified / unknown")</dd>
                     <dt class="col-sm-5">Strength</dt>
                     <dd class="col-sm-7">@(Model.Strength ?? "-")</dd>
 

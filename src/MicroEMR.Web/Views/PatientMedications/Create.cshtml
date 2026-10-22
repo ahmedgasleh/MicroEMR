@@ -39,7 +39,8 @@
             </div>
         }
 
-        <div class="row g-3">
+        <div class="row g-3"><input type="hidden" name="PlanFieldsIncluded" value="true" />
+<div class="col-md-6"><label asp-for="PlanFields.LongTermIntent" class="form-label">Long-term treatment intent</label><select asp-for="PlanFields.LongTermIntent" class="form-select"><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
             <div class="col-md-6"><label asp-for="Classification" class="form-label"></label>
                 <select asp-for="Classification" class="form-select"><option value="">Unclassified / unknown</option><option>Ongoing</option><option>Acute</option></select>
                 <span asp-validation-for="Classification" class="text-danger"></span></div>

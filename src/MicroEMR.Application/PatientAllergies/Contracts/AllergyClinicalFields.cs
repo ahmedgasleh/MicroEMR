@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using MicroEMR.Application.PatientClinicalHistory;
 using MicroEMR.Core.Domain;
 
@@ -8,6 +9,15 @@ namespace MicroEMR.Application.PatientAllergies.Contracts;
 public sealed class AllergyClinicalFields
 {
     public const string LifeStageSourceVersion = "CDS-S 2.1 Final / 2026-06-05 / CT-016";
+    private string? applicability;
+    [JsonIgnore] public string? DrugApplicability { get => applicability; set { applicability=string.IsNullOrWhiteSpace(value)?null:value.Trim(); DrugApplicabilitySpecified=true; } }
+    [JsonIgnore] public bool DrugApplicabilitySpecified { get; private set; }
+    [JsonPropertyName("DrugApplicability"),JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+    public JsonElement DrugApplicabilityInput
+    {
+        get => DrugApplicabilitySpecified ? JsonSerializer.SerializeToElement(DrugApplicability) : default;
+        set { if(value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))throw new JsonException("Drug applicability must be text or null."); DrugApplicability=value.ValueKind==JsonValueKind.Null?null:value.GetString(); }
+    }
     private string? din, stage;
     public string? DrugDIN { get => din; set => din=string.IsNullOrWhiteSpace(value)?null:value.Trim(); }
     public string? LifeStageCode { get => stage; set => stage=string.IsNullOrWhiteSpace(value)?null:value.Trim(); }
@@ -37,7 +47,9 @@ public abstract class AllergySaveRequest : IValidatableObject
             if(fields.OnsetDate?.IsValid==false) yield return new("Onset must be a valid year, year-month or full date.");
             if(!FamilyHistoryLifeStages.IsValid(fields.LifeStageCode)) yield return new("Select a recorded CT-016 life stage or leave it blank.");
             if(fields.DrugDIN?.Length>100) yield return new("Drug DIN must be 100 characters or fewer.");
-            if(fields.DrugDIN is not null && AllergenType?.Trim()!="Medication") yield return new("DIN entry is supported only for explicitly classified Medication allergies. Review the classification; ambiguous drug mappings remain deferred.");
+            if(fields.DrugApplicability is not null && fields.DrugApplicability is not ("Drug" or "Non-drug" or "Unknown")) yield return new("Select Drug, Non-drug or Unknown applicability.");
+            // Omitted applicability on updates is checked against the owned stored record by SQL.
+            if(fields.DrugDIN is not null && (fields.DrugApplicability is not null ? fields.DrugApplicability != "Drug" : this is CreatePatientAllergyRequest && AllergenType?.Trim() != "Medication")) yield return new("DIN entry requires explicit Drug applicability or the existing Medication classification. Reconcile a recorded DIN deliberately.");
         }
     }
 }

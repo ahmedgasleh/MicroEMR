@@ -1,6 +1,7 @@
 namespace MicroEMR.Web.Models.PatientMedications;
 public sealed class UpdatePatientMedicationRequest
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
     public string? Classification { get; set; }
 
     public string MedicationName { get; set; } = string.Empty; public string? Strength { get; set; }

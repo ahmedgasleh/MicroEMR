@@ -131,6 +131,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             200,
             request.MedicationName);
         AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
+        if(request.PlanFields is not null) AddNullableString(command, "@PlanFields", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.PlanFields));
 
         AddNullableString(
             command,
@@ -252,6 +253,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
         AddRequiredString(command, "@MedicationName", SqlDbType.NVarChar, 200, request.MedicationName);
         AddNullableString(command, "@Classification", SqlDbType.NVarChar, 20, request.Classification);
+        if(request.PlanFields is not null) AddNullableString(command, "@PlanFields", SqlDbType.NVarChar, -1, System.Text.Json.JsonSerializer.Serialize(request.PlanFields));
         AddNullableString(command, "@Strength", SqlDbType.NVarChar, 100, request.Strength);
         AddNullableString(command, "@DosageForm", SqlDbType.NVarChar, 100, request.DosageForm);
         AddNullableString(command, "@Route", SqlDbType.NVarChar, 100, request.Route);
@@ -305,6 +307,10 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
         }
+        catch (SqlException exception) when (exception.Number == 52902)
+        {
+            throw new ArgumentException("Review the future treatment start/end dates before discontinuing.", nameof(request), exception);
+        }
         catch (SqlException exception)
         {
             _logger.LogError(exception, "Failed to discontinue a patient medication.");
@@ -319,6 +325,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             MedicationUid = reader.GetGuid(reader.GetOrdinal("MedicationUid")),
             PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+            LongTermIntent = OptionalLongTerm(reader),
             Classification = GetNullableString(reader, "Classification"),
             MedicationName = reader.GetString(reader.GetOrdinal("MedicationName")),
             Strength = GetNullableString(reader, "Strength"),
@@ -347,6 +354,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         {
             MedicationUid = reader.GetGuid(reader.GetOrdinal("MedicationUid")),
             PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
+            LongTermIntent = OptionalLongTerm(reader),
             Classification = GetNullableString(reader, "Classification"),
             MedicationName = reader.GetString(reader.GetOrdinal("MedicationName")),
             Strength = GetNullableString(reader, "Strength"),
@@ -420,6 +428,11 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
             });
     }
 
+    private static bool? OptionalLongTerm(SqlDataReader reader)
+    {
+        for(var i=0;i<reader.FieldCount;i++) if(reader.GetName(i)=="LongTermIntent") return reader.IsDBNull(i)?null:reader.GetBoolean(i);
+        return null;
+    }
     private static string? GetNullableString(
         SqlDataReader reader,
         string columnName)

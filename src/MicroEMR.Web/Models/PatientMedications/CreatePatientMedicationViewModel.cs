@@ -4,6 +4,8 @@ namespace MicroEMR.Web.Models.PatientMedications;
 
 public sealed class CreatePatientMedicationViewModel : IValidatableObject
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
+    public bool PlanFieldsIncluded {get;set;}
     public string? Classification { get; set; }
 
     public Guid PatientUid { get; set; }

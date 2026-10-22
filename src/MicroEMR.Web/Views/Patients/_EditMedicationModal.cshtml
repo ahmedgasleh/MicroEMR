@@ -8,6 +8,8 @@
                 <input type="hidden" name="PatientUid" value="@Model.Patient.PatientUid" />
                 <input type="hidden" name="MedicationUid" />
                 <input type="hidden" name="RowVersion" />
+                <input type="hidden" name="PlanFieldsIncluded" value="true" />
+                <div class="px-3 pt-3"><label class="form-label" for="editMedicationLongTerm">Long-term treatment intent</label><select id="editMedicationLongTerm" name="PlanFields.LongTermIntent" class="form-select"><option value="">Unknown</option><option value="true">Yes</option><option value="false">No</option></select></div>
                 <div class="modal-header">
                     <h2 class="modal-title fs-5" id="editMedicationModalLabel">Edit Medication</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

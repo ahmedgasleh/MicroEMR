@@ -2,16 +2,21 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const script=fs.readFileSync('src/MicroEMR.Web/wwwroot/dist/patients/patient-allergies.js','utf8').replace(/export\s*\{\};/g,'');
 function fixture(readonly=false){
  const el=()=>({value:'',disabled:false,textContent:'',dataset:{},events:{},hidden:false,classList:{add(){},remove(){}},addEventListener(n,fn){this.events[n]=fn;}});
- const type=el(),din=el(),section=el(),group=el(),form=el();type.value='Medication';din.value='00123456';group.classList.toggle=(_,hidden)=>group.hidden=hidden;
- section.closest=()=>form;section.querySelector=()=>group;form.elements={namedItem:n=>n==='AllergenType'?type:din};
+ const type=el(),applicability=el(),din=el(),section=el(),group=el(),form=el();type.value='Medication';din.value='00123456';group.classList.toggle=(_,hidden)=>group.hidden=hidden;
+ section.closest=()=>form;section.querySelector=()=>group;form.elements={namedItem:n=>n==='AllergenType'?type:n==='ClinicalFields.DrugApplicability'?applicability:din};
  const modal=el();modal.dataset.url='/allergies/resolve';const reason=el(),message=el(),confirm=el(),button=el();button.dataset={patientUid:'fictional-patient',allergyUid:'fictional-allergy',rowVersion:'captured-version'};
  const calls=[];let reloads=0;
  const context={document:{addEventListener:(_,fn)=>fn(),querySelectorAll:s=>s==='[data-allergy-clinical-fields]'?[section]:readonly?[]:[button],querySelector:s=>s==='#resolveAllergyModal'?modal:s==='#resolveAllergyReason'?reason:s==='#resolveAllergyMessage'?message:s==='#confirmResolveAllergyButton'?confirm:{value:'antiforgery'}},bootstrap:{Modal:{getOrCreateInstance:()=>({show(){},hide(){}})}},queueMicrotask,FormData,fetch:async(url,options)=>{calls.push({url,options});return{ok:false,json:async()=>({success:false,message:'Changed. Reload and review.'})};},window:{location:{reload(){reloads++;}}}};
- vm.createContext(context);vm.runInContext(script,context);return{type,din,group,reason,message,confirm,button,form,calls,get reloads(){return reloads;}};
+ vm.createContext(context);vm.runInContext(script,context);return{type,applicability,din,group,reason,message,confirm,button,form,calls,get reloads(){return reloads;}};
 }
 test('drug applicability never silently erases an existing DIN when classification changes',()=>{
  const f=fixture();assert.equal(f.group.hidden,false);f.type.value='Contrast';f.type.events.change();assert.equal(f.din.value,'00123456');assert.equal(f.din.disabled,false);assert.equal(f.group.hidden,false);
  f.din.value='';f.din.events.input();assert.equal(f.group.hidden,true);f.type.value='Medication';f.type.events.change();assert.equal(f.group.hidden,false);
+});
+test('explicit drug applicability controls DIN entry independently of legacy type',()=>{
+ const f=fixture();f.type.value='Contrast';f.din.value='';f.applicability.value='Drug';f.applicability.events.change();assert.equal(f.group.hidden,false);
+ f.applicability.value='Unknown';f.applicability.events.change();assert.equal(f.group.hidden,true);
+ f.din.value='00123456';f.din.events.input();assert.equal(f.group.hidden,false);assert.equal(f.din.value,'00123456');
 });
 test('Resolve submits the captured positive token, retains reason on conflict and never refreshes/retries',async()=>{
  const chart=fs.readFileSync('src/MicroEMR.Web/Views/Patients/Details.cshtml','utf8');assert.equal((chart.match(/dist\/patients\/patient-allergies\.js/g)||[]).length,1);assert.ok(!chart.includes('const modal = new bootstrap.Modal(document.getElementById("resolveAllergyModal"))'));assert.ok(!chart.includes(`fetch('@Url.Action("ResolveAllergy"`));

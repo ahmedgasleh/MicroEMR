@@ -261,6 +261,9 @@ public sealed class PrescriptionDateDatabase:IAsyncLifetime
             setup.Parameters.AddWithValue("@Tenant",tenants[other]);await setup.ExecuteNonQueryAsync();
             var sql=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0018-clinical-user-auth-subject.sql"))+"\nGO\n"+File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations","0043-patient-chart-read-audit.sql"));
             foreach(var batch in Regex.Split(sql,@"^\s*GO\s*$",RegexOptions.Multiline|RegexOptions.IgnoreCase))if(!string.IsNullOrWhiteSpace(batch)){await using var cmd=new SqlCommand(batch,c);await cmd.ExecuteNonQueryAsync();}
+            await PrescriptionPrivateNoteFixture.Batches(c,"ALTER TABLE dbo.Provider ADD FirstName nvarchar(100) NULL,LastName nvarchar(100) NULL;\nGO\nUPDATE dbo.Provider SET FirstName=N'Native',LastName=N'Prescriber';");
+            foreach(var file in new[]{"0085-private-prescription-notes.sql","0086-prescription-description-identity-intent.sql"})
+                await PrescriptionPrivateNoteFixture.Batches(c,PrescriptionPrivateNoteFixture.Sql("tenant-clinical/migrations/"+file));
         }
     }
     public Task DisposeAsync()=>Stores.DisposeAsync();
@@ -280,6 +283,8 @@ internal sealed class PrescriptionDateHost(WebApplication app):IAsyncDisposable
         builder.Services.AddAuthentication("Dates").AddScheme<AuthenticationSchemeOptions,Authentication>("Dates",_=>{});builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IAuthorizationPolicyProvider,PermissionPolicyProvider>();builder.Services.AddScoped<IAuthorizationHandler,PermissionAuthorizationHandler>();builder.Services.AddScoped<ICurrentUserPermissionService,Permissions>();
         builder.Services.AddScoped<ITenantSqlConnectionFactory>(_=>db.Factory(other));builder.Services.AddScoped<IPatientPrescriptionRepository,PatientPrescriptionRepository>();builder.Services.AddScoped<IPrescriptionOutputRepository,PatientPrescriptionRepository>();
+        builder.Services.AddSingleton(CppSelectivePrintTests.Stub<IAdministrativeTenantSqlConnectionFactory>((_,_)=>
+            throw new InvalidOperationException("Administrative writes are not expected in this isolated request fixture.")));
         builder.Services.AddScoped<IPdfRenderer,PrescriptionDatePrecisionTests.Capture>();builder.Services.AddScoped<IPrescriptionPdfRenderer,PrescriptionDatePrecisionTests.Capture>();builder.Services.AddSingleton(TimeProvider.System);builder.Services.AddScoped<IPatientPrescriptionService,PatientPrescriptionService>();builder.Services.AddScoped<PrescriptionOutputService>();
         builder.Services.AddScoped<IPatientChartReadAuditService,PatientChartReadAuditService>();builder.Services.AddScoped<IReadAuditRepository,ReadAuditRepository>();
         builder.Services.AddScoped<IClinicalUserRepository,ClinicalUserRepository>();builder.Services.AddScoped<IAuthenticatedClinicalUserAccessor,AuthenticatedClinicalUserAccessor>();

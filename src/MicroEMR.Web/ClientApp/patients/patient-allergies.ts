@@ -3,9 +3,10 @@ declare const bootstrap: {Modal: {getOrCreateInstance(element:Element):{show():v
 document.addEventListener("DOMContentLoaded",()=>{
  document.querySelectorAll<HTMLElement>("[data-allergy-clinical-fields]").forEach(section=>{
   const form=section.closest("form")!,type=form.elements.namedItem("AllergenType") as HTMLSelectElement;
+  const applicability=form.elements.namedItem("ClinicalFields.DrugApplicability") as HTMLSelectElement;
   const din=form.elements.namedItem("ClinicalFields.DrugDIN") as HTMLInputElement;
-  const update=()=>section.querySelector<HTMLElement>("[data-allergy-din]")!.classList.toggle("d-none",type.value!=="Medication"&&!din.value.trim());
-  type.addEventListener("change",update);din.addEventListener("input",update);form.addEventListener("reset",()=>queueMicrotask(update));update();
+  const update=()=>section.querySelector<HTMLElement>("[data-allergy-din]")!.classList.toggle("d-none",!(applicability?.value==="Drug"||(!applicability?.value&&type.value==="Medication"))&&!din.value.trim());
+  applicability?.addEventListener("change",update);type.addEventListener("change",update);din.addEventListener("input",update);form.addEventListener("reset",()=>queueMicrotask(update));update();
  });
  const element=document.querySelector<HTMLElement>("#resolveAllergyModal");if(!element)return;
  const modal=bootstrap.Modal.getOrCreateInstance(element),reason=document.querySelector<HTMLTextAreaElement>("#resolveAllergyReason")!,message=document.querySelector<HTMLElement>("#resolveAllergyMessage")!,confirm=document.querySelector<HTMLButtonElement>("#confirmResolveAllergyButton")!;

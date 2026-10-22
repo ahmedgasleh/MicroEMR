@@ -4,6 +4,7 @@ namespace MicroEMR.Application.PatientMedications.Contracts;
 
 public sealed class UpdatePatientMedicationRequest : IValidatableObject
 {
+    public MicroEMR.Application.PatientMedications.Contracts.MedicationPlanFields? PlanFields { get; set; }
     public string? Classification { get; set; }
 
     [Required, StringLength(200)] public string MedicationName { get; set; } = string.Empty;

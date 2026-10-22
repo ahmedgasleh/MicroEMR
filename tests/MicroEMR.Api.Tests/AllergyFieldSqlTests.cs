@@ -219,6 +219,7 @@ public sealed class AllergyFieldDatabase:IAsyncLifetime
                     await using(var r=await q.ExecuteReaderAsync()){await r.ReadAsync();LegacyUid=(Guid)r["AllergyUid"];LegacyToken=Convert.ToBase64String((byte[])r["RowVersion"]);}LegacyAudit=await LegacyAuditSnapshot();
                 }
                 await Apply(other,"tenant-clinical/migrations/0081-allergy-fields-safeguards.sql");
+                await Apply(other,"tenant-clinical/migrations/0088-allergy-drug-applicability.sql");
             }
         }catch{await Clinical.DisposeAsync();throw;}
     }

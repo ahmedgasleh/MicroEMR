@@ -1,8 +1,17 @@
 @model MicroEMR.Web.Models.PrescriptionDetailViewModel
-@{ViewData["Title"]="Prescription detail";var rx=Model.Prescription;}
-<div class="container py-4">
- <h1 class="h3">Prescription detail</h1>
+@{ViewData["Title"]="Prescription detail";ViewData["Subtitle"]="Prescription";Layout="_AppLayout";var rx=Model.Prescription;}
+<div class="content-panel">
+ <div class="content-panel-header">
+  <div><h3>Prescription detail</h3><p>Recorded prescription</p></div>
+  <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications"><i class="bi bi-arrow-left me-1"></i>Back to prescriptions</a>
+ </div>
+ <div class="mt-4">
  <p><strong>@rx.ProductDisplayText</strong> <span class="badge text-bg-secondary">@rx.Status</span></p>
+ <p><strong>Product/Brand Name:</strong> @rx.ProductName</p>
+ <p><strong>Drug Description:</strong> @rx.ProductDisplayText</p>
+ <p><strong>Substitution prohibited:</strong> @(rx.SubstitutionProhibited is null ? "Not recorded" : rx.SubstitutionProhibited.Value ? "Yes" : "No")</p>
+ <p><strong>Treatment type:</strong> @(rx.TreatmentType??"Not recorded")</p>
+ <p><strong>Prescriber first name:</strong> @(rx.PrescriberFirstNameSnapshot??"Not recorded") <strong>Last name:</strong> @(rx.PrescriberLastNameSnapshot??"Not recorded") <strong>OHIP Billing Number:</strong> @(rx.PrescriberOhipSnapshot??"Not recorded")</p>
  <p>@rx.Directions</p>
  @if(Model.PrivateNote is {} note)
  {
@@ -24,5 +33,5 @@
    </div>
   </section>
  }
- <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications">Back to prescriptions</a>
+ </div>
 </div>

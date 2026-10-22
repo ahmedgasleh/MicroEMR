@@ -15,6 +15,7 @@ public static class PrescriptionFrequencies
 }
 public class PrescriptionDraftRequest:IValidatableObject
 {
+ public PrescriptionOrderFields? OrderFields { get; set; }
  private string? privateNote;
  [JsonIgnore,StringLength(1000)] public string? PrivateNote { get => privateNote; set { privateNote=value; PrivateNoteSpecified=true; } }
  [JsonIgnore] public bool PrivateNoteSpecified { get; private set; }
@@ -95,6 +96,8 @@ public class PrescriptionDraftRequest:IValidatableObject
  }
  public IEnumerable<ValidationResult> Validate(ValidationContext _)
  {
+ if(PrescriptionTextContract.Error(ProductDisplayText) is {} descriptionError) yield return new(descriptionError,[nameof(ProductDisplayText)]);
+ if(PrescriptionTextContract.Error(OrderFields?.TreatmentType,false) is {} treatmentError) yield return new(treatmentError,[nameof(OrderFields)]);
   foreach(var result in ValidateDispensingInstructions())yield return result;
   if((StrengthValue.HasValue)!=(!string.IsNullOrWhiteSpace(StrengthUnit)))yield return new("Strength value and unit must be supplied together.",[nameof(StrengthValue),nameof(StrengthUnit)]);
   if((DoseAmount.HasValue)!=(!string.IsNullOrWhiteSpace(DoseUnit)))yield return new("Dose amount and unit must be supplied together.",[nameof(DoseAmount),nameof(DoseUnit)]);
@@ -107,6 +110,7 @@ public sealed class CreatePrescriptionDraftRequest:PrescriptionDraftRequest { pu
 public sealed class PrescriptionTransitionRequest { [Required] public string RowVersion{get;set;}=""; [StringLength(500)] public string? Reason{get;set;} }
 public sealed class PatientPrescriptionResponse
 {
+ public bool? SubstitutionProhibited {get;set;} public string? TreatmentType {get;set;} public string? PrescriberFirstNameSnapshot {get;set;} public string? PrescriberLastNameSnapshot {get;set;} public string? PrescriberOhipSnapshot {get;set;}
  public string? GenericName { get; set; }
  public string? MedicationForm{get;set;} public string? NotesToPharmacist{get;set;}
  public Guid PrescriptionUid{get;set;} public Guid PatientUid{get;set;} public string Status{get;set;}=""; public string ProductName{get;set;}=""; public string? ProductIdentifierNamespace{get;set;} public string? ProductIdentifierValue{get;set;} public string ProductDisplayText{get;set;}="";
@@ -145,7 +149,7 @@ public sealed class PatientPrescriptionService(IPatientPrescriptionRepository re
   await privateNotes.AuthorizeWriteAsync(actor,token);
   r.PrivateNoteCorrelationId=privateNotes.CorrelationId;
  }
- private static void Normalize(PrescriptionDraftRequest r){if(r.PrivateNote?.Length>1000)throw new ArgumentException("Private note exceeds the supported length.");if(r.PrivateNoteSpecified)r.PrivateNote=string.IsNullOrWhiteSpace(r.PrivateNote)?null:r.PrivateNote.Trim();if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
+ private static void Normalize(PrescriptionDraftRequest r){PrescriptionTextContract.Validate(r.ProductDisplayText);PrescriptionTextContract.Validate(r.OrderFields?.TreatmentType,false);if(r.OrderFields is {} fields)fields.TreatmentType=string.IsNullOrWhiteSpace(fields.TreatmentType)?null:fields.TreatmentType.Trim();if(r.PrivateNote?.Length>1000)throw new ArgumentException("Private note exceeds the supported length.");if(r.PrivateNoteSpecified)r.PrivateNote=string.IsNullOrWhiteSpace(r.PrivateNote)?null:r.PrivateNote.Trim();if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
 }
 public sealed class PatientPrescriptionConcurrencyException(string message,Exception? inner=null):Exception(message,inner);
 public sealed class PrescriberProviderMappingException(Exception? inner=null):Exception("Your account must be linked to an active Provider before you can prescribe. Ask a clinic administrator to link your user in Providers.",inner);

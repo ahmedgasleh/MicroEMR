@@ -1,4 +1,11 @@
 // Treatment classification and lifecycle status are independent filters.
+document.getElementById("editMedicationForm")?.addEventListener("medication-loaded", event => {
+    const form = event.currentTarget;
+    const input = form.elements.namedItem("PlanFields.LongTermIntent");
+    const medication = event.detail;
+    if (input)
+        input.value = medication.planFields?.longTermIntent?.toString() ?? "";
+});
 export function medicationMatches(status, classification, selectedStatus, selectedClass) {
     const lifecycle = selectedStatus === "All" || status.toLowerCase() === selectedStatus.toLowerCase()
         || (selectedStatus === "Discontinued" && status.toLowerCase() === "inactive");

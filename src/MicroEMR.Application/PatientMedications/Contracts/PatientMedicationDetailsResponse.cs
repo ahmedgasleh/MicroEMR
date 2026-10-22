@@ -2,6 +2,8 @@ namespace MicroEMR.Application.PatientMedications.Contracts;
 
 public sealed class PatientMedicationDetailsResponse
 {
+    public bool? LongTermIntent { get; set; }
+    public bool PastMedication => Status == "Discontinued";
     public string? Classification { get; set; }
 
     public Guid MedicationUid { get; set; }

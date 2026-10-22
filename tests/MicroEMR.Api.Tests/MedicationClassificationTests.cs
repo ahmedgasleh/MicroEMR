@@ -137,6 +137,7 @@ public sealed class MedicationClassificationDatabase : IAsyncLifetime
                     LegacyToken=Convert.ToBase64String((byte[])(await command.ExecuteScalarAsync())!);
                 }
                 await Apply(other,"tenant-clinical/migrations/0077-medication-classification.sql");
+                await Apply(other,"tenant-clinical/migrations/0087-medication-plan-intent-safeguards.sql");
             }
         }
         catch {await Clinical.DisposeAsync();throw;}

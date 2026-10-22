@@ -196,6 +196,7 @@ public sealed class PatientMedicationsController : ControllerBase
         {
             return Conflict(new { message = "The medication was changed by another user. Refresh the patient chart and review the latest medication before discontinuing it." });
         }
+        catch (ArgumentException exception) { return BadRequest(new { message = exception.Message }); }
     }
 
     private long GetAuthenticatedUserId() =>

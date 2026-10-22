@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-allergy-clinical-fields]").forEach(section => {
         const form = section.closest("form"), type = form.elements.namedItem("AllergenType");
+        const applicability = form.elements.namedItem("ClinicalFields.DrugApplicability");
         const din = form.elements.namedItem("ClinicalFields.DrugDIN");
-        const update = () => section.querySelector("[data-allergy-din]").classList.toggle("d-none", type.value !== "Medication" && !din.value.trim());
+        const update = () => section.querySelector("[data-allergy-din]").classList.toggle("d-none", !(applicability?.value === "Drug" || (!applicability?.value && type.value === "Medication")) && !din.value.trim());
+        applicability?.addEventListener("change", update);
         type.addEventListener("change", update);
         din.addEventListener("input", update);
         form.addEventListener("reset", () => queueMicrotask(update));
