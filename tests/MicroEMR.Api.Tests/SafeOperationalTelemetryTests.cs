@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using MicroEMR.Application.OperationalTelemetry;
 using MicroEMR.Web.Services;
 using ApiTelemetryMiddleware = MicroEMR.Api.Middleware.SafeRequestTelemetryMiddleware;
@@ -74,7 +75,8 @@ public sealed class SafeOperationalTelemetryTests
             RoutePatternFactory.Parse("api/patients/{patientUid:guid}/results"), 0,
             EndpointMetadataCollection.Empty, "PatientResults.Create"));
 
-        await middleware.InvokeAsync(context);
+        await middleware.InvokeAsync(context, new DiagnosticTestEnvironment("Production"),
+            new ConfigurationBuilder().Build());
 
         var message = Assert.Single(logger.Messages);
         Assert.Contains("api/patients/{patientUid:guid}/results", message);

@@ -62,13 +62,16 @@ public static class SafeOperationalLog
     }
 
     public static void RequestCompleted(this ILogger logger, string service, string routeCategory,
-        string method, int statusCode, long durationMs, string? fallbackTraceIdentifier = null)
+        string method, int statusCode, long durationMs, string? fallbackTraceIdentifier = null,
+        bool captureSuccessfulRequest = false)
     {
         var trace = OperationalTrace.Capture(fallbackTraceIdentifier);
-        var level = statusCode >= 500 ? LogLevel.Error : statusCode >= 400 ? LogLevel.Warning : LogLevel.Debug;
+        var level = statusCode >= 500 ? LogLevel.Error : statusCode >= 400 ? LogLevel.Warning
+            : captureSuccessfulRequest ? LogLevel.Information : LogLevel.Debug;
         logger.Log(level,
-            "Operational event {EventCode}. Service: {Service}; RouteCategory: {RouteCategory}; HttpMethod: {HttpMethod}; HttpStatusCode: {HttpStatusCode}; DurationMs: {DurationMs}; Outcome: {Outcome}; TraceId: {TraceId}; SpanId: {SpanId}",
+            "Operational event {EventCode}. Service: {Service}; RouteCategory: {RouteCategory}; HttpMethod: {HttpMethod}; HttpStatusCode: {HttpStatusCode}; DurationMs: {DurationMs}; Outcome: {Outcome}; TraceId: {TraceId}; SpanId: {SpanId}; RequestId: {RequestId}",
             OperationalEventCodes.HttpRequestCompleted, service, routeCategory, method,
-            statusCode, durationMs, statusCode < 400 ? "Succeeded" : "Failed", trace.TraceId, trace.SpanId);
+            statusCode, durationMs, statusCode < 400 ? "Succeeded" : "Failed", trace.TraceId, trace.SpanId,
+            fallbackTraceIdentifier);
     }
 }

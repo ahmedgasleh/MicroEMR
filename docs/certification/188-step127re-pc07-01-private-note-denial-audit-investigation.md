@@ -1,0 +1,116 @@
+# Step 127R-E - Missing private-note denial audit investigation
+
+## Current result and checkpoint
+
+**Step 127R-E: PASS for investigation. Classification D - AUDIT PERSISTENCE OR CORRELATION DEFECT, specifically confirmed Web audit configuration/persistence failure.** Owner-provided existing Web output identifies PrescriptionPrivateNoteView / Prescriptions.ViewPrivateNotes, trace `0HNPFG90KPEBR:00000001`, and System.InvalidOperationException: Connection string 'PlatformDatabase' was not found. This confirms the predicted runtime failure before opening SQL; no SQL insert could occur on that failed path. The excerpt has no timestamp and was described as earlier, so exact one-to-one correlation to the final C attempt remains qualified. No API auditing defect is established and no correction was implemented.
+
+Date: 2026-10-21. Verified branch `main`; HEAD `6fd2c8f017db46a97b3a0cf5dd67ece72c8b647a`. Filename availability checked. Existing AGENTS.md, four tracked telemetry source/test changes, reports 168-187 and correlation diagnostics source/tests preserved. Tracked-diff hash at entry `3234c02843caa14f1ab399e18f9121b19b8314ef`. This report is the only intended task change. No build/test, SQL query/write, clinical/browser request, authentication, note edit, finalization, grant, configuration/source edit, restart, migration, commit or remote operation.
+
+All development data is test data under the permanent owner clarification; no provenance investigation. Scope is the approved Platform/tenant on `192.168.50.1,50013`, `MicroEMR_Platform`, `MicroEMR_LocalDev_Fresh` / `F94C6ECD-4417-483E-8A94-0507CF8384C2`. Runtime/API identity expected `microemr_dev`, unchanged. No elevated SQL credentials used or new SQL access attempted. No other tenant/production access.
+
+## Observed request reconstruction
+
+Reuse [R-D](187-step127rd-pc07-01-private-note-acceptance-verification.md) and [R-C](186-step127rc-pc07-01-private-note-draft-prescription-fixture.md). Prescription `f8ccb7b2-7462-4f18-9ddd-cfddd3f234d8`, selected patient `9f65d4ca-c347-406a-bb32-c709a8941f80`, original author A=2, reader B=5, unauthorized C=4. Four protected revisions remain; prescription Draft, no finalization. Do not repeat successful scenarios.
+
+| Evidence | What it establishes |
+|---|---|
+| C ordinary prescription Details showed no private/history; owner confirmed path `PatientPrescriptions/Detail` | Supported UI suppression, not an explicit protected API request |
+| Owner then pasted the supplied Web `PatientPrescriptions/PrivateNoteEditor` URL with the same selected patient/prescription | Intended method GET, normal browser address navigation to an existing controller endpoint; request URL/status not independently captured |
+| Owner reported Access Denied and the no-permission message | User-observed server-rendered denial page; matches AccountController.AccessDenied's default message |
+| No HAR, Network status, original Web TraceIdentifier or denial log was captured | Original HTTP status/redirect chain and request correlation UNVERIFIED. Do not invent a 403 or claim final page status 403; cookie forbid can redirect to a rendered page |
+| R-D AfterDenied snapshot had four revisions, zero actor-4 private success reads and no selected private-capability Platform denial event | No observed private disclosure; missing audit evidence for the scoped attempt, not a trace of its executing runtime branch |
+
+The intended endpoint is **Web** `GET /PatientPrescriptions/PrivateNoteEditor?patientUid={patientUid}&prescriptionUid={prescriptionUid}` on `https://localhost:7002`, not API `/api/patients/.../private-note`. Whether an authenticated API request occurred is **UNVERIFIED** at request level; the inspected Web guard is designed to reject before the controller/API client. No API denial can be inferred merely from the page. This is server-side Web authorization, not JavaScript-only prevention, if the inspected route/handler ran.
+
+## Authorization and persistence trace
+
+1. [Web Program](../../src/MicroEMR.Web/Program.cs) registers WebPermissionHandler, WebPermissionPolicyProvider, MissingPermissionAuthorizationResultHandler and platform infrastructure. Pipeline: routing -> safe telemetry -> authentication -> session-reauthentication wrapper -> authorization -> controller route. [Session wrapper](../../src/MicroEMR.Web/Authentication/WebSessionReauthenticationMiddleware.cs) handles refresh failures with 401/challenge, not this private-audit write.
+2. [PatientPrescriptionsController](../../src/MicroEMR.Web/Controllers/PatientPrescriptionsController.cs): class requires Patients.View; `PrivateNoteEditor` additionally requires Prescriptions.ViewPrivateNotes and carries SensitiveCapability PrescriptionPrivateNoteView. Ordinary Detail conditionally fetches protected data only for authorized users; hiding that section does not itself trigger a rejected request/audit.
+3. [Web permission service/policy](../../src/MicroEMR.Web/Authorization/PermissionAuthorization.cs) resolves current effective keys through the authenticated API client. An authenticated missing key yields failed authorization before action invocation. PrivateNoteEditor would call the API only after that guard passes.
+4. [Web MissingPermissionAuthorizationResultHandler](../../src/MicroEMR.Web/Authorization/MissingPermissionAuthorizationResultHandler.cs) runs its audit attempt **before** default forbid handling. It requires Forbidden + authenticated identity, endpoint SensitiveCapability metadata, matching WebPermissionRequirement, a `sub`/NameIdentifier and first occurrence of that capability in this request. Missing metadata/subject or mismatched policy returns without a malformed event. Per-request de-duplication prevents duplicate events for the same capability.
+5. The handler resolves `IPlatformSecurityAuditRepository` inside its try block. [Infrastructure DI](../../src/MicroEMR.Infrastructure/DependencyInjection.cs) maps that interface to [SqlPlatformSecurityAuditRepository](../../src/MicroEMR.Infrastructure/SecurityAudit/SqlPlatformSecurityAuditRepository.cs). The repository constructor immediately calls [PlatformDatabaseConnection.GetConnectionString](../../src/MicroEMR.Infrastructure/Tenancy/PlatformDatabaseConnection.cs), requiring `ConnectionStrings:PlatformDatabase`. Missing configuration throws **Connection string 'PlatformDatabase' was not found.** even before SQL is opened.
+6. Repository `RecordMissingPermissionAsync` calls `dbo.PlatformSecurityAudit_RecordMissingPermission` on its normal Platform connection, passing actor subject, optional clinical/tenant context, capability, permission, source and Web `context.TraceIdentifier`. [027 contract](../../db/platform/027_private_prescription_note_permission.sql) validates inputs/capability pairs and inserts one Platform security event synchronously; no clinical read transaction is involved.
+7. Any repository-resolution/connection/procedure failure is caught by the Web handler and logged as **Missing-permission security audit persistence failed** with capability, permission and trace identifier. The original forbid continues. Therefore Access Denied does not prove audit persistence. Cancellation can also abort the awaited call; no background queue/eventual-delivery mechanism was found.
+
+API is a distinct path: [private API controller](../../src/MicroEMR.Api/Controllers/PrescriptionPrivateNotesController.cs) requires both keys, delegates to [private-note application service](../../src/MicroEMR.Application/PatientPrescriptions/PrescriptionPrivateNotes.cs), resolves the active clinical actor/tenant and performs compound patient/prescription checks. [API MissingPermission handler](../../src/MicroEMR.Api/Authorization/MissingPermissionAuthorizationResultHandler.cs) writes governed Platform denial metadata, while [PrescriptionPrivateNoteDeniedAuditMiddleware](../../src/MicroEMR.Api/Middleware/PrescriptionPrivateNoteDeniedAuditMiddleware.cs) can separately write tenant `PrescriptionAccessDenied` for authenticated applicable API 403/404/409. Neither proves C reached the API. Do not require an API clinical-denial row for a request stopped by Web authorization.
+
+## Audit contract and successful-versus-denied comparison
+
+| Property | B successful protected read | C intended Web denial |
+|---|---|---|
+| Permission/context | Patients.View + private read; active clinical actor and tenant/patient/prescription resolution | Web authenticated missing private key; guarded endpoint metadata and actor subject |
+| Invocation | Controller/API service -> protected read/history stored procedure | Web authorization result handler before controller/API |
+| Sink | Tenant dbo.AuditLog | Platform dbo.PlatformSecurityAuditEvent |
+| Events | PrescriptionPrivateNoteViewed / PrescriptionPrivateNoteHistoryViewed | EventType SecurityAccessDenied; Outcome Denied; DenialReason MissingPermission; Capability PrescriptionPrivateNoteView; RequiredPermission Prescriptions.ViewPrivateNotes; SourceApplication MicroEMR.Web |
+| Actor/context | Resolved clinical UserId 5, selected patient/prescription | Required OIDC actor subject; ClinicalUserId and TargetTenantUid deliberately NULL in Web handler, not inferred from untrusted input |
+| Resource content | General audit contains revision reference, no protected text | No patient/prescription/resource URL/query/body or protected text in this governed table; absence of resource ID is by design |
+| Correlation | API TraceIdentifier propagated to procedure, mandatory for protected reads | Web TraceIdentifier supplied; SQL allows correlation NULL after normalization, but expected supplied value for this Web path |
+| Transaction/failure | Read audit must commit before protected data returned; failure releases no content | One synchronous independent insert; exception is logged while deny remains deny, no clinical transaction to roll it back |
+
+Denial recording is established security/certification behavior, not merely optional operational logging. ILogger failure output is diagnostic evidence, not a replacement for the governed event. [014 schema](../../db/platform/014_platform_security_denial_audit.sql) and 027 explicitly support NULL Web clinical/tenant context and prohibit private resource payloads. Platform administrative `UserPermissionOverrideChanged` and tenant success-read audits are different contracts and do not prove this Web denial path works.
+
+## Configuration/runtime findings
+
+Targeted, sanitized checks returned `HasPlatformConnection=false` for **all three** inspected Web sources: appsettings.json, appsettings.Development.json and Web user-secret store (`MicroEMR.Web-local-development`). Only that one key's presence was inspected; no credentials/full connection strings or unrelated values were printed. This is a concrete missing binding in the file-backed configuration and explains a failure at repository construction **if no effective runtime override supplies it**. It is not a reason to copy admin/reviewer credentials into Web.
+
+Current Web process metadata: PID 18456, apphost under `src/MicroEMR.Web/bin/Debug/net10.0`, process start displayed as 2026-10-21 10:47:15 local. On-disk Web DLL last-write UTC 2026-10-20T21:41:54.0718208Z; handler source 2026-10-19T14:25:43.9428215Z and private controller/capability source 2026-10-20T14:42:07Z. No obvious source-after-assembly timestamp drift was found, but timestamps are not proof of loaded endpoint metadata, registration or effective configuration. No build/restart or assembly execution was performed.
+
+A narrow Win32 process-command-line metadata inspection was **access denied**. No escalation/workaround was attempted; emitted null/false placeholders are not evidence of actual argument absence. Running-process environment overrides, command-line configuration and live Web SQL identity/target remain independently UNVERIFIED. No persistent Web log file was identified in the inspected application locations; no broad file/log scan. The owner inspected existing Web output without another request and supplied the exact missing-configuration failure for the private-note capability. Classification D is based on that runtime error plus the configuration/source findings, not solely absent file settings.
+
+Owner-supplied diagnostic evidence (no protected note content, credentials or connection values): logger `MicroEMR.Web.Authorization.MissingPermissionAuthorizationResultHandler[0]`, failure summary **Missing-permission security audit persistence failed**, Capability **PrescriptionPrivateNoteView**, Permission **Prescriptions.ViewPrivateNotes**, TraceIdentifier **0HNPFG90KPEBR:00000001**, exception **System.InvalidOperationException: Connection string 'PlatformDatabase' was not found.** Timestamp unavailable. The owner initially identified it as earlier output. The trace is now known for this logged failure but was not independently captured from C's browser request, so do not assign an exact actor/time or assert that every C denial shares this trace. It nevertheless proves the live private-note Web audit path encountered the missing binding and explains the observed failure mode without a reproduction.
+
+## R-D query review - no new SQL
+
+R-E executed **zero SQL queries**. Reused `.tmp/step127rd/snapshot.ps1` and `AfterDenied.json` (captured database UTC 2026-10-21T20:09:24.3856335Z), plus AfterA/AfterReaders. Exact security query used per selected mapped subject:
+
+```sql
+SELECT TOP(8) SecurityAuditEventUid,EventType,Outcome,DenialReason,
+       ClinicalUserId,TargetTenantUid,Capability,RequiredPermission,
+       SourceApplication,RequestCorrelationId,OccurredAtUtc
+FROM dbo.PlatformSecurityAuditEvent
+WHERE ActorSubject=@Subject
+  AND (TargetTenantUid=@Tenant OR TargetTenantUid IS NULL)
+  AND Capability=N'PrescriptionPrivateNoteView'
+  AND RequiredPermission=N'Prescriptions.ViewPrivateNotes'
+  AND OccurredAtUtc>='2026-10-21'
+ORDER BY OccurredAtUtc;
+```
+
+Database: approved MicroEMR_Platform. `@Subject` was parameter-bound from the approved tenant's selected ApplicationUser.AuthSubjectId; relevant actor C=4. `@Tenant` was the approved tenant UID. R-D observed **zero rows**, not eight truncated results. No patient/resource/correlation/clinical-ID/SourceApplication filter excluded a valid NULL-context Web row. No equality to an invented API event name. The final query's day window covers the existing attempt and avoids the earlier narrower timestamp cutoff; exact browser request timestamp/correlation remains unrecorded. Earlier R-C unspecified-DateTime JSON serialization had a timezone presentation issue, already qualified in R-D; this final security query uses a literal SQL test-day floor, not that decoded epoch. No newly executed query is presented as verified.
+
+Potential residual misses: the running Web may use a different approved configuration target, different/unknown actual subject/metadata, or persistence may fail before/at SQL; existing evidence cannot distinguish those. No other database/tenant was searched. No asynchronous persistence evidence warrants assuming an eventual event will appear. Querying another sink or elevated SQL is not authorized here. Since no request correlation/time was captured, broadening an audit scan would not conclusively attribute another event and is unnecessary.
+
+## Existing automated coverage and minimum assertion gap
+
+No tests run or edited. Historical Step 121 outcomes remain 185 relevant .NET / 12 frontend PASS; tests below are static source findings, not current runs.
+
+| Source/test | Actual assertions and limits |
+|---|---|
+| [MissingPermissionAuthorizationAuditTests](../../tests/MicroEMR.Api.Tests/MissingPermissionAuthorizationAuditTests.cs): ApiForbiddenPermissionRecordsOneGovernedEventAndPreservesForbid | Records one governed API event with trusted context/correlation through a recording repository; no real SQL |
+| Same: WebForbiddenPermissionRecordsWebEventWithoutUntrustedTenantEnrichment | Web handler emits one event and preserves forbid, source Web, NULL clinical/tenant; uses report-export capability and recording repository, not full private endpoint/running DI/config/SQL |
+| Same: SuccessfulAuthorizationCreatesNoDenialAndContinuesPipeline; MissingSubjectOrMismatchedPermissionCreatesNoMalformedEvent | Success/no invalid audit; no real persistence |
+| Same: PersistenceFailureDoesNotReplaceOriginalDenial | API handler audit failure preserves deny; does not prove Web startup/configuration readiness |
+| Same: GovernedCapabilityMappingUsesPermissionConstants; ApprovedEndpointsCarryControlledSemanticCapability | Mapping/attribute reflection for listed endpoints; private Web endpoint plus real runtime pipeline not established by direct controller tests |
+| [PrescriptionPrivateNoteTests](../../tests/MicroEMR.Api.Tests/PrescriptionPrivateNoteTests.cs): OptInPlatformPermissionCanBeGrantedAndRevokedWithoutImplicitAccess | Real isolated API HTTP forbidden read AND Platform denied event assertion for the private capability/key; grant/revoke effective behavior |
+| Same: ForbiddenReadsAndWritesHaveNoPrivateSuccessAudit | API private current/history reads and write return Forbidden, no secret disclosure, no private success audit, three PrescriptionAccessDenied records, unchanged revision count |
+| Same: CrossPatientAndBothTenantDirectionsRejectWithoutForeignReadAudit; ReadAuditFailureReleasesNothingAndOrdinaryLogsAndAuditsContainNoText | Context isolation and fail-closed successful reads; not live Web configuration |
+| [PrescriptionPrivateNoteWebTests](../../tests/MicroEMR.Api.Tests/PrescriptionPrivateNoteWebTests.cs): OrdinaryDetailDoesNotFetchProtectedContentForChartReader; PrivateEditorResponseDoesNotSupplyOtherAuthorsText; StandaloneEditorLoadsOnlyAuthorizedOriginalAuthorText | Controller/model confidentiality with fake API client; invoking controller methods bypasses Web authorization middleware, DI persistence and browser redirects |
+| [PlatformSecurityAuditFoundationTests](../../tests/MicroEMR.Api.Tests/PlatformSecurityAuditFoundationTests.cs): ProcedureFixesSemanticsAndInsertsExactlyOneRow; ProcedureRejectsInvalidAndOversizedInputs; RepositoryUsesStoredProcedureAndIsNotAuthorizationWired | Source/schema contract assertions, not executing the current deployed Web denial against SQL |
+
+Minimum missing proof: an isolated real Web-host request to the exact private editor endpoint using the production DI/configuration shape and fake/nonclinical authenticated principal, asserting original forbid/redirect, zero protected API call/content, **one persisted** governed Platform denial with subject/capability/key/source/correlation and allowed NULL contexts. Also assert missing audit configuration cannot silently masquerade as audit readiness, and Web repository-resolution/SQL failure preserves denial with safe failure diagnostics and no duplicate insert. Use disposable test databases, not this live prescription; propose only, do not implement/run now.
+
+## Classification and minimum next action
+
+**D - AUDIT PERSISTENCE OR CORRELATION DEFECT** is supported by the existing private-capability runtime exception. Confirmed mechanism: Web resolves SqlPlatformSecurityAuditRepository inside the denial handler; the required PlatformDatabase binding is missing; construction throws before connection/procedure execution; the handler catches/logs the error and continues the original forbid. This preserves confidentiality while losing the governed denial audit. Exact attribution of the earlier logged trace to the final C attempt is still UNVERIFIED, not a reason to relabel this demonstrated runtime failure as an API defect. A is unsupported (event not found); B's "frontend-only" category would be misleading if interpreted as client-only because Web authorization is server-side and audit-capable. C (API backend audit gap) is not established because no protected API request is proven.
+
+The minimum existing-log check is complete. No more owner access attempts are needed for R-E. Retain the safe trace/error metadata; a later precisely scoped correction/verification can establish a fresh request-to-event correlation after the configuration prerequisite is resolved. Do not elevate SQL or alter settings in R-E.
+
+Minimum correction proposal only: supply the existing required Web Platform binding through the established secure configuration mechanism, using an explicitly approved least-privilege identity/approved database and verifying only the needed procedure rights. Do not copy sa/admin/reviewer credentials, change shared grants or add an unaudited SQL shortcut. Validate actual runtime configuration provider/target and approved identity before a separately approved activation, then one controlled C denial and narrow event correlation, preserving denial and unchanged revisions. Do not automatically expand into SQL grants or new identity setup if rights are missing; report that prerequisite separately. Preserve actor/tenant semantics, per-request de-duplication and confidentiality. No new audit-ingestion API is assumed: current SecurityAuditApiClient/PlatformSecurityAuditController are privileged **review** workflows, not generic event-write endpoints. Configuration/activation and that single denied request are future separately authorized work, not executed here.
+
+A separate API-level acceptance request, if later authorized, must use C's existing normal authenticated API workflow for this exact selected private-read route, asserting denied response plus the intended Platform/API clinical denial audits and unchanged revisions. It is not a substitute for repairing/verifying the Web denial audit contract, and must not collect session material or be performed under this read-only step.
+
+## Layout and certification
+
+Separate user-reported prescription Details layout concern remains open. R-D's targeted inspection identified [Detail.cshtml](../../src/MicroEMR.Web/Views/PatientPrescriptions/Detail.cshtml) inheriting Views/_ViewStart's `_Layout`, while patient chart Details selects `_AppLayout`. This explains a presentation mismatch; no security disclosure from layout was observed. No CSS/Razor/TypeScript fix or additional UI investigation. It does not itself prove server-side finalization/immutability failure, but visual acceptance remains qualified and must be resolved or explicitly dispositioned before closure. V2/V3 are currently stopped by the audit prerequisite independently of this presentation issue.
+
+Preserve O/P/Q/R-A/R-B/R-C PASS with their recorded qualifications; R-D BLOCKED before finalization. **R-E investigation PASS**, classification D with original-request timestamp/actor-correlation qualification. V2/V3 NOT EXECUTED; no full V1-V3 PASS. PC07.01 PARTIAL; inventory 10 IDs / three packages. No chart/encounter audit work reopened. Recommended next step: separately scoped Web audit connection configuration/identity readiness and controlled activation/reverification, keeping layout remediation separately scoped, then resume acceptance only after the audit prerequisite is satisfied. R-E performed no correction, finalization, private edits, denial reproduction, tests or service activation. Report links/whitespace and existing tracked-diff preservation checked.

@@ -31,6 +31,14 @@ Follow the existing Clean Architecture structure.
 - Use the existing soft-delete pattern where deletion is required.
 - Preserve historical clinical records.
 
+## Permanent Development Data Clarification (Project Owner, 2026-10-21)
+- All data on MicroEMR development machines and in development databases is fictional, synthetic or test data, including patients, prescriptions, clinical records, users and providers.
+- Apply this standing assumption to development and certification work; do not repeatedly investigate fictional provenance or use it as a blocker.
+- Verify the correct development tenant and functional prerequisites, and reuse suitable existing development fixtures before proposing new ones.
+- Continue enforcing clinical authorization, tenant isolation, audit logging, original-prescriber ownership, state restrictions and concurrency rules.
+- Never access or modify production databases.
+- This clarification does not authorize record changes, fixture creation, permission changes or any other operation outside the task's approved scope.
+
 ## Security & Multi-Tenancy
 - Tenant isolation is mandatory.
 - Never allow data access across tenants.
