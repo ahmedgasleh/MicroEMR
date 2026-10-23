@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using MicroEMR.Application;
 using MicroEMR.Infrastructure;
-using Microsoft.OpenApi;
 using Microsoft.AspNetCore.Authorization;
 using MicroEMR.Api.Authorization;
 using MicroEMR.Api.Middleware;
@@ -42,17 +41,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc(
-        "v1",
-        new OpenApiInfo
-        {
-            Title = "MicroEMR API",
-            Version = "v1",
-            Description = "API for MicroEMR patients, scheduling and charts."
-        });
-});
+builder.Services.AddSwaggerGen(ApiSwaggerConfiguration.Configure);
 
 builder.Services
     .AddAuthentication(options =>

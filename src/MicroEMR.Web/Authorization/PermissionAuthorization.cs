@@ -27,6 +27,7 @@ public sealed class WebPermissionHandler(IWebPermissionService permissions)
 {
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, WebPermissionRequirement requirement)
     {
+        if (context.User.Identity?.IsAuthenticated != true) return;
         if (await permissions.HasAsync(requirement.Key)) context.Succeed(requirement);
     }
 
