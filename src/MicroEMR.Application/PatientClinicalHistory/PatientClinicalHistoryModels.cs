@@ -29,7 +29,7 @@ public sealed class CreatePatientClinicalHistoryRequest : IValidatableObject
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) => ValidateValues(HistoryType, Description, RelevantDate).Concat(ClinicalFields?.Validate(HistoryType) ?? []);
     internal static IEnumerable<ValidationResult> ValidateValues(string? type, string? description, DateOnly? date)
     {
-        if (type is not ("Medical" or "Surgical")) yield return new("History type must be Medical or Surgical.", [nameof(HistoryType)]);
+        if (type is not ("Medical" or "Surgical" or "Procedure")) yield return new("History type must be Medical, Surgical or Procedure.", [nameof(HistoryType)]);
         if (string.IsNullOrWhiteSpace(description)) yield return new("Description is required.", [nameof(Description)]);
         if (date > DateOnly.FromDateTime(DateTime.UtcNow)) yield return new("Relevant date cannot be in the future.", [nameof(RelevantDate)]);
     }

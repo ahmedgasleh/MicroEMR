@@ -12,6 +12,7 @@ if (root) {
     let context: EncounterContext | undefined;
     let generation = 0, busy = false, dirty = false;
     const controls = () => {
+        root.dataset.busy = String(busy);
         add.disabled = busy || !state?.canEdit;
         only.disabled = busy || !state?.canEdit;
         cpp.disabled = busy || !state?.canSaveToCpp;

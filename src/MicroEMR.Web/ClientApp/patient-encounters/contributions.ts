@@ -103,7 +103,7 @@ if (root) {
         if (busy || !state || !value.trim()) return;
         if (refreshRequired) { status.textContent = "Reopen the encounter to refresh saved content before editing again."; return; }
         const current = state, currentGeneration = generation;
-        busy = true; save.disabled = true; cancel.disabled = true; content.disabled = true;
+        busy = true; root.dataset.busy = "true"; save.disabled = true; cancel.disabled = true; content.disabled = true;
         document.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>("[data-contribution-card] button, [data-template-note-editor] button, [data-template-note-editor] textarea").forEach(control => control.disabled = true);
         try {
             const body = new FormData();
@@ -127,7 +127,7 @@ if (root) {
             document.dispatchEvent(new CustomEvent("encounter-contribution-saved", { detail: details.encounter }));
         } catch (error) {
             if (currentGeneration === generation) status.textContent = error instanceof Error ? error.message : "Contribution could not be saved.";
-        } finally { busy = false; save.disabled = false; cancel.disabled = false; content.disabled = false; document.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>("[data-contribution-card] button, [data-template-note-editor] button, [data-template-note-editor] textarea").forEach(control => control.disabled = false); }
+        } finally { busy = false; root.dataset.busy = "false"; save.disabled = false; cancel.disabled = false; content.disabled = false; document.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement>("[data-contribution-card] button, [data-template-note-editor] button, [data-template-note-editor] textarea").forEach(control => control.disabled = false); }
     };
     save.addEventListener("click", async () => {
         const option = section.selectedOptions[0];

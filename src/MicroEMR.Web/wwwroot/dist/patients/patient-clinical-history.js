@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const endpoint = (suffix = "") => `${root.dataset.mutationUrl.replace(/\/$/, "")}${suffix}`;
     const clinical = (x, preferences = false) => clinicalItems(x.historyType, x.clinicalFields).map(([key, label, value]) => `<div ${preferences ? `data-cpp-field="History.${key}"` : ""} class="small text-break" style="white-space:pre-wrap"><strong>${escape(label)}:</strong> ${escape(value)}</div>`).join("");
     function render() {
-        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span data-cpp-field="History.HistoryType" class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span data-cpp-field="History.Description">${escape(x.description)}</span><span data-cpp-field="History.RelevantDate" class="small text-body-secondary ms-2">Relevant date: ${escape(day(x.relevantDate))}</span>${clinical(x, true)}</div>`).join("")}</div>` : '<span class="text-muted">No past medical or surgical history recorded.</span>';
+        summary.innerHTML = summaryItems.length ? `<div class="row g-2">${summaryItems.slice(0, 6).map(x => `<div class="col-md-6"><span data-cpp-field="History.HistoryType" class="badge text-bg-light border me-2">${escape(x.historyType)}</span><span data-cpp-field="History.Description">${escape(x.description)}</span><span data-cpp-field="History.RelevantDate" class="small text-body-secondary ms-2">Relevant date: ${escape(day(x.relevantDate))}</span>${clinical(x, true)}</div>`).join("")}</div>` : '<span class="text-muted">No medical, surgical or procedure history recorded.</span>';
         if (!items.length) {
             list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__title">No history recorded</div></div>';
             return;
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelector("#clinicalHistoryModalTitle").textContent = item ? "Edit History" : "Add History";
         modal.show();
     }
-    function kindFields() { const kind = form.elements.namedItem("HistoryType").value; form.querySelectorAll("[data-history-kind]").forEach(section => { const hidden = section.dataset.historyKind !== kind; section.hidden = hidden; section.querySelectorAll("input,select").forEach(input => { input.disabled = hidden; }); }); }
+    function kindFields() { const kind = form.elements.namedItem("HistoryType").value; form.querySelectorAll("[data-history-kind]").forEach(section => { const hidden = !section.dataset.historyKind.split(" ").includes(kind); section.hidden = hidden; section.querySelectorAll("input,select").forEach(input => { input.disabled = hidden; }); }); }
     form.elements.namedItem("HistoryType").addEventListener("change", kindFields);
     async function post(url, body) { const token = form.querySelector('input[name="__RequestVerificationToken"]').value; const r = await fetch(url, { method: "POST", headers: { RequestVerificationToken: token, Accept: "application/json" }, body }), j = await r.json().catch(() => ({})); if (!r.ok || !j.success)
         throw new Error(j.message || "History could not be saved."); return j; }
@@ -79,6 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } });
     function show(error) { message.textContent = error instanceof Error ? error.message : "History could not be loaded."; message.classList.remove("d-none"); }
     function showEditor(text) { editorMessage.textContent = text; editorMessage.classList.remove("d-none"); }
+    document.addEventListener("encounter-procedure-saved", () => { void load("Active").then(() => filter.value !== "Active" ? load() : undefined).catch(show); });
     void load("Active").catch(show);
 });
 //# sourceMappingURL=patient-clinical-history.js.map

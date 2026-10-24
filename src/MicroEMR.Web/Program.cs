@@ -119,6 +119,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientEncounterApiClient,
     PatientEncounterApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IEncounterDiagnosisApiClient, EncounterDiagnosisApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IEncounterProcedureApiClient, EncounterProcedureApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientMedicationApiClient,

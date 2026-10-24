@@ -125,7 +125,7 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
             {
                 if (item is PrintHistory history &&
                     (history.HistoryType == "Medical" && property.Name == "ProcedureDate" ||
-                     history.HistoryType == "Surgical" && property.Name is "OnsetDate" or "ClinicalResolutionDate" or "LifeStage" or "ClinicalStatus")) continue;
+                     history.HistoryType is "Surgical" or "Procedure" && property.Name is "OnsetDate" or "ClinicalResolutionDate" or "LifeStage" or "ClinicalStatus")) continue;
                 if(item is PatientCppImmunizationPrint immunization &&
                     (immunization.Outcome=="Refused" && property.Name is "AdministeredDose" or "AdministrationDate" or "DIN" or "Manufacturer" or "DoseNumber" or "Route" or "Site" or "LotNumber" or "SourceType" or "AdministeredByName" ||
                      immunization.Outcome=="Administered" && property.Name=="RefusalDate")) continue;

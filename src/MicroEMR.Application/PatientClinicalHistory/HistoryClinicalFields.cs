@@ -32,8 +32,8 @@ public sealed class HistoryClinicalFields
         if (!FamilyHistoryLifeStages.IsValid(LifeStageCode)) yield return new("Select a recorded life stage or leave it blank.", [nameof(LifeStageCode)]);
         if (ClinicalStatus is not (null or "Active" or "Resolved")) yield return new("Clinical status must be Active, Resolved or not recorded.", [nameof(ClinicalStatus)]);
         if (Notes?.Length > 1000) yield return new("Notes must be 1000 characters or fewer.", [nameof(Notes)]);
-        if (kind == "Medical" && ProcedureDate?.Year is not null) yield return new("Procedure date applies to Surgical history.", [nameof(ProcedureDate)]);
-        if (kind == "Surgical" && (OnsetDate?.Year is not null || ResolutionDate?.Year is not null || LifeStageCode is not null || ClinicalStatus is not null))
+        if (kind == "Medical" && ProcedureDate?.Year is not null) yield return new("Procedure date applies to Surgical or Procedure history.", [nameof(ProcedureDate)]);
+        if (kind is "Surgical" or "Procedure" && (OnsetDate?.Year is not null || ResolutionDate?.Year is not null || LifeStageCode is not null || ClinicalStatus is not null))
             yield return new("Onset, resolution, life stage and clinical status apply to Medical history.");
         if (ClinicalStatus == "Active" && ResolutionDate?.Year is not null) yield return new("An explicitly Active condition cannot have a clinical resolution date.", [nameof(ResolutionDate)]);
         if (OnsetDate?.IsValid == true && ResolutionDate?.IsValid == true && ResolutionDate.Latest is { } end && OnsetDate.Earliest is { } start && end < start)

@@ -84,7 +84,11 @@ public sealed class TenantDatabaseMigrationSourceTests : IDisposable
 
         var migrations = await source.GetAvailableMigrationsAsync();
 
-        Assert.Equal(62, migrations.Count);
+        using var manifest = System.Text.Json.JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(repositoryDb, "tenant-clinical", "manifest.json")));
+        Assert.Equal(manifest.RootElement.GetArrayLength(), migrations.Count);
+        Assert.Contains(migrations, migration => migration.Script.Contains(
+            "CREATE OR ALTER PROCEDURE dbo.PatientEncounterProcedure_Save", StringComparison.Ordinal));
         Assert.All(migrations, migration =>
             Assert.NotEmpty(SqlBatchParser.Parse(migration.Script)));
     }

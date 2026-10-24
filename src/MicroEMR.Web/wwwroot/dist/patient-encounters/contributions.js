@@ -144,6 +144,7 @@ if (root) {
         }
         const current = state, currentGeneration = generation;
         busy = true;
+        root.dataset.busy = "true";
         save.disabled = true;
         cancel.disabled = true;
         content.disabled = true;
@@ -186,6 +187,7 @@ if (root) {
         }
         finally {
             busy = false;
+            root.dataset.busy = "false";
             save.disabled = false;
             cancel.disabled = false;
             content.disabled = false;

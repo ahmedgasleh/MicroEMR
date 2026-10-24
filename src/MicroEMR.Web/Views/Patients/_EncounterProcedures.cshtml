@@ -1,0 +1,24 @@
+<section id="encounterProcedures" class="col-12" data-url="@Url.Action("Get", "EncounterProcedures")">
+    <h3 class="fs-6">Procedures in CPP</h3>
+    <p class="small text-body-secondary">Review current longitudinal procedures. CPP changes save separately from note text and remain after the encounter is signed or amended.</p>
+    <label class="form-label" for="encounterProcedureSelection">Existing procedure or surgical history</label>
+    <select id="encounterProcedureSelection" class="form-select mb-2" disabled><option value="">Select an entry</option></select>
+    <button id="newEncounterProcedure" class="btn btn-outline-secondary btn-sm mb-2" type="button" disabled>Record new procedure</button>
+    <fieldset id="encounterProcedureFields" disabled>
+        <label class="form-label" for="encounterProcedureDescription">Procedure description</label>
+        <textarea id="encounterProcedureDescription" class="form-control mb-2" maxlength="1000" required rows="2"></textarea>
+        <p class="small text-body-secondary">Leave unknown date parts blank. This records a performed procedure, not a future order.</p>
+        <div class="row g-2 mb-2">
+            <div class="col-4"><label class="form-label" for="encounterProcedureYear">Year</label><input id="encounterProcedureYear" class="form-control" type="number" min="1" max="9999" step="1" /></div>
+            <div class="col-4"><label class="form-label" for="encounterProcedureMonth">Month</label><input id="encounterProcedureMonth" class="form-control" type="number" min="1" max="12" step="1" /></div>
+            <div class="col-4"><label class="form-label" for="encounterProcedureDay">Day</label><input id="encounterProcedureDay" class="form-control" type="number" min="1" max="31" step="1" /></div>
+        </div>
+        <label class="form-label" for="encounterProcedureNotes">Clinical notes</label>
+        <textarea id="encounterProcedureNotes" class="form-control mb-2" maxlength="1000" rows="2"></textarea>
+    </fieldset>
+    <div class="d-flex gap-2">
+        <button id="saveEncounterProcedure" class="btn btn-primary btn-sm" type="button" disabled>Save procedure to CPP</button>
+        <button id="reloadEncounterProcedures" class="btn btn-outline-secondary btn-sm" type="button" disabled>Reload procedures</button>
+    </div>
+    <p id="encounterProcedureMessage" class="small mt-2" role="status" aria-live="polite" tabindex="-1"></p>
+</section>

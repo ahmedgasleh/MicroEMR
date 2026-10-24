@@ -137,7 +137,7 @@ public sealed class EncounterDiagnosisSqlDatabase : IAsyncLifetime
     private readonly string name="MicroEMR_Step69_"+Guid.NewGuid().ToString("N");
     private readonly string other="MicroEMR_Step69_"+Guid.NewGuid().ToString("N");
     private readonly string master=Environment.GetEnvironmentVariable("MICROEMR_ENCOUNTER_DIAGNOSIS_TEST_CONNECTION") ?? @"Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=true;TrustServerCertificate=true;Connect Timeout=15";
-    private string Connection=>new SqlConnectionStringBuilder(master) {InitialCatalog=name}.ConnectionString;
+    internal string Connection=>new SqlConnectionStringBuilder(master) {InitialCatalog=name}.ConnectionString;
     public string OtherConnection=>new SqlConnectionStringBuilder(master) {InitialCatalog=other}.ConnectionString;
     public EncounterDiagnosisRepository Repository=>new(new EncounterDiagnosisSqlTests.Factory(Connection),NullLogger<EncounterDiagnosisRepository>.Instance);
     public async Task InitializeAsync()
