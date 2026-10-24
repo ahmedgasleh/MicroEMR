@@ -4,11 +4,11 @@ async function fixture(canManage=true,legacy=false){
  const element=()=>({value:'',disabled:false,textContent:'',innerHTML:'',dataset:{},listeners:{},classList:{add(){},remove(){},toggle(){}},addEventListener(n,fn){this.listeners[n]=fn;}});
  const ids=new Map(),byId=id=>{if(!ids.has(id))ids.set(id,element());return ids.get(id);};
  const fields=new Map(),field=name=>{if(!fields.has(name))fields.set(name,element());return fields.get(name);};
- const names=['__RequestVerificationToken','RowVersion','ClinicalFieldsIncluded','ClinicalFields.Refused','ImmunizationOutcome','VaccineName','SourceType','DoseNumber','Route','Site','LotNumber','SourceDescription','AdministeredByName','EncounterUid','Notes','ClinicalFields.DIN','ClinicalFields.Manufacturer','ClinicalFields.ImmunizationTypeCode'];
+ const names=['__RequestVerificationToken','RowVersion','ClinicalFieldsIncluded','DoseIncluded','Dose.Amount','Dose.UnitCode','ClinicalFields.Refused','ImmunizationOutcome','VaccineName','SourceType','DoseNumber','Route','Site','LotNumber','SourceDescription','AdministeredByName','EncounterUid','Notes','ClinicalFields.DIN','ClinicalFields.Manufacturer','ClinicalFields.ImmunizationTypeCode'];
  for(const prefix of ['Administration','Refusal'])for(const part of ['Year','Month','Day'])names.push(`ClinicalFields.${prefix}Date.${part}`);
  names.forEach(field);const form=byId('immunizationForm');form.fields=fields;form.elements={namedItem:field};form.reportValidity=()=>true;
  form.reset=()=>{for(const f of fields.values()){f.value='';f.disabled=false;}field('ClinicalFieldsIncluded').value='true';};
- const admin=['SourceType','AdministeredByName','DoseNumber','Route','Site','LotNumber','ClinicalFields.DIN','ClinicalFields.Manufacturer',...names.filter(n=>n.startsWith('ClinicalFields.AdministrationDate.'))];
+ const admin=['SourceType','AdministeredByName','Dose.Amount','Dose.UnitCode','DoseNumber','Route','Site','LotNumber','ClinicalFields.DIN','ClinicalFields.Manufacturer',...names.filter(n=>n.startsWith('ClinicalFields.AdministrationDate.'))];
  form.querySelectorAll=selector=>[{classList:{toggle(){}},querySelectorAll:()=> (selector==='[data-immunization-admin]'?admin:names.filter(n=>n.startsWith('ClinicalFields.RefusalDate.'))).map(field)}];
  const errorFields=new Map();const errorField=n=>{if(!errorFields.has(n))errorFields.set(n,element());return errorFields.get(n);};
  const errorForm=byId('immunizationErrorForm');errorForm.fields=errorFields;errorForm.elements={namedItem:errorField};errorForm.reset=()=>{};errorForm.reportValidity=()=>true;

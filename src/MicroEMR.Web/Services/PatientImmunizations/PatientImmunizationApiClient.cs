@@ -40,6 +40,7 @@ public sealed class PatientImmunizationApiClient(HttpClient client,IHttpContextA
             ["EncounterUid"]=m.EncounterUid,["Notes"]=m.Notes
         };
         if(update) payload["RowVersion"]=m.RowVersion;
+        if(m.DoseIncluded || m.Dose is not null) payload["Dose"]=m.Dose ?? new MicroEMR.Application.PatientImmunizations.ImmunizationDose();
         if(m.ClinicalFieldsIncluded || m.ClinicalFields is not null) payload["ClinicalFields"]=m.ClinicalFields ?? new MicroEMR.Application.PatientImmunizations.ImmunizationClinicalFields();
         if(m.AdministrationDateSpecified) payload["AdministrationDate"]=m.AdministrationDate;
         return payload;

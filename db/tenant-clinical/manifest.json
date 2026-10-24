@@ -89,5 +89,6 @@
   { "migrationId": "0087-medication-plan-intent-safeguards", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0087-medication-plan-intent-safeguards.sql" },
   { "migrationId": "0088-allergy-drug-applicability", "schemaVersion": "1.0.0", "script": "tenant-clinical/migrations/0088-allergy-drug-applicability.sql" },
   {"migrationId":"0089-medication-compliance-assessments","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0089-medication-compliance-assessments.sql"},
-  {"migrationId":"0090-prescription-paper-interval","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0090-prescription-paper-interval.sql"}
+  {"migrationId":"0090-prescription-paper-interval","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0090-prescription-paper-interval.sql"},
+  {"migrationId":"0091-immunization-dose","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0091-immunization-dose.sql"}
 ]

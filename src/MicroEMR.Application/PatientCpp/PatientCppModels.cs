@@ -64,13 +64,17 @@ public sealed record PatientCppPrescription(Guid PrescriptionUid, string Display
 }
 public sealed record PatientCppImmunization(Guid ImmunizationUid, string VaccineName, DateOnly? AdministrationDate, string? SourceType)
 {
+    public string Dose { get; init; } = "Not recorded";
     public string AdministrationDisplay { get; init; } = AdministrationDate?.ToString("yyyy-MM-dd") ?? "Not recorded";
     public string? DIN { get; init; }
     public string? Manufacturer { get; init; }
     public string ImmunizationType { get; init; } = "Not recorded";
 }
 public sealed record PatientCppImmunizationPrint(string VaccineName,string Outcome,string AdministrationDate,string RefusalDate,string RefusedIndicator,
-    string? DIN,string? Manufacturer,string ImmunizationType,int? DoseNumber,string? Route,string? Site,string? LotNumber,string? SourceType,string? SourceDescription,string? AdministeredByName,string? Notes);
+    string? DIN,string? Manufacturer,string ImmunizationType,int? DoseNumber,string? Route,string? Site,string? LotNumber,string? SourceType,string? SourceDescription,string? AdministeredByName,string? Notes)
+{
+    public string AdministeredDose { get; init; } = "Not recorded";
+}
 public sealed record PatientCppResult(Guid ResultUid, string Name, string Type, DateTime ResultDate, string? Value, string? Unit, string Abnormality, string ReviewStatus, string Provenance);
 public sealed record PatientCppVitals(Guid VitalUid, DateTime RecordedAt, int? Systolic, int? Diastolic, int? HeartRate, decimal? WeightKg, decimal? Bmi, int? OxygenSaturation);
 public sealed record PatientCppEncounter(Guid EncounterUid, DateTime EncounterDateUtc, string Type, string? ProviderName, string? ReasonForVisit);

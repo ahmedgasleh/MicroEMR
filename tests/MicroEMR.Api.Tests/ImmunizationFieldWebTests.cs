@@ -40,11 +40,11 @@ public sealed class ImmunizationFieldWebTests
             return new(HttpStatusCode.OK){Content=new StringContent("{}",System.Text.Encoding.UTF8,"application/json")};
         })){BaseAddress=new Uri("https://immunization.fixture/")};
         var client=new PatientImmunizationApiClient(http,new HttpContextAccessor{HttpContext=context});var patient=Guid.NewGuid();var uid=Guid.NewGuid();
-        await client.CreateAsync(patient,new(){VaccineName="TEST ONLY",SourceType="HistoricalExternal",ClinicalFieldsIncluded=true,ClinicalFields=new(){DIN="00123456",Manufacturer="TEST ONLY",ImmunizationTypeCode="Inf",Refused=false,AdministrationDate=new(){Year=2000,Month=2}}});
+        await client.CreateAsync(patient,new(){VaccineName="TEST ONLY",DoseIncluded=true,Dose=new(){Amount=0.001m,UnitCode="mL"},SourceType="HistoricalExternal",ClinicalFieldsIncluded=true,ClinicalFields=new(){DIN="00123456",Manufacturer="TEST ONLY",ImmunizationTypeCode="Inf",Refused=false,AdministrationDate=new(){Year=2000,Month=2}}});
         await client.UpdateAsync(patient,uid,new(){VaccineName="TEST ONLY",RowVersion="read-token",ClinicalFieldsIncluded=true});
         await client.UpdateAsync(patient,uid,new(){VaccineName="TEST ONLY",RowVersion="legacy-token",AdministrationDate=null});
         await client.MarkEnteredInErrorAsync(patient,uid,new(){RowVersion="error-token",Reason="TEST ONLY"});
-        Assert.False(bodies[0].TryGetProperty("AdministrationDate",out _));var fields=bodies[0].GetProperty("ClinicalFields");
+        Assert.Equal(0.001m,bodies[0].GetProperty("Dose").GetProperty("amount").GetDecimal());Assert.Equal("mL",bodies[0].GetProperty("Dose").GetProperty("unitCode").GetString());Assert.False(bodies[0].TryGetProperty("AdministrationDate",out _));var fields=bodies[0].GetProperty("ClinicalFields");
         Assert.Equal("00123456",fields.GetProperty("din").GetString());Assert.Equal("Inf",fields.GetProperty("immunizationTypeCode").GetString());Assert.Equal(2,fields.GetProperty("administrationDate").GetProperty("month").GetInt32());
         Assert.Equal("read-token",bodies[1].GetProperty("RowVersion").GetString());Assert.Equal(JsonValueKind.Object,bodies[1].GetProperty("ClinicalFields").ValueKind);
         Assert.Equal(JsonValueKind.Null,bodies[2].GetProperty("AdministrationDate").ValueKind);Assert.Equal("error-token",bodies[3].GetProperty("rowVersion").GetString());

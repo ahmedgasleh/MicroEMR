@@ -5,6 +5,7 @@ namespace MicroEMR.Web.Models.PatientImmunizations;
 
 public sealed class PatientImmunizationViewModel
 {
+    public ImmunizationDose? Dose { get; set; }
     public Guid ImmunizationUid { get; set; } public Guid PatientUid { get; set; }
     public string VaccineName { get; set; } = ""; public DateOnly? AdministrationDate { get; set; }
     public ImmunizationClinicalFields? ClinicalFields { get; set; }
@@ -23,6 +24,7 @@ public sealed class SavePatientImmunizationViewModel : SavePatientImmunizationRe
     public Guid? ImmunizationUid { get; set; }
     public string? RowVersion { get; set; }
     public bool ClinicalFieldsIncluded { get; set; }
+    public bool DoseIncluded { get; set; }
 }
 
 public sealed class MarkImmunizationEnteredInErrorViewModel

@@ -55,7 +55,7 @@ public sealed partial class PatientCppService
                 var compact=await LoadImmunizations(patientUid,correlation,token,true,rows=>details=PatientCppSection<PatientCppImmunizationPrint>.From(
                     rows.Select(x=>new PatientCppImmunizationPrint(x.VaccineName,x.Status=="Refused"?"Refused":"Administered",x.AdministrationDisplay,x.RefusalDisplay,
                     x.ClinicalFields?.Refused is {} refused ? (refused?"Yes":"No") : "Not recorded",x.ClinicalFields?.DIN,x.ClinicalFields?.Manufacturer,x.ClinicalFields?.ImmunizationType ?? "Not recorded",
-                    x.DoseNumber,x.Route,x.Site,x.LotNumber,x.SourceType,x.SourceDescription,x.AdministeredByName,x.Notes)).ToArray(),rows.Count));
+                    x.DoseNumber,x.Route,x.Site,x.LotNumber,x.SourceType,x.SourceDescription,x.AdministeredByName,x.Notes){AdministeredDose=x.Dose?.Display ?? "Not recorded"}).ToArray(),rows.Count));
                 data=data with {Immunizations=compact,ImmunizationsForPrint=details};
                 continue;
             }

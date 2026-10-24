@@ -187,17 +187,18 @@ public sealed class ImmunizationFieldSqlTests(ImmunizationFieldDatabase db) : IC
     public async Task CppUsesOwnedFullSourceAndPrintsSeparateRefusalsWithoutLosingPrecision()
     {
         var patient=await db.Clinical.SeedPatient(false);var actor=await db.Clinical.SeedUser(false);
-        for(var i=0;i<8;i++){var draft=Draft();draft.VaccineName=$"TEST ONLY print {i}";draft.Notes=string.Join("\n",Enumerable.Range(0,18).Select(n=>$"Line {n}"))+$"\nTail{i} <script>";await db.Repository().CreateAsync(patient,draft,actor.Actor);}
+        for(var i=0;i<8;i++){var draft=Draft();draft.Dose=new(){Amount=0.5m,UnitCode="mL"};draft.VaccineName=$"TEST ONLY print {i}";draft.Notes=string.Join("\n",Enumerable.Range(0,18).Select(n=>$"Line {n}"))+$"\nTail{i} <script>";await db.Repository().CreateAsync(patient,draft,actor.Actor);}
         var refusal=Draft(true);refusal.VaccineName="TEST ONLY refusal";await db.Repository().CreateAsync(patient,refusal,actor.Actor);
         var terminal=await db.Repository().CreateAsync(patient,Draft(),actor.Actor);await db.Repository().MarkEnteredInErrorAsync(patient,terminal.ImmunizationUid,new(){RowVersion=terminal.RowVersion,Reason="TEST ONLY excluded"},actor.Actor);
         var calls=0;var auditCalls=0;var repository=db.Repository();
         var service=CppSelectivePrintTests.Stub<IPatientImmunizationService>((_,args)=>{calls++;return repository.ListAsync((Guid)args[0]!, (string)args[1]!);});
         var source=CppSelectivePrintTests.Source(patient,null!,CppSelectivePrintTests.Stub<MicroEMR.Application.ReadAudit.IPatientChartReadAuditService>((_,_)=>{auditCalls++;return Task.FromResult(Guid.NewGuid());}),immunizations:service);
         var summary=(await source.GetAsync(patient,"test"))!;Assert.Equal(5,summary.Immunizations.Items.Count);Assert.Equal(8,summary.Immunizations.TotalCount);
-        Assert.All(summary.Immunizations.Items,x=>{Assert.Equal("2000-02",x.AdministrationDisplay);Assert.Equal("00123456",x.DIN);Assert.Equal("Influenza",x.ImmunizationType);});
+        Assert.All(summary.Immunizations.Items,x=>{Assert.Equal("2000-02",x.AdministrationDisplay);Assert.Equal("00123456",x.DIN);Assert.Equal("Influenza",x.ImmunizationType);Assert.Equal("0.5 mL",x.Dose);});
         Assert.Null(summary.ImmunizationsForPrint);Assert.DoesNotContain("Tail",JsonSerializer.Serialize(summary));
         var fixture=new CppSelectivePrintTests.Fixture{ActualSource=source};fixture.Patient.PatientUid=patient;
         var prior=calls;var priorAudit=auditCalls;var html=System.Text.Encoding.UTF8.GetString((await fixture.Print("Immunizations"))!);
+        Assert.Contains("0.5 mL",html);
         Assert.Equal(prior+1,calls);Assert.Equal(priorAudit+1,auditCalls);
         foreach(var text in new[]{"TEST ONLY print 7","TEST ONLY manufacturer","00123456","Influenza","2000-02","Refused immunizations","TEST ONLY refusal","2001","Tail7","&lt;script&gt;"})Assert.Contains(text,html);
         Assert.DoesNotContain("TEST ONLY excluded",html);Assert.DoesNotContain("2000-02-01",html);Assert.DoesNotContain("Row Version",html);Assert.DoesNotContain("<script>",html);
@@ -262,6 +263,7 @@ public sealed class ImmunizationFieldDatabase : IAsyncLifetime
                     LegacyAudit=await LegacyAuditSnapshot();
                 }
                 await Apply(other,"0080-immunization-fields.sql");
+                await Apply(other,"0091-immunization-dose.sql");
             }
         }
         catch{await Clinical.DisposeAsync();throw;}

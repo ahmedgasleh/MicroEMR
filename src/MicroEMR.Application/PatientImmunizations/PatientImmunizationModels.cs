@@ -6,6 +6,7 @@ namespace MicroEMR.Application.PatientImmunizations;
 
 public sealed class PatientImmunizationResponse
 {
+    public ImmunizationDose? Dose { get; init; }
     public Guid ImmunizationUid { get; init; }
     public Guid PatientUid { get; init; }
     public required string VaccineName { get; init; }
@@ -39,6 +40,7 @@ public sealed class PatientImmunizationResponse
 
 public class SavePatientImmunizationRequest : IValidatableObject
 {
+    public ImmunizationDose? Dose { get; set; }
     [Required, StringLength(200)] public string VaccineName { get; set; } = string.Empty;
     private DateOnly? administrationDate;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -58,6 +60,12 @@ public class SavePatientImmunizationRequest : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (Dose is not null)
+        {
+            foreach (var result in Dose.Validate()) yield return result;
+            if (ClinicalFields?.Refused == true && Dose.Amount is not null)
+                yield return new("A refusal cannot assert an administered dose.");
+        }
         if (string.IsNullOrWhiteSpace(VaccineName))
             yield return new("Vaccine name is required.", [nameof(VaccineName)]);
         if (ClinicalFields is not null)

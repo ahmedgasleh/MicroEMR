@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function render() { if (!items.length) {
         list.innerHTML = '<div class="microemr-empty-state"><div class="microemr-empty-state__title">No immunizations recorded</div></div>';
         return;
-    } list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Source</th><th>Status</th><th>Administered by</th><th class="text-end">Actions</th></tr></thead><tbody>${items.map(x => { const terminal = x.status === "EnteredInError", refused = x.clinicalFields?.refused === true, actions = !terminal && canManage ? `<button class="btn btn-sm btn-outline-primary edit-immunization" data-uid="${x.immunizationUid}">Edit</button> <button class="btn btn-sm btn-outline-danger error-immunization" data-uid="${x.immunizationUid}">Mark entered in error</button>` : ""; return `<tr class="${terminal ? "text-body-secondary" : ""}"><td>${refused ? "Refusal: " : "Administration: "}${escape(refused ? (x.refusalDisplay || dateDisplay(x.clinicalFields?.refusalDate)) : (x.administrationDisplay || dateDisplay(x.clinicalFields?.administrationDate, x.administrationDate)))}</td><td><span class="fw-semibold">${escape(x.vaccineName)}</span><div class="small">Type: ${escape(x.clinicalFields?.immunizationType || "Not recorded")} ? DIN: ${escape(x.clinicalFields?.din || "Not recorded")} ? Manufacturer: ${escape(x.clinicalFields?.manufacturer || "Not recorded")}</div><div class="small">Refused indicator: ${x.clinicalFields?.refused == null ? "Not recorded" : refused ? "Yes" : "No"}</div><div class="small">${escape(x.notes || "")}</div>${terminal && x.enteredInErrorReason ? `<div class="small">${escape(x.enteredInErrorReason)}</div>` : ""}</td><td>${escape(x.doseNumber ?? "Not recorded")}</td><td>${escape(x.sourceType ? label(x.sourceType) : "Not recorded")}</td><td><span class="badge ${terminal ? "text-bg-secondary" : "text-bg-success"}">${terminal ? (refused ? "Entered in error (refused)" : "Entered in error") : refused ? "Refused" : "Completed"}</span></td><td>${escape(x.administeredByName || "Not recorded")}</td><td class="text-end text-nowrap">${actions}</td></tr>`; }).join("")}</tbody></table></div>`; }
+    } list.innerHTML = `<div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Date</th><th>Vaccine</th><th>Administered dose / ordinal</th><th>Source</th><th>Status</th><th>Administered by</th><th class="text-end">Actions</th></tr></thead><tbody>${items.map(x => { const terminal = x.status === "EnteredInError", refused = x.clinicalFields?.refused === true, actions = !terminal && canManage ? `<button class="btn btn-sm btn-outline-primary edit-immunization" data-uid="${x.immunizationUid}">Edit</button> <button class="btn btn-sm btn-outline-danger error-immunization" data-uid="${x.immunizationUid}">Mark entered in error</button>` : ""; return `<tr class="${terminal ? "text-body-secondary" : ""}"><td>${refused ? "Refusal: " : "Administration: "}${escape(refused ? (x.refusalDisplay || dateDisplay(x.clinicalFields?.refusalDate)) : (x.administrationDisplay || dateDisplay(x.clinicalFields?.administrationDate, x.administrationDate)))}</td><td><span class="fw-semibold">${escape(x.vaccineName)}</span><div class="small">Type: ${escape(x.clinicalFields?.immunizationType || "Not recorded")} ? DIN: ${escape(x.clinicalFields?.din || "Not recorded")} ? Manufacturer: ${escape(x.clinicalFields?.manufacturer || "Not recorded")}</div><div class="small">Refused indicator: ${x.clinicalFields?.refused == null ? "Not recorded" : refused ? "Yes" : "No"}</div><div class="small">${escape(x.notes || "")}</div>${terminal && x.enteredInErrorReason ? `<div class="small">${escape(x.enteredInErrorReason)}</div>` : ""}</td><td>${escape(x.dose?.display || "Not recorded")}<div class="small">Ordinal: ${escape(x.doseNumber ?? "Not recorded")}</div></td><td>${escape(x.sourceType ? label(x.sourceType) : "Not recorded")}</td><td><span class="badge ${terminal ? "text-bg-secondary" : "text-bg-success"}">${terminal ? (refused ? "Entered in error (refused)" : "Entered in error") : refused ? "Refused" : "Completed"}</span></td><td>${escape(x.administeredByName || "Not recorded")}</td><td class="text-end text-nowrap">${actions}</td></tr>`; }).join("")}</tbody></table></div>`; }
     async function load() { const response = await fetch(`${root.dataset.listUrl}?status=${encodeURIComponent(filter.value)}`, { headers: { Accept: "application/json" } }), json = await response.json(); if (!response.ok || !json.success)
         throw new Error(json.message || "Immunizations could not be loaded."); items = json.items; render(); }
     function dateDisplay(date, legacy) { return date?.year ? String(date.year).padStart(4, "0") + (date.month ? "-" + String(date.month).padStart(2, "0") : "") + (date.day ? "-" + String(date.day).padStart(2, "0") : "") : legacy || "Not recorded"; }
@@ -51,6 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 field(`ClinicalFields.${prefix}Date.${part}`).value = String(date?.[part.toLowerCase()] ?? "");
             }
         }
+        field("Dose.Amount").value = String(item?.dose?.amount ?? "");
+        field("Dose.UnitCode").value = item?.dose?.unitCode ?? "";
         const indicator = field("ClinicalFields.Refused").value;
         applicable();
         if (item)
@@ -70,6 +72,13 @@ document.addEventListener("DOMContentLoaded", () => {
         editorMessage.textContent = "Administered by is required for a clinic-administered immunization.";
         editorMessage.classList.remove("d-none");
         return;
+    } if (field("ImmunizationOutcome").value !== "true") {
+        const amount = field("Dose.Amount").value, unit = field("Dose.UnitCode").value;
+        if (!!amount !== !!unit || amount && (!/^\d+(\.\d{1,3})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 9999.999)) {
+            editorMessage.textContent = "Enter dose amount greater than 0 and at most 9999.999 with up to 3 decimal places, and select its unit; or leave both blank.";
+            editorMessage.classList.remove("d-none");
+            return;
+        }
     } try {
         await post(editingUid ? `${base}/${editingUid}` : base, new FormData(form));
         modal.hide();

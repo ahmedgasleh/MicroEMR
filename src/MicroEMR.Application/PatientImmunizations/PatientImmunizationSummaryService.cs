@@ -70,6 +70,7 @@ public sealed class PatientImmunizationSummaryService(
                 body.Append("<tr><td>").Append(E(Value(item.VaccineName)))
                     .Append("<div>DIN: ").Append(E(Value(item.ClinicalFields?.DIN))).Append("; Manufacturer: ").Append(E(Value(item.ClinicalFields?.Manufacturer)))
                     .Append("; Type: ").Append(E(item.ClinicalFields?.ImmunizationType ?? "Not recorded")).Append("</div><div>").Append(E(Value(item.Notes))).Append("</div>")
+                    .Append(item.ClinicalFields?.Refused==true ? "" : "<div>Administered dose: " + E(item.Dose?.Display ?? "Not recorded") + "</div>")
                     .Append("</td><td>").Append(item.ClinicalFields?.Refused==true?"Refusal: ":"Administration: ")
                     .Append(E(item.ClinicalFields?.Refused==true ? item.RefusalDisplay : item.EffectiveAdministrationDate?.Day is not null && item.AdministrationDate is {} exact ? exact.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) : item.AdministrationDisplay))
                     .Append("</td><td>").Append(E(Value(item.AdministeredByName)))

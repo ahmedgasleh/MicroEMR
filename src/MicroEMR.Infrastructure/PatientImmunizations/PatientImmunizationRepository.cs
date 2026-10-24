@@ -55,6 +55,7 @@ public sealed class PatientImmunizationRepository(ITenantSqlConnectionFactory co
                 command.Parameters.Add("@VaccineName", SqlDbType.NVarChar, 200).Value = request.VaccineName;
                 command.Parameters.Add("@AdministrationDate", SqlDbType.Date).Value = (object?)request.AdministrationDate?.ToDateTime(TimeOnly.MinValue) ?? DBNull.Value;
                 Add(command, "@DoseNumber", SqlDbType.Int, request.DoseNumber);
+                Add(command, "@Dose", SqlDbType.NVarChar, request.Dose is null ? null : JsonSerializer.Serialize(new { request.Dose.Amount, request.Dose.UnitCode }), -1);
                 Add(command, "@Route", SqlDbType.NVarChar, request.Route, 100);
                 Add(command, "@Site", SqlDbType.NVarChar, request.Site, 100);
                 Add(command, "@LotNumber", SqlDbType.NVarChar, request.LotNumber, 100);
@@ -97,6 +98,7 @@ public sealed class PatientImmunizationRepository(ITenantSqlConnectionFactory co
     }
     private static PatientImmunizationResponse Map(SqlDataReader reader) => new()
     {
+        Dose = new() { Amount = reader["DoseAmount"] is decimal amount ? amount : null, UnitCode = Text(reader, "DoseUnitCode") },
         ImmunizationUid = reader.GetGuid(reader.GetOrdinal("ImmunizationUid")), PatientUid = reader.GetGuid(reader.GetOrdinal("PatientUid")),
         VaccineName = reader.GetString(reader.GetOrdinal("VaccineName")), AdministrationDate = Time(reader,"AdministrationDate") is {} date ? DateOnly.FromDateTime(date) : null,
         ClinicalFields = new(){DIN=Text(reader,"DIN"),Manufacturer=Text(reader,"Manufacturer"),ImmunizationTypeCode=Text(reader,"ImmunizationTypeCode"),Refused=reader["Refused"] is bool refused ? refused : null,AdministrationDate=Partial(reader,"Administration",Time(reader,"AdministrationDate")),RefusalDate=Partial(reader,"Refusal")},

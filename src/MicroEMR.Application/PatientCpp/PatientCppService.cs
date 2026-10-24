@@ -190,7 +190,7 @@ public sealed partial class PatientCppService(
             return PatientCppSection<PatientCppImmunization>.From(rows.OrderByDescending(x=>x.EffectiveAdministrationDate?.Year)
                 .ThenByDescending(x=>x.EffectiveAdministrationDate?.Month).ThenByDescending(x=>x.EffectiveAdministrationDate?.Day).ThenBy(x=>x.ImmunizationUid)
                 .Take(full ? int.MaxValue : ClinicalLimit).Select(x=>new PatientCppImmunization(x.ImmunizationUid,x.VaccineName,x.AdministrationDate,x.SourceType)
-                {AdministrationDisplay=x.AdministrationDisplay,DIN=x.ClinicalFields?.DIN,Manufacturer=x.ClinicalFields?.Manufacturer,ImmunizationType=x.ClinicalFields?.ImmunizationType ?? "Not recorded"}).ToArray(),rows.Length);
+                {Dose=x.Dose?.Display ?? "Not recorded",AdministrationDisplay=x.AdministrationDisplay,DIN=x.ClinicalFields?.DIN,Manufacturer=x.ClinicalFields?.Manufacturer,ImmunizationType=x.ClinicalFields?.ImmunizationType ?? "Not recorded"}).ToArray(),rows.Length);
         });
 
     private async Task<PatientCppSection<PatientCppResult>> LoadResults(Guid patientUid, string trace, CancellationToken token, bool full = false) =>
