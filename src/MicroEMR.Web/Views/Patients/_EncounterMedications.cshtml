@@ -1,0 +1,27 @@
+<section id="encounterMedications" class="col-12" data-url="@Url.Action("Get", "EncounterMedications")">
+    <h3 class="fs-6">Medication Summary</h3>
+    <p class="small text-body-secondary">Manage current longitudinal medication records separately from note text. These actions do not create or change prescriptions. CPP displays active ongoing treatments by default.</p>
+    <label class="form-label" for="encounterMedicationSelection">Existing medication</label>
+    <select id="encounterMedicationSelection" class="form-select mb-2" disabled><option value="">Select a medication</option></select>
+    <button id="newEncounterMedication" type="button" class="btn btn-outline-secondary btn-sm mb-2" disabled>Record medication</button>
+    <fieldset id="encounterMedicationFields" disabled>
+        <div class="row g-2">
+            @foreach (var field in new[] { ("MedicationName", "Medication name", 200), ("Strength", "Strength", 100), ("DosageForm", "Medication form", 100), ("Route", "Route", 100), ("Frequency", "Frequency", 100), ("Indication", "Indication", 300), ("PrescriberName", "Recorded prescriber name", 200) })
+            {
+                <div class="col-md-6"><label class="form-label" for="encounterMedication@(field.Item1)">@field.Item2</label><input id="encounterMedication@(field.Item1)" class="form-control" maxlength="@field.Item3" required="@(field.Item1 == "MedicationName" ? "required" : null)" /></div>
+            }
+            <div class="col-md-6"><label class="form-label" for="encounterMedicationClassification">Treatment classification</label><select id="encounterMedicationClassification" class="form-select"><option value="">Unclassified</option><option value="Ongoing">Ongoing</option><option value="Acute">Acute</option></select></div>
+            <div class="col-md-6"><label class="form-label" for="encounterMedicationStartDate">Start date</label><input id="encounterMedicationStartDate" class="form-control" type="date" /></div>
+            <div class="col-md-6"><label class="form-label" for="encounterMedicationEndDate">End date</label><input id="encounterMedicationEndDate" class="form-control" type="date" /></div>
+            <div class="col-12"><label class="form-label" for="encounterMedicationDirections">Directions</label><textarea id="encounterMedicationDirections" class="form-control" maxlength="500" rows="2"></textarea></div>
+            <div class="col-12"><label class="form-label" for="encounterMedicationNotes">Clinical notes</label><textarea id="encounterMedicationNotes" class="form-control" maxlength="1000" rows="2"></textarea></div>
+        </div>
+    </fieldset>
+    <div class="mt-2"><label class="form-label" for="encounterMedicationReason">Discontinuation reason (optional)</label><input id="encounterMedicationReason" class="form-control" maxlength="500" disabled /></div>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+        <button id="saveEncounterMedication" type="button" class="btn btn-primary btn-sm" disabled>Save Medication Summary</button>
+        <button id="discontinueEncounterMedication" type="button" class="btn btn-outline-warning btn-sm" disabled>Discontinue selected medication</button>
+        <button id="reloadEncounterMedications" type="button" class="btn btn-outline-secondary btn-sm" disabled>Reload medications</button>
+    </div>
+    <p id="encounterMedicationMessage" class="small mt-2" role="status" aria-live="polite" tabindex="-1"></p>
+</section>

@@ -7,6 +7,7 @@ public sealed class PatientEncounterHistoryResponse
     public Guid PatientUid { get; set; }
     public string ActionType { get; set; } = string.Empty;
     public string? ActionDescription { get; set; }
+    public string? DisplayDescription { get; set; }
     public string? OldStatus { get; set; }
     public string? NewStatus { get; set; }
     public string? Reason { get; set; }

@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<MicroEMR.Application.PatientEncounters.Chronology.IEncounterChronologyService, MicroEMR.Application.PatientEncounters.Chronology.EncounterChronologyService>();
         services.AddScoped<MicroEMR.Application.PatientEncounters.IEncounterDiagnosisService, MicroEMR.Application.PatientEncounters.EncounterDiagnosisService>();
         services.AddScoped<MicroEMR.Application.PatientEncounters.IEncounterProcedureService, MicroEMR.Application.PatientEncounters.EncounterProcedureService>();
+        services.AddScoped<MicroEMR.Application.PatientEncounters.IEncounterMedicationService, MicroEMR.Application.PatientEncounters.EncounterMedicationService>();
         services.AddScoped<IPatientMedicationService, PatientMedicationService>();
         services.AddScoped<IPatientPrescriptionService, PatientPrescriptionService>();
         services.AddScoped<IPrescriptionPrivateNoteService, PrescriptionPrivateNoteService>();

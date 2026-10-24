@@ -79,7 +79,7 @@ if (root) {
     });
     save.addEventListener("click", async () => {
         if (busy || mustReload || !dirty || !state?.canManage || !context || !(selected || newUid)) return;
-        if (element<HTMLButtonElement>("saveEncounterNoteButton").disabled || document.querySelector<HTMLElement>("#encounterDiagnoses")?.dataset.busy === "true" || document.querySelector<HTMLElement>("#encounterContributions")?.dataset.busy === "true") {
+        if (element<HTMLButtonElement>("saveEncounterNoteButton").disabled || document.querySelector<HTMLElement>("#encounterDiagnoses")?.dataset.busy === "true" || document.querySelector<HTMLElement>("#encounterContributions")?.dataset.busy === "true" || document.querySelector<HTMLElement>("#encounterMedications")?.dataset.busy === "true") {
             message.textContent = "Wait for the note or diagnosis operation to finish."; return;
         }
         if (![description, notes, year, month, day].every(input => input.reportValidity()) || !description.value.trim()) return;
@@ -115,6 +115,9 @@ if (root) {
     }
     document.querySelector("#encounterContributions")?.addEventListener("click", event => {
         if (busy) { event.preventDefault(); event.stopImmediatePropagation(); message.textContent = "Wait for the procedure save to finish."; }
+    }, true);
+    document.querySelector("#encounterMedications")?.addEventListener("click", event => {
+        if (busy) { event.preventDefault(); event.stopImmediatePropagation(); }
     }, true);
     document.querySelector("#encounterDetailsModal")?.addEventListener("hide.bs.modal", event => {
         if (busy || dirty && !confirm("Discard unsaved procedure changes?")) event.preventDefault();

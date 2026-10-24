@@ -105,17 +105,94 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         string? createdByDisplayName,
         CancellationToken cancellationToken = default)
     {
-        await using var connection =
-            await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, patientUid, request, createdBy, createdByDisplayName);
 
-        await using var command =
-            new SqlCommand(
-                "dbo.PatientMedication_Create",
-                connection)
+        try
+        {
+            await using var reader =
+                await command.ExecuteReaderAsync(cancellationToken);
+
+            if (!await reader.ReadAsync(cancellationToken))
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                throw new InvalidOperationException(
+                    "PatientMedication_Create returned no medication record.");
+            }
 
+            return MapDetails(reader);
+        }
+        catch (SqlException exception) when (exception.Number == 53100)
+        {
+            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to create medication for patient {PatientUid}.",
+                patientUid);
+
+            throw;
+        }
+    }
+
+    public async Task<PatientMedicationDetailsResponse?> UpdateAsync(
+        Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
+        long? updatedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = UpdateCommand(connection, patientUid, medicationUid, request, updatedBy);
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51057)
+        {
+            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 53100)
+        {
+            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to update a patient medication.");
+            throw;
+        }
+    }
+
+    public async Task<PatientMedicationDetailsResponse?> DiscontinueAsync(
+        Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
+        long? discontinuedBy, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        await using var command = DiscontinueCommand(connection, patientUid, medicationUid, request, discontinuedBy);
+
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
+        }
+        catch (SqlException exception) when (exception.Number == 51057)
+        {
+            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
+        }
+        catch (SqlException exception) when (exception.Number == 52902)
+        {
+            throw new ArgumentException("Review the future treatment start/end dates before discontinuing.", nameof(request), exception);
+        }
+        catch (SqlException exception)
+        {
+            _logger.LogError(exception, "Failed to discontinue a patient medication.");
+            throw;
+        }
+    }
+
+    internal static SqlCommand CreateCommand(SqlConnection connection, Guid patientUid, CreatePatientMedicationRequest request, long? createdBy, string? createdByDisplayName)
+    {
+        var command = new SqlCommand("dbo.PatientMedication_Create", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(
             new SqlParameter(
                 "@PatientUid",
@@ -220,41 +297,12 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
 
 
 
-        try
-        {
-            await using var reader =
-                await command.ExecuteReaderAsync(cancellationToken);
-
-            if (!await reader.ReadAsync(cancellationToken))
-            {
-                throw new InvalidOperationException(
-                    "PatientMedication_Create returned no medication record.");
-            }
-
-            return MapDetails(reader);
-        }
-        catch (SqlException exception) when (exception.Number == 53100)
-        {
-            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(
-                exception,
-                "Failed to create medication for patient {PatientUid}.",
-                patientUid);
-
-            throw;
-        }
+        return command;
     }
 
-    public async Task<PatientMedicationDetailsResponse?> UpdateAsync(
-        Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request,
-        long? updatedBy, CancellationToken cancellationToken = default)
+    internal static SqlCommand UpdateCommand(SqlConnection connection, Guid patientUid, Guid medicationUid, UpdatePatientMedicationRequest request, long? updatedBy)
     {
-        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
-        await using var command = new SqlCommand("dbo.PatientMedication_Update", connection)
-        { CommandType = CommandType.StoredProcedure };
+        var command = new SqlCommand("dbo.PatientMedication_Update", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
         AddRequiredString(command, "@MedicationName", SqlDbType.NVarChar, 200, request.MedicationName);
@@ -276,33 +324,12 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt) { Value = (object?)updatedBy ?? DBNull.Value });
         command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Timestamp) { Value = Convert.FromBase64String(request.RowVersion) });
 
-        try
-        {
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
-        }
-        catch (SqlException exception) when (exception.Number == 51057)
-        {
-            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
-        }
-        catch (SqlException exception) when (exception.Number == 53100)
-        {
-            throw new ArgumentException("Review the compliance assessment state, explanation and offset time.", nameof(request), exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to update a patient medication.");
-            throw;
-        }
+        return command;
     }
 
-    public async Task<PatientMedicationDetailsResponse?> DiscontinueAsync(
-        Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request,
-        long? discontinuedBy, CancellationToken cancellationToken = default)
+    internal static SqlCommand DiscontinueCommand(SqlConnection connection, Guid patientUid, Guid medicationUid, DiscontinuePatientMedicationRequest request, long? discontinuedBy)
     {
-        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
-        await using var command = new SqlCommand("dbo.PatientMedication_Discontinue", connection)
-        { CommandType = CommandType.StoredProcedure };
+        var command = new SqlCommand("dbo.PatientMedication_Discontinue", connection) { CommandType = CommandType.StoredProcedure };
         command.Parameters.Add(new SqlParameter("@PatientUid", SqlDbType.UniqueIdentifier) { Value = patientUid });
         command.Parameters.Add(new SqlParameter("@MedicationUid", SqlDbType.UniqueIdentifier) { Value = medicationUid });
         command.Parameters.Add(new SqlParameter("@RowVersion", SqlDbType.Binary, 8) { Value = request.GetRowVersionBytes() });
@@ -310,24 +337,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
         command.Parameters.Add(new SqlParameter("@DiscontinuedBy", SqlDbType.BigInt)
         { Value = (object?)discontinuedBy ?? DBNull.Value });
 
-        try
-        {
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            return await reader.ReadAsync(cancellationToken) ? MapDetails(reader) : null;
-        }
-        catch (SqlException exception) when (exception.Number == 51057)
-        {
-            throw new PatientMedicationConcurrencyException("The medication was changed by another user.", exception);
-        }
-        catch (SqlException exception) when (exception.Number == 52902)
-        {
-            throw new ArgumentException("Review the future treatment start/end dates before discontinuing.", nameof(request), exception);
-        }
-        catch (SqlException exception)
-        {
-            _logger.LogError(exception, "Failed to discontinue a patient medication.");
-            throw;
-        }
+        return command;
     }
 
     private static PatientMedicationListItemResponse MapListItem(
@@ -361,7 +371,7 @@ public sealed class PatientMedicationRepository : IPatientMedicationRepository
 
     private static T? ComplianceJson<T>(SqlDataReader reader,string column) { for(var i=0;i<reader.FieldCount;i++) if(reader.GetName(i)==column) return reader.IsDBNull(i)?default:System.Text.Json.JsonSerializer.Deserialize<T>(reader.GetString(i)); return default; }
 
-    private static PatientMedicationDetailsResponse MapDetails(
+    internal static PatientMedicationDetailsResponse MapDetails(
         SqlDataReader reader)
     {
         return new PatientMedicationDetailsResponse

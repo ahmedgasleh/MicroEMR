@@ -123,7 +123,7 @@ if (root) {
     save.addEventListener("click", async () => {
         if (busy || mustReload || !dirty || !state?.canManage || !context || !(selected || newUid))
             return;
-        if (element("saveEncounterNoteButton").disabled || document.querySelector("#encounterDiagnoses")?.dataset.busy === "true" || document.querySelector("#encounterContributions")?.dataset.busy === "true") {
+        if (element("saveEncounterNoteButton").disabled || document.querySelector("#encounterDiagnoses")?.dataset.busy === "true" || document.querySelector("#encounterContributions")?.dataset.busy === "true" || document.querySelector("#encounterMedications")?.dataset.busy === "true") {
             message.textContent = "Wait for the note or diagnosis operation to finish.";
             return;
         }
@@ -183,6 +183,12 @@ if (root) {
             event.preventDefault();
             event.stopImmediatePropagation();
             message.textContent = "Wait for the procedure save to finish.";
+        }
+    }, true);
+    document.querySelector("#encounterMedications")?.addEventListener("click", event => {
+        if (busy) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
         }
     }, true);
     document.querySelector("#encounterDetailsModal")?.addEventListener("hide.bs.modal", event => {

@@ -120,6 +120,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
     PatientEncounterApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IEncounterDiagnosisApiClient, EncounterDiagnosisApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IEncounterProcedureApiClient, EncounterProcedureApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IEncounterMedicationApiClient, EncounterMedicationApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientMedicationApiClient,
