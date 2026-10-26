@@ -277,7 +277,7 @@ public sealed class PrescriptionDateDatabase:IAsyncLifetime
 
 internal sealed class PrescriptionDateHost(WebApplication app):IAsyncDisposable
 {
-    internal static async Task<PrescriptionDateHost> Start(PrescriptionDateDatabase db,bool other)
+    internal static async Task<PrescriptionDateHost> Start(PrescriptionDateDatabase db,bool other,Action<IServiceCollection>? configure=null)
     {
         var builder=WebApplication.CreateBuilder(new WebApplicationOptions{EnvironmentName="Testing"});builder.WebHost.UseUrls("http://127.0.0.1:0");builder.Logging.ClearProviders();builder.Services.AddHttpContextAccessor();
         builder.Services.AddAuthentication("Dates").AddScheme<AuthenticationSchemeOptions,Authentication>("Dates",_=>{});builder.Services.AddAuthorization();
@@ -291,7 +291,7 @@ internal sealed class PrescriptionDateHost(WebApplication app):IAsyncDisposable
         builder.Services.AddScoped<ITenantContextAccessor>(_=>{var accessor=new TenantContextAccessor();accessor.SetTenant(db.Tenant(other));return accessor;});
         var audit=DispatchProxy.Create<IPlatformSecurityAuditRepository,CppSelectivePrintTests.Proxy>();((CppSelectivePrintTests.Proxy)(object)audit).Call=(_,_)=>throw new InvalidOperationException("Unexpected platform audit");builder.Services.AddSingleton(audit);
         builder.Services.AddControllers().AddApplicationPart(typeof(MicroEMR.Api.Controllers.PatientPrescriptionsController).Assembly);
-        var app=builder.Build();app.UseRouting();app.UseAuthentication();app.UseAuthorization();app.UseMiddleware<ClinicalUserActorResolutionMiddleware>();app.MapControllers();await app.StartAsync();return new(app);
+        configure?.Invoke(builder.Services);var app=builder.Build();app.UseRouting();app.UseAuthentication();app.UseAuthorization();app.UseMiddleware<ClinicalUserActorResolutionMiddleware>();app.MapControllers();await app.StartAsync();return new(app);
     }
     internal HttpClient Client(string identity="writer"){var address=app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();var client=new HttpClient{BaseAddress=new(address)};client.DefaultRequestHeaders.Authorization=new("Bearer",identity);return client;}
     public async ValueTask DisposeAsync(){await app.StopAsync();await app.DisposeAsync();}

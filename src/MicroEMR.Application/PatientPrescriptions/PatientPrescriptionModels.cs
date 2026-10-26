@@ -15,6 +15,16 @@ public static class PrescriptionFrequencies
 }
 public class PrescriptionDraftRequest:IValidatableObject
 {
+ private EarliestPickup? earliestPickup;
+ [JsonIgnore] public EarliestPickup? EarliestPickup { get => earliestPickup; set { earliestPickup=value; EarliestPickupSpecified=true; } }
+ [JsonIgnore] public bool EarliestPickupSpecified { get; private set; }
+ public void OmitEarliestPickup() { earliestPickup=null; EarliestPickupSpecified=false; }
+ [JsonPropertyName("earliestPickup"),JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+ public JsonElement EarliestPickupInput
+ {
+  get => EarliestPickupSpecified ? JsonSerializer.SerializeToElement(EarliestPickup) : default;
+  set => EarliestPickup=value.ValueKind==JsonValueKind.Null ? null : value.Deserialize<EarliestPickup>();
+ }
  public PrescriptionOrderFields? OrderFields { get; set; }
  private string? privateNote;
  [JsonIgnore,StringLength(1000)] public string? PrivateNote { get => privateNote; set { privateNote=value; PrivateNoteSpecified=true; } }
@@ -108,9 +118,11 @@ public class PrescriptionDraftRequest:IValidatableObject
  }
 }
 public sealed class CreatePrescriptionDraftRequest:PrescriptionDraftRequest { public Guid? SupersedesPrescriptionUid{get;set;} }
-public sealed class PrescriptionTransitionRequest { [Required] public string RowVersion{get;set;}=""; [StringLength(500)] public string? Reason{get;set;} }
+public sealed class PrescriptionTransitionRequest { public bool PickupReviewed {get;set;}  [Required] public string RowVersion{get;set;}=""; [StringLength(500)] public string? Reason{get;set;} }
 public sealed class PatientPrescriptionResponse
 {
+ public EarliestPickup? EarliestPickup { get; set; }
+ public bool PickupReviewRequired { get; set; }
  public bool? PaperCopyRequiredBeforeDispense {get;set;} public int? MinimumDispenseIntervalDays {get;set;}
  public bool? SubstitutionProhibited {get;set;} public string? TreatmentType {get;set;} public string? PrescriberFirstNameSnapshot {get;set;} public string? PrescriberLastNameSnapshot {get;set;} public string? PrescriberOhipSnapshot {get;set;}
  public string? GenericName { get; set; }
@@ -125,18 +137,20 @@ public sealed class PatientPrescriptionResponse
 public sealed record PrescriptionArtifact(Guid ArtifactUid,string Json);
 public interface IPatientPrescriptionRepository
 {
+ Task<PatientPrescriptionResponse?> FinalizeReviewedAsync(Guid p,Guid u,string v,long a,bool reviewed,CancellationToken t=default)=>FinalizeAsync(p,u,v,a,t);
  Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid patientUid,CancellationToken token=default); Task<PatientPrescriptionResponse?> GetAsync(Guid patientUid,Guid uid,CancellationToken token=default);
  Task<PatientPrescriptionResponse> CreateAsync(Guid patientUid,CreatePrescriptionDraftRequest request,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> UpdateAsync(Guid patientUid,Guid uid,PrescriptionDraftRequest request,long actor,CancellationToken token=default);
  Task<PatientPrescriptionResponse?> FinalizeAsync(Guid patientUid,Guid uid,string rowVersion,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> CancelAsync(Guid patientUid,Guid uid,string rowVersion,string? reason,long actor,CancellationToken token=default); Task<PrescriptionArtifact?> GetArtifactAsync(Guid patientUid,Guid uid,CancellationToken token=default);
 }
 public interface IPatientPrescriptionService
 {
+ Task<PatientPrescriptionResponse?> FinalizeReviewedAsync(Guid p,Guid u,string v,long a,bool reviewed,CancellationToken t=default)=>FinalizeAsync(p,u,v,a,t);
  Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid patientUid,CancellationToken token=default); Task<PatientPrescriptionResponse?> GetAsync(Guid patientUid,Guid uid,CancellationToken token=default); Task<PatientPrescriptionResponse> CreateAsync(Guid patientUid,CreatePrescriptionDraftRequest request,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> UpdateAsync(Guid patientUid,Guid uid,PrescriptionDraftRequest request,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> FinalizeAsync(Guid patientUid,Guid uid,string version,long actor,CancellationToken token=default); Task<PatientPrescriptionResponse?> CancelAsync(Guid patientUid,Guid uid,string version,string? reason,long actor,CancellationToken token=default); Task<byte[]?> RenderArtifactPdfAsync(Guid patientUid,Guid uid,CancellationToken token=default);
 }
-public sealed class PatientPrescriptionService(IPatientPrescriptionRepository repository,IPdfRenderer pdf, IPrescriptionPrivateNoteService? privateNotes=null):IPatientPrescriptionService
+public sealed class PatientPrescriptionService(IPatientPrescriptionRepository repository,IPdfRenderer pdf, IPrescriptionPrivateNoteService? privateNotes=null, PrescriptionPickupPolicy? pickupPolicy=null):IPatientPrescriptionService
 {
  public Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid p,CancellationToken t=default)=>repository.ListAsync(p,t); public Task<PatientPrescriptionResponse?> GetAsync(Guid p,Guid u,CancellationToken t=default)=>repository.GetAsync(p,u,t);
- public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);Normalize(r);return await repository.CreateAsync(p,r,a,t);} public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");Normalize(r);return await repository.UpdateAsync(p,u,r,a,t);}
+ public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(r.SupersedesPrescriptionUid is {} originalUid){var original=await repository.GetAsync(p,originalUid,t);if(original?.EarliestPickup is {} inherited)r.EarliestPickup=inherited;else r.OmitEarliestPickup();}else{await ValidatePickup(r,t);}Normalize(r);return await repository.CreateAsync(p,r,a,t);} public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");await ValidatePickup(r,t);Normalize(r);return await repository.UpdateAsync(p,u,r,a,t);}
  public Task<PatientPrescriptionResponse?> FinalizeAsync(Guid p,Guid u,string v,long a,CancellationToken t=default)=>repository.FinalizeAsync(p,u,v,a,t); public Task<PatientPrescriptionResponse?> CancelAsync(Guid p,Guid u,string v,string? reason,long a,CancellationToken t=default)=>repository.CancelAsync(p,u,v,reason,a,t);
  public async Task<byte[]?> RenderArtifactPdfAsync(Guid p,Guid u,CancellationToken t=default){var a=await repository.GetArtifactAsync(p,u,t);if(a is null)return null;using var d=JsonDocument.Parse(a.Json);var x=d.RootElement;string G(string n)=>WebUtility.HtmlEncode(x.TryGetProperty(n,out var v)&&v.ValueKind!=JsonValueKind.Null?v.ToString():"");// Old snapshots keep their original layout. Never infer new instructions from existing quantity/directions.
  var dispensing=x.TryGetProperty("RefillInstructionsVersion",out _)
@@ -144,6 +158,15 @@ public sealed class PatientPrescriptionService(IPatientPrescriptionRepository re
   : $"<dt>Quantity / repeats</dt><dd>{G("Quantity")} {G("QuantityUnit")} / {G("AuthorizedRepeats")}</dd>";
  string Recorded(string n)=>x.TryGetProperty(n,out var value)&&value.ValueKind!=JsonValueKind.Null?G(n):"Not recorded";
  var html=$"<!doctype html><html><head><meta charset='utf-8'><style>body{{font-family:Arial;margin:36px}}h1{{border-bottom:2px solid #222}}dt{{font-weight:bold}}dd{{margin:0 0 12px}}</style></head><body><h1>Prescription</h1><dl><dt>Patient</dt><dd>{G("PatientName")} (DOB {G("DateOfBirth")})</dd><dt>Prescribed date</dt><dd>{G("PrescribedDate")}</dd><dt>Product</dt><dd>{G("ProductDisplayText")}</dd>{(x.TryGetProperty("GenericNameVersion",out _)?$"<dt>Generic name</dt><dd>{Recorded("GenericName")}</dd>":"")}<dt>Directions</dt><dd>{G("Directions")}</dd><dt>Route / frequency</dt><dd>{G("Route")} / {G("FrequencyDisplay")}{(x.TryGetProperty("Prn",out var prn)&&prn.GetBoolean()?" / As needed":"")}</dd>{dispensing}<dt>Indication</dt><dd>{G("Indication")}</dd><dt>Prescriber</dt><dd>{G("PrescriberDisplayName")} — {G("PrescriberCredential")}</dd><dt>Prescription ID</dt><dd>{G("PrescriptionUid")}</dd></dl><p>Local structured prescription. Not electronically transmitted.</p></body></html>";return await pdf.RenderAsync(html,t);}
+ private async Task ValidatePickup(PrescriptionDraftRequest request,CancellationToken token)
+ {
+  if(request.EarliestPickupSpecified && request.EarliestPickup is {} value)
+  {
+   if(pickupPolicy is null)throw new PickupValidationException("Clinical timezone validation is unavailable.");
+   await pickupPolicy.ValidateAsync(value,token);
+  }
+ }
+ public Task<PatientPrescriptionResponse?> FinalizeReviewedAsync(Guid p,Guid u,string v,long a,bool reviewed,CancellationToken t=default)=>repository.FinalizeReviewedAsync(p,u,v,a,reviewed,t);
  private async Task AuthorizePrivateInput(PrescriptionDraftRequest r,long actor,CancellationToken token)
  {
   if(!r.PrivateNoteSpecified)return;

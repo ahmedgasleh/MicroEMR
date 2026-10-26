@@ -8,6 +8,7 @@ public sealed class PrescriptionSigningRequest
 {
     [Required] public string RowVersion { get; set; } = "";
     public bool ConfirmSignature { get; set; }
+    public bool PickupReviewed { get; set; }
 }
 
 public sealed record PrescriptionOutputRequester(string Subject, string Name, string CorrelationId);
@@ -22,6 +23,7 @@ public interface IPrescriptionPdfRenderer
 
 public interface IPrescriptionOutputRepository
 {
+    Task<PatientPrescriptionResponse?> SignAndFinalizeReviewedAsync(Guid p,Guid u,string v,long a,bool reviewed,CancellationToken t=default)=>SignAndFinalizeAsync(p,u,v,a,t);
     Task<PatientPrescriptionResponse?> SignAndFinalizeAsync(Guid patient, Guid prescription,
         string rowVersion, long actor, CancellationToken token = default);
     Task RecordGenerationAsync(Guid patient, Guid prescription, Guid artifact,
@@ -40,7 +42,7 @@ public sealed class PrescriptionOutputService(IPatientPrescriptionRepository pre
         if (string.IsNullOrWhiteSpace(request.RowVersion) ||
             !Convert.TryFromBase64String(request.RowVersion, new byte[8], out var length) || length != 8)
             throw new ArgumentException("A valid prescription row version is required.");
-        return output.SignAndFinalizeAsync(patient, prescription, request.RowVersion, actor, token);
+        return request.PickupReviewed ? output.SignAndFinalizeReviewedAsync(patient, prescription, request.RowVersion, actor, true, token) : output.SignAndFinalizeAsync(patient, prescription, request.RowVersion, actor, token);
     }
 
     public async Task<byte[]?> GenerateAsync(Guid patient, Guid prescription,

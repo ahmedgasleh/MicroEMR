@@ -131,11 +131,16 @@ public sealed class PrescriptionPrintTests(PrescriptionRefillSqlDatabase db) : I
     [Fact]
     public async Task SignedCorrectionCopiesNewFieldsButRequiresItsOwnSignatureAndPreservesSource()
     {
-        var patient = await db.SeedPatient();
-        var draft = await db.Repository.CreateAsync(patient, Draft(), 7);
-        var signed = (await db.Repository.SignAndFinalizeAsync(patient, draft.PrescriptionUid, draft.RowVersion, 7))!;
-        var originalArtifact = (await db.Repository.GetArtifactAsync(patient, signed.PrescriptionUid))!;
-        var api = new PatientPrescriptionsController(new PatientPrescriptionService(db.Repository, new LegacyPdf()))
+        // Correction uses current order-field procedures; historical refill-only fixtures stop at 0084.
+        var current = new Step143OrderDatabase();
+        await current.InitializeAsync();
+        try
+        {
+        var patient = await current.Db.Stores.SeedPatient();
+        var draft = await current.Db.Repository().CreateAsync(patient, Draft(), 7);
+        var signed = (await current.Db.Repository().SignAndFinalizeAsync(patient, draft.PrescriptionUid, draft.RowVersion, 7))!;
+        var originalArtifact = (await current.Db.Repository().GetArtifactAsync(patient, signed.PrescriptionUid))!;
+        var api = new PatientPrescriptionsController(new PatientPrescriptionService(current.Db.Repository(), new LegacyPdf()))
         {
             ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
             { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() }
@@ -147,12 +152,14 @@ public sealed class PrescriptionPrintTests(PrescriptionRefillSqlDatabase db) : I
         Assert.Equal(signed.NotesToPharmacist, correction.NotesToPharmacist);
         Assert.Equal("Draft", correction.Status);
         Assert.Null(correction.FinalizedAtUtc);
-        Assert.Null(await db.Repository.GetArtifactAsync(patient, correction.PrescriptionUid));
-        await db.Repository.SignAndFinalizeAsync(patient, correction.PrescriptionUid, correction.RowVersion, 7);
-        Assert.Equal(originalArtifact, await db.Repository.GetArtifactAsync(patient, signed.PrescriptionUid));
-        Assert.Equal("Superseded", (await db.Repository.GetAsync(patient, signed.PrescriptionUid))!.Status);
-        Assert.Equal(1, await db.AuditCount(signed.PrescriptionUid, "PrescriptionSuperseded"));
-        Assert.Null(await db.OtherRepository.GetArtifactAsync(patient, correction.PrescriptionUid));
+        Assert.Null(await current.Db.Repository().GetArtifactAsync(patient, correction.PrescriptionUid));
+        await current.Db.Repository().SignAndFinalizeAsync(patient, correction.PrescriptionUid, correction.RowVersion, 7);
+        Assert.Equal(originalArtifact, await current.Db.Repository().GetArtifactAsync(patient, signed.PrescriptionUid));
+        Assert.Equal("Superseded", (await current.Db.Repository().GetAsync(patient, signed.PrescriptionUid))!.Status);
+        Assert.Equal(1, await current.Db.Stores.AuditCount(signed.PrescriptionUid, "PrescriptionSuperseded"));
+        Assert.Null(await current.Db.Repository(true).GetArtifactAsync(patient, correction.PrescriptionUid));
+        }
+        finally { await current.DisposeAsync(); }
     }
 
     [Fact]

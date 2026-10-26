@@ -6,6 +6,7 @@ using MicroEMR.Web.Services;
 namespace MicroEMR.Web.Services.PatientPrescriptions;
 public interface IPatientPrescriptionApiClient
 {
+ Task<PickupTimeOptions> PickupOptionsAsync(string? localTime,CancellationToken token=default)=>throw new NotSupportedException();
  Task<PrescriptionPrivateNoteDetail?> PrivateNoteAsync(Guid patient,Guid prescription,CancellationToken token=default);
  Task<IReadOnlyList<PrescriptionPrivateNoteRevision>> PrivateNoteHistoryAsync(Guid patient,Guid prescription,CancellationToken token=default);
  Task<PatientPrescriptionResponse?> SignAndFinalizeAsync(Guid patient,Guid prescription,PrescriptionSigningRequest request,CancellationToken token=default);
@@ -22,5 +23,5 @@ public sealed class PatientPrescriptionApiClient(HttpClient http):IPatientPrescr
  public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,CancellationToken t=default){var x=await http.PutAsJsonAsync($"api/patients/{p}/prescriptions/{u}",r,t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t);}
  public async Task<PatientPrescriptionResponse?> ActionAsync(Guid p,Guid u,string a,PrescriptionTransitionRequest r,CancellationToken t=default){var x=await http.PostAsJsonAsync($"api/patients/{p}/prescriptions/{u}/{a}",r,t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadFromJsonAsync<PatientPrescriptionResponse>(cancellationToken:t);}
  public async Task<byte[]?> ArtifactAsync(Guid p,Guid u,CancellationToken t=default){var x=await http.GetAsync($"api/patients/{p}/prescriptions/{u}/artifact",t);if(x.StatusCode==HttpStatusCode.NotFound)return null;await Ensure(x,t);return await x.Content.ReadAsByteArrayAsync(t);}
- private static async Task Ensure(HttpResponseMessage x,CancellationToken t){if(x.IsSuccessStatusCode)return;var b=await x.Content.ReadAsStringAsync(t);throw new SafeApiResponseException(x.StatusCode,b);}
+ public async Task<PickupTimeOptions> PickupOptionsAsync(string? localTime,CancellationToken token=default){using var response=await http.GetAsync("api/prescriptions/pickup-options?localTime="+Uri.EscapeDataString(localTime??""),token);await Ensure(response,token);return (await response.Content.ReadFromJsonAsync<PickupTimeOptions>(cancellationToken:token))!;} private static async Task Ensure(HttpResponseMessage x,CancellationToken t){if(x.IsSuccessStatusCode)return;var b=await x.Content.ReadAsStringAsync(t);throw new SafeApiResponseException(x.StatusCode,b);}
 }

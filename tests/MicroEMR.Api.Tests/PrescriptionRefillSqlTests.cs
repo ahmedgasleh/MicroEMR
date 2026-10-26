@@ -143,8 +143,13 @@ public sealed class PrescriptionRefillSqlTests(PrescriptionRefillSqlDatabase db)
     [Fact]
     public async Task WebEditAndApiCorrectionCopyIndependentInstructions()
     {
-        var patient = await db.SeedPatient();
-        var service = new PatientPrescriptionService(db.Repository, new CaptureRenderer());
+        // Correction uses current order-field procedures; historical refill-only fixtures stop at 0084.
+        var current = new Step143OrderDatabase();
+        await current.InitializeAsync();
+        try
+        {
+        var patient = await current.Db.Stores.SeedPatient();
+        var service = new PatientPrescriptionService(current.Db.Repository(), new CaptureRenderer());
         var created = await service.CreateAsync(patient, PrescriptionRefillInstructionsTests.Draft(), 7);
         using var handler = new DraftResponseHandler(JsonSerializer.Serialize(created, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://example.test/") };
@@ -168,7 +173,9 @@ public sealed class PrescriptionRefillSqlTests(PrescriptionRefillSqlDatabase db)
         Assert.Equal(finalized.RefillQuantityUnit, correction.RefillQuantityUnit);
         Assert.Equal(finalized.RefillDaysSupply, correction.RefillDaysSupply);
         Assert.Equal(finalized.PrescriptionUid, correction.SupersedesPrescriptionUid);
-        Assert.Equal("Finalized", (await db.Repository.GetAsync(patient, finalized.PrescriptionUid))!.Status);
+        Assert.Equal("Finalized", (await current.Db.Repository().GetAsync(patient, finalized.PrescriptionUid))!.Status);
+        }
+        finally { await current.DisposeAsync(); }
     }
 
     [Fact]

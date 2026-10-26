@@ -5,6 +5,23 @@
 {
  <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
 }
+<fieldset class="border rounded p-3 my-3" data-pickup-editor data-pickup-operation="@ViewData["PickupOperation"]" data-options-url="@Url.Action("PickupOptions", "PatientPrescriptions")" data-pickup="@System.Text.Json.JsonSerializer.Serialize(Model.EarliestPickup)">
+ <legend class="float-none w-auto fs-6 px-1">Earliest expected pickup (optional)</legend>
+ <p class="form-text">Expected pickup only. Uses the clinical timezone shown below; does not confirm pharmacy readiness.</p>
+ <input type="hidden" name="pickupOperation" value="preserve" />
+ <input type="hidden" name="pickupZone" />
+ <div class="row g-2">
+  <div class="col-md-3"><label class="form-label">Precision<select name="pickupPrecision" class="form-select"><option value="">Not recorded</option><option value="Day">Date only</option><option value="Minute">Date and time</option></select></label></div>
+  <div class="col-md-3"><label class="form-label">Pickup date<input type="date" name="pickupDate" class="form-control" /></label></div>
+  <div class="col-md-2"><label class="form-label">Local time<input type="time" name="pickupTime" step="60" class="form-control" /></label></div>
+  <div class="col-md-4"><label class="form-label">UTC offset<select name="pickupOffset" class="form-select"><option value="">Select offset</option></select></label></div>
+ </div>
+ <p class="small mt-2 mb-1" data-pickup-zone aria-live="polite"></p>
+ <p class="text-danger" data-pickup-error role="alert"></p>
+ <button type="button" class="btn btn-sm btn-outline-secondary" data-pickup-clear>Clear pickup</button>
+ <span asp-validation-for="EarliestPickup" class="text-danger"></span>
+</fieldset>
+<script type="module" src="~/dist/patients/prescription-pickup.js" asp-append-version="true"></script>
 <div class="row g-3">
  <div class="col-md-6"><label asp-for="OrderFields.PaperCopyRequiredBeforeDispense" class="form-label">Paper copy required before dispensing</label><select asp-for="OrderFields.PaperCopyRequiredBeforeDispense" class="form-select" aria-describedby="paper-requirement-help"><option value="">Not recorded</option><option value="true">Yes</option></select><div id="paper-requirement-help" class="form-text">Explicit paper-view requirement only. Not recorded makes no statement of electronic authority.</div><span asp-validation-for="OrderFields.PaperCopyRequiredBeforeDispense" class="text-danger" role="alert"></span></div>
  <div class="col-md-6"><label asp-for="OrderFields.MinimumDispenseIntervalDays" class="form-label">Minimum dispense interval (whole days)</label><input asp-for="OrderFields.MinimumDispenseIntervalDays" class="form-control" type="number" min="1" max="2147483647" step="1" aria-describedby="dispense-interval-help"/><div id="dispense-interval-help" class="form-text">Optional minimum time between dispenses, independent of days' supply and repeats. Whole days; technical storage limit 2,147,483,647.</div><span asp-validation-for="OrderFields.MinimumDispenseIntervalDays" class="text-danger" role="alert"></span></div>

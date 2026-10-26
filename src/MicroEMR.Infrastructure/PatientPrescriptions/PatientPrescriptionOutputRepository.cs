@@ -6,6 +6,8 @@ namespace MicroEMR.Infrastructure.PatientPrescriptions;
 
 public sealed partial class PatientPrescriptionRepository : IPrescriptionOutputRepository
 {
+    public Task<PatientPrescriptionResponse?> SignAndFinalizeReviewedAsync(Guid p,Guid u,string v,long a,bool reviewed,CancellationToken t=default) =>
+        One("dbo.PatientPrescription_SignAndFinalize",p,u,v,q=>{Actor(q,a);q.Parameters.Add("@ConfirmSignature",SqlDbType.Bit).Value=true;if(reviewed)q.Parameters.Add("@PickupReviewed",SqlDbType.Bit).Value=true;},t);
     public Task<PatientPrescriptionResponse?> SignAndFinalizeAsync(Guid patient, Guid prescription,
         string rowVersion, long actor, CancellationToken token = default) =>
         One("dbo.PatientPrescription_SignAndFinalize", patient, prescription, rowVersion, command =>
