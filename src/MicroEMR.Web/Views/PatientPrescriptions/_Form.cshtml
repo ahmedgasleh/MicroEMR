@@ -36,6 +36,20 @@
  </div>
 </fieldset>
 <script type="module" src="~/dist/patients/prescription-facility-name.js" asp-append-version="true"></script>
+<fieldset class="border rounded p-3 my-3" data-facility-address-editor data-facility-operation="@ViewData["FacilityAddressOperation"]" data-correction="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" data-review-required="@Model.FacilityAddressReviewRequired.ToString().ToLowerInvariant()">
+ <legend class="float-none w-auto fs-6 px-1">Target Dispensing Facility Address (optional)</legend>
+ <label class="form-label w-100">Address<textarea name="TargetDispensingFacilityAddress" class="form-control" rows="4" aria-describedby="facility-address-guidance">@Model.TargetDispensingFacilityAddress</textarea></label>
+ <div id="facility-address-guidance" class="form-text">Up to 1,000 UTF-16 code units. Address as supplied; this does not verify facility identity or transmit the prescription.</div>
+ <input type="hidden" name="facilityAddressOperation" value="preserve" />
+ <input type="hidden" name="IsCorrectionDraft" value="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" /><input type="hidden" name="FacilityAddressReviewRequired" value="@Model.FacilityAddressReviewRequired.ToString().ToLowerInvariant()" />
+ <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-facility-address-clear>Clear address</button>
+ <span asp-validation-for="TargetDispensingFacilityAddress" class="text-danger"></span>
+ <div class="form-check mt-2" data-facility-address-review hidden="@(!Model.FacilityAddressReviewRequired)">
+  <label class="form-check-label"><input class="form-check-input" type="checkbox" name="FacilityAddressReviewed" value="true" checked="@Model.FacilityAddressReviewed" /> I reviewed this target facility address for the correction.</label>
+  <div class="form-text">Save Draft to record review before finalizing. Review applies to the current address, including a deliberate clear.</div>
+ </div>
+</fieldset>
+<script type="module" src="~/dist/patients/prescription-facility-address.js" asp-append-version="true"></script>
 <div class="row g-3">
  <div class="col-md-6"><label asp-for="OrderFields.PaperCopyRequiredBeforeDispense" class="form-label">Paper copy required before dispensing</label><select asp-for="OrderFields.PaperCopyRequiredBeforeDispense" class="form-select" aria-describedby="paper-requirement-help"><option value="">Not recorded</option><option value="true">Yes</option></select><div id="paper-requirement-help" class="form-text">Explicit paper-view requirement only. Not recorded makes no statement of electronic authority.</div><span asp-validation-for="OrderFields.PaperCopyRequiredBeforeDispense" class="text-danger" role="alert"></span></div>
  <div class="col-md-6"><label asp-for="OrderFields.MinimumDispenseIntervalDays" class="form-label">Minimum dispense interval (whole days)</label><input asp-for="OrderFields.MinimumDispenseIntervalDays" class="form-control" type="number" min="1" max="2147483647" step="1" aria-describedby="dispense-interval-help"/><div id="dispense-interval-help" class="form-text">Optional minimum time between dispenses, independent of days' supply and repeats. Whole days; technical storage limit 2,147,483,647.</div><span asp-validation-for="OrderFields.MinimumDispenseIntervalDays" class="text-danger" role="alert"></span></div>
@@ -84,6 +98,26 @@
    </div>
   </fieldset>
  }
+ <fieldset class="border rounded p-3 my-3" data-reason-coding-editor data-operation="@ViewData["ReasonCodingOperation"]" data-correction="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" data-review-required="@Model.ReasonCodingReviewRequired.ToString().ToLowerInvariant()">
+  <legend class="float-none w-auto fs-6 px-1">Coded reason (optional)</legend>
+  <div class="form-text mb-2" id="reason-coding-guidance">Manually supplied coding system and code; terminology membership and clinical suitability are not verified. System and code must be entered together. Limits: 200 / 100 / 100 / 500 UTF-16 units for system / code / version / display.</div>
+  <div class="row g-3">
+   <div class="col-12 col-md-6"><label class="form-label w-100">Coding System<input name="ReasonSystem" value="@Model.ReasonCoding?.System" class="form-control" aria-describedby="reason-coding-guidance" /></label></div>
+   <div class="col-12 col-md-6"><label class="form-label w-100">Code<input name="ReasonCode" value="@Model.ReasonCoding?.Code" class="form-control" aria-describedby="reason-coding-guidance" /></label></div>
+   <div class="col-12 col-md-6"><label class="form-label w-100">Version (optional)<input name="ReasonVersion" value="@Model.ReasonCoding?.Version" class="form-control" /></label></div>
+   <div class="col-12 col-md-6"><label class="form-label w-100">Display (optional)<input name="ReasonDisplay" value="@Model.ReasonCoding?.Display" class="form-control" /></label></div>
+  </div>
+  <input type="hidden" name="reasonCodingOperation" value="preserve" />
+  <input type="hidden" name="ReasonCodingCorrection" value="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" />
+  <input type="hidden" name="ReasonCodingReviewRequired" value="@Model.ReasonCodingReviewRequired.ToString().ToLowerInvariant()" />
+  <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-reason-coding-clear>Clear coded reason</button>
+  <span asp-validation-for="ReasonCoding" class="text-danger"></span>
+  <div class="form-check mt-2" data-reason-coding-review hidden="@(!Model.ReasonCodingReviewRequired)">
+   <label class="form-check-label"><input type="checkbox" name="ReasonCodingReviewed" value="true" checked="@Model.ReasonCodingReviewed" class="form-check-input" /> I reviewed this coded reason for the correction.</label>
+   <div class="form-text">Save Draft to record review of the current group, including a deliberate clear.</div>
+  </div>
+ </fieldset>
+ <script type="module" src="~/dist/patients/prescription-reason-coding.js" asp-append-version="true"></script>
  <div class="col-md-6"><label asp-for="Indication" class="form-label">Indication (optional)</label><input asp-for="Indication" class="form-control"/></div>
 </div><input asp-for="RowVersion" type="hidden"/>
 

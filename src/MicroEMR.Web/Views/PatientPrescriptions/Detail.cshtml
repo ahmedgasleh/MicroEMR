@@ -6,6 +6,14 @@
   <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications"><i class="bi bi-arrow-left me-1"></i>Back to prescriptions</a>
  </div>
  <div class="mt-4">
+ <section class="mb-3 text-break" data-reason-coding-detail><h4 class="h6">Coded reason</h4>
+ @if(rx.ReasonCoding is {} reason){
+  <dl><dt>Coding System</dt><dd>@reason.System</dd><dt>Code</dt><dd>@reason.Code</dd>
+  @if(reason.Version is not null){<dt>Version</dt><dd>@reason.Version</dd>}
+  @if(reason.Display is not null){<dt>Display</dt><dd>@reason.Display</dd>}</dl>
+ }else{<p>Not recorded</p>}
+ <p class="small text-muted">Manually supplied; terminology membership and clinical suitability are not verified.</p></section>
+ <p><strong>Target Dispensing Facility Address:</strong><span class="d-block text-break" style="white-space: pre-wrap; overflow-wrap: anywhere;">@(rx.TargetDispensingFacilityAddress ?? "Not recorded")</span></p><p class="small text-muted">Address as supplied; facility identity and address completeness are not verified.</p>
  <p class="text-break"><strong>Target Dispensing Facility Name:</strong> @(rx.TargetDispensingFacilityName ?? "Not recorded")</p><p class="small text-muted">Name as supplied; facility identity is not verified.</p><p><strong>Earliest expected pickup:</strong> @(rx.EarliestPickup?.Display ?? "Not recorded")</p><p class="small text-muted">Expected pickup only; this does not confirm pharmacy readiness.</p><p><strong>Paper copy required before dispensing:</strong> @(rx.PaperCopyRequiredBeforeDispense is true ? "Yes" : "Not recorded")</p>
  <p><strong>Minimum dispense interval:</strong> @(rx.MinimumDispenseIntervalDays is {} days ? $"{days} whole days" : "Not recorded")</p>
  <p><strong>@rx.ProductDisplayText</strong> <span class="badge text-bg-secondary">@rx.Status</span></p>
