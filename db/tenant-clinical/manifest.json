@@ -92,5 +92,6 @@
   {"migrationId":"0090-prescription-paper-interval","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0090-prescription-paper-interval.sql"},
   {"migrationId":"0091-immunization-dose","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0091-immunization-dose.sql"},
   {"migrationId":"0092-encounter-procedures","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0092-encounter-procedures.sql"},
-  {"migrationId":"0093-prescription-earliest-pickup","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0093-prescription-earliest-pickup.sql"}
+  {"migrationId":"0093-prescription-earliest-pickup","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0093-prescription-earliest-pickup.sql"},
+  {"migrationId":"0094-prescription-target-facility-name","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0094-prescription-target-facility-name.sql"}
 ]

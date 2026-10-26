@@ -15,6 +15,24 @@ public static class PrescriptionFrequencies
 }
 public class PrescriptionDraftRequest:IValidatableObject
 {
+ private string? targetDispensingFacilityName;
+ [JsonIgnore] public string? TargetDispensingFacilityName { get=>targetDispensingFacilityName; set {targetDispensingFacilityName=value;TargetDispensingFacilityNameSpecified=true;} }
+ [JsonIgnore] public bool TargetDispensingFacilityNameSpecified {get;private set;}
+ public void OmitTargetDispensingFacilityName(){targetDispensingFacilityName=null;TargetDispensingFacilityNameSpecified=false;}
+ [JsonPropertyName("targetDispensingFacilityName"),JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+ public JsonElement TargetDispensingFacilityNameInput
+ {
+  get=>TargetDispensingFacilityNameSpecified?JsonSerializer.SerializeToElement(TargetDispensingFacilityName):default;
+  set
+  {
+   if(TargetDispensingFacilityNameSpecified)throw new JsonException("Duplicate target dispensing facility name.");
+   if(value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))throw new JsonException("Target dispensing facility name must be text or null.");
+   try{TargetDispensingFacilityName=value.ValueKind==JsonValueKind.Null?null:value.GetString();}catch(InvalidOperationException){throw new JsonException("Target dispensing facility name contains invalid Unicode.");}
+  }
+ }
+ public bool FacilityNameReviewed {get;set;}
+ public bool FacilityNameReviewRequired {get;set;}
+ public bool IsCorrectionDraft {get;set;}
  private EarliestPickup? earliestPickup;
  [JsonIgnore] public EarliestPickup? EarliestPickup { get => earliestPickup; set { earliestPickup=value; EarliestPickupSpecified=true; } }
  [JsonIgnore] public bool EarliestPickupSpecified { get; private set; }
@@ -121,6 +139,9 @@ public sealed class CreatePrescriptionDraftRequest:PrescriptionDraftRequest { pu
 public sealed class PrescriptionTransitionRequest { public bool PickupReviewed {get;set;}  [Required] public string RowVersion{get;set;}=""; [StringLength(500)] public string? Reason{get;set;} }
 public sealed class PatientPrescriptionResponse
 {
+ public string? TargetDispensingFacilityName {get;set;}
+ public bool FacilityNameReviewed {get;set;}
+ public bool FacilityNameReviewRequired {get;set;}
  public EarliestPickup? EarliestPickup { get; set; }
  public bool PickupReviewRequired { get; set; }
  public bool? PaperCopyRequiredBeforeDispense {get;set;} public int? MinimumDispenseIntervalDays {get;set;}
@@ -150,7 +171,7 @@ public interface IPatientPrescriptionService
 public sealed class PatientPrescriptionService(IPatientPrescriptionRepository repository,IPdfRenderer pdf, IPrescriptionPrivateNoteService? privateNotes=null, PrescriptionPickupPolicy? pickupPolicy=null):IPatientPrescriptionService
 {
  public Task<IReadOnlyList<PatientPrescriptionResponse>> ListAsync(Guid p,CancellationToken t=default)=>repository.ListAsync(p,t); public Task<PatientPrescriptionResponse?> GetAsync(Guid p,Guid u,CancellationToken t=default)=>repository.GetAsync(p,u,t);
- public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(r.SupersedesPrescriptionUid is {} originalUid){var original=await repository.GetAsync(p,originalUid,t);if(original?.EarliestPickup is {} inherited)r.EarliestPickup=inherited;else r.OmitEarliestPickup();}else{await ValidatePickup(r,t);}Normalize(r);return await repository.CreateAsync(p,r,a,t);} public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");await ValidatePickup(r,t);Normalize(r);return await repository.UpdateAsync(p,u,r,a,t);}
+ public async Task<PatientPrescriptionResponse> CreateAsync(Guid p,CreatePrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(r.SupersedesPrescriptionUid is {} originalUid){var original=await repository.GetAsync(p,originalUid,t);if(original?.TargetDispensingFacilityName is {} inheritedName)r.TargetDispensingFacilityName=inheritedName;else r.OmitTargetDispensingFacilityName();r.FacilityNameReviewed=false;if(original?.EarliestPickup is {} inherited)r.EarliestPickup=inherited;else r.OmitEarliestPickup();}else{await ValidatePickup(r,t);}Normalize(r);return await repository.CreateAsync(p,r,a,t);} public async Task<PatientPrescriptionResponse?> UpdateAsync(Guid p,Guid u,PrescriptionDraftRequest r,long a,CancellationToken t=default){await AuthorizePrivateInput(r,a,t);if(string.IsNullOrWhiteSpace(r.RowVersion)||!Convert.TryFromBase64String(r.RowVersion,new byte[8],out var tokenLength)||tokenLength!=8)throw new FormatException("A reviewed row version is required.");await ValidatePickup(r,t);Normalize(r);return await repository.UpdateAsync(p,u,r,a,t);}
  public Task<PatientPrescriptionResponse?> FinalizeAsync(Guid p,Guid u,string v,long a,CancellationToken t=default)=>repository.FinalizeAsync(p,u,v,a,t); public Task<PatientPrescriptionResponse?> CancelAsync(Guid p,Guid u,string v,string? reason,long a,CancellationToken t=default)=>repository.CancelAsync(p,u,v,reason,a,t);
  public async Task<byte[]?> RenderArtifactPdfAsync(Guid p,Guid u,CancellationToken t=default){var a=await repository.GetArtifactAsync(p,u,t);if(a is null)return null;using var d=JsonDocument.Parse(a.Json);var x=d.RootElement;string G(string n)=>WebUtility.HtmlEncode(x.TryGetProperty(n,out var v)&&v.ValueKind!=JsonValueKind.Null?v.ToString():"");// Old snapshots keep their original layout. Never infer new instructions from existing quantity/directions.
  var dispensing=x.TryGetProperty("RefillInstructionsVersion",out _)
@@ -174,7 +195,7 @@ public sealed class PatientPrescriptionService(IPatientPrescriptionRepository re
   await privateNotes.AuthorizeWriteAsync(actor,token);
   r.PrivateNoteCorrelationId=privateNotes.CorrelationId;
  }
- private static void Normalize(PrescriptionDraftRequest r){if(r.OrderFields?.ClinicalError() is {} clinicalError) throw new ArgumentException(clinicalError);PrescriptionTextContract.Validate(r.ProductDisplayText);PrescriptionTextContract.Validate(r.OrderFields?.TreatmentType,false);if(r.OrderFields is {} fields)fields.TreatmentType=string.IsNullOrWhiteSpace(fields.TreatmentType)?null:fields.TreatmentType.Trim();if(r.PrivateNote?.Length>1000)throw new ArgumentException("Private note exceeds the supported length.");if(r.PrivateNoteSpecified)r.PrivateNote=string.IsNullOrWhiteSpace(r.PrivateNote)?null:r.PrivateNote.Trim();if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
+ private static void Normalize(PrescriptionDraftRequest r){if(r.TargetDispensingFacilityNameSpecified)r.TargetDispensingFacilityName=global::MicroEMR.Application.PatientPrescriptions.TargetDispensingFacilityName.Normalize(r.TargetDispensingFacilityName);if(r.OrderFields?.ClinicalError() is {} clinicalError) throw new ArgumentException(clinicalError);PrescriptionTextContract.Validate(r.ProductDisplayText);PrescriptionTextContract.Validate(r.OrderFields?.TreatmentType,false);if(r.OrderFields is {} fields)fields.TreatmentType=string.IsNullOrWhiteSpace(fields.TreatmentType)?null:fields.TreatmentType.Trim();if(r.PrivateNote?.Length>1000)throw new ArgumentException("Private note exceeds the supported length.");if(r.PrivateNoteSpecified)r.PrivateNote=string.IsNullOrWhiteSpace(r.PrivateNote)?null:r.PrivateNote.Trim();if(r.GenericName?.Length>300)throw new ArgumentException("Generic name must be 300 characters or fewer.");if(r.GenericNameSpecified)r.GenericName=string.IsNullOrWhiteSpace(r.GenericName)?null:r.GenericName.Trim();var dateErrors=r.ValidateDates().ToArray();if(dateErrors.Length>0)throw new ArgumentException(dateErrors[0].ErrorMessage);if(r.MedicationForm?.Length>100 || r.NotesToPharmacist?.Length>1000)throw new ArgumentException("Prescription form or pharmacist notes exceed the supported length.");var errors=r.ValidateDispensingInstructions().ToArray();if(errors.Length>0)throw new ArgumentException(errors[0].ErrorMessage);r.RefillQuantityUnit=string.IsNullOrWhiteSpace(r.RefillQuantityUnit)?null:r.RefillQuantityUnit.Trim();r.ProductName=r.ProductName.Trim();r.ProductDisplayText=r.ProductDisplayText.Trim();r.Route=r.Route.Trim();r.Directions=r.Directions.Trim();r.QuantityUnit=r.QuantityUnit.Trim();if(!PrescriptionFrequencies.Values.TryGetValue(r.FrequencyCode,out _))throw new ArgumentException("Frequency code is not approved.");}
 }
 public sealed class PatientPrescriptionConcurrencyException(string message,Exception? inner=null):Exception(message,inner);
 public sealed class PrescriberProviderMappingException(Exception? inner=null):Exception("Your account must be linked to an active Provider before you can prescribe. Ask a clinic administrator to link your user in Providers.",inner);

@@ -6,7 +6,7 @@
   <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications"><i class="bi bi-arrow-left me-1"></i>Back to prescriptions</a>
  </div>
  <div class="mt-4">
- <p><strong>Earliest expected pickup:</strong> @(rx.EarliestPickup?.Display ?? "Not recorded")</p><p class="small text-muted">Expected pickup only; this does not confirm pharmacy readiness.</p><p><strong>Paper copy required before dispensing:</strong> @(rx.PaperCopyRequiredBeforeDispense is true ? "Yes" : "Not recorded")</p>
+ <p class="text-break"><strong>Target Dispensing Facility Name:</strong> @(rx.TargetDispensingFacilityName ?? "Not recorded")</p><p class="small text-muted">Name as supplied; facility identity is not verified.</p><p><strong>Earliest expected pickup:</strong> @(rx.EarliestPickup?.Display ?? "Not recorded")</p><p class="small text-muted">Expected pickup only; this does not confirm pharmacy readiness.</p><p><strong>Paper copy required before dispensing:</strong> @(rx.PaperCopyRequiredBeforeDispense is true ? "Yes" : "Not recorded")</p>
  <p><strong>Minimum dispense interval:</strong> @(rx.MinimumDispenseIntervalDays is {} days ? $"{days} whole days" : "Not recorded")</p>
  <p><strong>@rx.ProductDisplayText</strong> <span class="badge text-bg-secondary">@rx.Status</span></p>
  <p><strong>Product/Brand Name:</strong> @rx.ProductName</p>
