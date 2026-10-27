@@ -93,11 +93,18 @@ public sealed class ReasonCodingSqlTests(ReasonCodingDatabase fixture):IClassFix
     {
         var patient=await Db.Stores.SeedPatient();await using var host=await PrescriptionDateHost.Start(Db,false);using var client=host.Client();
         var request=PrescriptionDatePrecisionTests.Draft();request.Indication="TEST ONLY free text";request.ReasonCoding=Coding;
-        var response=await client.PostAsJsonAsync(Route(patient),request);Assert.Equal(HttpStatusCode.Created,response.StatusCode);
+        var submitted=JsonSerializer.SerializeToNode(request)!;
+        submitted["actorUserId"]=8;submitted["userId"]=8;
+        submitted["patientUid"]=Guid.NewGuid();submitted["tenantUid"]=Db.Tenant(true).TenantUid;
+        var response=await client.PostAsJsonAsync(Route(patient),submitted);Assert.Equal(HttpStatusCode.Created,response.StatusCode);
         var row=(await response.Content.ReadFromJsonAsync<PatientPrescriptionResponse>())!;
         Assert.Equal(Coding,(await client.GetFromJsonAsync<PatientPrescriptionResponse>(Route(patient,row.PrescriptionUid)))!.ReasonCoding);
         var edit=PrescriptionDatePrecisionTests.Draft();edit.RowVersion=row.RowVersion;edit.Indication=request.Indication;
         row=(await Db.Repository().UpdateAsync(patient,row.PrescriptionUid,edit,7))!;Assert.Equal(Coding,row.ReasonCoding);
+        var populatedReplacement=new PrescriptionReasonCoding("urn:PopulatedReplacement","Cd-02","2027","TEST ONLY replacement display");
+        edit.RowVersion=row.RowVersion;edit.ReasonCoding=populatedReplacement;
+        response=await client.PutAsJsonAsync(Route(patient,row.PrescriptionUid),edit);Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+        row=(await response.Content.ReadFromJsonAsync<PatientPrescriptionResponse>())!;
         edit.RowVersion=row.RowVersion;edit.ReasonCoding=new(" urn:Replacement "," 薬局-02 ");
         response=await client.PutAsJsonAsync(Route(patient,row.PrescriptionUid),edit);Assert.Equal(HttpStatusCode.OK,response.StatusCode);
         row=(await response.Content.ReadFromJsonAsync<PatientPrescriptionResponse>())!;Assert.Equal(new("urn:Replacement","薬局-02"),row.ReasonCoding);Assert.Equal(request.Indication,row.Indication);
@@ -106,20 +113,37 @@ public sealed class ReasonCodingSqlTests(ReasonCodingDatabase fixture):IClassFix
         var clear=(await client.GetFromJsonAsync<PatientPrescriptionResponse>(Route(patient,row.PrescriptionUid)))!;
         Assert.Null(clear.ReasonCoding);Assert.Equal(request.Indication,clear.Indication);Assert.NotEqual(row.RowVersion,clear.RowVersion);
         await using var c=await Db.Factory().OpenConnectionAsync();
-        await using var audit=new SqlCommand("SELECT ActionName,OldValue,NewValue FROM dbo.AuditLog WHERE EntityId=@id ORDER BY AuditLogId",c);audit.Parameters.AddWithValue("@id",row.PrescriptionUid.ToString());
-        await using var reader=await audit.ExecuteReaderAsync();var seenCreate=false;var seenReplace=false;var seenClear=false;
+        await using var audit=new SqlCommand("SELECT a.ActionName,a.OldValue,a.NewValue,a.UserId,p.PatientUid,a.EntityName FROM dbo.AuditLog a LEFT JOIN dbo.Patient p ON p.PatientId=a.PatientId WHERE a.EntityId=@id ORDER BY a.AuditLogId",c);audit.Parameters.AddWithValue("@id",row.PrescriptionUid.ToString());
+        await using var reader=await audit.ExecuteReaderAsync();var seenCreate=false;var seenReplace=false;var seenClear=false;var seenPopulatedReplacement=false;
+        static void AssertCoding(JsonElement snapshot,PrescriptionReasonCoding? expected)
+        {
+            Assert.Equal(expected?.System,snapshot.GetProperty("ReasonCodeSystem").GetString());
+            Assert.Equal(expected?.Code,snapshot.GetProperty("ReasonCode").GetString());
+            Assert.Equal(expected?.Version,snapshot.GetProperty("ReasonCodeVersion").GetString());
+            Assert.Equal(expected?.Display,snapshot.GetProperty("ReasonCodeDisplay").GetString());
+        }
         while(await reader.ReadAsync())
         {
+            if(reader.GetString(0) is not ("PrescriptionDraftCreated" or "PrescriptionDraftUpdated"))continue;
+            Assert.Equal(7L,reader.GetInt64(3));Assert.Equal(patient,reader.GetGuid(4));Assert.Equal("PatientPrescription",reader.GetString(5));
             using var after=JsonDocument.Parse(reader.GetString(2));var x=after.RootElement;
-            if(reader.GetString(0)=="PrescriptionDraftCreated"){Assert.Equal(Coding.System,x.GetProperty("ReasonCodeSystem").GetString());seenCreate=true;}
+            Assert.Equal(patient,x.GetProperty("PatientUid").GetGuid());Assert.Equal(row.PrescriptionUid,x.GetProperty("PrescriptionUid").GetGuid());
+            if(reader.GetString(0)=="PrescriptionDraftCreated"){Assert.True(reader.IsDBNull(1));AssertCoding(x,Coding);seenCreate=true;}
+            if(x.GetProperty("ReasonCodeSystem").GetString()==populatedReplacement.System)
+            {
+                using var before=JsonDocument.Parse(reader.GetString(1));AssertCoding(before.RootElement,Coding);AssertCoding(x,populatedReplacement);seenPopulatedReplacement=true;
+            }
             if(reader.GetString(0)=="PrescriptionDraftUpdated" && x.GetProperty("ReasonCodeSystem").ValueKind==JsonValueKind.Null)
             {
-                using var before=JsonDocument.Parse(reader.GetString(1));Assert.Equal("urn:Replacement",before.RootElement.GetProperty("ReasonCodeSystem").GetString());
+                using var before=JsonDocument.Parse(reader.GetString(1));AssertCoding(before.RootElement,new("urn:Replacement","薬局-02"));
                 foreach(var key in new[]{"ReasonCodeSystem","ReasonCode","ReasonCodeVersion","ReasonCodeDisplay"})Assert.Equal(JsonValueKind.Null,x.GetProperty(key).ValueKind);seenClear=true;
             }
-            if(x.GetProperty("ReasonCodeSystem").GetString()=="urn:Replacement"){Assert.Equal(JsonValueKind.Null,x.GetProperty("ReasonCodeVersion").ValueKind);Assert.Equal(JsonValueKind.Null,x.GetProperty("ReasonCodeDisplay").ValueKind);seenReplace=true;}
+            if(x.GetProperty("ReasonCodeSystem").GetString()=="urn:Replacement"){using var before=JsonDocument.Parse(reader.GetString(1));AssertCoding(before.RootElement,populatedReplacement);Assert.Equal(JsonValueKind.Null,x.GetProperty("ReasonCodeVersion").ValueKind);Assert.Equal(JsonValueKind.Null,x.GetProperty("ReasonCodeDisplay").ValueKind);seenReplace=true;}
         }
-        Assert.True(seenCreate && seenReplace && seenClear);
+        Assert.True(seenCreate && seenReplace && seenClear && seenPopulatedReplacement);
+        await using var other=await Db.Factory(true).OpenConnectionAsync();Assert.NotEqual(c.Database,other.Database);
+        await using var otherAudit=new SqlCommand("SELECT COUNT(*) FROM dbo.AuditLog WHERE EntityId=@id",other);otherAudit.Parameters.AddWithValue("@id",row.PrescriptionUid.ToString());
+        Assert.Equal(0,Convert.ToInt32(await otherAudit.ExecuteScalarAsync()));
     }
 
     [Theory] [InlineData("{}")] [InlineData("{\"system\":\"S\"}")] [InlineData("{\"code\":\"C\"}")] [InlineData("{\"version\":\"V\"}")] [InlineData("{\"display\":\"D\"}")] [InlineData("{\"system\":\"S\",\"code\":\"C\\n\"}")]

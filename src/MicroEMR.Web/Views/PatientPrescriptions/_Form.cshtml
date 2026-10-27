@@ -118,6 +118,24 @@
   </div>
  </fieldset>
  <script type="module" src="~/dist/patients/prescription-reason-coding.js" asp-append-version="true"></script>
+ <fieldset class="border rounded p-3 my-3" data-protocol-reference-editor data-operation="@ViewData["ProtocolReferenceOperation"]" data-correction="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" data-review-required="@Model.ProtocolReferenceReviewRequired.ToString().ToLowerInvariant()">
+  <legend class="float-none w-auto fs-6 px-1">Protocol reference (optional)</legend>
+  <div class="form-text mb-2" id="protocol-reference-guidance">User-supplied protocol reference; approval, clinical validity and currency are not externally validated. Enter system and identifier together, at most 200 UTF-16 units each.</div>
+  <div class="row g-3">
+   <div class="col-12 col-md-6"><label class="form-label w-100">Protocol system / namespace<input name="ProtocolSystem" value="@Model.ProtocolReference?.System" class="form-control" aria-describedby="protocol-reference-guidance" /></label></div>
+   <div class="col-12 col-md-6"><label class="form-label w-100">Protocol identifier<input name="ProtocolIdentifier" value="@Model.ProtocolReference?.Identifier" class="form-control" aria-describedby="protocol-reference-guidance" /></label></div>
+  </div>
+  <input type="hidden" name="protocolReferenceOperation" value="preserve" />
+  <input type="hidden" name="ProtocolReferenceCorrection" value="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" />
+  <input type="hidden" name="ProtocolReferenceReviewRequired" value="@Model.ProtocolReferenceReviewRequired.ToString().ToLowerInvariant()" />
+  <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-protocol-reference-clear>Clear protocol reference</button>
+  <span asp-validation-for="ProtocolReference" class="text-danger"></span>
+  <div class="form-check mt-2" data-protocol-reference-review hidden="@(!Model.ProtocolReferenceReviewRequired)">
+   <label class="form-check-label"><input type="checkbox" name="ProtocolReferenceReviewed" value="true" checked="@Model.ProtocolReferenceReviewed" class="form-check-input" /> I reviewed this protocol reference for the correction.</label>
+   <div class="form-text">Save Draft to record review of the current group, including a deliberate clear.</div>
+  </div>
+ </fieldset>
+ <script type="module" src="~/dist/patients/prescription-protocol-reference.js" asp-append-version="true"></script>
  <div class="col-md-6"><label asp-for="Indication" class="form-label">Indication (optional)</label><input asp-for="Indication" class="form-control"/></div>
 </div><input asp-for="RowVersion" type="hidden"/>
 
