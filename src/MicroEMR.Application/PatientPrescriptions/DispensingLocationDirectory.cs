@@ -12,7 +12,7 @@ public sealed class SaveDispensingLocation
     public string FacilityName {get;set;}="";
     public string FacilityAddress {get;set;}="";
     public string? Phone {get;set;}
-    public string RowVersion {get;set;}="";
+    public string? RowVersion {get;set;}
 }
 public interface IDispensingLocationRepository
 {
