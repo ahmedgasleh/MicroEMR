@@ -1,0 +1,15 @@
+@model MicroEMR.Web.Controllers.DispensingLocationEdit
+@{ViewData["Title"]=Model.Uid.HasValue?"Edit dispensing location":"Add dispensing location";Layout="_AppLayout";}
+<div class="content-panel"><h1 class="h3">@ViewData["Title"]</h1>
+ <p>Tenant-local curated details. System and identifier are exact, case-sensitive values and cannot change after creation.</p>
+ <form method="post" asp-action="@(Model.Uid.HasValue?"Edit":"Add")" asp-route-uid="@Model.Uid">
+ <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+ <input type="hidden" name="RowVersion" value="@Model.Request.RowVersion" />
+ <div class="row g-3">
+ <div class="col-12 col-md-6"><label class="form-label w-100">System / namespace<input name="System" value="@Model.Request.System" readonly="@Model.Uid.HasValue" required maxlength="200" class="form-control" /></label></div>
+ <div class="col-12 col-md-6"><label class="form-label w-100">Identifier<input name="Identifier" value="@Model.Request.Identifier" readonly="@Model.Uid.HasValue" required maxlength="200" class="form-control" /></label></div>
+ <div class="col-12"><label class="form-label w-100">Facility name<input name="FacilityName" value="@Model.Request.FacilityName" required maxlength="200" class="form-control" /></label></div>
+ <div class="col-12"><label class="form-label w-100">Facility address<textarea name="FacilityAddress" required maxlength="1000" rows="3" class="form-control">@Model.Request.FacilityAddress</textarea></label></div>
+ <div class="col-12 col-md-6"><label class="form-label w-100">Phone (optional)<input name="Phone" value="@Model.Request.Phone" maxlength="30" class="form-control" /></label></div>
+ </div><button class="btn btn-primary mt-3">Save location</button> <a asp-action="Index" class="btn btn-outline-secondary mt-3">Cancel</a>
+ </form></div>

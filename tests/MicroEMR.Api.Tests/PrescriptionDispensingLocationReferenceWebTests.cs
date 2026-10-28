@@ -52,7 +52,7 @@ public sealed class DispensingLocationReferenceWebTests
                 Assert.Equal(request.ProtocolReference.Identifier,await page.Locator("[name=ProtocolIdentifier]").InputValueAsync());
                 Assert.Equal(request.TargetDispensingFacilityName,await page.Locator("[name=TargetDispensingFacilityName]").InputValueAsync());
                 Assert.Equal(request.TargetDispensingFacilityAddress,await page.Locator("[name=TargetDispensingFacilityAddress]").InputValueAsync());
-                Assert.Contains("User-supplied location reference. Not verified against a dispensing-location directory.",await editor.InnerTextAsync());
+                Assert.Contains("Manual references are unresolved / unverified.",await editor.InnerTextAsync());
             }
         }
     }

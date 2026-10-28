@@ -10,7 +10,9 @@
  @if(rx.DispensingLocationReference is {} dispensingLocation){
   <dl><dt>Dispensing location system / namespace</dt><dd>@dispensingLocation.System</dd><dt>Dispensing location identifier</dt><dd>@dispensingLocation.Identifier</dd></dl>
  }else{<p>Not recorded</p>}
- <p class="small text-muted">User-supplied location reference. Not verified against a dispensing-location directory. Facility name and address are entered independently; no match to this reference is verified.</p></section>
+ @if(rx.DispensingLocationDirectoryUid.HasValue){<p class="small text-muted">Tenant-local directory selection was checked when saved. Current directory details may differ.</p>}
+ else if(rx.DispensingLocationReference is not null){<p class="small text-muted">Manual or inherited reference: unresolved / unverified.</p>}
+ <p class="small text-muted">Facility name and address are independently recorded values. No external identity verification or current directory match is implied.</p></section>
  <section class="mb-3 text-break" data-protocol-reference-detail><h4 class="h6">Protocol reference</h4>
  @if(rx.ProtocolReference is {} protocol){
   <dl><dt>Protocol system / namespace</dt><dd>@protocol.System</dd><dt>Protocol identifier</dt><dd>@protocol.Identifier</dd></dl>

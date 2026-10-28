@@ -5,8 +5,8 @@ namespace MicroEMR.Application.PatientPrescriptions;
 
 /// <summary>
 /// Optional user-supplied dispensing location reference. System identifies the namespace/source;
-/// Identifier is opaque within it. Neither identity nor independently entered facility name/address
-/// is verified against a directory. Each component permits 200 UTF-16 units after boundary trimming.
+/// Identifier is opaque within it. The pair alone does not establish directory resolution or a match
+/// to independently entered facility name/address. Each component permits 200 UTF-16 units after boundary trimming.
 /// Omit dispensingLocationReference to preserve on Edit (absent on Create), send null to clear both,
 /// or supply a complete object to replace both atomically. Partial or invalid groups reject the save.
 /// </summary>

@@ -120,7 +120,21 @@
  <script type="module" src="~/dist/patients/prescription-reason-coding.js" asp-append-version="true"></script>
  <fieldset class="border rounded p-3 my-3" data-dispensing-location-reference-editor data-operation="@ViewData["DispensingLocationReferenceOperation"]" data-correction="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" data-review-required="@Model.DispensingLocationReferenceReviewRequired.ToString().ToLowerInvariant()">
   <legend class="float-none w-auto fs-6 px-1">Dispensing location reference (optional)</legend>
-  <div class="form-text mb-2" id="dispensing-location-reference-guidance">User-supplied location reference. Not verified against a dispensing-location directory. System identifies the namespace/source; identifier is an opaque value within it. Enter both, at most 200 UTF-16 units each. Facility name and address are entered independently; no match to this reference is verified.</div>
+  <div class="mb-3" data-location-lookup data-search-url="@Url.Action("Lookup","DispensingLocations")" data-detail-url="@Url.Action("LookupDetail","DispensingLocations")">
+   <label class="form-label w-100">Find a tenant-local dispensing location<input type="search" maxlength="200" class="form-control" data-location-query placeholder="Name, identifier or address" /></label>
+   <button type="button" class="btn btn-sm btn-outline-primary" data-location-search>Search locations</button>
+   <p class="form-text" role="status" aria-live="polite" data-location-status>Manual reference: unresolved / unverified.</p>
+   <div data-location-results></div>
+   <div class="border rounded p-2 text-break" data-location-preview hidden>
+    <p class="text-break" style="white-space:pre-wrap" data-location-details></p>
+    <p class="alert alert-warning" role="alert" data-location-mismatch hidden>Directory details differ from entered facility values. Confirm replacement below only if intended.</p>
+    <label class="form-check-label d-block mb-2"><input type="checkbox" class="form-check-input" data-location-populate /> I confirm replacing the facility name and address with these directory details.</label>
+    <button type="button" class="btn btn-sm btn-primary" data-location-apply>Use this location</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-location-cancel>Cancel selection</button>
+   </div>
+   <input type="hidden" name="DispensingLocationSelectionUid" /><input type="hidden" name="DispensingLocationSelectionVersion" />
+  </div>
+  <div class="form-text mb-2" id="dispensing-location-reference-guidance">Manual references are unresolved / unverified. Directory selections are resolved within this tenant at Save Draft; no external identity verification is provided. System identifies the namespace/source; identifier is an opaque value within it. Enter both, at most 200 UTF-16 units each. Facility name and address remain independent supplied values.</div>
   <div class="row g-3">
    <div class="col-12 col-md-6"><label class="form-label w-100">Dispensing location system / namespace<input name="DispensingLocationSystem" value="@Model.DispensingLocationReference?.System" class="form-control" aria-describedby="dispensing-location-reference-guidance" /></label></div>
    <div class="col-12 col-md-6"><label class="form-label w-100">Dispensing location identifier<input name="DispensingLocationIdentifier" value="@Model.DispensingLocationReference?.Identifier" class="form-control" aria-describedby="dispensing-location-reference-guidance" /></label></div>
@@ -136,6 +150,7 @@
   </div>
  </fieldset>
  <script type="module" src="~/dist/patients/prescription-dispensing-location-reference.js" asp-append-version="true"></script>
+ <script type="module" src="~/dist/patients/prescription-location-lookup.js" asp-append-version="true"></script>
  <fieldset class="border rounded p-3 my-3" data-protocol-reference-editor data-operation="@ViewData["ProtocolReferenceOperation"]" data-correction="@Model.IsCorrectionDraft.ToString().ToLowerInvariant()" data-review-required="@Model.ProtocolReferenceReviewRequired.ToString().ToLowerInvariant()">
   <legend class="float-none w-auto fs-6 px-1">Protocol reference (optional)</legend>
   <div class="form-text mb-2" id="protocol-reference-guidance">User-supplied protocol reference; approval, clinical validity and currency are not externally validated. Enter system and identifier together, at most 200 UTF-16 units each.</div>

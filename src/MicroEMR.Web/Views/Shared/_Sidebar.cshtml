@@ -196,6 +196,7 @@
                 @if (Can(PermissionKeys.ClinicSettingsManage))
                 {
                 <li class="sidebar-menu-item">
+                    <a asp-controller="DispensingLocations" asp-action="Index" class="sidebar-link"><span class="sidebar-icon"><i class="bi bi-geo-alt"></i></span><span class="sidebar-text">Dispensing locations</span></a>
                     <a asp-controller="ClinicConfiguration" asp-action="Index" class="sidebar-link"
                        data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Clinic Settings">
                         <span class="sidebar-icon"><i class="bi bi-sliders"></i></span>
