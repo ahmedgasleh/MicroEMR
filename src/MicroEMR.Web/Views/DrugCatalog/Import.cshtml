@@ -1,0 +1,14 @@
+@{ViewData["Title"]="Development drug catalogue import";Layout="_AppLayout";}
+<div class="content-panel">
+ <h1 class="h3">Development drug catalogue import</h1>
+ <p>Health Canada DPD-format data for development only. OntarioMD commercially licensed COTS eligibility remains unresolved. An uploaded file is not independently authenticated as a Health Canada release.</p>
+ <p>Upload an official DPD extract ZIP containing drug, ingredient, form, route and status files from the same release. Import updates supplied product identities; omitted products are retained. Nothing is scheduled automatically.</p>
+ <p>Source format: Health Canada Drug Product Database. Check the applicable dataset terms and attribution before supplying a file. No Health Canada endorsement is implied.</p>
+ <form method="post" enctype="multipart/form-data">
+  @Html.AntiForgeryToken()
+  <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+  <label class="form-label">DPD ZIP (maximum 32 MB)<input name="archive" type="file" accept=".zip" required class="form-control" /></label>
+  <button type="submit" class="btn btn-primary">Import into this clinic's development catalogue</button>
+ </form>
+ @if(ViewData["Result"] is string result){<p class="alert alert-success" role="status">@result</p>}
+</div>

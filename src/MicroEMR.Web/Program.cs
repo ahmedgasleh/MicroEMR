@@ -126,6 +126,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<
     IPatientMedicationApiClient,
     PatientMedicationApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientPrescriptionApiClient,PatientPrescriptionApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<DrugCatalogApiClient,DrugCatalogApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<DispensingLocationApiClient,DispensingLocationApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<

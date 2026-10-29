@@ -99,6 +99,12 @@ builder.Services.AddOptions<ClinicalDataMigrationOptions>()
         "Clinical data migration validation limits are outside the supported range.")
     .ValidateOnStart();
 builder.Services.AddMicroEmrInfrastructure();
+// The currently configured DPD source is approved only for development/test use.
+builder.Services.AddScoped(sp => new MicroEMR.Application.DrugCatalog.DrugCatalogService(
+    sp.GetRequiredService<MicroEMR.Application.DrugCatalog.IDrugCatalogRepository>(),
+    sp.GetRequiredService<MicroEMR.Application.DrugCatalog.IDrugCatalogSourceReader>(),
+    sp.GetRequiredService<ILogger<MicroEMR.Application.DrugCatalog.DrugCatalogService>>(),
+    builder.Environment.EnvironmentName is "Development" or "Testing"));
 builder.Services.AddDbContext<AdministrationIdentityDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("AuthDatabase")
         ?? builder.Configuration.GetConnectionString("AuthServerConnection")));

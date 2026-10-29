@@ -6,6 +6,7 @@
   <a class="btn btn-outline-secondary" asp-controller="Patients" asp-action="Details" asp-route-patientUid="@rx.PatientUid" asp-route-tab="medications"><i class="bi bi-arrow-left me-1"></i>Back to prescriptions</a>
  </div>
  <div class="mt-4">
+ @if(rx.CatalogDrug is {} catalogDrug){<partial name="_DrugCatalogDetail" model="catalogDrug" />}
  <section class="mb-3 text-break" data-dispensing-location-reference-detail><h4 class="h6">Dispensing location reference</h4>
  @if(rx.DispensingLocationReference is {} dispensingLocation){
   <dl><dt>Dispensing location system / namespace</dt><dd>@dispensingLocation.System</dd><dt>Dispensing location identifier</dt><dd>@dispensingLocation.Identifier</dd></dl>

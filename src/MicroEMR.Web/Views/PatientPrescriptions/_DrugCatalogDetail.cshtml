@@ -1,0 +1,17 @@
+@model MicroEMR.Application.DrugCatalog.CatalogDrug
+<section class="border rounded p-3 my-3 text-break" data-drug-catalog-detail>
+ <h4 class="h6">Recorded drug catalogue selection</h4>
+ <p class="small text-muted">Development catalogue; commercially licensed COTS eligibility remains unresolved. These are saved source details; the current catalogue may differ.</p>
+ <dl>
+  <dt>Source</dt><dd>@Model.Facts.SourceSystem</dd>
+  <dt>Source product identifier</dt><dd>@Model.Facts.SourceProductId</dd>
+  <dt>DIN</dt><dd>@Model.Facts.Din</dd>
+  <dt>Drug/brand name</dt><dd>@Model.Facts.Name</dd>
+  <dt>Ingredients / source strengths</dt><dd><ul>@foreach(var x in Model.Facts.Ingredients){<li>@x.Name: @x.Strength @x.Unit @x.DosageValue @x.DosageUnit @x.Basis</li>}</ul></dd>
+  <dt>Source form(s)</dt><dd>@string.Join("; ",Model.Facts.Forms)</dd>
+  <dt>Source route(s)</dt><dd>@string.Join("; ",Model.Facts.Routes)</dd>
+  <dt>Recorded source status</dt><dd>@Model.Facts.Status</dd>
+  <dt>Imported (UTC)</dt><dd>@Model.ImportedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+  <dt>Source update value</dt><dd>@(Model.Facts.SourceUpdatedDate??"Not supplied")</dd>
+ </dl>
+</section>
