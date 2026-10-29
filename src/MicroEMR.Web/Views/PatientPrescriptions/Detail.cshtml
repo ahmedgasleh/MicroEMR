@@ -32,6 +32,27 @@
  <p><strong>@rx.ProductDisplayText</strong> <span class="badge text-bg-secondary">@rx.Status</span></p>
  <p><strong>Product/Brand Name:</strong> @rx.ProductName</p>
  <p><strong>Drug Description:</strong> @rx.ProductDisplayText</p>
+ <p class="text-break"><strong>Generic name:</strong> @(rx.GenericName ?? "Not recorded")</p>
+ <p><strong>Strength:</strong> @(rx.StrengthValue?.ToString() ?? "Not recorded") @rx.StrengthUnit</p>
+ <p><strong>Dose:</strong> @(rx.DoseAmount?.ToString() ?? "Not recorded") @rx.DoseUnit</p>
+ <p class="text-break"><strong>Form:</strong> @(rx.MedicationForm ?? "Not recorded")</p>
+ <p class="text-break"><strong>Route:</strong> @rx.Route</p>
+ <p class="text-break"><strong>Frequency:</strong> @rx.FrequencyDisplay (@rx.FrequencyCode)</p>
+ <p><strong>As needed (PRN):</strong> @(rx.Prn ? "Yes" : "No")</p>
+ <p><strong>Written date:</strong> @rx.PrescribedDateDisplay</p>
+ <p><strong>Start date:</strong> @rx.StartDateDisplay</p>
+ <p><strong>Initial quantity:</strong> @rx.Quantity @rx.QuantityUnit</p>
+ <p><strong>Initial days' supply:</strong> @(rx.InitialDaysSupply?.ToString() ?? "Not recorded")</p>
+ <p><strong>Authorized refills:</strong> @rx.AuthorizedRepeats</p>
+ <p><strong>Refill quantity:</strong> @(rx.RefillQuantity?.ToString() ?? "Not recorded") @rx.RefillQuantityUnit</p>
+ <p><strong>Refill days' supply:</strong> @(rx.RefillDaysSupply?.ToString() ?? "Not recorded")</p>
+ <p class="text-break" style="white-space:pre-wrap"><strong>Notes to pharmacist:</strong> @(rx.NotesToPharmacist ?? "Not recorded")</p>
+ <p class="text-break" style="white-space:pre-wrap"><strong>Indication:</strong> @(rx.Indication ?? "Not recorded")</p>
+ <p class="text-break"><strong>Product identifier namespace:</strong> @(rx.ProductIdentifierNamespace ?? "Not recorded")</p>
+ <p class="text-break"><strong>Product identifier:</strong> @(rx.ProductIdentifierValue ?? "Not recorded")</p>
+ <p><strong>Prescription identifier:</strong> @rx.PrescriptionUid</p>
+ <p><strong>Prior prescription reference:</strong> @(rx.SupersedesPrescriptionUid?.ToString() ?? "Not recorded")</p>
+ <p><strong>Replaced by prescription:</strong> @(rx.SupersededByPrescriptionUid?.ToString() ?? "Not recorded")</p>
  <p><strong>Substitution prohibited:</strong> @(rx.SubstitutionProhibited is null ? "Not recorded" : rx.SubstitutionProhibited.Value ? "Yes" : "No")</p>
  <p><strong>Treatment type:</strong> @(rx.TreatmentType??"Not recorded")</p>
  <p><strong>Prescriber first name:</strong> @(rx.PrescriberFirstNameSnapshot??"Not recorded") <strong>Last name:</strong> @(rx.PrescriberLastNameSnapshot??"Not recorded") <strong>OHIP Billing Number:</strong> @(rx.PrescriberOhipSnapshot??"Not recorded")</p>

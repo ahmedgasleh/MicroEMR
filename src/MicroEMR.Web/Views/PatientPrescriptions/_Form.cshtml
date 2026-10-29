@@ -57,7 +57,7 @@
  {
   <div class="col-12 d-print-none" data-private-note-editor><label asp-for="PrivateNote" class="form-label">Private Note (optional)</label><textarea asp-for="PrivateNote" class="form-control" maxlength="1000" rows="3"></textarea><div class="form-text">Internal prescription detail only. Clear this field and save to remove the current text; history is retained.</div><span asp-validation-for="PrivateNote" class="text-danger"></span></div>
  }
- <partial name="_DrugCatalogLookup" />
+ <partial name="~/Views/PatientPrescriptions/_DrugCatalogLookup.cshtml" />
  <div class="col-md-6"><label asp-for="GenericName" class="form-label">Generic Name (optional)</label><input asp-for="GenericName" class="form-control" maxlength="300" aria-describedby="generic-name-help"/><div id="generic-name-help" class="form-text">Record the generic name separately from the product/brand name. Leave blank if unknown.</div><span asp-validation-for="GenericName" class="text-danger"></span></div>
  <div class="col-md-6"><label asp-for="MedicationForm" class="form-label">Medication form (optional)</label><input asp-for="MedicationForm" class="form-control" maxlength="100"/><span asp-validation-for="MedicationForm" class="text-danger"></span></div>
  <div class="col-12"><label asp-for="NotesToPharmacist" class="form-label">Notes to pharmacist (optional)</label><textarea asp-for="NotesToPharmacist" class="form-control" maxlength="1000" rows="3"></textarea><span asp-validation-for="NotesToPharmacist" class="text-danger"></span></div>

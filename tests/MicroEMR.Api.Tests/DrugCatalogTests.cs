@@ -27,7 +27,7 @@ internal static class DpdTestArchive
         var id = code.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return new()
         {
-            ["drug.txt"] = Csv(id, "", "Human", din, name, "", "", "", "1", "2026-10-05", "", "", "", "", ""),
+            ["drug.txt"] = Csv(id, "", "Human", din, name, "", "", "", "1", "2026-10-05", "", "", "", ""),
             ["ingred.txt"] = Csv(id, "1", ingredient, "", strength, "MG", "", dosageValue, "", dosageUnit, "", "", "", "", ""),
             ["form.txt"] = Csv(id, "34", "Tablet", "Comprimé"),
             ["route.txt"] = Csv(id, "1", "Oral", "Orale"),
@@ -59,6 +59,68 @@ internal static class DpdTestArchive
 
 public sealed class DpdExtractTests
 {
+    [Fact]
+    public async Task OfficialFourteenFieldRecordPreservesMappedFactsAndEmptyColumns()
+    {
+        // Unchanged rows for DPD product 5254 from the official 2026-10-05 marketed extracts.
+        // Archive URLs and SHA-256 receipts are recorded in Step 238's certification report.
+        var files = new Dictionary<string, string>
+        {
+            ["drug.txt"] = """
+                "5254","LS - ANALG (ACETAMINOPHEN LABELLING STANDARD)","Human","00559393","TYLENOL REGULAR STRENGTH","","N","60076","1","12-SEP-2025","0102009001","Humain","TYLENOL RÉGULIER",""
+                """,
+            ["ingred.txt"] = """
+                "5254","270","ACETAMINOPHEN","I","325","MG","","","N","","Historic Freeform Text: ACETAMINOPHEN","Acétaminophène","MG","",""
+                """,
+            ["form.txt"] = """
+                "5254","85","TABLET","Comprimé"
+                """,
+            ["route.txt"] = """
+                "5254","56","ORAL","Orale"
+                """,
+            ["status.txt"] = """
+                "5254","N","MARKETED","31-DEC-1961","COMMERCIALISÉ","",""
+                "5254","N","APPROVED","27-JUN-2025","APPROUVÉ","",""
+                "5254","Y","MARKETED","27-JUN-2025","COMMERCIALISÉ","",""
+                """
+        };
+        var bytes = DpdTestArchive.Zip(files);
+        using var input = new MemoryStream(bytes);
+        var batch = await new DpdExtractReader().ReadAsync(input);
+        var row = Assert.Single(batch.Products);
+        Assert.Equal("5254", row.SourceProductId); Assert.Equal("00559393", row.Din);
+        Assert.Equal("TYLENOL REGULAR STRENGTH", row.Name); Assert.Equal("Human", row.ProductClass);
+        Assert.Equal("MARKETED", row.Status); Assert.Equal("12-SEP-2025", row.SourceUpdatedDate);
+        Assert.Equal(new DrugIngredient("ACETAMINOPHEN", "325", "MG", "", "", "N"), Assert.Single(row.Ingredients));
+        Assert.Equal("TABLET", Assert.Single(row.Forms)); Assert.Equal("ORAL", Assert.Single(row.Routes));
+        Assert.Equal(DpdExtractReader.SourceSystem, row.SourceSystem); Assert.True(row.Selectable);
+        Assert.Equal("TABLET", row.MedicationForm); Assert.Equal(325m, row.StrengthValue); Assert.Equal("MG", row.StrengthUnit);
+        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)), batch.Sha256);
+    }
+
+    [Theory]
+    [InlineData(13)]
+    [InlineData(15)]
+    public async Task DrugFieldCountMustMatchOfficialLayout(int fields)
+    {
+        var files = DpdTestArchive.Files();
+        files["drug.txt"] = string.Join(",", Enumerable.Repeat("\"\"", fields)) + "\n";
+        using var input = new MemoryStream(DpdTestArchive.Zip(files));
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => new DpdExtractReader().ReadAsync(input));
+        Assert.Contains($"drug.txt: expected 14 fields, found {fields}.", error.Message);
+    }
+
+    [Fact]
+    public async Task EmptyOptionalIngredientCountAndUpdateDateDoNotShiftMapping()
+    {
+        var files = DpdTestArchive.Files();
+        files["drug.txt"] = files["drug.txt"].Replace("\"1\",\"2026-10-05\"", "\"\",\"\"");
+        using var input = new MemoryStream(DpdTestArchive.Zip(files));
+        var row = Assert.Single((await new DpdExtractReader().ReadAsync(input)).Products);
+        Assert.Null(row.SourceUpdatedDate); Assert.Equal("00000001", row.Din); Assert.Equal("TEST DPD", row.Name);
+        Assert.Equal("TEST INGREDIENT", Assert.Single(row.Ingredients).Name); Assert.True(row.Selectable);
+    }
+
     [Fact]
     public async Task PositionalUtf8QuotedMappingPreservesDinAndSourceFacts()
     {

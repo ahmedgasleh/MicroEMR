@@ -32,7 +32,8 @@ public sealed class DpdExtractReader : IDrugCatalogSourceReader
             foreach (var suffix in new[] { "", "_ap", "_ia", "_dr" })
             {
                 if (!zip.Entries.Any(x => x.FullName == "drug" + suffix + ".txt")) continue;
-                var products = Rows("drug", suffix, 15);
+                // QRYM_DRUG_PRODUCT: 14 fields, DRUG_CODE through DESCRIPTOR_F.
+                var products = Rows("drug", suffix, 14);
                 var ingredients = Rows("ingred", suffix, 15).ToLookup(x => x[0], StringComparer.Ordinal);
                 var forms = Rows("form", suffix, 4).ToLookup(x => x[0], StringComparer.Ordinal);
                 var routes = Rows("route", suffix, 4).ToLookup(x => x[0], StringComparer.Ordinal);
@@ -78,7 +79,9 @@ public sealed class DpdExtractReader : IDrugCatalogSourceReader
                 {
                     token.ThrowIfCancellationRequested();
                     var row = csv.ReadFields()!;
-                    if (row.Length != columns || row.Any(x => x.Length > 4000 || x.Any(char.IsControl) || !ValidUnicode(x)))
+                    if (row.Length != columns)
+                        throw new ArgumentException($"Malformed DPD record in {name}: expected {columns} fields, found {row.Length}.");
+                    if (row.Any(x => x.Length > 4000 || x.Any(char.IsControl) || !ValidUnicode(x)))
                         throw new ArgumentException("Malformed DPD record in " + name);
                     rows.Add(row);
                     if (rows.Count > 300000) throw new ArgumentException("Too many DPD component records.");
