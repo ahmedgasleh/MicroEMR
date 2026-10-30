@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<ICdsRepository, CdsRepository>();
         services.AddScoped<ICdmEnrollmentRepository, CdmEnrollmentRepository>();
         services.AddScoped<IProviderAdministrationRepository, ProviderAdministrationRepository>();
+        services.AddScoped<MicroEMR.Application.Scheduling.ISchedulingResourceAdministrationRepository, SchedulingResourceAdministrationRepository>();
         services.AddScoped<IPatientTaskRepository, PatientTaskRepository>();
         services.AddScoped<IPatientReferralRepository, PatientReferralRepository>();
         services.AddScoped<IReferralDocumentRepository, ReferralDocumentRepository>();

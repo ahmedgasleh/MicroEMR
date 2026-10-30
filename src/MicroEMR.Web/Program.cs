@@ -105,6 +105,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<IAppointmentStatusReportApiCli
 AddApiTokenRefresh(builder.Services.AddHttpClient<ITemplateAdministrationApiClient, TemplateAdministrationApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<ISecurityAuditApiClient, SecurityAuditApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IProviderAdministrationApiClient, ProviderAdministrationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<MicroEMR.Web.Services.Scheduling.SchedulingResourceAdministrationApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientCareTeamApiClient, PatientCareTeamApiClient>(ConfigureApiClient));
 
 AddApiTokenRefresh(builder.Services.AddHttpClient<

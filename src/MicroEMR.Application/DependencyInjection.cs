@@ -107,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<ICppPrintService, CppPrintService>();
         services.AddScoped<ICppDisplayPreferencesService, CppDisplayPreferencesService>();
         services.AddScoped<IProviderAdministrationService, ProviderAdministrationService>();
+        services.AddScoped<MicroEMR.Application.Scheduling.SchedulingResourceAdministrationService>();
 
         return services;
     }

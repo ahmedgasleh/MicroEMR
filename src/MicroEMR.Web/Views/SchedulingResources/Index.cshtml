@@ -1,0 +1,36 @@
+@model MicroEMR.Web.Controllers.SchedulingResourceIndexModel
+@{ ViewData["Title"] = "Scheduling Resources"; Layout = "_AppLayout"; }
+<div class="content-panel">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3">Scheduling Resources</h1>
+        <a asp-action="Add" class="btn btn-primary">Add Resource</a>
+    </div>
+    <p class="text-body-secondary">Manage calendar resources separately from clinical Provider identities. Deactivation preserves appointments and blocked time; uncancelled current or future appointments must be resolved first.</p>
+    @if (ViewData["LoadError"] is string error) { <div class="alert alert-danger">@error</div> }
+    @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
+    @if (TempData["ErrorMessage"] is string failure) { <div class="alert alert-danger">@failure</div> }
+    <div class="btn-group mb-3" role="group" aria-label="Resource status">
+        @foreach (var status in new[] { "All", "Active", "Inactive" })
+        { <a asp-action="Index" asp-route-status="@status" class="btn @(Model.Status == status ? "btn-primary" : "btn-outline-primary")">@status</a> }
+    </div>
+    <div class="table-responsive"><table class="table table-striped align-middle">
+        <thead><tr><th>Display name</th><th>Type</th><th>Clinical Provider</th><th>Sort order</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        @foreach (var resource in Model.Resources)
+        {
+            <tr><td>@resource.DisplayName</td><td>@resource.ResourceType</td><td>@(resource.ProviderDisplayName ?? (resource.ResourceType == "Provider" ? "Unlinked legacy resource" : "—"))</td>
+                <td>@resource.SortOrder</td><td>@(resource.IsActive ? "Active" : "Inactive")</td>
+                <td><div class="d-flex gap-2">
+                    <a asp-action="Edit" asp-route-uid="@resource.ResourceUid" class="btn btn-sm btn-outline-primary">Edit</a>
+                    <form asp-action="@(resource.IsActive ? "Deactivate" : "Activate")" method="post">
+                        <input type="hidden" name="uid" value="@resource.ResourceUid" />
+                        <input type="hidden" name="rowVersion" value="@resource.RowVersion" />
+                        <button class="btn btn-sm btn-outline-secondary">@(resource.IsActive ? "Deactivate" : "Activate")</button>
+                    </form>
+                </div></td>
+            </tr>
+        }
+        @if (Model.Resources.Count == 0 && ViewData["LoadError"] is null) { <tr><td colspan="6">No resources match this status.</td></tr> }
+        </tbody>
+    </table></div>
+</div>

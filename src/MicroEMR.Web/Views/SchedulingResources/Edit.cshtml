@@ -1,0 +1,38 @@
+@model MicroEMR.Web.Controllers.SchedulingResourceEditModel
+@{ ViewData["Title"] = Model.ResourceUid.HasValue ? "Edit Scheduling Resource" : "Add Scheduling Resource"; Layout = "_AppLayout"; }
+<div class="content-panel">
+    <h1 class="h3">@ViewData["Title"]</h1>
+    <form asp-action="Save" method="post" class="row g-3">
+        <input type="hidden" name="uid" value="@Model.ResourceUid" />
+        <input type="hidden" name="RowVersion" value="@Model.Resource.RowVersion" />
+        <div asp-validation-summary="All" class="text-danger"></div>
+        <div class="col-md-6"><label class="form-label" for="ResourceType">Resource type</label>
+            @if (Model.ResourceUid.HasValue)
+            { <input id="ResourceType" class="form-control" name="ResourceType" value="@Model.Resource.ResourceType" readonly /> }
+            else
+            {
+                <select id="ResourceType" name="ResourceType" class="form-select">
+                    @foreach (var type in new[] { "Provider", "Room", "Equipment" }) { <option value="@type" selected="@(type == Model.Resource.ResourceType)">@type</option> }
+                </select>
+            }
+        </div>
+        <div class="col-md-6"><label class="form-label" for="ProviderUid">Clinical Provider (Provider resources only)</label>
+            <select id="ProviderUid" name="ProviderUid" class="form-select" disabled="@Model.ProviderLinkLocked" aria-describedby="providerHelp">
+                <option value="">No Provider selected</option>
+                @foreach (var provider in Model.Providers) { <option value="@provider.ProviderUid" selected="@(provider.ProviderUid == Model.Resource.ProviderUid)">@provider.DisplayName</option> }
+            </select>
+            @if (Model.ProviderLinkLocked) { <input type="hidden" name="ProviderUid" value="@Model.Resource.ProviderUid" /> }
+            <div class="form-text" id="providerHelp">New Provider resources require an existing active clinical Provider; no login is required. Leave blank for Room or Equipment. Selecting a Provider for an unlinked legacy resource explicitly links it. A saved link cannot be changed or removed.</div>
+        </div>
+        <div class="col-md-6"><label class="form-label" for="DisplayName">Scheduling display name</label>
+            <input id="DisplayName" name="DisplayName" class="form-control" value="@Model.Resource.DisplayName" required maxlength="200" />
+        </div>
+        <div class="col-md-3"><label class="form-label" for="ColorCode">Colour (optional)</label>
+            <input id="ColorCode" name="ColorCode" class="form-control" value="@Model.Resource.ColorCode" maxlength="20" placeholder="#0d6efd" />
+        </div>
+        <div class="col-md-3"><label class="form-label" for="SortOrder">Sort order</label>
+            <input id="SortOrder" name="SortOrder" type="number" class="form-control" value="@Model.Resource.SortOrder" min="-2147483648" max="2147483647" />
+        </div>
+        <div class="col-12"><button class="btn btn-primary">Save Resource</button> <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a></div>
+    </form>
+</div>
