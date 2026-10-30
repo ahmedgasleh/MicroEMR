@@ -1,0 +1,8 @@
+{
+  "scheduledAppointmentUid": "00000000-0000-0000-0000-000000000000",
+  "completedAppointmentUid": "00000000-0000-0000-0000-000000000000",
+  "raceAppointmentUid": "00000000-0000-0000-0000-000000000000",
+  "managerActorId": 0,
+  "existingAppointmentsApproved": false,
+  "directCompetingStoredProcedureWriteApproved": false
+}

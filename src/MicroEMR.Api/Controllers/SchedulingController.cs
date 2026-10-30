@@ -368,6 +368,22 @@ public sealed class SchedulingController : ControllerBase
                 message = "Cancelled appointments cannot be updated."
             });
         }
+        catch (AppointmentStatusTransitionException)
+        {
+            return Conflict(new
+            {
+                code = "invalid_appointment_status_transition",
+                message = "The appointment status cannot be changed from its current state."
+            });
+        }
+        catch (AppointmentStatusConcurrencyException)
+        {
+            return Conflict(new
+            {
+                code = "appointment_status_conflict",
+                message = "This appointment was updated by another user. Refresh and try again."
+            });
+        }
         catch (ArgumentException)
         {
             return BadRequest(new { message = "Invalid appointment status." });

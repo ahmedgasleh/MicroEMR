@@ -109,7 +109,7 @@ public sealed class AdHocAppointmentSqlTests(NextAvailableSqlDatabase db) : ICla
     {
         var(patient,provider,_)=await db.Seed();
         var appointment=await db.Appointments.CreateAsync(Create(patient,provider,19,true),7);
-        await db.Appointments.UpdateStatusAsync(appointment.AppointmentUid,new(){Status="Arrived"},7);
+        await db.Appointments.UpdateStatusAsync(appointment.AppointmentUid,new(){Status="Arrived"},AppointmentStatus.Scheduled,7);
         Assert.True((await db.Reads.GetAppointmentByUidAsync(appointment.AppointmentUid))!.IsAdHoc);
         var other=new SchedulingAppointmentRepository(new NextAvailableSqlDatabase.Factory(db.OtherConnection));
         var reads=new SchedulingReadRepository(new NextAvailableSqlDatabase.Factory(db.OtherConnection),NullLogger<SchedulingReadRepository>.Instance);

@@ -51,6 +51,65 @@ public sealed class AppointmentArrivedTransitionTests
         Assert.Equal("Arrived", result.Status);
         Assert.Equal(1, repository.UpdateStatusCallCount);
         Assert.Equal(42, repository.PersistedBy);
+        Assert.Equal(AppointmentStatus.Scheduled, repository.PersistedExpectedStatus);
+    }
+
+    public static TheoryData<AppointmentStatus, AppointmentStatus> GenericAllowedPairs
+    {
+        get
+        {
+            var data = new TheoryData<AppointmentStatus, AppointmentStatus>();
+            var policy = new AppointmentStatusTransitionService();
+            AppointmentStatus[] targets = [AppointmentStatus.Scheduled, AppointmentStatus.Arrived,
+                AppointmentStatus.Roomed, AppointmentStatus.Seen, AppointmentStatus.Completed];
+            foreach (var current in Enum.GetValues<AppointmentStatus>())
+                foreach (var target in targets)
+                    if (policy.CanTransition(current, target)) data.Add(current, target);
+            return data;
+        }
+    }
+
+    [Theory, MemberData(nameof(GenericAllowedPairs))]
+    public async Task GenericStatusUpdate_PreservesAllPolicyAllowedGenericPairs(AppointmentStatus current, AppointmentStatus target)
+    {
+        var repository = new StubSchedulingAppointmentRepository { CurrentStatus = current };
+        var result = await CreateService(repository).UpdateStatusAsync(Guid.NewGuid(),
+            new() { Status = AppointmentStatusMapper.ToStorageValue(target) }, 42);
+        Assert.Equal(AppointmentStatusMapper.ToStorageValue(target), result!.Status);
+        Assert.Equal(current, repository.PersistedExpectedStatus);
+        Assert.Equal(1, repository.UpdateStatusCallCount);
+    }
+
+    [Fact]
+    public async Task GenericStatusUpdate_MissingAppointmentDoesNotPersist()
+    {
+        var repository = new StubSchedulingAppointmentRepository();
+        Assert.Null(await CreateService(repository).UpdateStatusAsync(Guid.NewGuid(), new() { Status = "Arrived" }, 42));
+        Assert.Equal(0, repository.UpdateStatusCallCount);
+    }
+
+    [Fact]
+    public async Task GenericStatusUpdate_InvalidPairEndpointReturnsSafeConflict()
+    {
+        var repository = new StubSchedulingAppointmentRepository { CurrentStatus = AppointmentStatus.Scheduled };
+        var result = await CreateController(repository).UpdateAppointmentStatus(Guid.NewGuid(), new() { Status = "Completed" });
+        var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Contains("invalid_appointment_status_transition", conflict.Value!.ToString());
+        Assert.Equal(0, repository.UpdateStatusCallCount);
+    }
+
+    [Fact]
+    public async Task GenericStatusUpdate_ConcurrentChangeEndpointReturnsSafeConflict()
+    {
+        var repository = new StubSchedulingAppointmentRepository
+        {
+            CurrentStatus = AppointmentStatus.Scheduled,
+            PersistException = new AppointmentStatusConcurrencyException("TEST ONLY private database diagnostic")
+        };
+        var result = await CreateController(repository).UpdateAppointmentStatus(Guid.NewGuid(), new() { Status = "Arrived" });
+        var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+        Assert.Contains("appointment_status_conflict", conflict.Value!.ToString());
+        Assert.DoesNotContain("private database diagnostic", conflict.Value.ToString());
     }
 
     [Fact]
@@ -242,10 +301,13 @@ public sealed class AppointmentArrivedTransitionTests
         public Task<CancelScheduleAppointmentResponse?> CancelAsync(Guid appointmentUid, CancelScheduleAppointmentRequest request, long? cancelledBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ScheduleAppointmentDetailsResponse?> UpdateAsync(Guid appointmentUid, UpdateScheduleAppointmentRequest request, long? modifiedBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ScheduleAppointmentDetailsResponse?> RescheduleAsync(Guid appointmentUid, RescheduleAppointmentRequest request, long? modifiedBy, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(Guid appointmentUid, UpdateAppointmentStatusRequest request, long? updatedBy, CancellationToken cancellationToken = default)
+        public Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(Guid appointmentUid, UpdateAppointmentStatusRequest request, AppointmentStatus expectedStatus, long? updatedBy, CancellationToken cancellationToken = default)
         {
             UpdateStatusCallCount++;
+            PersistedExpectedStatus = expectedStatus;
             PersistedBy = updatedBy;
+            if (PersistException is not null)
+                return Task.FromException<UpdateAppointmentStatusResponse?>(PersistException);
             return Task.FromResult<UpdateAppointmentStatusResponse?>(new UpdateAppointmentStatusResponse
             {
                 AppointmentUid = appointmentUid,

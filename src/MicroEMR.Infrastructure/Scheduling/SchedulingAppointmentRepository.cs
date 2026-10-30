@@ -259,6 +259,7 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
     public async Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
         Guid appointmentUid,
         UpdateAppointmentStatusRequest request,
+        AppointmentStatus expectedStatus,
         long? updatedBy,
         CancellationToken cancellationToken = default)
     {
@@ -269,6 +270,10 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
         };
         command.Parameters.Add(new SqlParameter("@AppointmentUid", SqlDbType.UniqueIdentifier) { Value = appointmentUid });
         command.Parameters.Add(new SqlParameter("@AppointmentStatus", SqlDbType.NVarChar, 30) { Value = request.Status });
+        command.Parameters.Add(new SqlParameter("@ExpectedStatus", SqlDbType.NVarChar, 30)
+        {
+            Value = AppointmentStatusMapper.ToStorageValue(expectedStatus)
+        });
         command.Parameters.Add(new SqlParameter("@UpdatedBy", SqlDbType.BigInt)
         {
             Value = (object?)updatedBy ?? DBNull.Value
@@ -287,6 +292,11 @@ public sealed class SchedulingAppointmentRepository : ISchedulingAppointmentRepo
                 Status = reader.GetString(reader.GetOrdinal("AppointmentStatus")),
                 UpdatedAt = GetNullableUtcDateTime(reader, "UpdatedAt")
             };
+        }
+        catch (SqlException exception) when (exception.Number == 51082)
+        {
+            throw new AppointmentStatusConcurrencyException(
+                "The appointment status changed before it could be updated.", exception);
         }
         catch (SqlException exception) when (exception.Number == 51067)
         {

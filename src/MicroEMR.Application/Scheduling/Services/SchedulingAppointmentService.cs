@@ -83,7 +83,7 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
         return _repository.RescheduleAsync(appointmentUid, request, modifiedBy, cancellationToken);
     }
 
-    public Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
+    public async Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
         Guid appointmentUid,
         UpdateAppointmentStatusRequest request,
         long? updatedBy,
@@ -97,7 +97,15 @@ public sealed class SchedulingAppointmentService : ISchedulingAppointmentService
 
         request.Status = AllowedStatuses.Single(status =>
             string.Equals(status, request.Status, StringComparison.OrdinalIgnoreCase));
-        return _repository.UpdateStatusAsync(appointmentUid, request, updatedBy, cancellationToken);
+        var currentStatus = await _repository.GetStatusAsync(appointmentUid, cancellationToken);
+        if (currentStatus is null)
+            return null;
+
+        _statusTransitionService.EnsureCanTransition(
+            currentStatus.Value, AppointmentStatusMapper.Parse(request.Status));
+
+        return await _repository.UpdateStatusAsync(
+            appointmentUid, request, currentStatus.Value, updatedBy, cancellationToken);
     }
 
     public async Task<UpdateAppointmentStatusResponse?> MarkArrivedAsync(

@@ -30,6 +30,7 @@ public interface ISchedulingAppointmentRepository
     Task<UpdateAppointmentStatusResponse?> UpdateStatusAsync(
         Guid appointmentUid,
         UpdateAppointmentStatusRequest request,
+        AppointmentStatus expectedStatus,
         long? updatedBy,
         CancellationToken cancellationToken = default);
 

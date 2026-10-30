@@ -100,7 +100,7 @@ public sealed class NextAvailableSqlDatabase : IAsyncLifetime
                 CREATE TABLE dbo.AuditLog(AuditLogId bigint IDENTITY, UserId bigint, PatientId bigint, ActionName nvarchar(100), EntityName nvarchar(100), EntityId nvarchar(100), OldValue nvarchar(max), NewValue nvarchar(max), CreatedAt datetime2);
                 """, sql).ExecuteNonQueryAsync();
             var root = Root();
-            foreach (var path in new[] { "db/scheduling_stored_procedures.sql", "db/tenant-clinical/migrations/0042-scheduling-critical-appointments.sql", "db/tenant-clinical/migrations/0070-scheduling-ad-hoc-overlap.sql" })
+            foreach (var path in new[] { "db/scheduling_stored_procedures.sql", "db/tenant-clinical/migrations/0042-scheduling-critical-appointments.sql", "db/tenant-clinical/migrations/0070-scheduling-ad-hoc-overlap.sql", "db/tenant-clinical/migrations/0102-scheduling-status-expected-state.sql" })
                 foreach (var batch in Regex.Split(File.ReadAllText(Path.Combine(root, path)), @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase).Where(x => !string.IsNullOrWhiteSpace(x)))
                     await new SqlCommand(batch, sql).ExecuteNonQueryAsync();
         }

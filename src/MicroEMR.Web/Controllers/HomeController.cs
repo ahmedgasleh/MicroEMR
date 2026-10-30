@@ -134,7 +134,7 @@ public class HomeController : Controller
             return Conflict(new
             {
                 success = false,
-                message = "Cancelled appointments cannot be updated."
+                message = "The appointment status cannot be changed from its current state. Refresh and try again."
             });
         }
         catch (Exception exception)

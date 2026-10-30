@@ -100,5 +100,6 @@
   {"migrationId":"0098-prescription-dispensing-location-reference","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0098-prescription-dispensing-location-reference.sql"},
   {"migrationId":"0099-dispensing-location-directory","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0099-dispensing-location-directory.sql"},
   {"migrationId":"0100-development-drug-catalog","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0100-development-drug-catalog.sql"},
-  {"migrationId":"0101-scheduling-resource-administration","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0101-scheduling-resource-administration.sql"}
+  {"migrationId":"0101-scheduling-resource-administration","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0101-scheduling-resource-administration.sql"},
+  {"migrationId":"0102-scheduling-status-expected-state","schemaVersion":"1.0.0","script":"tenant-clinical/migrations/0102-scheduling-status-expected-state.sql"}
 ]
