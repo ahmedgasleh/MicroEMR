@@ -29,6 +29,10 @@ public sealed class ScheduleAppointmentListItemResponse
 
     public string? PrimaryResourceName { get; set; }
 
+    public Guid? RoomResourceUid { get; set; }
+
+    public string? RoomResourceName { get; set; }
+
     public string Status { get; set; } = string.Empty;
     public Guid? LinkedEncounterUid { get; set; }
     public string? LinkedEncounterStatus { get; set; }

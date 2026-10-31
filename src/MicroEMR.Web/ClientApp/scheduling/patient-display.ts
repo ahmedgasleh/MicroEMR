@@ -1,5 +1,6 @@
 interface SchedulePatientDisplayData {
     eventKind?: string;
+    projectionKind?: string;
     isAdHoc?: boolean;
     html?: string;
     text?: string | null;
@@ -46,7 +47,8 @@ class SchedulePatientDisplay {
 
     render(appointment: SchedulePatientDisplayData): string {
         const name = encode(value(appointment.patientDisplayName));
-        const mode = appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "";
+        const mode = (appointment.projectionKind === "room" ? "<strong>Room</strong> · " : "")
+            + (appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "");
         if (!this.expanded) return mode + name;
         const lineStyle = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
         return `<div style="width:100%;min-width:0;padding-right:22px;font-size:11px;line-height:13px">`
@@ -65,7 +67,8 @@ class SchedulePatientDisplay {
     }
 
     private tooltip(appointment: SchedulePatientDisplayData): string {
-        const mode = appointment.isAdHoc ? "Ad-hoc · " : "";
+        const mode = (appointment.projectionKind === "room" ? "Room · " : "")
+            + (appointment.isAdHoc ? "Ad-hoc · " : "");
         if (!this.expanded) return mode + value(appointment.patientDisplayName);
         return `${this.identifiers(appointment)}\n${mode}${this.description(appointment)}`;
     }

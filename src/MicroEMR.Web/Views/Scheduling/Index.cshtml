@@ -1127,6 +1127,7 @@ else
         const resources = @Html.Raw(resourcesJson);
         const initialDate = @Html.Raw(initialDateJson);
         const canManageScheduling = @Json.Serialize(canManageScheduling);
+        const appointmentProjections = window.ScheduleAppointmentProjections;
         const shouldOpenAddAppointment = canManageScheduling && @Html.Raw(openAddAppointmentJson);
 
         if (!resources.length) {
@@ -1299,8 +1300,7 @@ else
                     ];
                 },
                 onEventMoving: args => {
-                    const eventKind = args.e?.data?.eventKind || args.e?.data?.EventKind;
-                    if (eventKind === "blockedTime") {
+                    if (!appointmentProjections.canMove(args.e?.data, canManageScheduling)) {
                         args.allowed = false;
                         return;
                     }
@@ -1324,11 +1324,11 @@ else
                 },
                 onEventMove: async args => {
                     args.preventDefault();
-                    if (args.e.data.eventKind === "blockedTime") {
+                    if (!appointmentProjections.canMove(args.e.data, canManageScheduling)) {
                         await refreshCalendar();
                         return;
                     }
-                    const appointmentUid = args.e.data.appointmentUid || args.e.id();
+                    const appointmentUid = appointmentProjections.appointmentUid(args.e.data);
                     const destinationResourceUid = getDayPilotMoveResourceUid(args, true);
                     const destination = resources.find(resource =>
                         String(resource.resourceUid).toLowerCase() === destinationResourceUid.toLowerCase());
@@ -1419,13 +1419,16 @@ else
                     openAppointmentModal(args.start, args.resource);
                     calendar.clearSelection();
                 },
+                // Resizing is disabled for all appointments in the existing calendar.
+                onEventResize: args => args.preventDefault(),
                 onEventClick: args => {
                     if (args.e.data.eventKind === "blockedTime") {
                         openBlockedTimeDetails(args.e.data);
                         return;
                     }
                     renderAppointmentQuickView(args.e.data);
-                    openAppointmentDetails(args.e.id());
+                    const appointmentUid = appointmentProjections.appointmentUid(args.e.data);
+                    if (appointmentUid) openAppointmentDetails(appointmentUid);
                 }
             });
 
@@ -2556,12 +2559,7 @@ else
                 fontColor: "#ffffff"
             }));
             const visibleResourceUids = new Set(getFilteredResources().map(resource => resource.resourceUid));
-            return [...events.map(event => ({
-                ...event,
-                eventKind: "appointment",
-                appointmentUid: event.id,
-                resourceUid: event.resource
-            })), ...blockedEvents]
+            return [...appointmentProjections.project(events, visibleResourceUids), ...blockedEvents]
                 .filter(event => visibleResourceUids.has(event.resource));
         };
 
@@ -2579,10 +2577,9 @@ else
             try {
                 const events = await loadEvents();
 
-                const selectedAppointmentUid = selectedAppointment?.appointmentUid
-                    || selectedAppointment?.id;
+                const selectedAppointmentUid = appointmentProjections.appointmentUid(selectedAppointment);
                 const refreshedSelection = selectedAppointmentUid
-                    ? events.find(event => String(event.appointmentUid || event.id)
+                    ? events.find(event => String(appointmentProjections.appointmentUid(event))
                         === String(selectedAppointmentUid))
                     : null;
                 if (refreshedSelection) {
@@ -2760,6 +2757,7 @@ else
     });
     </script>
     <script type="module" src="~/dist/scheduling/patient-display.js" asp-append-version="true"></script>
+    <script type="module" src="~/dist/scheduling/appointment-projections.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/day-sheet.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/next-available.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>

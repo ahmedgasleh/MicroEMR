@@ -30,7 +30,8 @@ class SchedulePatientDisplay {
     }
     render(appointment) {
         const name = encode(value(appointment.patientDisplayName));
-        const mode = appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "";
+        const mode = (appointment.projectionKind === "room" ? "<strong>Room</strong> · " : "")
+            + (appointment.isAdHoc ? "<strong>Ad-hoc</strong> · " : "");
         if (!this.expanded)
             return mode + name;
         const lineStyle = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
@@ -47,7 +48,8 @@ class SchedulePatientDisplay {
         return value(appointment.patientDisplayName) + (reason ? ` — ${reason}` : "");
     }
     tooltip(appointment) {
-        const mode = appointment.isAdHoc ? "Ad-hoc · " : "";
+        const mode = (appointment.projectionKind === "room" ? "Room · " : "")
+            + (appointment.isAdHoc ? "Ad-hoc · " : "");
         if (!this.expanded)
             return mode + value(appointment.patientDisplayName);
         return `${this.identifiers(appointment)}\n${mode}${this.description(appointment)}`;

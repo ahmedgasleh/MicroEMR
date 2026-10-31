@@ -137,6 +137,14 @@ public class HomeController : Controller
                 message = "The appointment status cannot be changed from its current state. Refresh and try again."
             });
         }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                success = false,
+                message = "You do not have permission to perform this action."
+            });
+        }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unable to update a dashboard appointment status.");

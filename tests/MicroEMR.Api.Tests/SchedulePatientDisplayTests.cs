@@ -28,6 +28,7 @@ public sealed class SchedulePatientDisplayTests
         var source = new ApiAppointment { AppointmentUid = Guid.NewGuid(), PatientUid = patientUid,
             PatientDisplayName = "Example, Jane", PatientHealthCardNumber = "1234567890",
             PatientDateOfBirth = new(1970, 1, 5), PatientGender = "Female", PrimaryResourceUid = Guid.NewGuid(),
+            RoomResourceUid = Guid.NewGuid(), RoomResourceName = "Exam Room 1",
             StartDateTimeUtc = DateTime.UtcNow, EndDateTimeUtc = DateTime.UtcNow.AddMinutes(30), Status = "Scheduled", Reason = "Follow-up" };
         var repository = Proxy<ISchedulingReadRepository>(_ => Task.FromResult<IReadOnlyList<ApiAppointment>>([source]));
         var result = Assert.Single(await new SchedulingReadService(repository).GetAppointmentsAsync(DateTime.UtcNow, DateTime.UtcNow.AddDays(1), null));
@@ -44,6 +45,9 @@ public sealed class SchedulePatientDisplayTests
         Assert.Equal("1970-01-05", item.GetProperty("patientDateOfBirth").GetString());
         Assert.Equal("Female", item.GetProperty("patientGender").GetString());
         Assert.Equal(source.AppointmentUid, item.GetProperty("id").GetGuid());
+        Assert.Equal(source.AppointmentUid, item.GetProperty("appointmentUid").GetGuid());
+        Assert.Equal(source.RoomResourceUid, item.GetProperty("roomResourceUid").GetGuid());
+        Assert.Equal(source.RoomResourceName, item.GetProperty("roomResourceName").GetString());
         Assert.Equal("Scheduled", item.GetProperty("status").GetString());
         Assert.Equal("Example, Jane - Follow-up", item.GetProperty("text").GetString());
         var patientFields = item.EnumerateObject().Where(p => p.Name.StartsWith("patient", StringComparison.Ordinal)).Select(p => p.Name).Order().ToArray();
@@ -57,6 +61,7 @@ public sealed class SchedulePatientDisplayTests
         var appointment = JsonSerializer.Deserialize<WebAppointment>("{\"patientDisplayName\":\"Legacy Patient\"}", options)!;
         Assert.Equal("Legacy Patient", appointment.PatientDisplayName);
         Assert.Null(appointment.PatientHealthCardNumber); Assert.Null(appointment.PatientDateOfBirth); Assert.Null(appointment.PatientGender);
+        Assert.Null(appointment.RoomResourceUid); Assert.Null(appointment.RoomResourceName);
     }
 
     [Fact]

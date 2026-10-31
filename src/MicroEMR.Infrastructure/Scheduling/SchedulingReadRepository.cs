@@ -198,6 +198,8 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 a.EndDateTimeUtc,
                 sr.ResourceUid AS PrimaryResourceUid,
                 sr.DisplayName AS PrimaryResourceName,
+                room.ResourceUid AS RoomResourceUid,
+                room.DisplayName AS RoomResourceName,
                 a.AppointmentStatus AS Status,
                 linkedEncounter.EncounterUid AS LinkedEncounterUid,
                 linkedEncounter.EncounterStatus AS LinkedEncounterStatus
@@ -206,6 +208,8 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                 ON p.PatientUid = a.PatientUid
             INNER JOIN dbo.ScheduleResource sr
                 ON sr.ResourceId = a.PrimaryResourceId
+            LEFT JOIN dbo.ScheduleResource room
+                ON room.ResourceId = a.RoomResourceId
             LEFT JOIN dbo.PatientEncounter linkedEncounter
                 ON linkedEncounter.AppointmentUid = a.AppointmentUid
             WHERE a.IsDeleted = 0
@@ -307,6 +311,8 @@ public sealed class SchedulingReadRepository : ISchedulingReadRepository
                         reader.GetGuid(reader.GetOrdinal("PrimaryResourceUid")),
                     PrimaryResourceName =
                         GetNullableString(reader, "PrimaryResourceName"),
+                    RoomResourceUid = GetNullableGuid(reader, "RoomResourceUid"),
+                    RoomResourceName = GetNullableString(reader, "RoomResourceName"),
                     Status = reader.GetString(reader.GetOrdinal("Status")),
                     LinkedEncounterUid = GetNullableGuid(reader, "LinkedEncounterUid"),
                     LinkedEncounterStatus = GetNullableString(reader, "LinkedEncounterStatus")

@@ -370,3 +370,165 @@ After an approved correction, required focused checks are:
 **Outstanding items:** owner approval for the narrow source correction and subsequent runtime rollout is not granted by this investigation request. Historical trace correlation remains incomplete; it can be closed if the existing Web console transcript becomes available for the API trace above, without altering logging. Until the response correction and E/C/D runtime checks pass, retain **ACCEPTANCE PENDING**.
 
 Only this report was changed during Step 04A. No application or harness source was modified, no build/test was run, no SQL connection or permission was changed, and no migration, deployment, restart, commit or push occurred. Pre-existing working-tree changes were preserved. Investigation stopped here.
+
+
+## Step 04B - Preserve Dashboard scheduling-status authorization denial
+
+2026-10-31 (America/Toronto). **Implementation: YES. Focused tests: PASS (10/10). Affected Web build: PASS. Product Readiness 04 remains ACCEPTANCE PENDING pending runtime rollout and E/C/D.** This owner-approved local correction does not replace the original browser HTTP 502 failure evidence or turn the historical viewer result into PASS.
+
+### Root cause and exact correction
+
+As established in Step 04A, the status client passed API 403 to its shared helper, which threw UnauthorizedAccessException; the Dashboard action's generic catch converted that authorization denial into HTTP 502. That exception also represents API 401 and missing access tokens, so catching every UnauthorizedAccessException as 403 would lose the distinction.
+
+Files changed:
+
+- src/MicroEMR.Web/Services/Scheduling/SchedulingApiClient.cs: only UpdateAppointmentStatusAsync now handles upstream Forbidden before the shared helper, logs the existing sanitized dependency-failure event, and throws HttpRequestException with StatusCode=Forbidden and a fixed safe message. It does not read or propagate the forbidden response body. Shared authentication/error handling and the existing 404/409 branches remain intact.
+- src/MicroEMR.Web/Controllers/HomeController.cs: only UpdateAppointmentStatus now catches that forbidden HTTP exception through a status-code filter and returns explicit HTTP 403 JSON {"success":false,"message":"You do not have permission to perform this action."}. Existing conflict JSON/409 and generic failure JSON/502 are preserved. No exception message, API body, token or internal server detail enters the denial JSON.
+- tests/MicroEMR.Api.Tests/DashboardAppointmentStatusResponseTests.cs: added focused tests using the real status client and Dashboard action, an in-memory HTTP handler, and the existing authentication stub infrastructure. Covers 403 and exact safe JSON, 409 and exact existing JSON, 500/503 and connection failures as 502, API 401 and missing token as distinct existing 502 failures, and stopping on denial without success deserialization, retry or simulated appointment mutation.
+- docs/product-readiness/005-scheduling-status-acceptance-automation.md: appended this implementation and verification record; retained prior evidence verbatim, including its existing byte encoding.
+
+No authorization/permission, tenant, transition, concurrency, database, migration, authentication configuration or acceptance-harness changes were made. No live appointments or persistence were accessed. The no-mutation test is an in-memory upstream assertion, not new database acceptance evidence; the prior live unchanged appointment/audit/history evidence remains as recorded, and corrected live E still requires verification.
+
+### Focused local verification
+
+Initial default-output test builds were blocked by the running Web executable/DLL locks (MSB3027/MSB3021); disabling apphost alone did not resolve the DLL lock. No process was stopped or restarted. Verification then used a separate .tmp/product-readiness-04b/artifacts directory, with a cached-package restore for that output layout:
+
+~~~powershell
+dotnet restore tests/MicroEMR.Api.Tests/MicroEMR.Api.Tests.csproj --artifacts-path .tmp/product-readiness-04b/artifacts --ignore-failed-sources
+dotnet test tests/MicroEMR.Api.Tests/MicroEMR.Api.Tests.csproj --no-restore --artifacts-path .tmp/product-readiness-04b/artifacts --filter "FullyQualifiedName~DashboardAppointmentStatusResponseTests|FullyQualifiedName~GenericStatusPolicyBoundaryTests" --logger "trx;LogFileName=dashboard-status-04b.trx" --results-directory .tmp/product-readiness-04b
+dotnet build src/MicroEMR.Web/MicroEMR.Web.csproj --no-restore --artifacts-path .tmp/product-readiness-04b/artifacts
+~~~
+
+- **Tests PASS:** 10 passed, zero failed/skipped. Eight new response tests plus the two existing boundary checks, including the existing Dashboard conflict test and View-only/Manage permission-policy check. No SQL tests or broad regression suite ran. Receipt: .tmp/product-readiness-04b/dashboard-status-04b.trx.
+- **Web build PASS:** zero errors, three NU1900 warnings for unavailable NuGet vulnerability data (api.nuget.org could not be reached). Restore/test also reported NU1900 warnings; package restore and compilation succeeded.
+- Final diff reviewed for scope and whitespace. Only the four files listed above changed; no deployment, restart, migration, commit or push occurred.
+
+### Deployment and remaining live acceptance
+
+The corrected Web must be deployed/restarted through a **separately authorized** runtime rollout before it can affect the running Dashboard. This task authorizes implementation and local verification only; no rollout was performed. No API deployment or database change is required for this fix.
+
+1. Retry **E only** with the established genuine viewer, normal session/antiforgery token, development tenant and existing Arrived fixture: explicit Web 403 and unchanged appointment/audit/history. Normal owner sign-in may be needed; do not change permissions or create fixtures.
+2. After E PASS, resume **C** (manager Arrived -> Seen, refreshed status and exactly one attributed audit/history pair).
+3. Then resume **D** with the existing deterministic SQL observer requirement and stale 409 expectation.
+
+Retain A/B PASS without replay. Historical trace-correlation limitations in Step 04A remain unchanged. Stop here after local implementation and verification; acceptance remains pending until E/C/D pass.
+
+
+## Step 04C - Development Web deployment; runtime fixture-date blocker
+
+2026-10-31 (America/Toronto). **Web deployment PASS; Web restart YES; running corrected version verified YES. E/C/D BLOCKED before mutation. Product Readiness 04 - ACCEPTANCE PENDING.** Original A/B PASS and historical viewer HTTP 502 evidence remain unchanged.
+
+### Target, controlled deployment and startup
+
+Confirmed the exact existing target from process metadata: Web PID 22940 was running src/MicroEMR.Web/bin/Debug/net10.0/MicroEMR.Web.exe under dotnet run --launch-profile https (parent PID 13980). The existing HTTPS launch profile sets Development and localhost ports 7002/5002; the project uses the established MicroEMR.Web-local-development user-secrets configuration. This is the repository's development dotnet-run host, not a production service.
+
+At 2026-10-31 15:07:26 UTC / 11:07:26 America/Toronto, stopped only that verified Web process, copied only the previously verified 04B MicroEMR.Web.dll and MicroEMR.Web.pdb into the existing Web output directory, and relaunched Web using the same HTTPS profile, with --no-build --no-restore. No implementation tests or build were repeated. No configuration, environment-variable setting, secrets, database setting, upload, persistent application data or dependency assembly was deployed/edited. Hash checks confirmed existing source/output appsettings files and launchSettings.json were unchanged.
+
+The direct script-file invocation was initially blocked by local PowerShell script execution policy before any deployment action. The same reviewed commands were then executed directly without changing execution policy. Deployment was performed once; no rollback occurred.
+
+Verification:
+
+- New launcher PID 17852; Web PID 12824, started 11:07:28 America/Toronto.
+- Startup log confirms Development, content root D:/MasterProgram_Ahmed/MicroEMR/src/MicroEMR.Web and listeners https://localhost:7002 / http://localhost:5002. No startup failure/critical events were observed; startup stderr was empty.
+- Inspected the running process's loaded MicroEMR.Web.dll module at the exact target path and confirmed its file SHA256 is 663C8DD748904923A54E722C2E11A5B8094E41FB3443E3F751A086B2B2D350CB, matching the locally verified 04B artifact. Port 7002 belongs to PID 12824. Verification is based on the newly started process, loaded module and artifact hash, not build success alone.
+- Dashboard root and /Scheduling both return HTTP 302 to the existing https://localhost:7179/connect/authorize endpoint, using normal certificate validation. No OIDC query values, tokens or cookies were recorded. Authenticated Dashboard rendering and Scheduling-page accessibility remain unverified pending normal sign-in; redirects alone are not a rendering PASS.
+- API PID 20192 (start 11:02:44) and Auth PID 14628 (start 10:05:35) remained unchanged. Neither was deployed/restarted.
+- Deployment diagnostics: .tmp/product-readiness-04c/deployment.json, web-startup.log and web-startup-error.log. Local helper: .tmp/product-readiness-04c/deploy-web.ps1. Startup logs are local diagnostics, not exported browser/authentication artifacts.
+
+### Fixture-only prerequisite evidence and stopped acceptance
+
+Reused the existing approved fixture-read helper, adding only schedule timestamps in an ignored local copy at .tmp/status-acceptance-preparation/04c-fixture-readonly.fsx. The read verifies the known development SQL server/database/tenant and the original PR04-acceptance-20261030-f259c0d7979f fixture ownership marker before returning only scoped state/audit/history metadata. The first sandboxed SQL attempt was blocked with socket error 10013; the authorized development connection succeeded outside that network restriction. No secret or raw connection exception was printed.
+
+| Approved disposable fixture | State | Schedule UTC | Retained audit/history IDs |
+| --- | --- | --- | --- |
+| 73d606bc-b983-4ca8-bc26-92577c52c887 (A/C/E) | Arrived, UpdatedBy 2 | October 30, 12:00-12:15 | Audit 1517 Create, 1522 Scheduled -> Arrived; history 31 Created, 36 StatusChanged |
+| b29deff9-fd43-4e1a-adb2-860fa2b34239 (B) | Completed, UpdatedBy 2 | October 30, 12:15-12:30 | Audits 1518/1520/1521; histories 32/34/35 |
+| 0e29a3c3-d2a6-4b87-ad0e-97e7f2c65690 (D) | Scheduled, UpdatedBy null | October 30, 12:30-12:45 | Audit 1519 Create; history 33 Created |
+
+All three fixtures are dated yesterday. HomeController.Index queries today's schedule, and the existing resume harness requires all three selectors on that Dashboard before issuing E. Therefore the unchanged harness cannot reach E/C/D with these fixtures on October 31. No live scenario was started and no request or competing stored-procedure write was issued. No fixtures were created, rescheduled, reset or deleted; all prior histories remain retained.
+
+| Scenario | Current result |
+| --- | --- |
+| A/B | PASS retained; not rerun |
+| E | BLOCKED by fixture dates; no new viewer HTTP result or safe-JSON runtime claim |
+| C | BLOCKED; requires E PASS |
+| D | BLOCKED; requires E PASS and unchanged deterministic SQL wait proof |
+
+A resume helper copy was prepared at .tmp/status-acceptance-preparation/04c-resume.fsx using the existing compiled harness/configuration and separate 04c receipt/log names; it has not been launched. Original runner logs, configuration and receipts were not overwritten. No harness/application source was changed, no migrations or SQL permissions were checked/modified, and no implementation suite, A/B, commit or remote Git operation was run.
+
+### Required next decision and sign-in
+
+The owner was asked whether to retain fixtures unchanged and leave acceptance blocked, or explicitly authorize moving only the three disposable fixture dates from October 30 to October 31 at the same UTC times, retaining IDs, statuses and all history. That additional rescheduling is outside the current approved status-transition writes; no date adjustment will occur without authorization. No clock, Dashboard query, concurrency requirement or authentication bypass will be used.
+
+After the fixture prerequisite is resolved, launch the existing resume harness and pause for normal interactive sign-in: first admin@microemr.local, then rx.tenantb@example.invalid in the separate viewer context, selecting local-dev-fresh in both. The harness must verify the actual identities and effective permissions before E. Run E first; only after E PASS run C and D. Authenticated startup rendering and safe denial JSON still need runtime confirmation. No cleanup is appropriate: retain all three fixtures and historical evidence.
+
+**Final checkpoint: Product Readiness 04 - ACCEPTANCE PENDING.**
+
+
+## Step 04C continuation - Authorized fixture date adjustment and sign-in checkpoint
+
+2026-10-31 (America/Toronto). The owner explicitly selected **Authorize this fixture-only date adjustment** in response to the proposed October 30 -> October 31 move at unchanged UTC times. This supersedes only the fixture-date blocker above; the deployment evidence and original failure/pass evidence remain intact.
+
+Applied the adjustment once, through the existing dbo.ScheduleAppointment_Reschedule stored procedure, as clinical actor 2, in a single outer transaction for all three disposable fixtures. Before writes, verified the exact development server/database/singleton tenant, fixture marker, existing patient UID, CreatedBy=2, non-deleted state, expected statuses and original date/time. Retained existing provider/room resources and checked that all other appointment fields (except required update metadata/concurrency version) and all prior audit/history records remained unchanged. Verified exactly one new attributed Reschedule audit and Rescheduled history per fixture before commit. No procedure, permission or schema was changed.
+
+| Fixture UID | Committed October 31 UTC schedule | Preserved status | New reschedule audit/history |
+| --- | --- | --- | --- |
+| 73d606bc-b983-4ca8-bc26-92577c52c887 | 12:00-12:15 | Arrived | Audit 1523 / history 37 |
+| b29deff9-fd43-4e1a-adb2-860fa2b34239 | 12:15-12:30 | Completed | Audit 1524 / history 38 |
+| 0e29a3c3-d2a6-4b87-ad0e-97e7f2c65690 | 12:30-12:45 | Scheduled | Audit 1525 / history 39 |
+
+Receipt: .tmp/product-readiness-04c/fixture-date-adjustment.json. Ignored guarded local helper: .tmp/status-acceptance-preparation/04c-adjust-dates.fsx. All pre-existing histories were preserved; no appointment was created, reset, deleted, or moved between resources. These reschedule events are fixture preparation, not C/D transition PASS evidence.
+
+Launched the existing compiled resume-only harness with --no-build --no-restore, the existing credentials/configuration access mechanism, the same three IDs and resumeRemaining=true. No implementation tests, A/B, application build, deployment or restart were repeated. Its existing functional preflight completed; no separate migration/permission investigation was performed. New receipt: .tmp/status-live-acceptance/20261031-153906-3f5419b499514731a7b0cf0a9577cb67/results.json. Separate runner outputs will be retained in the fixture checkpoint folder as 04c-resume.log and 04c-resume-results/04c-resume.trx; old evidence remains untouched.
+
+At this checkpoint the runner is paused for normal interactive authentication. Sign into the first Chrome window as admin@microemr.local and select local-dev-fresh; then sign into the second isolated viewer context as rx.tenantb@example.invalid and select the same tenant. No password, token or session export is requested. The harness must verify actual identities/effective permissions before E, and E must pass before C/D run. Retain fixtures and all events if authentication times out; do not rerun the date adjustment.
+
+**E/C/D remain BLOCKED pending normal sign-in at this checkpoint. Product Readiness 04 - ACCEPTANCE PENDING.**
+
+
+## Step 04C final runtime results - E/C/D PASS
+
+2026-10-31, **11:41:59 America/Toronto / 15:41:59 UTC**. The existing resume-only live test completed successfully, **1 passed / 0 failed**, runner exit code **0**. This section supersedes the sign-in-pending and fixture-date-blocked checkpoints above. Combined with retained A/B PASS evidence: **Product Readiness 04 - SATISFIED - RUNTIME VERIFIED**.
+
+### Deployment and authenticated runtime evidence
+
+Web deployment PASS, affected development Web restart YES, corrected running version verified YES, as recorded above (Web PID 12824 and matching loaded-module/artifact SHA256). No second deployment or restart was performed. API/Auth remained untouched. No startup failure/critical events were observed in the captured Web log after the run.
+
+Normal interactive sign-in completed in isolated manager/viewer contexts. Both server-rendered authenticated identities matched the selected audience, clinical subject mapping and local-dev-fresh tenant f94c6ecd-4417-483e-8a94-0507cf8384c2. The manager admin@microemr.local mapped to actor 2 and had Scheduling.View/Manage. The genuine viewer rx.tenantb@example.invalid had Scheduling.View and lacked Scheduling.Manage; the harness rechecked effective permissions immediately before the denial request. No permissions/accounts were changed.
+
+The authenticated Dashboard loaded the three current-day fixtures. Manager success and concurrency checks each reloaded it and asserted the correct refreshed selector value and tenant. The separate Scheduling page was verified only to redirect unauthenticated requests to normal local Auth during startup checks; authenticated Scheduling-page rendering was not separately exercised by this harness. This qualification does not replace any of the five status-policy acceptance checks.
+
+### Scenario results
+
+| Scenario | Actual evidence | Result |
+| --- | --- | --- |
+| A - Scheduled -> Completed prohibited | Original 409/reverted selector/unchanged scoped state and records | PASS retained; not rerun |
+| B - Completed -> Scheduled prohibited | Original 409/unchanged scoped state and records | PASS retained; not rerun |
+| E - genuine viewer Arrived -> Seen denied | Dashboard HTTP 403; complete before/after scoped appointment, audit and history equality true; no unauthorized success record | PASS |
+| C - manager Arrived -> Seen allowed | HTTP 200; final Seen; exactly one new actor-2 UpdateStatus audit and StatusChanged history; reload showed Seen | PASS |
+| D - deterministic stale request | DMV assertion proved ScheduleAppointment_UpdateStatus waiting on the test holder's lock before the competing write; competing Scheduled -> Seen committed; stale Dashboard request returned safe HTTP 409; dropdown reverted then reload showed Seen; exactly one competing attributed audit/history pair and no stale success/lost update | PASS |
+
+The receipt records zero blocked writes. The runtime viewer 403 and unchanged snapshot are directly asserted. The existing harness does not persist or separately assert the viewer response JSON body: the fixed safe denial JSON is established by the 04B focused client/controller tests and the verified running artifact. No runtime body capture is claimed. D's conflict JSON safety is asserted by the existing harness. Historical 502 and original wrong-viewer-run evidence remain unchanged.
+
+### Final fixture and audit/history evidence
+
+After the successful harness run, performed one scoped read using the already prepared 04c-fixture-readonly.fsx helper. Verified the known development server/database/tenant and original fixture ownership marker. No further mutation was performed.
+
+| Approved fixture UID | Final state / date | Successful transition evidence |
+| --- | --- | --- |
+| 73d606bc-b983-4ca8-bc26-92577c52c887 | Seen; October 31 12:00-12:15 UTC | C: audit 1526 UpdateStatus Arrived -> Seen, actor 2; history 40 StatusChanged Arrived -> Seen, actor 2. Existing audit 1517/1522/1523 and history 31/36/37 retained |
+| b29deff9-fd43-4e1a-adb2-860fa2b34239 | Completed; October 31 12:15-12:30 UTC | No new status mutation in E/C/D; retained audits 1518/1520/1521/1524 and histories 32/34/35/38 |
+| 0e29a3c3-d2a6-4b87-ad0e-97e7f2c65690 | Seen; October 31 12:30-12:45 UTC | D: audit 1527 UpdateStatus Scheduled -> Seen, actor 2; history 41 StatusChanged Scheduled -> Seen, actor 2. Existing audit 1519/1525 and history 33/39 retained |
+
+All three disposable fixtures are retained with their complete histories. No cleanup reset, physical delete or historical-event deletion was performed. The separately authorized reschedule events 1523-1525 / 37-39 remain fixture-preparation evidence, distinct from C/D success events.
+
+### Evidence and closure
+
+- Sanitized PASS receipt: .tmp/status-live-acceptance/20261031-153906-3f5419b499514731a7b0cf0a9577cb67/results.json.
+- Runner output: .tmp/status-live-acceptance/PR04-acceptance-20261030-f259c0d7979f/04c-resume.log.
+- Successful test receipt: .tmp/status-live-acceptance/PR04-acceptance-20261030-f259c0d7979f/04c-resume-results/04c-resume.trx.
+- Date-adjustment and deployment receipts remain at the paths recorded above. All earlier A/B, 502 and failed-run artifacts remain intact.
+- Only this readiness report was edited during final result review; existing application correction, owner work and tests were preserved. No extra tests/builds, migration checks/changes, SQL grants, fixture writes, deployment/restart, commit or remote Git operation occurred during closure.
+- Final report diff/whitespace check completed. No Product Readiness 05 or OntarioMD certification work was started.
+
+**Product Readiness 04 - SATISFIED - RUNTIME VERIFIED.** No remaining A/B/E/C/D acceptance scenario. Qualifications are limited to the explicitly stated runtime JSON-body capture and separate authenticated Scheduling-page-rendering coverage; historical trace correlation remains as originally documented. Stop after recording these results.

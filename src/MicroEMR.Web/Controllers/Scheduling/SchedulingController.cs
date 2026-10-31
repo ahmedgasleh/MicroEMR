@@ -690,6 +690,7 @@ public sealed class SchedulingController : Controller
                 appointments.Select(appointment => new
                 {
                     id = appointment.AppointmentUid,
+                    appointmentUid = appointment.AppointmentUid,
                     text = BuildEventText(appointment),
                     start = FormatDayPilotLocal(
                         appointment.StartDateTimeUtc),
@@ -697,6 +698,8 @@ public sealed class SchedulingController : Controller
                         appointment.EndDateTimeUtc),
                     resource = appointment.PrimaryResourceUid,
                     primaryResourceUid = appointment.PrimaryResourceUid,
+                    roomResourceUid = appointment.RoomResourceUid,
+                    roomResourceName = appointment.RoomResourceName,
                     patientDisplayName = appointment.PatientDisplayName,
                     patientHealthCardNumber = appointment.PatientHealthCardNumber,
                     patientDateOfBirth = appointment.PatientDateOfBirth,

@@ -370,6 +370,14 @@ public sealed class SchedulingApiClient : ISchedulingApiClient
             _logger.HttpDependencyFailed("SchedulingApi.UpdateAppointmentStatus", (int)response.StatusCode);
             throw new AppointmentStatusConflictException();
         }
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            _logger.HttpDependencyFailed("SchedulingApi.UpdateAppointmentStatus", (int)response.StatusCode);
+            throw new HttpRequestException(
+                "You do not have permission to perform this action.",
+                inner: null,
+                statusCode: response.StatusCode);
+        }
 
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<UpdateAppointmentStatusResponse>(
