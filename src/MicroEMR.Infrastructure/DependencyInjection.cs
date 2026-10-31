@@ -126,6 +126,8 @@ public static class DependencyInjection
         services.AddScoped<IReferralDocumentRepository, ReferralDocumentRepository>();
         services.AddScoped<IPatientFileRepository, PatientFileRepository>();
         services.AddScoped<IClinicProfileRepository, ClinicProfileRepository>();
+        services.AddScoped<IClinicLogoRepository, ClinicLogoRepository>();
+        services.AddScoped<IClinicLogoProcessor, ClinicLogoProcessor>();
         services.AddSingleton<IPatientFileStorage, LocalPatientFileStorage>();
         services.AddScoped<IPatientAllergyRepository, PatientAllergyRepository>();
             services.AddScoped<IPatientDocumentRepository, PatientDocumentRepository>();

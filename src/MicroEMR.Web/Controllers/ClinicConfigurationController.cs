@@ -13,14 +13,16 @@ namespace MicroEMR.Web.Controllers;
 [RequireWebPermission(PermissionKeys.ClinicSettingsManage)]
 public sealed class ClinicConfigurationController(
     IClinicConfigurationApiClient client,
-    ILogger<ClinicConfigurationController> logger) : Controller
+    ILogger<ClinicConfigurationController> logger,
+    IClinicBrandingApiClient branding) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         try
         {
-            return View(await client.GetAsync(cancellationToken));
+            var model = await client.GetAsync(cancellationToken);
+            return await SettingsViewAsync(model, cancellationToken);
         }
         catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
         {
@@ -33,7 +35,7 @@ public sealed class ClinicConfigurationController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(ClinicConfigurationViewModel model, CancellationToken cancellationToken)
     {
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) return await SettingsViewAsync(model, cancellationToken);
 
         try
         {
@@ -48,20 +50,26 @@ public sealed class ClinicConfigurationController(
             ModelState.Clear();
             ModelState.AddModelError(string.Empty,
                 "Clinic settings were changed by another user. The latest values have been reloaded.");
-            return View(latest);
+            return await SettingsViewAsync(latest, cancellationToken);
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.BadRequest)
         {
             logger.LogWarning(exception, "The clinic settings API rejected the submitted values.");
             ModelState.AddModelError(string.Empty, "Please correct the clinic settings and try again.");
-            return View(model);
+            return await SettingsViewAsync(model, cancellationToken);
         }
         catch (Exception exception) when (exception is HttpRequestException or UnauthorizedAccessException)
         {
             logger.LogError(exception, "Clinic settings could not be saved.");
             ModelState.AddModelError(string.Empty, "Clinic settings could not be saved.");
-            return View(model);
+            return await SettingsViewAsync(model, cancellationToken);
         }
+    }
+
+    private async Task<ViewResult> SettingsViewAsync(ClinicConfigurationViewModel model, CancellationToken token)
+    {
+        model.Branding = await branding.GetStateAsync(token);
+        return View("Index", model);
     }
 
     private static SaveClinicConfigurationRequest ToRequest(ClinicConfigurationViewModel model) => new()

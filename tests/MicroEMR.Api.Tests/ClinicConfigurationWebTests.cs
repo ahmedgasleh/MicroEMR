@@ -62,7 +62,7 @@ public sealed class ClinicConfigurationWebTests
     {
         var api = new FakeApiClient { ConflictOnSave = true };
         var controller = new ClinicConfigurationController(api,
-            NullLogger<ClinicConfigurationController>.Instance);
+            NullLogger<ClinicConfigurationController>.Instance, Branding());
         controller.TempData = new TempDataDictionary(new DefaultHttpContext(), new TestTempDataProvider());
         var result = await controller.Index(new ClinicConfigurationViewModel
         {
@@ -81,7 +81,7 @@ public sealed class ClinicConfigurationWebTests
     {
         var api = new FakeApiClient();
         var controller = new ClinicConfigurationController(api,
-            NullLogger<ClinicConfigurationController>.Instance);
+            NullLogger<ClinicConfigurationController>.Instance, Branding());
         controller.TempData = new TempDataDictionary(new DefaultHttpContext(), new TestTempDataProvider());
         var result = await controller.Index(new ClinicConfigurationViewModel
         {
@@ -119,6 +119,9 @@ public sealed class ClinicConfigurationWebTests
         Assert.True(admin.HasClaim(MicroEmrClaimTypes.TenantRole, ClinicConfigurationAuthorization.Role));
         Assert.False(clinician.HasClaim(MicroEmrClaimTypes.TenantRole, ClinicConfigurationAuthorization.Role));
     }
+
+    private static IClinicBrandingApiClient Branding() => ConsultationSigningTests.Proxy<IClinicBrandingApiClient>(
+        (_, _) => Task.FromResult(new MicroEMR.Application.ClinicConfiguration.ClinicLogoState(false, null)));
 
     private static ClinicConfigurationApiClient Client(RecordingHandler handler)
     {

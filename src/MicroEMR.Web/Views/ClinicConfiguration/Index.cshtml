@@ -19,6 +19,45 @@
         <div class="alert alert-success mt-3" role="status">@successMessage</div>
     }
 
+    <section aria-labelledby="clinic-branding-heading" class="mt-4">
+        <h2 id="clinic-branding-heading" class="h5">Clinic Branding &amp; Printing</h2>
+        <p class="text-muted">Print headers use the clinic name and contact information below. Legal name takes precedence over the platform clinic name.</p>
+        @if (TempData["BrandingError"] is string brandingError)
+        {
+            <div class="alert alert-danger" role="alert">@brandingError</div>
+        }
+        @if (Model.Branding.HasLogo)
+        {
+            <img src="@Url.Action("Logo", "ClinicBranding")" alt="Current clinic logo" class="img-thumbnail mb-3" style="max-width:220px;max-height:130px;width:auto;height:auto;object-fit:contain" />
+        }
+        else
+        {
+            <p>No logo configured. Print headers use the clinic name and contact information.</p>
+        }
+        <form asp-controller="ClinicBranding" asp-action="Save" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="rowVersion" value="@Model.Branding.RowVersion" />
+            <div class="col-12 col-md-7">
+                <label for="clinicLogo" class="form-label">Upload / Replace Logo</label>
+                <input type="file" id="clinicLogo" name="logo" accept="image/png,image/jpeg" class="form-control" aria-describedby="clinicLogoHelp" />
+                <div id="clinicLogoHelp" class="form-text">PNG or JPEG, up to 1 MiB and 2048 pixels on each side. Save the logo separately from contact settings.</div>
+            </div>
+            <div class="col-auto"><button type="submit" class="btn btn-primary">Save Logo</button></div>
+        </form>
+        <div class="d-flex gap-2 align-items-center mt-3">
+            @if (Model.Branding.HasLogo)
+            {
+                <form asp-controller="ClinicBranding" asp-action="Save" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="rowVersion" value="@Model.Branding.RowVersion" />
+                    <input type="hidden" name="remove" value="true" />
+                    <button type="submit" class="btn btn-outline-danger">Remove Logo</button>
+                </form>
+            }
+            <a asp-controller="ClinicBranding" asp-action="Preview" target="_blank" rel="noopener" class="btn btn-outline-secondary">Preview Print Header</a>
+        </div>
+    </section>
+    <hr class="my-4" />
     <form asp-action="Index" method="post" class="mt-4" data-disable-on-submit="true">
         @Html.AntiForgeryToken()
         <input asp-for="RowVersion" type="hidden" />

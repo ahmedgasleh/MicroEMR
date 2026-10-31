@@ -4,6 +4,8 @@ namespace MicroEMR.Web.Models.ClinicConfiguration;
 
 public sealed class ClinicConfigurationViewModel
 {
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public MicroEMR.Application.ClinicConfiguration.ClinicLogoState Branding { get; set; } = new(false, null);
     [Display(Name = "Clinic name")]
     public string ClinicName { get; set; } = string.Empty;
 

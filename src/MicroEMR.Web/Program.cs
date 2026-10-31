@@ -99,6 +99,7 @@ AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientTaskApiClient, Patient
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientReferralApiClient, PatientReferralApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IPatientFileApiClient, PatientFileApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IClinicConfigurationApiClient, ClinicConfigurationApiClient>(ConfigureApiClient));
+AddApiTokenRefresh(builder.Services.AddHttpClient<IClinicBrandingApiClient, ClinicBrandingApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<ITenantUserAdministrationApiClient, TenantUserAdministrationApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IAccessProfileApiClient, AccessProfileApiClient>(ConfigureApiClient));
 AddApiTokenRefresh(builder.Services.AddHttpClient<IAppointmentStatusReportApiClient, AppointmentStatusReportApiClient>(ConfigureApiClient));

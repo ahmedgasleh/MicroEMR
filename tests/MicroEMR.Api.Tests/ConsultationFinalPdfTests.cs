@@ -84,6 +84,9 @@ public sealed class ConsultationFinalPdfTests
         Assert.True(recorded);
         Assert.Equal(download ? "final.pdf" : "", result.FileDownloadName);
         Assert.Equal("no-store", controller.Response.Headers.CacheControl.ToString());
+        using var returned = new MemoryStream();
+        await result.FileStream.CopyToAsync(returned);
+        Assert.Equal("%PDF-final"u8.ToArray(), returned.ToArray()); // Existing finalized bytes are returned without branding/regeneration.
     }
 
     [Fact]
