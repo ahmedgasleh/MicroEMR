@@ -99,6 +99,8 @@ public static class DependencyInjection
         services.AddScoped<IAdministrativeTenantSqlConnectionFactory, AdministrativeTenantSqlConnectionFactory>();
         services.AddScoped<ITenantDatabaseSecretProvider, ConfigurationTenantDatabaseSecretProvider>();
         services.AddScoped<ICppDisplayPreferencesRepository, CppDisplayPreferencesRepository>();
+        services.AddScoped<MicroEMR.Application.Scheduling.Preferences.ISchedulingResourcePreferencesRepository,
+            SchedulingResourcePreferencesRepository>();
         services.AddSingleton<PlaywrightPdfRenderer>();
         services.AddSingleton<IPdfRenderer>(sp => sp.GetRequiredService<PlaywrightPdfRenderer>());
         services.AddSingleton<IPrescriptionPdfRenderer>(sp => sp.GetRequiredService<PlaywrightPdfRenderer>());

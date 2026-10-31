@@ -106,6 +106,8 @@ public static class DependencyInjection
         services.AddScoped<IPatientCppService, PatientCppService>();
         services.AddScoped<ICppPrintService, CppPrintService>();
         services.AddScoped<ICppDisplayPreferencesService, CppDisplayPreferencesService>();
+        services.AddScoped<MicroEMR.Application.Scheduling.Preferences.ISchedulingResourcePreferencesService,
+            MicroEMR.Application.Scheduling.Preferences.SchedulingResourcePreferencesService>();
         services.AddScoped<IProviderAdministrationService, ProviderAdministrationService>();
         services.AddScoped<MicroEMR.Application.Scheduling.SchedulingResourceAdministrationService>();
 

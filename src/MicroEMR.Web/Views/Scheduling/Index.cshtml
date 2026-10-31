@@ -589,6 +589,10 @@
             </button>
         </div>
         <div class="scheduling-filter-summary" id="resourceFilterSummary">0 resources selected</div>
+        <div class="scheduling-filter-field d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="saveMyResourceDefaults" disabled>Save My Default Resources</button>
+            <button type="button" class="btn btn-outline-secondary" id="restoreMyResourceDefaults" disabled>Restore My Defaults</button>
+        </div>
         <div class="scheduling-filter-field">
             <label class="form-label" for="schedulingDaySheetScope">Day Sheet Clinicians</label>
             <select class="form-select" id="schedulingDaySheetScope">
@@ -610,6 +614,7 @@
 </div>
 
 <div id="resourceFilterMessage" class="alert alert-info d-none py-2" role="status"></div>
+<div id="resourceDefaultsMessage" class="alert alert-info d-none py-2" role="status" aria-live="polite"></div>
 
 <div class="modal fade" id="resourcePickerModal" tabindex="-1" aria-labelledby="resourcePickerModalLabel"
      aria-hidden="true">
@@ -1145,8 +1150,13 @@ else
         let miniCalendarSelectedKey = null;
         let selectedAppointment = null;
         let selectedResourceType = "";
-        let selectedResourceUids = new Set(
-            resources.slice(0, Math.min(5, resources.length)).map(resource => resource.resourceUid));
+        const resourceDefaults = new window.SchedulingResourceDefaults(
+            resources.map(resource => resource.resourceUid),
+            @Html.Raw(JsonSerializer.Serialize(Url.Action("Get", "SchedulingResourcePreferences"), jsonOptions)),
+            () => document.querySelector('#schedulingAntiforgeryForm input[name="__RequestVerificationToken"]').value);
+        // Resolve saved defaults before constructing/rendering the calendar. Reads never create defaults.
+        let selectedResourceUids = new Set(await resourceDefaults.load());
+        const resourceByUid = new Map(resources.map(resource => [resource.resourceUid, resource]));
         let pendingResourceUids = new Set();
         let blockedTimes = [];
         const resourceTypeFilter = document.getElementById("schedulingResourceTypeFilter");
@@ -1174,9 +1184,9 @@ else
         const quickViewContent = document.getElementById("schedulingQuickViewContent");
         const quickViewReasonGroup = document.getElementById("schedulingQuickViewReasonGroup");
 
-        const getMatchingResources = () => resources.filter(resource =>
-            (!selectedResourceType || resource.resourceType === selectedResourceType) &&
-            selectedResourceUids.has(resource.resourceUid));
+        const getMatchingResources = () => Array.from(selectedResourceUids)
+            .map(uid => resourceByUid.get(uid))
+            .filter(resource => resource && (!selectedResourceType || resource.resourceType === selectedResourceType));
 
         const getFilteredResources = () => getMatchingResources();
 
@@ -2750,6 +2760,30 @@ else
             await refreshMonthView();
         });
 
+        const saveDefaultsButton = document.getElementById("saveMyResourceDefaults");
+        const restoreDefaultsButton = document.getElementById("restoreMyResourceDefaults");
+        const showDefaultsFeedback = () => {
+            const message = document.getElementById("resourceDefaultsMessage");
+            message.className = `alert alert-${resourceDefaults.messageKind} py-2`;
+            message.textContent = resourceDefaults.message;
+            saveDefaultsButton.disabled = !resourceDefaults.canSave;
+            restoreDefaultsButton.disabled = false;
+        };
+        saveDefaultsButton.addEventListener("click", async () => {
+            saveDefaultsButton.disabled = true;
+            restoreDefaultsButton.disabled = true;
+            // Save all applied selections, including those hidden by the temporary resource-type filter.
+            await resourceDefaults.save(selectedResourceUids);
+            showDefaultsFeedback(); // Saving does not reset or refresh the current calendar view.
+        });
+        restoreDefaultsButton.addEventListener("click", async () => {
+            saveDefaultsButton.disabled = true;
+            restoreDefaultsButton.disabled = true;
+            selectedResourceUids = new Set(await resourceDefaults.restore(selectedResourceUids));
+            await refreshCalendar();
+            showDefaultsFeedback();
+        });
+        showDefaultsFeedback();
         await refreshCalendar();
         if (shouldOpenAddAppointment) {
             openAppointmentModalForDefaultSlot();
@@ -2758,6 +2792,7 @@ else
     </script>
     <script type="module" src="~/dist/scheduling/patient-display.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-projections.js" asp-append-version="true"></script>
+    <script type="module" src="~/dist/scheduling/resource-defaults.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/day-sheet.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/next-available.js" asp-append-version="true"></script>
     <script type="module" src="~/dist/scheduling/appointment-encounter-linking.js" asp-append-version="true"></script>
