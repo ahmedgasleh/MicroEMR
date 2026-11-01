@@ -16,7 +16,8 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
     IProviderAdministrationRepository providers, IClinicConfigurationService clinic,
     IPatientClinicalHistoryService history, ICurrentUserPermissionService permissions,
     IAuthenticatedClinicalUserAccessor actor, IClinicalPrintLayoutRenderer layout,
-    IPdfRenderer pdf, IPdfPageNumberer numbers, TimeProvider? clock = null) : ICppPrintService
+    IPdfRenderer pdf, IPdfPageNumberer numbers, TimeProvider? clock = null,
+    ClinicBrandingService? branding = null) : ICppPrintService
 {
     public async Task<CppPrintOptions> GetOptionsAsync(CancellationToken token = default)
     {
@@ -100,6 +101,9 @@ public sealed class CppPrintService(IPatientCppService cpp, IPatientRepository p
             new("CPP","Cumulative Patient Profile","Selected categories",now,clinician.DisplayName),
             new("Clinician",string.Join(" / ",new[] {clinician.DisplayName,clinician.ProviderType,clinician.Specialty}.Where(x => !string.IsNullOrWhiteSpace(x))),null,null,null),
             configuration.TimeZoneId);
+        context = context with { Branding = await (branding
+            ?? throw new InvalidOperationException("CPP branding service is unavailable."))
+            .GetPrintHeaderAsync("Cumulative Patient Profile",token) };
         var rendered = await pdf.RenderAsync(layout.Render(context,body.ToString()),token);
         return await numbers.NumberAsync(rendered,token);
     }

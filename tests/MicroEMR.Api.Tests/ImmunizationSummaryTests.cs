@@ -208,7 +208,7 @@ public sealed class ImmunizationSummaryTests
         }
     }
 
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         public Guid PatientUid { get; } = Guid.NewGuid();
         public PatientDetailsResponse Patient { get; }
@@ -218,8 +218,11 @@ public sealed class ImmunizationSummaryTests
         public string? RequestedStatus;
         public CapturingPdf Pdf { get; }
         public PatientImmunizationSummaryService Service { get; }
-        public Fixture()
+        public ClinicBrandingTests.Fixture Branding;
+        public Fixture(ClinicBrandingTests.Fixture? branding = null)
         {
+            Branding = branding ?? BrandedClinicalPdfTests.Branding(new ClinicConfigurationResponse("Clinic", "UTC", null, null, null, null, null, null, null, null, null, null, null, null, null, null),
+                new HashSet<string> {PermissionKeys.PatientsView});
             Patient = new() { PatientUid = PatientUid, FirstName = "Jane", LastName = "Example", DateOfBirth = new(1970, 1, 5), HealthCardNumber = "1234567890", HealthCardVersion = "AB" };
             Pdf = new(Events);
             Service = new(Proxy<IPatientService>(call => Task.FromResult<PatientDetailsResponse?>(call.Args[0]!.Equals(PatientUid) ? Patient : null)),
@@ -227,7 +230,7 @@ public sealed class ImmunizationSummaryTests
                 Proxy<IClinicConfigurationService>(_ => Task.FromResult(new ClinicConfigurationResponse("Clinic", "UTC", null, null, null, null, null, null, null, null, null, null, null, null, null, null))),
                 new ClinicalPrintLayoutRenderer(), Pdf,
                 Proxy<IPatientChartReadAuditService>(call => { Assert.Equal(PatientUid, call.Args[0]); Assert.Equal("trace", call.Args[1]); Events.Add("audit"); if (AuditFails) throw new InvalidOperationException("Audit unavailable"); return Task.FromResult(Guid.NewGuid()); }),
-                TimeProvider.System);
+                TimeProvider.System, Branding.Service);
         }
         public PatientImmunizationResponse Item(string name, DateOnly date, string? clinician, string status = "Completed", Guid? patientUid = null) =>
             new() { ImmunizationUid = Guid.NewGuid(), PatientUid = patientUid ?? PatientUid, VaccineName = name,
@@ -235,7 +238,7 @@ public sealed class ImmunizationSummaryTests
                 CreatedByDisplayName = "Record-entering user", RowVersion = "" };
     }
 
-    private sealed class CapturingPdf(List<string> events) : IPdfRenderer
+    internal sealed class CapturingPdf(List<string> events) : IPdfRenderer
     {
         public string? Html;
         public byte[] Bytes = Encoding.ASCII.GetBytes("%PDF-test");

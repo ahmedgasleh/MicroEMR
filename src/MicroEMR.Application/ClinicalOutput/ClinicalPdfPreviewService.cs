@@ -130,6 +130,8 @@ public sealed class ClinicalPdfPreviewService(
                 encounter.EncounterDateUtc, encounter.ProviderName ?? encounter.AppointmentProviderDisplayName),
             new("Prepared by", encounter.CreatedByDisplayName, encounter.CreatedAt,
                 encounter.SignedByDisplayName, encounter.SignedAt));
+        printContext = printContext with { Branding = await RequireBranding().GetPrintHeaderForDocumentAsync(
+            ClinicBrandingDocumentOperation.EncounterPreview, encounter.TemplateName ?? encounter.EncounterType, token) };
         return await RenderAsync(printContext, definition, data, context, null,
             encounter.EncounterUid, encounter.TemplateUid.Value, version.TemplateVersionUid, token, encounter.Contributions);
     }

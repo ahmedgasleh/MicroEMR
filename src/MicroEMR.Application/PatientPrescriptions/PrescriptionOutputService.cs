@@ -14,7 +14,10 @@ public sealed class PrescriptionSigningRequest
 public sealed record PrescriptionOutputRequester(string Subject, string Name, string CorrelationId);
 public sealed record PrescriptionOutputOccurrence(Guid Uid, DateTimeOffset GeneratedAtUtc,
     PrescriptionOutputRequester Requester);
-public sealed record PrescriptionPdfLayout(string Body, string Header, string Footer);
+public sealed record PrescriptionPdfLayout(string Body, string Header, string Footer)
+{
+    public bool MeasureHeader { get; init; }
+}
 
 public interface IPrescriptionPdfRenderer
 {
@@ -56,7 +59,9 @@ public sealed class PrescriptionOutputService(IPatientPrescriptionRepository pre
         if (artifact is null) return null;
         using var snapshot = JsonDocument.Parse(artifact.Json);
         var occurrence = new PrescriptionOutputOccurrence(Guid.NewGuid(), clock.GetUtcNow(), requester);
-        var bytes = snapshot.RootElement.TryGetProperty("PrescriptionOutputVersion", out var version) && version.GetInt32() == 2
+        var bytes = snapshot.RootElement.TryGetProperty("PrescriptionOutputVersion", out var version) && version.GetInt32() == 3
+            ? await pdf.RenderPrescriptionAsync(PrescriptionBrandingSnapshot.Compose(snapshot.RootElement, occurrence), token)
+            : snapshot.RootElement.TryGetProperty("PrescriptionOutputVersion", out version) && version.GetInt32() == 2
             ? await pdf.RenderPrescriptionAsync(Compose(snapshot.RootElement, occurrence), token)
             : await legacy.RenderArtifactPdfAsync(patient, prescription, token);
         if (bytes is null || bytes.Length == 0)

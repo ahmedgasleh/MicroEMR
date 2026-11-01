@@ -10,7 +10,7 @@ public sealed record ClinicLogo(byte[] PngBytes, int Width, int Height);
 public sealed record ClinicLogoRecord(ClinicLogo? Logo, string RowVersion);
 public sealed record ClinicLogoState(bool HasLogo, string? RowVersion);
 
-public enum ClinicBrandingDocumentOperation { ConsultationPreview, ConsultationSigning, ReferralGeneration }
+public enum ClinicBrandingDocumentOperation { ConsultationPreview, ConsultationSigning, ReferralGeneration, EncounterPreview }
 
 public interface IClinicLogoProcessor
 {
@@ -75,6 +75,7 @@ public sealed class ClinicBrandingService(IClinicLogoRepository repository, ICli
             ClinicBrandingDocumentOperation.ConsultationPreview => new[] { PermissionKeys.DocumentsView, PermissionKeys.DocumentsManage },
             ClinicBrandingDocumentOperation.ConsultationSigning => new[] { PermissionKeys.DocumentsView, PermissionKeys.DocumentsSign },
             ClinicBrandingDocumentOperation.ReferralGeneration => new[] { PermissionKeys.PatientsView, PermissionKeys.ReferralsView, PermissionKeys.ReferralsManage },
+            ClinicBrandingDocumentOperation.EncounterPreview => new[] { PermissionKeys.EncountersView, PermissionKeys.EncountersEdit },
             _ => throw new UnauthorizedAccessException()
         };
         var effective = await permissions.GetEffectivePermissionsAsync(token);

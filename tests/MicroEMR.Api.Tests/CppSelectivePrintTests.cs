@@ -302,8 +302,12 @@ public sealed class CppSelectivePrintTests
         public IPatientClinicalHistoryService? ActualHistory;
         public PatientCppSummaryResponse Data;
         public CppPrintService Service;
-        public Fixture()
+        public ClinicBrandingTests.Fixture Branding;
+        public Fixture(ClinicBrandingTests.Fixture? branding = null)
         {
+            Branding = branding ?? BrandedClinicalPdfTests.Branding(new ClinicConfigurationResponse("Clinic","America/Toronto","Clinic Legal Name",
+                "416-111-1111",null,null,"10 Clinic Street",null,"Toronto","ON","M1M1M1","CA",null,null,null,null),
+                new HashSet<string> {PermissionKeys.PatientsView});
             Data=new(Patient.PatientUid,new("Ada Lee",null,new(1980,1,1),46,null,null,null),
                 PatientCppSection<PatientCppProblem>.From(Enumerable.Range(0,12).Select(i=>new PatientCppProblem(Guid.NewGuid(),$"Problem {i}","Active",new(2026,1,1))).ToArray(),12),
                 PatientCppSection<PatientCppAllergy>.From([new(Guid.NewGuid(),"Unselected allergen","Active","Recorded reaction","Recorded severity")],1),
@@ -334,7 +338,7 @@ public sealed class CppSelectivePrintTests
                 }),Stub<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(Failure=="permission"?new HashSet<string>():new HashSet<string> {PermissionKeys.PatientsView})),
                 Stub<IAuthenticatedClinicalUserAccessor>((_,_)=>Failure=="actor"?throw new ClinicalUserResolutionException("Unavailable actor"):Task.FromResult(7L)),
                 new ClinicalPrintLayoutRenderer(),Stub<IPdfRenderer>((_,args)=>{RenderCalls++;return Task.FromResult(Encoding.UTF8.GetBytes((string)args[0]!));}),
-                Stub<IPdfPageNumberer>((_,args)=>{NumberCalls++;return Task.FromResult((byte[])args[0]!);}),new Clock());
+                Stub<IPdfPageNumberer>((_,args)=>{NumberCalls++;return Task.FromResult((byte[])args[0]!);}),new Clock(),Branding.Service);
         }
         public Task<byte[]?> Print(params string[] categories)=>Service.PrintAsync(Patient.PatientUid,new() {ClinicianUid=ClinicianUid,Categories=categories.ToList()},"trace");
     }

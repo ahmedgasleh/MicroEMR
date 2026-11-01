@@ -20,7 +20,8 @@ public sealed class PatientImmunizationSummaryService(
     IClinicalPrintLayoutRenderer layout,
     IPdfRenderer pdf,
     IPatientChartReadAuditService readAudit,
-    TimeProvider clock) : IPatientImmunizationSummaryService
+    TimeProvider clock,
+    ClinicBrandingService? branding = null) : IPatientImmunizationSummaryService
 {
     public async Task<byte[]?> GenerateAsync(Guid patientUid, string requestCorrelationId, CancellationToken token = default)
     {
@@ -54,7 +55,7 @@ public sealed class PatientImmunizationSummaryService(
             .immunization-summary { table-layout: fixed; }
             .immunization-summary th, .immunization-summary td { overflow-wrap: anywhere; vertical-align: top; }
             .immunization-summary thead { display: table-header-group; }
-            </style><h1>Immunization Summary</h1><h2>Immunization History</h2>
+            </style><h2>Immunization History</h2>
             """);
         if (history.Count == 0)
             body.Append("<p>No immunizations recorded.</p>");
@@ -80,6 +81,9 @@ public sealed class PatientImmunizationSummaryService(
             body.Append("</tbody></table>");
         }
 
+        context = context with { Branding = await (branding
+            ?? throw new InvalidOperationException("Immunization summary branding service is unavailable."))
+            .GetPrintHeaderAsync("Immunization Summary", token) };
         var bytes = await pdf.RenderAsync(layout.Render(context, body.ToString()), token);
         if (bytes.Length == 0) throw new PdfRenderingException("The immunization summary could not be rendered.");
         return bytes;

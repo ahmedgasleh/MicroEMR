@@ -31,6 +31,15 @@ public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger)
             });
             var page = await context.NewPageAsync();
             await page.RouteAsync("**/*", route => route.AbortAsync("blockedbyclient"));
+            var topMargin = layout is null ? "0.65in" : "1in";
+            if (layout?.MeasureHeader == true)
+            {
+                await page.SetViewportSizeAsync(816, 1056);
+                await page.SetContentAsync("<!doctype html><html><body style='margin:0'><div id='prescription-header-measure' style='display:flow-root'>" + layout.Header + "</div></body></html>");
+                var height = await page.EvaluateAsync<double>("() => Math.ceil(document.getElementById('prescription-header-measure').getBoundingClientRect().height)");
+                if (height > 384) throw new InvalidOperationException("Prescription header exceeds the supported page reservation.");
+                topMargin = ((height + 18) / 96).ToString(System.Globalization.CultureInfo.InvariantCulture) + "in";
+            }
             await page.SetContentAsync(html, new PageSetContentOptions { WaitUntil = WaitUntilState.Load });
             return await page.PdfAsync(new PagePdfOptions
             {
@@ -40,7 +49,7 @@ public sealed class PlaywrightPdfRenderer(ILogger<PlaywrightPdfRenderer> logger)
                 FooterTemplate = layout?.Footer,
                 PrintBackground = true,
                 PreferCSSPageSize = true,
-                Margin = new Margin { Top = layout is null ? "0.65in" : "1in", Right = "0.65in", Bottom = layout is null ? "0.65in" : "1.5in", Left = "0.65in" }
+                Margin = new Margin { Top = topMargin, Right = "0.65in", Bottom = layout is null ? "0.65in" : "1.5in", Left = "0.65in" }
             });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
