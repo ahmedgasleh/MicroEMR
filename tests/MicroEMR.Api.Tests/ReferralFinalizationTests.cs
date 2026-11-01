@@ -147,8 +147,12 @@ public sealed class ReferralFinalizationTests
         public ReferralArtifactWrite? Artifact; public int PdfCalls; public int StoreCalls;
         public string Failure=""; public string ProviderName="Dr Referrer"; public string DocumentTitle="Supporting report";
         private readonly Guid providerUid=Guid.NewGuid();
-        public Fixture(IReferralReportContentService? reports = null, IReferralPdfAssembler? assembler = null, IPdfRenderer? renderer = null)
+        private readonly string summary;
+        public Fixture(IReferralReportContentService? reports = null, IReferralPdfAssembler? assembler = null, IPdfRenderer? renderer = null,
+            ClinicBrandingTests.Fixture? brandingFixture = null, ClinicConfigurationResponse? configuration = null,
+            string clinicalSummary = "Clinical summary")
         {
+            summary=clinicalSummary;
             Source.RowVersion=Version;
             Source.Select(new("CPP","PROBLEMS"),new("CPP","ALLERGIES"),new("CPP","MEDICATIONS"),
                 new("ENCOUNTER",EncounterUid:Source.Encounter.EncounterUid),new("RESULT",ResultUid:Source.Result.PatientResultUid));
@@ -168,10 +172,11 @@ public sealed class ReferralFinalizationTests
             });
             PatientRepository=Stub<IPatientRepository>((m,a)=>Task.FromResult<PatientDetailsResponse?>(Patient));
             Actor=Stub<IAuthenticatedClinicalUserAccessor>((m,a)=>Task.FromResult(7L));
+            var clinic = configuration ?? new ClinicConfigurationResponse("Clinic Name","America/Toronto",null,
+                "416-111-1111","416-222-2222",null,"10 Clinic Street",null,"Toronto","ON","M1M1M1","CA",null,null,null,null);
             Service=new(Repository,PatientRepository,Actor,new ReferralStatusTransitionService(),
                 Stub<IPatientService>((m,a)=>Task.FromResult<PatientDetailsResponse?>(Patient)),
-                Stub<IClinicConfigurationService>((m,a)=>Task.FromResult(new ClinicConfigurationResponse("Clinic Name","America/Toronto",null,
-                    "416-111-1111","416-222-2222",null,"10 Clinic Street",null,"Toronto","ON","M1M1M1","CA",null,null,null,null))),
+                Stub<IClinicConfigurationService>((m,a)=>Task.FromResult(clinic)),
                 Stub<IReferralDocumentRepository>((m,a)=>
                 {
                     Assert.True((bool)a[3]!);
@@ -184,7 +189,8 @@ public sealed class ReferralFinalizationTests
                     return Task.FromResult(Failure=="empty-pdf"?Array.Empty<byte>():Encoding.UTF8.GetBytes((string)a[0]!));
                 }),new Clock(),Stub<ICurrentUserPermissionService>((m,a)=>Task.FromResult<IReadOnlySet<string>>(
                     Failure=="restricted-document"?new HashSet<string>():new HashSet<string>(Source.Permissions) {PermissionKeys.DocumentsView})),Source.Service,
-                reports ?? Stub<IReferralReportContentService>((m,a) => Task.FromResult(new ReferralReportComposition("<h2>" + DocumentTitle + "</h2><p>Complete report body</p>",[],[]))), assembler);
+                reports ?? Stub<IReferralReportContentService>((m,a) => Task.FromResult(new ReferralReportComposition("<h2>" + DocumentTitle + "</h2><p>Complete report body</p>",[],[]))), assembler,
+                (brandingFixture ?? BrandedClinicalPdfTests.Branding(clinic, Source.Permissions)).Service);
         }
         public Task<PatientReferralDetailsResponse?> Send(string? version=null)=>Service.MarkSentAsync(Patient.PatientUid,Source.ReferralUid,new() {RowVersion=version??Version});
         private Task<PatientReferral?> Store(ReferralArtifactWrite artifact)
@@ -199,7 +205,7 @@ public sealed class ReferralFinalizationTests
         private PatientReferral Record(ReferralStatus status,string version,DateTime? due=null)=>new()
         {
             PatientUid=Patient.PatientUid,ReferralUid=Source.ReferralUid,ReferringProviderUid=providerUid,
-            RecipientName="Dr Recipient",RecipientPhone="905-111-1111",RecipientFax="905-222-2222",Reason="Reason",ClinicalSummary="Clinical summary",
+            RecipientName="Dr Recipient",RecipientPhone="905-111-1111",RecipientFax="905-222-2222",Reason="Reason",ClinicalSummary=summary,
             Status=status,RowVersion=version,SentAt=Artifact?.SentAtUtc,ArtifactUid=Artifact?.ArtifactUid,FollowUpDueAt=due
         };
     }

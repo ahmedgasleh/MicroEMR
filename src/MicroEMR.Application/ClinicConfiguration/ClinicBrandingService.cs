@@ -2,12 +2,15 @@ using MicroEMR.Application.AccessProfiles;
 using MicroEMR.Application.ClinicalOutput;
 using MicroEMR.Application.ClinicalUsers;
 using MicroEMR.Application.Tenancy;
+using MicroEMR.Application.TenantUserAdministration;
 
 namespace MicroEMR.Application.ClinicConfiguration;
 
 public sealed record ClinicLogo(byte[] PngBytes, int Width, int Height);
 public sealed record ClinicLogoRecord(ClinicLogo? Logo, string RowVersion);
 public sealed record ClinicLogoState(bool HasLogo, string? RowVersion);
+
+public enum ClinicBrandingDocumentOperation { ConsultationPreview, ConsultationSigning, ReferralGeneration }
 
 public interface IClinicLogoProcessor
 {
@@ -22,7 +25,7 @@ public interface IClinicLogoRepository
 
 public sealed class ClinicBrandingService(IClinicLogoRepository repository, IClinicLogoProcessor processor,
     IClinicConfigurationService configuration, ICurrentUserPermissionService permissions,
-    IAuthenticatedClinicalUserAccessor actor, ITenantContext tenant)
+    IAuthenticatedClinicalUserAccessor actor, ITenantContext tenant, IAuthenticatedSubjectAccessor subject)
 {
     public const int MaximumLogoBytes = 1024 * 1024;
     public const int MaximumLogoDimension = 2048;
@@ -57,6 +60,30 @@ public sealed class ClinicBrandingService(IClinicLogoRepository repository, ICli
     public async Task<ClinicPrintHeader> GetPrintHeaderAsync(string title, CancellationToken token = default)
     {
         await RequireAsync(false, token);
+        return await LoadPrintHeaderAsync(title, token);
+    }
+
+    // Server-side only. Call after document/patient ownership, state and operation authorization.
+    // These checks supplement that workflow; retrieving a header never authorizes document access.
+    public async Task<ClinicPrintHeader> GetPrintHeaderForDocumentAsync(ClinicBrandingDocumentOperation operation,
+        string title, CancellationToken token = default)
+    {
+        if (string.IsNullOrWhiteSpace(subject.GetRequiredSubject()) || tenant.TenantUid == Guid.Empty)
+            throw new UnauthorizedAccessException();
+        var required = operation switch
+        {
+            ClinicBrandingDocumentOperation.ConsultationPreview => new[] { PermissionKeys.DocumentsView, PermissionKeys.DocumentsManage },
+            ClinicBrandingDocumentOperation.ConsultationSigning => new[] { PermissionKeys.DocumentsView, PermissionKeys.DocumentsSign },
+            ClinicBrandingDocumentOperation.ReferralGeneration => new[] { PermissionKeys.PatientsView, PermissionKeys.ReferralsView, PermissionKeys.ReferralsManage },
+            _ => throw new UnauthorizedAccessException()
+        };
+        var effective = await permissions.GetEffectivePermissionsAsync(token);
+        if (!required.All(effective.Contains)) throw new UnauthorizedAccessException();
+        return await LoadPrintHeaderAsync(title, token);
+    }
+
+    private async Task<ClinicPrintHeader> LoadPrintHeaderAsync(string title, CancellationToken token)
+    {
         var clinic = await configuration.GetAsync(token);
         return new(new(string.IsNullOrWhiteSpace(clinic.LegalName) ? clinic.ClinicName : clinic.LegalName,
             clinic.AddressLine1, clinic.AddressLine2, clinic.City, clinic.ProvinceState, clinic.PostalCode,

@@ -24,7 +24,8 @@ public sealed partial class PatientReferralService(
     MicroEMR.Application.AccessProfiles.ICurrentUserPermissionService? permissions = null,
     IReferralClinicalContentService? clinicalContent = null,
     IReferralReportContentService? reportContent = null,
-    IReferralPdfAssembler? pdfAssembler = null) : IPatientReferralService
+    IReferralPdfAssembler? pdfAssembler = null,
+    ClinicBrandingService? branding = null) : IPatientReferralService
 {
     public async Task<IReadOnlyList<PatientReferralListItemResponse>> GetByPatientUidAsync(
         Guid patientUid,
@@ -257,6 +258,8 @@ public sealed partial class PatientReferralService(
         if (!string.Equals(composition.SelectionSet.RowVersion, referral.RowVersion, StringComparison.Ordinal))
             throw new PatientReferralConcurrencyException();
         var selectedClinicalHtml = composition.Html;
+        var header = await (branding ?? throw new InvalidOperationException("Referral letter branding service is unavailable."))
+            .GetPrintHeaderForDocumentAsync(ClinicBrandingDocumentOperation.ReferralGeneration, "Referral Letter", cancellationToken);
         var selectedReports = documents.Count > 0 || composition.SelectionSet.Selections.Any(x => x.SelectionKind == ReferralClinicalSelectionKinds.File);
         var reports = selectedReports
             ? await (reportContent ?? throw new ReferralClinicalSelectionRuleException("Selected report content service is unavailable. Try again before sending."))
@@ -265,7 +268,7 @@ public sealed partial class PatientReferralService(
         // Patient alternative contact means a designated person/purpose (PC01.04).
         // Patient phone numbers are not a substitute for this designated person.
         var body = $"""
-            <section><h1>Referral Letter</h1>
+            <section>
             <p><strong>{(isDraftPreview ? "Draft preview date" : "Referral Letter Date")}:</strong> {letterDate.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)}</p>
             {(isDraftPreview ? "<p>Draft preview — not sent. The final Referral Letter Date is assigned when marked Sent.</p>" : string.Empty)}
             <h2>Referring clinician</h2><dl class="clinical-context-grid">
@@ -292,7 +295,7 @@ public sealed partial class PatientReferralService(
                 AlternativeContact = FormatAlternativeContacts(patient.AlternativeContacts)
             },
             new("Referral","Referral Letter",isDraftPreview ? "Outgoing referral — Draft preview" : "Outgoing referral",sentAt,provider.DisplayName),
-            new("Referring provider",provider.DisplayName,sentAt,null,null),clinic.TimeZoneId);
+            new("Referring provider",provider.DisplayName,sentAt,null,null),clinic.TimeZoneId) { Branding = header };
         var bytes = await (pdfRenderer ?? throw new InvalidOperationException("Referral letter PDF renderer is unavailable."))
             .RenderAsync((printLayout ?? throw new InvalidOperationException("Referral letter print layout is unavailable.")).Render(context,body),cancellationToken);
         if (bytes.Length == 0) throw new InvalidOperationException("Referral letter PDF rendering returned no content.");

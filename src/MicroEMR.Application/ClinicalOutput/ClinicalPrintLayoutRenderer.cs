@@ -33,7 +33,10 @@ public sealed record ClinicalPrintContext(
     ClinicalPrintPatient Patient,
     ClinicalPrintRecord Record,
     ClinicalPrintAuthorship Authorship,
-    string TimeZoneId);
+    string TimeZoneId)
+{
+    public ClinicPrintHeader? Branding { get; init; }
+}
 
 public interface IClinicalPrintLayoutRenderer
 {
@@ -47,15 +50,22 @@ public sealed class ClinicalPrintLayoutRenderer : IClinicalPrintLayoutRenderer
         ArgumentNullException.ThrowIfNull(context);
         var html = new StringBuilder("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>")
             .Append(E(context.Record.Title)).Append("</title><style>")
-            .Append(Css).Append("</style></head><body><main class=\"clinical-print-output\">");
+            .Append(Css).Append(context.Branding is null ? string.Empty : ClinicPrintHeaderRenderer.Css)
+            .Append("</style></head><body><main class=\"clinical-print-output\">");
 
-        html.Append("<header class=\"clinical-print-header\"><div class=\"clinic-identity\"><div class=\"clinic-name\">")
-            .Append(E(context.Clinic.Name)).Append("</div>");
-        AppendLine(html, context.Clinic.AddressLine1);
-        AppendLine(html, context.Clinic.AddressLine2);
-        AppendLine(html, JoinLocation(context.Clinic.City, context.Clinic.Province, context.Clinic.PostalCode));
-        AppendContactLine(html, context.Clinic);
-        html.Append("</div><dl class=\"clinical-context-grid\">");
+        if (context.Branding is not null) html.Append(ClinicPrintHeaderRenderer.Render(context.Branding));
+        html.Append("<header class=\"clinical-print-header\">");
+        if (context.Branding is null)
+        {
+            html.Append("<div class=\"clinic-identity\"><div class=\"clinic-name\">")
+                .Append(E(context.Clinic.Name)).Append("</div>");
+            AppendLine(html, context.Clinic.AddressLine1);
+            AppendLine(html, context.Clinic.AddressLine2);
+            AppendLine(html, JoinLocation(context.Clinic.City, context.Clinic.Province, context.Clinic.PostalCode));
+            AppendContactLine(html, context.Clinic);
+            html.Append("</div>");
+        }
+        html.Append("<dl class=\"clinical-context-grid\">");
         AppendPair(html, "Patient", context.Patient.FullName);
         AppendPair(html, "Patient address", context.Patient.Address);
         AppendPair(html, "Patient phone", context.Patient.Phone);

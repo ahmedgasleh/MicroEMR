@@ -42,13 +42,14 @@ public sealed class ConsultationFinalPdfTests
         { TemplateUid = document.TemplateUid.Value, TemplateVersionUid = document.TemplateVersionUid.Value, DefinitionJson = definitionJson }));
         var patients = Proxy<IPatientService>((_, _) => Task.FromResult<PatientDetailsResponse?>(new()
         { FirstName = "Jane", LastName = "Patient", DateOfBirth = new(1970, 1, 5), ChartNumber = "C100" }));
-        var clinic = Proxy<IClinicConfigurationService>((_, _) => Task.FromResult(new ClinicConfigurationResponse(
-            "Test Clinic", "UTC", null, null, null, null, null, null, null, null, null, null, null, null, null, null)));
+        var configuration = new ClinicConfigurationResponse("Test Clinic", "UTC", null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        var clinic = Proxy<IClinicConfigurationService>((_, _) => Task.FromResult(configuration));
         string? rendered = null;
         var pdf = Proxy<IPdfRenderer>((_, args) => { rendered = (string)args![0]!; return Task.FromResult("%PDF-test"u8.ToArray()); });
         var service = new ClinicalPdfPreviewService(null!, null!, versions, patients, clinic, serializer, runtime,
             new TemplateOutputBuilder(new TemplateVariableResolver()), new TemplateHtmlRenderer(), new ClinicalPrintLayoutRenderer(),
-            pdf, TimeProvider.System, NullLogger<ClinicalPdfPreviewService>.Instance);
+            pdf, TimeProvider.System, NullLogger<ClinicalPdfPreviewService>.Instance,
+            BrandedClinicalPdfTests.Branding(configuration, new HashSet<string> {PermissionKeys.DocumentsView,PermissionKeys.DocumentsSign}).Service);
         var snapshot = new ConsultationSigningContext(document,
             [new(Guid.NewGuid(), 1, "TO", Guid.NewGuid(), "Saved <Recipient>", "Saved Clinic", "416-555-0100")],
             Guid.NewGuid(), "Dr. <Signer>", new DateTime(2026, 10, 3, 12, 0, 0, DateTimeKind.Utc));

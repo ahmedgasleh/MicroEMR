@@ -38,7 +38,7 @@ public sealed class ReferralLetterCompositionTests
         Assert.Contains("<dt>Phone:</dt><dd>905-111-1111</dd>", html);
         Assert.Contains("<dt>Fax:</dt><dd>905-222-2222</dd>", html);
         Assert.DoesNotContain("Old provider snapshot", html);
-        var header = html[..html.IndexOf("</header>", StringComparison.Ordinal)];
+        var header = html[..html.IndexOf("<section class=\"clinical-print-body\">", StringComparison.Ordinal)];
         var body = html[html.IndexOf("<section class=\"clinical-print-body\">", StringComparison.Ordinal)..];
         foreach (var label in new[] { "Patient", "DOB", "Age", "Gender", "Sex at birth", "Health Card", "Patient alternative contact" })
         {
@@ -280,6 +280,9 @@ public sealed class ReferralLetterCompositionTests
                 Assert.Equal("GetByUidAsync", method); Assert.Equal(Referral.PatientUid, args[0]);
                 return Task.FromResult<PatientDetailsResponse?>(Patient);
             }
+            var clinic = new ClinicConfigurationResponse("Tenant name", "America/Toronto", "Clinic Legal Name",
+                "416-111-1111", "416-222-2222", "clinic@example.test", "10 Clinic Street", null,
+                "Toronto", "ON", "M1M 1M1", "CA", null, null, null, null);
             Service = new(referrals, Stub<IPatientRepository>(PatientRead),
                 Stub<IAuthenticatedClinicalUserAccessor>((method, _) =>
                 {
@@ -290,9 +293,7 @@ public sealed class ReferralLetterCompositionTests
                 Stub<IClinicConfigurationService>((method, _) =>
                 {
                     Assert.Equal("GetAsync", method);
-                    return Task.FromResult(new ClinicConfigurationResponse("Tenant name", "America/Toronto", "Clinic Legal Name",
-                        "416-111-1111", "416-222-2222", "clinic@example.test", "10 Clinic Street", null,
-                        "Toronto", "ON", "M1M 1M1", "CA", null, null, null, null));
+                    return Task.FromResult(clinic);
                 }), Stub<IReferralDocumentRepository>((method, args) =>
                 {
                     Assert.Equal("GetByReferralUidAsync", method);
@@ -308,7 +309,8 @@ public sealed class ReferralLetterCompositionTests
                     Task.FromResult<IReadOnlySet<string>>(new HashSet<string> { MicroEMR.Application.AccessProfiles.PermissionKeys.DocumentsView })),
                 clinicalContent: Stub<IReferralClinicalContentService>((method, _) => Task.FromResult(new ReferralClinicalComposition(
                     selectedClinicalHtml,new(Patient.PatientUid,Referral.ReferralUid,Referral.RowVersion,[])))),
-                reportContent: Stub<IReferralReportContentService>((method, _) => Task.FromResult(new ReferralReportComposition("<h2>Selected consultation / external reports</h2><h3>Supporting report</h3><p>Complete report body</p>",[],[]))));
+                reportContent: Stub<IReferralReportContentService>((method, _) => Task.FromResult(new ReferralReportComposition("<h2>Selected consultation / external reports</h2><h3>Supporting report</h3><p>Complete report body</p>",[],[]))),
+                branding: BrandedClinicalPdfTests.Branding(clinic, new HashSet<string> { "Patients.View", "Referrals.View", "Referrals.Manage" }).Service);
         }
 
         public async Task<string> Preview() => Encoding.UTF8.GetString(

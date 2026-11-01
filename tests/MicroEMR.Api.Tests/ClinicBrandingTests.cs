@@ -145,14 +145,21 @@ public sealed class ClinicBrandingTests
         public TestRepository Repository {get;}
         public ClinicBrandingService Service {get;}
         public int DecodeCalls;
+        public int ConfigurationReads;
+        public Exception? ConfigurationFailure;
         public ClinicConfigurationResponse Configuration = new("Tenant A Clinic","UTC",null,null,null,null,null,null,null,null,null,null,null,null,null,null);
-        public Fixture(string permission=PermissionKeys.ClinicSettingsManage)
+        public Fixture(string permission=PermissionKeys.ClinicSettingsManage,
+            IReadOnlySet<string>? effectivePermissions=null,
+            MicroEMR.Application.TenantUserAdministration.IAuthenticatedSubjectAccessor? subject=null)
         {
             Repository = new(Tenant);
             Service = new(Repository,Proxy<IClinicLogoProcessor>((_,args)=>{DecodeCalls++;return Task.FromResult(new ClinicLogo((byte[])args![0]!,1,1));}),
-                Proxy<IClinicConfigurationService>((_,_)=>Task.FromResult(Configuration with {ClinicName=Tenant.DisplayName})),
-                Proxy<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(new HashSet<string>{permission})),
-                Proxy<IAuthenticatedClinicalUserAccessor>((_,_)=>Task.FromResult(7L)),Tenant);
+                Proxy<IClinicConfigurationService>((_,_)=>{ConfigurationReads++;return ConfigurationFailure is null
+                    ? Task.FromResult(Configuration with {ClinicName=Tenant.DisplayName})
+                    : Task.FromException<ClinicConfigurationResponse>(ConfigurationFailure);}),
+                Proxy<ICurrentUserPermissionService>((_,_)=>Task.FromResult<IReadOnlySet<string>>(effectivePermissions??new HashSet<string>{permission})),
+                Proxy<IAuthenticatedClinicalUserAccessor>((_,_)=>Task.FromResult(7L)),Tenant,
+                subject??Proxy<MicroEMR.Application.TenantUserAdministration.IAuthenticatedSubjectAccessor>((_,_)=>"branding-test-subject"));
         }
     }
     internal sealed class TestTenant : ITenantContext

@@ -34,7 +34,8 @@ public sealed class ClinicalPdfPreviewService(
     IClinicalPrintLayoutRenderer printLayout,
     IPdfRenderer pdfRenderer,
     TimeProvider timeProvider,
-    ILogger<ClinicalPdfPreviewService> logger) : IClinicalPdfPreviewService
+    ILogger<ClinicalPdfPreviewService> logger,
+    ClinicBrandingService? branding = null) : IClinicalPdfPreviewService
 {
     public async Task<byte[]> RenderConsultationFinalAsync(MicroEMR.Application.PatientDocuments.Contracts.ConsultationSigningContext snapshot,
         CancellationToken token = default)
@@ -67,6 +68,8 @@ public sealed class ClinicalPdfPreviewService(
         var printContext = CreatePrintContext(clinic, patient,
             new("Document", document.Title, "Consultation Report", document.CreatedAt, snapshot.SignerDisplayName),
             new("Created by", document.CreatedByDisplayName, document.CreatedAt, snapshot.SignerDisplayName, snapshot.SignedAtUtc));
+        printContext = printContext with { Branding = await RequireBranding().GetPrintHeaderForDocumentAsync(
+            ClinicBrandingDocumentOperation.ConsultationSigning, "Consultation Report", token) };
         return await pdfRenderer.RenderAsync(printLayout.Render(printContext, recipients.ToString()), token);
     }
 
@@ -91,6 +94,10 @@ public sealed class ClinicalPdfPreviewService(
         var printContext = CreatePrintContext(clinic, patient,
             new("Document", document.Title, document.DocumentType, document.CreatedAt, null),
             new("Created by", document.CreatedByDisplayName, document.CreatedAt, null, null));
+        var template = await documents.GetTemplateByUidAsync(document.TemplateUid.Value, token);
+        if (template?.DocumentType == "CONSULTATION_REPORT")
+            printContext = printContext with { Branding = await RequireBranding().GetPrintHeaderForDocumentAsync(
+                ClinicBrandingDocumentOperation.ConsultationPreview, "Consultation Report", token) };
         return await RenderAsync(printContext, definition, data, context, document.DocumentUid, null,
             document.TemplateUid.Value, version.TemplateVersionUid, token);
     }
@@ -126,6 +133,9 @@ public sealed class ClinicalPdfPreviewService(
         return await RenderAsync(printContext, definition, data, context, null,
             encounter.EncounterUid, encounter.TemplateUid.Value, version.TemplateVersionUid, token, encounter.Contributions);
     }
+
+    private ClinicBrandingService RequireBranding() => branding
+        ?? throw new InvalidOperationException("Consultation branding service is unavailable.");
 
     private TemplateInstanceData ProcessDraft(Templates.Definitions.TemplateDefinition definition, string? json)
     {
