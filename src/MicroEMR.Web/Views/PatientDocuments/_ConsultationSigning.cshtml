@@ -14,8 +14,10 @@
                 @if (!string.IsNullOrWhiteSpace(recipient.FaxSnapshot)) { <span> · Fax: @recipient.FaxSnapshot</span> }
             </p>
         }
-        <a class="btn btn-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" target="_blank" rel="noopener">View final PDF</a>
-        <a class="btn btn-outline-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" asp-route-download="true">Download final PDF</a>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a class="btn btn-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" target="_blank" rel="noopener">View final PDF</a>
+            <a class="btn btn-outline-primary" asp-action="FinalPdf" asp-route-patientUid="@Model.PatientUid" asp-route-documentUid="@Model.DocumentUid" asp-route-download="true">Download final PDF</a>
+        </div>
     </section>
 }
 else if (Model.Status == "Draft" && await Permissions.HasAsync(PermissionKeys.DocumentsSign, Context.RequestAborted))

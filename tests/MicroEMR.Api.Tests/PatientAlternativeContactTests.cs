@@ -108,7 +108,8 @@ public sealed class PatientAlternativeContactTests
         var folder = Path.Combine(AppContext.BaseDirectory, "database", "tenant-clinical");
         var sql = File.ReadAllText(Path.Combine(folder, "migrations", "0066-patient-alternative-contacts.sql"));
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "manifest.json")));
-        Assert.Equal("0066-patient-alternative-contacts", manifest.RootElement.EnumerateArray().Last().GetProperty("migrationId").GetString());
+        Assert.Single(manifest.RootElement.EnumerateArray(),
+            item => item.GetProperty("migrationId").GetString() == "0066-patient-alternative-contacts");
         foreach (var expected in new[] { "Patient ADD AlternativeContactsJson NVARCHAR(MAX) NULL", "ISJSON(@AlternativeContactsJson)",
             "PROCEDURE dbo.Patient_Create", "PROCEDURE dbo.Patient_GetByUid", "PROCEDURE dbo.Patient_UpdateDemographics",
             "AlternativeContactsJson = COALESCE(@AlternativeContactsJson, AlternativeContactsJson)",

@@ -1,3 +1,6 @@
+export {};
+declare const bootstrap: { Modal: { getOrCreateInstance(element: Element): { show(): void } } };
+
 type RuntimeInput = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -32,16 +35,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const preview = document.querySelector<HTMLButtonElement>("#previewDocumentButton");
-    const hide = document.querySelector<HTMLButtonElement>("#hideDocumentPreviewButton");
-    const pane = document.querySelector<HTMLElement>("#documentPdfPreviewPane");
-    const editor = document.querySelector<HTMLElement>("#documentEditorPane");
+    const modalElement = document.querySelector<HTMLElement>("#documentPdfPreviewModal");
+    const modal = modalElement ? bootstrap.Modal.getOrCreateInstance(modalElement) : null;
+    const loading = document.querySelector<HTMLElement>("#documentPdfPreviewLoading");
     const frame = document.querySelector<HTMLIFrameElement>("#documentPdfPreviewFrame");
     const message = document.querySelector<HTMLElement>("#documentPdfPreviewMessage");
     let objectUrl: string | null = null;
+    let previewRequest = 0;
     const clearUrl = (): void => { if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = null; };
     preview?.addEventListener("click", async () => {
+        const request = ++previewRequest;
         preview.disabled = true; preview.textContent = "Generating…";
         message?.classList.add("d-none");
+        frame?.classList.add("d-none");
+        loading?.classList.remove("d-none");
+        modal?.show();
         try {
             const body = new FormData();
             body.append("documentUid", form.dataset.documentUid ?? "");
@@ -53,14 +61,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 body
             });
             if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message ?? "PDF preview could not be generated.");
-            clearUrl(); objectUrl = URL.createObjectURL(await response.blob());
+            const blob = await response.blob();
+            if (request !== previewRequest) return;
+            clearUrl(); objectUrl = URL.createObjectURL(blob);
             if (frame) frame.src = objectUrl;
-            pane?.classList.remove("d-none"); editor?.classList.replace("col-12", "col-lg-6");
-            hide?.classList.remove("d-none"); preview.textContent = "Refresh Preview";
+            frame?.classList.remove("d-none");
         } catch (error) {
-            if (message) { message.textContent = error instanceof Error ? error.message : "PDF preview could not be generated."; message.classList.remove("d-none"); }
-        } finally { preview.disabled = false; if (preview.textContent === "Generating…") preview.textContent = "Preview"; }
+            if (request === previewRequest && message) { message.textContent = error instanceof Error ? error.message : "PDF preview could not be generated."; message.classList.remove("d-none"); }
+        } finally { preview.disabled = false; preview.textContent = "Preview"; loading?.classList.add("d-none"); }
     });
-    hide?.addEventListener("click", () => { pane?.classList.add("d-none"); editor?.classList.replace("col-lg-6", "col-12"); hide.classList.add("d-none"); });
-    window.addEventListener("pagehide", clearUrl);
+    const clearPreview = (): void => { previewRequest++; frame?.removeAttribute("src"); frame?.classList.add("d-none"); clearUrl(); };
+    modalElement?.addEventListener("hide.bs.modal", clearPreview);
+    modalElement?.addEventListener("hidden.bs.modal", () => { preview?.focus(); });
+    window.addEventListener("pagehide", clearPreview);
 });

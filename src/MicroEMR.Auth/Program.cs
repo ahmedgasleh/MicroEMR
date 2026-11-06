@@ -72,6 +72,28 @@ builder.Services.AddOpenIddict()
         options.SetRefreshTokenLifetime(TimeSpan.FromDays(14));
 
         options.RequireProofKeyForCodeExchange();
+        // Deny this dedicated client outside the explicitly enabled development environment,
+        // including if an old registration is present in the connected Auth store.
+        options.AddEventHandler<OpenIddict.Server.OpenIddictServerEvents.ValidateAuthorizationRequestContext>(handler =>
+            handler.UseInlineHandler(context =>
+            {
+                if (context.Request.ClientId == DemoSetupClient.ClientId &&
+                    !DemoSetupClient.AcceptAuthorization(
+                        DemoSetupClient.Enabled(builder.Environment, builder.Configuration),
+                        context.Request.RedirectUri, context.Request.CodeChallengeMethod, context.Request.Scope))
+                    context.Reject(OpenIddictConstants.Errors.InvalidRequest, "Local demo client request is not permitted.");
+                return default;
+            }));
+        options.AddEventHandler<OpenIddict.Server.OpenIddictServerEvents.ValidateTokenRequestContext>(handler =>
+            handler.UseInlineHandler(context =>
+            {
+                if (context.Request.ClientId == DemoSetupClient.ClientId &&
+                    (!DemoSetupClient.Enabled(builder.Environment, builder.Configuration) ||
+                     context.Request.GrantType != OpenIddictConstants.GrantTypes.AuthorizationCode ||
+                     context.Request.RedirectUri != DemoSetupClient.RedirectUri))
+                    context.Reject(OpenIddictConstants.Errors.InvalidRequest, "Local demo client request is not permitted.");
+                return default;
+            }));
         options.DisableAccessTokenEncryption();
 
         options.RegisterScopes(
@@ -92,6 +114,7 @@ builder.Services.AddOpenIddict()
             .EnableUserInfoEndpointPassthrough();
     });
 builder.Services.AddHostedService<SeedData>();
+builder.Services.AddHostedService<DemoSetupClient>();
 
 var app = builder.Build();
 

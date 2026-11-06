@@ -889,11 +889,13 @@
                             }
                             else { <span>—</span> }
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             @if (canManageClinicalData && string.Equals(problem.ProblemStatus, "Active", StringComparison.OrdinalIgnoreCase))
                             {
-                                <button type="button" class="btn btn-sm btn-outline-secondary edit-problem-button">Edit</button>
-                                <button type="button" class="btn btn-sm btn-outline-danger resolve-problem-button">Resolve</button>
+                                <div class="d-inline-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary edit-problem-button">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger resolve-problem-button">Resolve</button>
+                                </div>
                             }
                         </td>
                     </tr>

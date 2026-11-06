@@ -1,4 +1,3 @@
-"use strict";
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("#documentEditForm[data-structured='true']");
     const container = form?.querySelector(".template-runtime");
@@ -42,18 +41,23 @@ document.addEventListener("DOMContentLoaded", () => {
             event.preventDefault();
     });
     const preview = document.querySelector("#previewDocumentButton");
-    const hide = document.querySelector("#hideDocumentPreviewButton");
-    const pane = document.querySelector("#documentPdfPreviewPane");
-    const editor = document.querySelector("#documentEditorPane");
+    const modalElement = document.querySelector("#documentPdfPreviewModal");
+    const modal = modalElement ? bootstrap.Modal.getOrCreateInstance(modalElement) : null;
+    const loading = document.querySelector("#documentPdfPreviewLoading");
     const frame = document.querySelector("#documentPdfPreviewFrame");
     const message = document.querySelector("#documentPdfPreviewMessage");
     let objectUrl = null;
+    let previewRequest = 0;
     const clearUrl = () => { if (objectUrl)
         URL.revokeObjectURL(objectUrl); objectUrl = null; };
     preview?.addEventListener("click", async () => {
+        const request = ++previewRequest;
         preview.disabled = true;
         preview.textContent = "Generating…";
         message?.classList.add("d-none");
+        frame?.classList.add("d-none");
+        loading?.classList.remove("d-none");
+        modal?.show();
         try {
             const body = new FormData();
             body.append("documentUid", form.dataset.documentUid ?? "");
@@ -66,28 +70,31 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             if (!response.ok)
                 throw new Error((await response.json().catch(() => ({}))).message ?? "PDF preview could not be generated.");
+            const blob = await response.blob();
+            if (request !== previewRequest)
+                return;
             clearUrl();
-            objectUrl = URL.createObjectURL(await response.blob());
+            objectUrl = URL.createObjectURL(blob);
             if (frame)
                 frame.src = objectUrl;
-            pane?.classList.remove("d-none");
-            editor?.classList.replace("col-12", "col-lg-6");
-            hide?.classList.remove("d-none");
-            preview.textContent = "Refresh Preview";
+            frame?.classList.remove("d-none");
         }
         catch (error) {
-            if (message) {
+            if (request === previewRequest && message) {
                 message.textContent = error instanceof Error ? error.message : "PDF preview could not be generated.";
                 message.classList.remove("d-none");
             }
         }
         finally {
             preview.disabled = false;
-            if (preview.textContent === "Generating…")
-                preview.textContent = "Preview";
+            preview.textContent = "Preview";
+            loading?.classList.add("d-none");
         }
     });
-    hide?.addEventListener("click", () => { pane?.classList.add("d-none"); editor?.classList.replace("col-lg-6", "col-12"); hide.classList.add("d-none"); });
-    window.addEventListener("pagehide", clearUrl);
+    const clearPreview = () => { previewRequest++; frame?.removeAttribute("src"); frame?.classList.add("d-none"); clearUrl(); };
+    modalElement?.addEventListener("hide.bs.modal", clearPreview);
+    modalElement?.addEventListener("hidden.bs.modal", () => { preview?.focus(); });
+    window.addEventListener("pagehide", clearPreview);
 });
+export {};
 //# sourceMappingURL=runtime.js.map

@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\MicroEMR.Auth\MicroEMR.Auth.csproj" />
+    <ProjectReference Include="..\..\scripts\demo-environment\OAuthLauncher\OAuthLauncher.csproj" />
   </ItemGroup>
 </Project>

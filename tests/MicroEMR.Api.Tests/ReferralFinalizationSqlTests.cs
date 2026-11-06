@@ -115,7 +115,9 @@ public sealed class ReferralFinalizationSqlTests
                 """);
             // Apply existing referral-only scripts to disposable databases, never the active tenant.
             foreach(var file in new[] {"0021-patient-referrals-foundation.sql","0023-patient-referral-document-linkage.sql",
-                "0056-referral-letter-artifact.sql","0058-referral-followup-response-tracking.sql","0065-referral-clinical-selections.sql"})
+                "0025-patient-files-foundation.sql", "0056-referral-letter-artifact.sql",
+                "0058-referral-followup-response-tracking.sql","0065-referral-clinical-selections.sql",
+                "0068-referral-report-content.sql"})
             {
                 var source=File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"database","tenant-clinical","migrations",file));
                 foreach(var batch in Regex.Split(source,@"^\s*GO\s*$",RegexOptions.Multiline|RegexOptions.IgnoreCase))

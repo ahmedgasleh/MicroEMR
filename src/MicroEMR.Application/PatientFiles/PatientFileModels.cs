@@ -32,6 +32,7 @@ public sealed class PatientFile
 
 public sealed class CreatePatientFileMetadata
 {
+    public required Guid FileUid { get; init; }
     public required string OriginalFileName { get; init; }
     public required string StorageKey { get; init; }
     public required string ContentType { get; init; }

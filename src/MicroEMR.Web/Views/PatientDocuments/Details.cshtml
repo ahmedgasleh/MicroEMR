@@ -13,13 +13,13 @@
 }
 
 <div class="content-panel">
-    <div class="content-panel-header">
+    <div class="content-panel-header flex-wrap gap-3">
         <div>
             <h3 id="documentHeading">@Model.Title</h3>
             <p id="documentSubtitle">@Model.DocumentType</p>
         </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
             @if (isDraft)
             {
                 <button type="button" class="btn btn-primary @(showEditor ? "d-none" : "")" id="editDocumentButton"
@@ -124,7 +124,7 @@
               id="documentEditForm"
               data-structured="@Model.IsStructured.ToString().ToLowerInvariant()"
               data-document-uid="@Model.DocumentUid"
-              class="@(showEditor ? "" : "d-none") mt-4">
+              class="@(showEditor ? "" : "d-none") border rounded-3 p-3 mt-3">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
             <input type="hidden" name="RowVersion" value="@Model.RowVersion" />
@@ -135,7 +135,7 @@
             }
 
             <div class="row g-3 align-items-stretch" id="documentPreviewLayout">
-              <div class="col-12" id="documentEditorPane"><div class="row g-3 h-100">
+              <div class="col-12" id="documentEditorPane"><div class="row g-3 align-items-end">
                 <div class="col-12 col-lg-8">
                     <label for="editDocumentTitle" class="form-label">Title</label>
                     <input id="editDocumentTitle"
@@ -166,19 +166,12 @@
                     </div>
                 }
               </div></div>
-              <div class="col-12 col-lg-6 d-none" id="documentPdfPreviewPane">
-                <div class="d-flex flex-column h-100">
-                <div id="documentPdfPreviewMessage" class="alert alert-danger d-none"></div>
-                <iframe id="documentPdfPreviewFrame" class="w-100 h-100 flex-grow-1 border rounded" style="min-height:70vh" title="Patient document PDF preview"></iframe>
-                </div>
-              </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
+            <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mt-4 pt-4 border-top">
                 @if (Model.IsStructured)
                 {
-                    <button type="button" class="btn btn-outline-primary" id="previewDocumentButton">Preview</button>
-                    <button type="button" class="btn btn-outline-secondary d-none" id="hideDocumentPreviewButton">Hide Preview</button>
+                    <button type="button" class="btn btn-outline-primary" id="previewDocumentButton" aria-haspopup="dialog" aria-controls="documentPdfPreviewModal">Preview</button>
                 }
                 <button type="button" class="btn btn-outline-secondary" id="cancelDocumentEditButton">Cancel</button>
                 <button type="submit" class="btn btn-primary" id="saveDocumentButton">
@@ -187,6 +180,29 @@
                 </button>
             </div>
         </form>
+        @if (Model.IsStructured)
+        {
+            <div class="modal fade" id="documentPdfPreviewModal" tabindex="-1" aria-labelledby="documentPdfPreviewTitle" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="documentPdfPreviewTitle">Document PDF preview</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close preview"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="documentPdfPreviewLoading" class="d-none" role="status">
+                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Generating preview…
+                            </div>
+                            <div id="documentPdfPreviewMessage" class="alert alert-danger d-none" role="alert"></div>
+                            <iframe id="documentPdfPreviewFrame" class="w-100 border-0 d-none" style="height:70vh" title="Patient document PDF preview"></iframe>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     }
 </div>
 

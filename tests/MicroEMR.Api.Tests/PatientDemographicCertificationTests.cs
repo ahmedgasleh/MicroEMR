@@ -200,8 +200,12 @@ public sealed class PatientDemographicCertificationTests
         Assert.NotNull(permission.Policy);
     }
 
-    private static string Root() => Path.GetFullPath(Path.Combine(
-        AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    private static string Root()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md"))) return directory.FullName;
+        throw new DirectoryNotFoundException("Repository root unavailable.");
+    }
 
     private static int Count(string value, string fragment) =>
         (value.Length - value.Replace(fragment, string.Empty, StringComparison.Ordinal).Length)

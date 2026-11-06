@@ -15,19 +15,20 @@
         @Html.AntiForgeryToken()
         <input type="hidden" name="PatientUid" value="@Model.PatientUid" />
         <input type="hidden" name="RowVersion" value="@state.RowVersion" />
-        <div id="consultationRecipientRows">
+        <div class="row g-2 align-items-start">
+        <div id="consultationRecipientRows" class="col-12 col-xl">
             @for (var index = 0; index < rows.Length; index++)
             {
                 var row = rows[index];
                 <div class="row g-2 align-items-end mb-2 consultation-recipient-row">
-                    <div class="col-12 col-md-2">
+                    <div class="col-12 col-md-3 col-xl-auto">
                         <label class="form-label">Recipient type</label>
                         <select class="form-select recipient-type" name="Recipients[@index].RecipientType" required>
                             <option value="TO" selected="@(row.RecipientType == "TO" ? "selected" : null)">TO</option>
                             <option value="CC" selected="@(row.RecipientType == "CC" ? "selected" : null)">CC</option>
                         </select>
                     </div>
-                    <div class="col-12 col-md-7">
+                    <div class="col-12 col-md-9 col-xl">
                         <label class="form-label">Provider</label>
                         <select class="form-select recipient-provider" name="Recipients[@index].ProviderUid" required>
                             <option value="@row.ProviderUid" selected>@row.DisplayName@(string.IsNullOrWhiteSpace(row.OrganizationName) ? "" : " — " + row.OrganizationName)</option>
@@ -36,26 +37,36 @@
                                 <option value="@provider.ProviderUid">@provider.DisplayName@(string.IsNullOrWhiteSpace(provider.OrganizationName) ? "" : " — " + provider.OrganizationName)</option>
                             }
                         </select>
-                        <div class="form-text">@(row.IsSuggested ? "Suggested from the active primary Care Team relationship; save to accept." : "Saved snapshot")
-                            @if (!row.IsSuggested && !string.IsNullOrWhiteSpace(row.Fax)) { <span> · Fax: @row.Fax</span> }
-                            @if (!row.IsSuggested && !Model.ActiveRecipientProviders.Any(x => x.ProviderUid == row.ProviderUid)) { <span> · Provider inactive; remove before saving.</span> }
-                        </div>
                     </div>
-                    <div class="col-12 col-md-3 d-flex gap-1">
+                    <div class="col-12 col-xl-auto d-flex flex-wrap align-items-center gap-2">
                         <button type="button" class="btn btn-outline-secondary move-recipient-up" aria-label="Move recipient up">↑</button>
                         <button type="button" class="btn btn-outline-secondary move-recipient-down" aria-label="Move recipient down">↓</button>
                         <button type="button" class="btn btn-outline-danger remove-recipient">Remove</button>
                     </div>
+                    <div class="col-12">
+                        <div class="form-text mt-0">@(row.IsSuggested ? "Suggested from the active primary Care Team relationship; save to accept." : "Saved snapshot")
+                            @if (!row.IsSuggested && !string.IsNullOrWhiteSpace(row.Fax)) { <span> · Fax: @row.Fax</span> }
+                            @if (!row.IsSuggested && !Model.ActiveRecipientProviders.Any(x => x.ProviderUid == row.ProviderUid)) { <span> · Provider inactive; remove before saving.</span> }
+                        </div>
+                    </div>
                 </div>
             }
         </div>
+        <div class="col-12 col-xl-auto">
+            <span class="form-label d-none d-xl-block invisible" aria-hidden="true">Recipient actions</span>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary" id="addConsultationRecipient">Add recipient</button>
+                <button type="submit" class="btn btn-primary">Save Recipients</button>
+            </div>
+        </div>
+        </div>
         <template id="consultationRecipientTemplate">
             <div class="row g-2 align-items-end mb-2 consultation-recipient-row">
-                <div class="col-12 col-md-2">
+                <div class="col-12 col-md-3 col-xl-auto">
                     <label class="form-label">Recipient type</label>
                     <select class="form-select recipient-type" required><option value="TO">TO</option><option value="CC">CC</option></select>
                 </div>
-                <div class="col-12 col-md-7">
+                <div class="col-12 col-md-9 col-xl">
                     <label class="form-label">Provider</label>
                     <select class="form-select recipient-provider" required>
                         <option value="">Choose provider</option>
@@ -65,7 +76,7 @@
                         }
                     </select>
                 </div>
-                <div class="col-12 col-md-3 d-flex gap-1">
+                <div class="col-12 col-xl-auto d-flex flex-wrap align-items-center gap-2">
                     <button type="button" class="btn btn-outline-secondary move-recipient-up" aria-label="Move recipient up">↑</button>
                     <button type="button" class="btn btn-outline-secondary move-recipient-down" aria-label="Move recipient down">↓</button>
                     <button type="button" class="btn btn-outline-danger remove-recipient">Remove</button>
@@ -73,9 +84,5 @@
             </div>
         </template>
         <div id="consultationRecipientError" class="alert alert-danger d-none" role="alert"></div>
-        <div class="d-flex gap-2 justify-content-end mt-3">
-            <button type="button" class="btn btn-outline-secondary" id="addConsultationRecipient">Add recipient</button>
-            <button type="submit" class="btn btn-primary">Save Recipients</button>
-        </div>
     </form>
 </section>
